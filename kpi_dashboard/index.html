@@ -1,0 +1,1831 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>EC売上ダッシュボード</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<style>
+:root {
+  --bg: #f5f7fa; --card: #fff; --text: #333; --sub: #888; --border: #e5e7eb;
+  --shopify: #96bf48; --employee: #f59e0b; --wholesale: #6366f1;
+  --amazon: #ff9900; --qoo10: #e31937; --rakuten: #bf0000; --accent: #667eea; --accent2: #764ba2;
+  --green: #4ade80; --red: #f87171; --blue: #60a5fa; --purple: #a78bfa;
+  --font: 'Segoe UI','Hiragino Sans','Noto Sans JP',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font);background:var(--bg);color:var(--text);padding:16px}
+
+.header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:24px 30px;border-radius:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.header h1{font-size:24px;margin-bottom:4px}
+.header .ts{opacity:.8;font-size:13px}
+
+.date-filter{background:var(--card);border-radius:10px;padding:14px 20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.date-filter label{font-weight:600;color:#666;font-size:13px}
+.date-filter input[type="date"]{padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-size:13px;color:var(--text)}
+.date-filter input:focus{outline:none;border-color:var(--accent)}
+.filter-btn{padding:8px 18px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+.filter-btn:hover{opacity:.9}
+.reset-btn{padding:8px 14px;background:#f3f4f6;color:#666;border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer}
+.date-range-info{font-size:12px;color:var(--sub);margin-left:auto}
+
+.tab-nav{display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab-btn{padding:10px 16px;font-size:13px;font-weight:600;color:#999;cursor:pointer;border:none;background:none;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-content{display:none}.tab-content.active{display:block}
+
+.grid{display:grid;gap:16px;margin-bottom:16px}
+.grid-4{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.grid-2{grid-template-columns:repeat(auto-fit,minmax(400px,1fr))}
+.grid-3{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.grid-1{grid-template-columns:1fr}
+
+.card{background:var(--card);border-radius:10px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.card h2{font-size:14px;color:#666;margin-bottom:10px;font-weight:600}
+.card h3{font-size:15px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.metric{font-size:28px;font-weight:700;color:var(--accent)}
+.metric-sub{font-size:12px;color:var(--sub);margin-top:4px}
+
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:8px;color:#666;font-weight:600;font-size:11px;border-bottom:2px solid var(--border)}
+td{padding:7px 8px;border-bottom:1px solid #f0f0f0}
+tr:hover td{background:#f8f9fb}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;color:#fff}
+.badge-shopify{background:var(--shopify)}.badge-employee{background:var(--employee)}
+.badge-wholesale{background:var(--wholesale)}.badge-amazon{background:var(--amazon)}
+.badge-qoo10{background:var(--qoo10)}.badge-rakuten{background:var(--rakuten)}.badge-ok{background:rgba(74,222,128,.15);color:#16a34a}
+.badge-ng{background:rgba(248,113,113,.15);color:#dc2626}
+.badge-info{background:rgba(96,165,250,.15);color:#2563eb;font-size:10px;padding:2px 8px;border-radius:10px}
+
+.chart-box{position:relative;height:280px}
+.alert-row{background:rgba(248,113,113,.06)}
+
+/* Funnel */
+.funnel{display:flex;align-items:center;justify-content:center;gap:8px;padding:20px 0;flex-wrap:wrap}
+.funnel-step{text-align:center;flex:1;min-width:120px;max-width:160px;padding:16px 10px;border-radius:10px}
+.funnel-step .fs-title{font-size:11px;font-weight:700;margin-bottom:6px}
+.funnel-step .fs-val{font-size:24px;font-weight:700}
+.funnel-step .fs-rate{font-size:11px;color:var(--sub);margin-top:4px}
+.funnel-arrow{font-size:22px;color:#ccc}
+
+/* Report */
+.report-preview{background:#1e1e1e;color:#d4d4d4;border-radius:8px;padding:16px;font-family:'Cascadia Code',monospace;font-size:12px;white-space:pre-wrap;max-height:500px;overflow-y:auto;line-height:1.7}
+.copy-btn{padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600}
+.copy-btn:hover{opacity:.9}
+
+/* SNS sub tabs */
+.sns-sub-tabs{display:flex;gap:8px;margin-bottom:16px}
+.sns-sub-btn{padding:8px 16px;border-radius:20px;border:1px solid var(--border);background:var(--card);color:#666;font-size:12px;font-weight:600;cursor:pointer}
+.sns-sub-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+@media(max-width:768px){
+  .grid-4,.grid-3,.grid-2{grid-template-columns:1fr}
+  .funnel{flex-direction:column}.funnel-arrow{transform:rotate(90deg)}
+  body{padding:8px}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div><h1>EC売上ダッシュボード</h1><div class="ts" id="syncTs">読み込み中...</div></div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button id="syncBtn" onclick="runSync()" style="padding:10px 20px;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .2s" onmouseover="this.style.background='rgba(255,255,255,.35)'" onmouseout="this.style.background='rgba(255,255,255,.2)'">&#x21bb; 集計更新</button>
+  </div>
+</div>
+<div id="syncResult" style="display:none;margin-bottom:16px;border-radius:10px;padding:14px 20px;font-size:13px;line-height:1.8"></div>
+
+<div class="date-filter">
+  <label>開始日:</label><input type="date" id="startDate">
+  <label>終了日:</label><input type="date" id="endDate">
+  <button class="filter-btn" onclick="applyFilter()">適用</button>
+  <button class="reset-btn" onclick="resetFilter()">リセット</button>
+  <div class="date-range-info" id="dateRangeInfo">-</div>
+</div>
+
+<div class="tab-nav" id="tabNav">
+  <button class="tab-btn active" onclick="showTab('dashboard')">ダッシュボード</button>
+  <button class="tab-btn" onclick="showTab('charts')">グラフ分析</button>
+  <button class="tab-btn" onclick="showTab('product')">商品別詳細</button>
+  <button class="tab-btn" onclick="showTab('analytics')">アナリティクス</button>
+  <button class="tab-btn" onclick="showTab('report')">売上報告</button>
+  <button class="tab-btn" onclick="showTab('profit')">利益比較</button>
+  <button class="tab-btn" onclick="showTab('kpi')">KPIレポート</button>
+  <button class="tab-btn" onclick="showTab('inventory')">在庫状況</button>
+  <button class="tab-btn" onclick="showTab('sns')">SNS分析</button>
+  <button class="tab-btn" onclick="showTab('seo')">SEO分析</button>
+  <button class="tab-btn" onclick="showTab('history')">最新履歴</button>
+</div>
+
+<div class="tab-content active" id="tab-dashboard"></div>
+<div class="tab-content" id="tab-charts"></div>
+<div class="tab-content" id="tab-product"></div>
+<div class="tab-content" id="tab-analytics"></div>
+<div class="tab-content" id="tab-report"></div>
+<div class="tab-content" id="tab-profit"></div>
+<div class="tab-content" id="tab-kpi"></div>
+<div class="tab-content" id="tab-inventory"></div>
+<div class="tab-content" id="tab-sns"></div>
+<div class="tab-content" id="tab-seo"></div>
+<div class="tab-content" id="tab-history"></div>
+
+<script>
+const SB='https://dyjhxkqzxibcpgoefbiv.supabase.co',SK='sb_publishable_bOK3qqLHkM1fFOojh3slpg_glKQoP3g',H={'apikey':SK};
+let D=[],O=[],G=[],S=[],I=[],SY=[],SEO=[],SEO_ART=[];
+let dS=null,dE=null,charts={};
+
+async function sbGet(t,q='',maxRows=0){
+  if(maxRows<=1000){const r=await fetch(`${SB}/rest/v1/${t}?${q}`,{headers:H,cache:'no-store'});if(!r.ok)throw new Error(`${t}:${r.status}`);return r.json();}
+  let all=[],from=0;const pgSize=1000;
+  while(from<maxRows){const hdrs={...H,'Range':from+'-'+(from+pgSize-1)};const r=await fetch(`${SB}/rest/v1/${t}?${q}`,{headers:hdrs,cache:'no-store'});if(!r.ok&&r.status!==206)throw new Error(`${t}:${r.status}`);const d=await r.json();all=all.concat(d);if(d.length<pgSize)break;from+=pgSize;}
+  return all;
+}
+function fmt(n){return n!=null?Number(n).toLocaleString('ja-JP'):'-'}
+function yen(n){return n!=null?'¥'+Number(n).toLocaleString('ja-JP'):'-'}
+function pct(a,b){return b>0?((a/b)*100).toFixed(1)+'%':'-'}
+function chBadge(ch){const m={shopify:'badge-shopify',employee:'badge-employee',wholesale:'badge-wholesale',amazon:'badge-amazon',qoo10:'badge-qoo10',rakuten:'badge-rakuten'};return `<span class="badge ${m[ch]||'badge-info'}">${chName(ch)}</span>`}
+function chName(ch){return{shopify:'Shopify',employee:'社割',wholesale:'卸売',amazon:'Amazon',qoo10:'Qoo10',rakuten:'楽天'}[ch]||ch}
+function normProd(n){
+  if(!n)return'不明';
+  n=n.replace(/\s*\(Shopify\)|\s*\(卸売\)|\s*\(社割\)/g,'').trim();
+  const map=[
+    [/わき用クリーム/,'わき用クリーム'],
+    [/スキンセラム|美容液セット/,'スキンセラム'],
+    [/スキンローション|化粧水/,'スキンローション'],
+    [/メンズスキンセラム|メンズ.*美容液/,'メンズスキンセラム'],
+    [/メンズスキンローション|メンズ.*化粧水/,'メンズスキンローション'],
+    [/スキンケアセット/,'スキンケアセット'],
+    [/トライアルセット/,'トライアルセット'],
+    [/デオドラントクリーム|制汗クリーム|制汗剤/,'わき用クリーム'],
+  ];
+  for(const[re,short]of map){if(re.test(n))return short}
+  return n;
+}
+
+function showTab(id){
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',b.textContent.includes(
+    {dashboard:'ダッシュボード',charts:'グラフ',product:'商品',analytics:'アナリティクス',report:'売上報告',profit:'利益',kpi:'KPI',inventory:'在庫',sns:'SNS',seo:'SEO',history:'最新履歴'}[id]||''
+  )));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+}
+
+function filt(arr,df='date'){return arr.filter(d=>{const v=d[df];if(!v)return false;if(dS&&v<dS)return false;if(dE&&v>dE)return false;return true})}
+function applyFilter(){dS=document.getElementById('startDate').value||null;dE=document.getElementById('endDate').value||null;renderAll()}
+function resetFilter(){dS=null;dE=null;const ds=D.map(d=>d.date).sort();if(ds.length){document.getElementById('startDate').value=ds[0];document.getElementById('endDate').value=ds[ds.length-1]}renderAll()}
+function destroyC(id){if(charts[id]){charts[id].destroy();delete charts[id]}}
+
+async function init(){
+  try{
+    var EX=[];
+    [D,O,G,S,I,SY,SEO,SEO_ART,EX]=await Promise.all([
+      sbGet('kpi_daily_summary','select=*&order=date.desc&limit=2000',2000),
+      sbGet('kpi_orders','select=*&order=order_date.desc&limit=5000',5000),
+      sbGet('kpi_ga4_metrics','select=*&order=date.desc&limit=500'),
+      sbGet('kpi_sns_metrics','select=*&order=date.desc&limit=300'),
+      sbGet('kpi_inventory','select=*&order=snapshot_date.desc&limit=500'),
+      sbGet('kpi_sync_status','select=*'),
+      sbGet('kpi_seo_daily','select=*&order=date.asc&limit=5000',5000),
+      sbGet('kpi_seo_articles','select=*&order=clicks.desc&limit=3000',3000),
+      sbGet('kpi_excluded_orders','select=order_id'),
+    ]);
+    // 社員テスト購入を除外
+    const exSet=new Set(EX.map(e=>e.order_id));
+    if(exSet.size){const b=O.length;O=O.filter(o=>!exSet.has(o.order_id));if(b-O.length)console.log(`[除外]${b-O.length}件の社員テスト購入を除外`)}
+    // order_id+channel+skuで重複除去（完全一致行のみ除去、商品別明細は維持）
+    O=(()=>{const seen=new Set();return O.filter(o=>{const k=o.order_id+"|"+o.channel+"|"+(o.sku||o.product_name||"");if(seen.has(k))return false;seen.add(k);return true})})();
+    const ds=D.map(d=>d.date).sort();
+    if(ds.length){
+      const el=id=>document.getElementById(id);
+      const today=new Date().toISOString().slice(0,10);const maxD=ds[ds.length-1]>today?ds[ds.length-1]:today;
+      el('startDate').value=ds[0];el('startDate').min=ds[0];el('startDate').max=maxD;
+      el('endDate').value=maxD;el('endDate').min=ds[0];el('endDate').max=maxD;
+      el('dateRangeInfo').textContent=`データ範囲: ${ds[0]} ~ ${maxD}`;
+    }
+    const allSyncs=SY.filter(s=>s.last_sync).map(s=>new Date(s.last_sync).getTime());
+    const latestSync=allSyncs.length?new Date(Math.max(...allSyncs)):null;
+    const lt=latestSync?latestSync.toLocaleString('ja-JP'):'未同期';
+    const nextSync=latestSync?new Date(latestSync.getTime()+60*60*1000).toLocaleString('ja-JP',{hour:'2-digit',minute:'2-digit'}):'---';
+    document.getElementById('syncTs').textContent=`最終更新: ${lt}（自動刷新: 30分毎・画面表示中のみ / 次回同期: ${nextSync}頃）`;
+    renderAll();
+  }catch(e){document.getElementById('syncTs').textContent='読み込みエラー: '+e.message}
+}
+
+// ===== 自動リフレッシュ（Egress節約版: 30分毎＋画面を開いている間のみ） =====
+// データ同期(ec_aggregator)は1時間毎のため、5分毎の全件再取得は無駄でEgressを圧迫していた。
+// (1)間隔を30分に延長 (2)タブ非表示中は停止（深夜の開きっぱなしで回り続けるのを防止）。
+var _autoRefreshId = null;
+var _refreshBusy = false;
+var REFRESH_MS = 30 * 60 * 1000; // 30分
+async function doRefresh() {
+  if (_refreshBusy || document.hidden) return;   // 非表示中は通信しない
+  _refreshBusy = true;
+  try {
+    console.log('[自動リフレッシュ] データ再取得中...');
+    var EX=[];
+    [D,O,G,S,I,SY,SEO,SEO_ART,EX]=await Promise.all([
+      sbGet('kpi_daily_summary','select=*&order=date.desc&limit=2000',2000),
+      sbGet('kpi_orders','select=*&order=order_date.desc&limit=5000',5000),
+      sbGet('kpi_ga4_metrics','select=*&order=date.desc&limit=500'),
+      sbGet('kpi_sns_metrics','select=*&order=date.desc&limit=300'),
+      sbGet('kpi_inventory','select=*&order=snapshot_date.desc&limit=500'),
+      sbGet('kpi_sync_status','select=*'),
+      sbGet('kpi_seo_daily','select=*&order=date.asc&limit=5000',5000),
+      sbGet('kpi_seo_articles','select=*&order=clicks.desc&limit=3000',3000),
+      sbGet('kpi_excluded_orders','select=order_id'),
+    ]);
+    const exSet=new Set(EX.map(e=>e.order_id));
+    if(exSet.size){O=O.filter(o=>!exSet.has(o.order_id))}
+    O=(()=>{const seen=new Set();return O.filter(o=>{const k=o.order_id+"|"+o.channel+"|"+(o.sku||o.product_name||"");if(seen.has(k))return false;seen.add(k);return true})})();
+    renderAll();
+    var now=new Date().toLocaleString('ja-JP');
+    document.getElementById('syncTs').textContent=`最終更新: ${now}（自動刷新: 30分毎・画面表示中のみ）`;
+    console.log('[自動リフレッシュ] 完了 ' + now);
+  } catch(e) {
+    console.error('[自動リフレッシュ] エラー:', e);
+  } finally { _refreshBusy = false; }
+}
+function startAutoRefresh() { if (!_autoRefreshId && !document.hidden) _autoRefreshId = setInterval(doRefresh, REFRESH_MS); }
+function stopAutoRefresh() { if (_autoRefreshId) { clearInterval(_autoRefreshId); _autoRefreshId = null; } }
+// タブの表示/非表示で制御（非表示＝通信停止／再表示＝1回だけ更新して再開）
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) stopAutoRefresh();
+  else { doRefresh(); startAutoRefresh(); }
+});
+// 手動更新ボタン用（任意）
+window.kpiManualRefresh = doRefresh;
+// 初回ロード後に自動リフレッシュ開始
+setTimeout(startAutoRefresh, 10000);
+
+function renderAll(){
+  const d=filt(D),o=filt(O,'order_date'),g=filt(G);
+  renderDash(d,o);renderCharts(d,o);renderProduct(o);renderGA4(g);
+  renderReport(d,o);renderProfit(d,o);renderKPI(d,o,g,S);renderInv(I);renderSNS(S);renderSEO(filt(SEO),SEO_ART);renderHistory(O,SY);
+}
+
+// ===== 1. ダッシュボード =====
+function renderDash(d,o){
+  const rev=d.reduce((s,x)=>s+Number(x.revenue||0),0);
+  const ords=d.reduce((s,x)=>s+(x.order_count||0),0);
+  const qty=o.reduce((s,x)=>s+(x.quantity||0),0);
+  const aov=ords>0?rev/ords:0;
+
+  // Channel
+  const ch={};d.forEach(x=>{if(!ch[x.channel])ch[x.channel]={rev:0,ord:0};ch[x.channel].rev+=Number(x.revenue||0);ch[x.channel].ord+=(x.order_count||0)});
+  const chArr=Object.entries(ch).sort((a,b)=>b[1].rev-a[1].rev);
+  let chRows=chArr.map(([c,v])=>`<tr><td>${chBadge(c)}</td><td class="num">${yen(v.rev)}</td><td class="num">${fmt(v.ord)}件</td></tr>`).join('');
+
+  // Product TOP10
+  const prods={};o.forEach(x=>{const n=normProd(x.product_name);if(!prods[n])prods[n]={rev:0,qty:0};prods[n].rev+=Number(x.total||0);prods[n].qty+=(x.quantity||0)});
+  const pArr=Object.entries(prods).sort((a,b)=>b[1].rev-a[1].rev).slice(0,10);
+  let pRows=pArr.map(([n,v])=>`<tr><td>${n}</td><td class="num">${yen(v.rev)}</td><td class="num">${fmt(v.qty)}個</td></tr>`).join('');
+
+  // Subscription
+  const subs=o.filter(x=>x.is_subscription);
+  const subRev=subs.reduce((s,x)=>s+Number(x.total||0),0);
+  const subByCount={};
+  subs.forEach(x=>{const c=x.subscription_count||1;if(!subByCount[c])subByCount[c]={cnt:0,rev:0};subByCount[c].cnt++;subByCount[c].rev+=Number(x.total||0)});
+  let subRows=`<tr><td>定期注文件数</td><td class="num"><strong>${fmt(subs.length)}</strong></td></tr>`;
+  subRows+=`<tr><td>定期売上合計</td><td class="num"><strong>${yen(subRev)}</strong></td></tr>`;
+  Object.entries(subByCount).sort((a,b)=>Number(a[0])-Number(b[0])).forEach(([c,v])=>{
+    subRows+=`<tr><td>　${c}回目</td><td class="num">${fmt(v.cnt)}件 / ${yen(v.rev)}</td></tr>`;
+  });
+
+  // Customer - ユニーク注文はorders明細から（Amazon/Qoo10含む）、注文件数はdaily_summaryから
+  const uniqOrders=new Set(o.map(x=>x.order_id)).size;
+
+  document.getElementById('tab-dashboard').innerHTML=`
+    <div class="grid grid-4">
+      <div class="card"><h2>売上合計</h2><div class="metric">${yen(rev)}</div><div class="metric-sub">フィルター期間内</div></div>
+      <div class="card"><h2>注文件数</h2><div class="metric" style="color:var(--blue)">${fmt(ords)}</div><div class="metric-sub">平均単価: ${yen(Math.round(aov))}</div></div>
+      <div class="card"><h2>商品販売数</h2><div class="metric" style="color:var(--purple)">${fmt(qty)}<span style="font-size:14px;color:var(--sub)">個</span></div></div>
+      <div class="card"><h2>注文明細数</h2><div class="metric" style="color:var(--employee)">${fmt(o.length)}<span style="font-size:12px;color:var(--sub)"> 行</span></div><div class="metric-sub">ユニーク注文: ${fmt(uniqOrders)}</div></div>
+    </div>
+    <div class="grid grid-2">
+      <div class="card"><h2>チャネル別売上</h2>
+        <table><thead><tr><th>チャネル</th><th class="num">売上</th><th class="num">注文数</th></tr></thead><tbody>${chRows||'<tr><td colspan="3">データなし</td></tr>'}</tbody></table>
+      </div>
+      <div class="card"><h2>商品別売上 TOP10</h2>
+        <table><thead><tr><th>商品名</th><th class="num">売上</th><th class="num">数量</th></tr></thead><tbody>${pRows||'<tr><td colspan="3">データなし</td></tr>'}</tbody></table>
+      </div>
+    </div>
+    <div class="grid grid-2">
+      <div class="card"><h2>定期購入分析</h2><table>${subRows}</table></div>
+      <div class="card"><h2>顧客分析</h2>
+        <table>
+          <tr><td>注文件数（全チャネル）</td><td class="num"><strong>${fmt(ords)}</strong></td></tr>
+          <tr><td>注文明細（Shopify/社割/卸売）</td><td class="num">${fmt(uniqOrders)}件</td></tr>
+          <tr><td>平均注文額(AOV)</td><td class="num">${yen(Math.round(aov))}</td></tr>
+          <tr><td>総販売数量</td><td class="num">${fmt(qty)}個</td></tr>
+        </table>
+        <div style="font-size:11px;color:var(--sub);margin-top:8px">※注文明細はShopify/社割/卸売のみ。Amazon/Qoo10はサマリー集計のみ対応。</div>
+      </div>
+    </div>`;
+}
+
+// ===== 2. グラフ分析 =====
+function renderCharts(d,o){
+  const byDate={};d.forEach(x=>{if(!byDate[x.date])byDate[x.date]={rev:0,ord:0};byDate[x.date].rev+=Number(x.revenue||0);byDate[x.date].ord+=(x.order_count||0)});
+  const dates=Object.keys(byDate).sort();
+  // Channel pie
+  const ch={};d.forEach(x=>{ch[x.channel]=(ch[x.channel]||0)+Number(x.revenue||0)});
+  // Monthly
+  const byM={};d.forEach(x=>{const m=x.date.slice(0,7);if(!byM[m])byM[m]={rev:0,ord:0};byM[m].rev+=Number(x.revenue||0);byM[m].ord+=(x.order_count||0)});
+  const months=Object.keys(byM).sort();
+  // Prefecture
+  const byPref={};o.forEach(x=>{const p=x.prefecture||'不明';if(p&&p!=='null'&&p!=='不明'){byPref[p]=(byPref[p]||0)+Number(x.total||0)}});
+  const prefArr=Object.entries(byPref).sort((a,b)=>b[1]-a[1]).slice(0,10);
+
+  document.getElementById('tab-charts').innerHTML=`
+    <div class="grid grid-1"><div class="card"><h2>日別売上推移</h2><div class="chart-box"><canvas id="cDailyRev"></canvas></div></div></div>
+    <div class="grid grid-2">
+      <div class="card"><h2>チャネル別構成比</h2><div class="chart-box"><canvas id="cChannelPie"></canvas></div></div>
+      <div class="card"><h2>月別売上推移</h2><div class="chart-box"><canvas id="cMonthlyBar"></canvas></div></div>
+    </div>
+    <div class="grid grid-2">
+      <div class="card"><h2>都道府県別売上 TOP10</h2><div class="chart-box"><canvas id="cPrefBar"></canvas></div></div>
+      <div class="card"><h2>月別サマリー</h2>
+        <table><thead><tr><th>月</th><th class="num">売上</th><th class="num">注文数</th></tr></thead>
+        <tbody>${months.map(m=>`<tr><td>${m}</td><td class="num">${yen(byM[m].rev)}</td><td class="num">${fmt(byM[m].ord)}件</td></tr>`).join('')}</tbody></table>
+      </div>
+    </div>`;
+
+  destroyC('cDailyRev');destroyC('cChannelPie');destroyC('cMonthlyBar');destroyC('cPrefBar');
+  const cOpt={responsive:true,maintainAspectRatio:false,plugins:{datalabels:{display:false},legend:{labels:{font:{size:11}}}}};
+  charts.cDailyRev=new Chart(document.getElementById('cDailyRev'),{type:'line',data:{labels:dates,datasets:[{label:'売上',data:dates.map(d=>byDate[d].rev),borderColor:'#667eea',backgroundColor:'rgba(102,126,234,.1)',fill:true,tension:.3,pointRadius:1}]},options:{...cOpt,scales:{x:{ticks:{maxTicksLimit:15,font:{size:10}},grid:{display:false}},y:{ticks:{callback:v=>'¥'+(v/1000).toFixed(0)+'k',font:{size:10}},grid:{color:'rgba(0,0,0,.05)'}}}}});
+  const chKeys=Object.keys(ch),chColors=['#96bf48','#f59e0b','#6366f1','#ff9900','#e31937','#bf0000','#667eea'];
+  charts.cChannelPie=new Chart(document.getElementById('cChannelPie'),{type:'doughnut',data:{labels:chKeys.map(chName),datasets:[{data:chKeys.map(k=>ch[k]),backgroundColor:chColors}]},options:{...cOpt,plugins:{...cOpt.plugins,datalabels:{color:'#fff',font:{weight:'bold',size:11},formatter:(v,ctx)=>{const t=ctx.dataset.data.reduce((a,b)=>a+b,0);return t>0?((v/t)*100).toFixed(0)+'%':''}},legend:{position:'bottom',labels:{padding:10,font:{size:11}}}}}});
+  charts.cMonthlyBar=new Chart(document.getElementById('cMonthlyBar'),{type:'bar',data:{labels:months,datasets:[{label:'売上',data:months.map(m=>byM[m].rev),backgroundColor:'rgba(102,126,234,.6)',borderColor:'#667eea',borderWidth:1}]},options:{...cOpt,scales:{x:{ticks:{font:{size:10}},grid:{display:false}},y:{ticks:{callback:v=>'¥'+(v/1000).toFixed(0)+'k',font:{size:10}},grid:{color:'rgba(0,0,0,.05)'}}}}});
+  if(prefArr.length>0){
+    charts.cPrefBar=new Chart(document.getElementById('cPrefBar'),{type:'bar',data:{labels:prefArr.map(p=>p[0]),datasets:[{label:'売上',data:prefArr.map(p=>p[1]),backgroundColor:'rgba(99,102,241,.6)'}]},options:{...cOpt,indexAxis:'y',scales:{x:{ticks:{callback:v=>'¥'+(v/1000).toFixed(0)+'k',font:{size:10}},grid:{color:'rgba(0,0,0,.05)'}},y:{ticks:{font:{size:10}},grid:{display:false}}}}});
+  }
+}
+
+// ===== 3. 商品別詳細 =====
+function renderProduct(o){
+  const byProd={};
+  o.forEach(x=>{
+    const n=normProd(x.product_name);
+    if(!byProd[n])byProd[n]={total:0,qty:0,ch:{}};
+    byProd[n].total+=Number(x.total||0);byProd[n].qty+=(x.quantity||0);
+    const c=x.channel||'不明';
+    if(!byProd[n].ch[c])byProd[n].ch[c]={rev:0,qty:0};
+    byProd[n].ch[c].rev+=Number(x.total||0);byProd[n].ch[c].qty+=(x.quantity||0);
+  });
+  const arr=Object.entries(byProd).sort((a,b)=>b[1].total-a[1].total);
+
+  // Channel summary cards
+  const chTotals={};
+  o.forEach(x=>{const c=x.channel||'不明';if(!chTotals[c])chTotals[c]={rev:0,qty:0};chTotals[c].rev+=Number(x.total||0);chTotals[c].qty+=(x.quantity||0)});
+  const totalRev=o.reduce((s,x)=>s+Number(x.total||0),0);
+  const totalQty=o.reduce((s,x)=>s+(x.quantity||0),0);
+  const chOrder=['shopify','employee','wholesale','amazon','qoo10','rakuten'];
+  let chCards=chOrder.map(c=>{const v=chTotals[c]||{rev:0,qty:0};return`
+    <div class="card" style="text-align:center"><h2>${chBadge(c)}</h2>
+      <div style="font-size:18px;font-weight:700">${fmt(v.qty)}個</div>
+      <div style="font-size:13px;color:var(--sub)">${yen(v.rev)}</div>
+    </div>`}).join('');
+  chCards+=`<div class="card" style="text-align:center;border:2px solid var(--accent)"><h2>合計</h2>
+    <div style="font-size:18px;font-weight:700">${fmt(totalQty)}個</div>
+    <div style="font-size:13px;color:var(--accent)">${yen(totalRev)}</div></div>`;
+
+  let prodHtml=arr.map(([n,data])=>{
+    let chRows=Object.entries(data.ch).sort((a,b)=>b[1].rev-a[1].rev)
+      .map(([c,v])=>`<tr><td>${chBadge(c)}</td><td class="num">${yen(v.rev)}</td><td class="num">${fmt(v.qty)}個</td></tr>`).join('');
+    return`<div class="card"><h3>${n} <span class="badge-info">${yen(data.total)} / ${fmt(data.qty)}個</span></h3>
+      <table><thead><tr><th>チャネル</th><th class="num">売上</th><th class="num">数量</th></tr></thead><tbody>${chRows}</tbody></table></div>`;
+  }).join('');
+
+  document.getElementById('tab-product').innerHTML=`
+    <div class="grid" style="grid-template-columns:repeat(6,1fr)">${chCards}</div>
+    <div class="grid grid-2">${prodHtml}</div>`;
+}
+
+// ===== 4. アナリティクス =====
+function renderGA4(g){
+  const daily=g.filter(x=>x.metric_type==='daily');
+  const devs=g.filter(x=>x.metric_type==='device');
+  const srcs=g.filter(x=>x.metric_type==='source');
+  const ts=daily.reduce((s,x)=>s+(x.sessions||0),0);
+  const tu=daily.reduce((s,x)=>s+(x.users||0),0);
+  const tp=daily.reduce((s,x)=>s+(x.pageviews||0),0);
+  const tc=daily.reduce((s,x)=>s+(x.conversions||0),0);
+
+  let dailyRows=daily.slice(0,30).map(x=>`<tr><td>${x.date}</td><td class="num">${fmt(x.sessions)}</td><td class="num">${fmt(x.users)}</td><td class="num">${fmt(x.pageviews)}</td><td class="num">${fmt(x.conversions)}</td></tr>`).join('');
+
+  document.getElementById('tab-analytics').innerHTML=`
+    <div class="grid grid-4">
+      <div class="card"><h2>セッション数</h2><div class="metric">${fmt(ts)}</div><div class="metric-sub">ユーザー数: ${fmt(tu)}</div></div>
+      <div class="card"><h2>ページビュー</h2><div class="metric" style="color:var(--purple)">${fmt(tp)}</div></div>
+      <div class="card"><h2>コンバージョン</h2><div class="metric" style="color:var(--green)">${fmt(tc)}</div><div class="metric-sub">CVR: ${pct(tc,ts)}</div></div>
+    </div>
+    <div class="grid grid-2">
+      <div class="card"><h2>デバイス別セッション</h2><div class="chart-box"><canvas id="cGaDev"></canvas></div></div>
+      <div class="card"><h2>流入元別セッション</h2><div class="chart-box"><canvas id="cGaSrc"></canvas></div></div>
+    </div>
+    <div class="grid grid-1"><div class="card"><h2>日別セッション推移</h2><div class="chart-box"><canvas id="cGaDaily"></canvas></div></div></div>
+    <div class="grid grid-1"><div class="card"><h2>日別GA4メトリクス</h2>
+      <table><thead><tr><th>日付</th><th class="num">Sessions</th><th class="num">Users</th><th class="num">PV</th><th class="num">CV</th></tr></thead><tbody>${dailyRows}</tbody></table>
+    </div></div>`;
+
+  destroyC('cGaDev');destroyC('cGaSrc');destroyC('cGaDaily');
+  const cOpt={responsive:true,maintainAspectRatio:false,plugins:{datalabels:{display:false},legend:{labels:{font:{size:11}}}}};
+  if(devs.length)charts.cGaDev=new Chart(document.getElementById('cGaDev'),{type:'doughnut',data:{labels:devs.map(x=>x.dimension),datasets:[{data:devs.map(x=>x.sessions||0),backgroundColor:['#667eea','#f59e0b','#4ade80','#ff6b81']}]},options:{...cOpt,plugins:{...cOpt.plugins,datalabels:{color:'#fff',font:{weight:'bold'},formatter:(v,ctx)=>{const t=ctx.dataset.data.reduce((a,b)=>a+b,0);return t>0?((v/t)*100).toFixed(0)+'%':''}},legend:{position:'bottom'}}}});
+  if(srcs.length){const top=srcs.sort((a,b)=>(b.sessions||0)-(a.sessions||0)).slice(0,8);charts.cGaSrc=new Chart(document.getElementById('cGaSrc'),{type:'bar',data:{labels:top.map(x=>x.dimension),datasets:[{label:'Sessions',data:top.map(x=>x.sessions||0),backgroundColor:'rgba(102,126,234,.6)'}]},options:{...cOpt,indexAxis:'y',scales:{x:{grid:{color:'rgba(0,0,0,.05)'}},y:{ticks:{font:{size:10}},grid:{display:false}}}}});}
+  if(daily.length){const dd=daily.slice().sort((a,b)=>a.date.localeCompare(b.date));charts.cGaDaily=new Chart(document.getElementById('cGaDaily'),{type:'line',data:{labels:dd.map(x=>x.date),datasets:[{label:'Sessions',data:dd.map(x=>x.sessions||0),borderColor:'#667eea',tension:.3,pointRadius:1,fill:false},{label:'PV',data:dd.map(x=>x.pageviews||0),borderColor:'#a78bfa',tension:.3,pointRadius:1,fill:false}]},options:{...cOpt,scales:{x:{ticks:{maxTicksLimit:15,font:{size:10}},grid:{display:false}},y:{grid:{color:'rgba(0,0,0,.05)'}}}}});}
+}
+
+// ===== 5. 売上報告 =====
+function renderReport(d,o){
+  // Product breakdown by channel
+  const prods={};
+  o.forEach(x=>{
+    const n=normProd(x.product_name);const c=x.channel||'不明';
+    if(!prods[n])prods[n]={};
+    if(!prods[n][c])prods[n][c]={qty:0,rev:0};
+    prods[n][c].qty+=(x.quantity||0);prods[n][c].rev+=Number(x.total||0);
+  });
+
+  const chIcons={shopify:'🛒 ECサイト',employee:'👥 社割購入',wholesale:'🏥 クリニック卸売',amazon:'🅰️ Amazon',qoo10:'🔵 Qoo10',rakuten:'🔴 楽天'};
+  const startD=dS||D.map(x=>x.date).sort()[0]||'';
+  const endD=dE||D.map(x=>x.date).sort().pop()||'';
+  let report=`売上報告(${startD} ~ ${endD})\n${'='.repeat(40)}\n\n`;
+
+  Object.entries(prods).sort((a,b)=>{const ta=Object.values(a[1]).reduce((s,v)=>s+v.rev,0);const tb=Object.values(b[1]).reduce((s,v)=>s+v.rev,0);return tb-ta}).forEach(([name,chs])=>{
+    report+=`■ ${name}\n`;
+    report+='【売上数量】\n';
+    let totalQty=0,totalRev=0;
+    ['shopify','employee','wholesale','amazon','qoo10','rakuten'].forEach(c=>{
+      if(chs[c]){report+=`${chIcons[c]||c}: ${chs[c].qty}個\n`;totalQty+=chs[c].qty}
+    });
+    report+=`📊 合計: ${totalQty}個\n\n`;
+    report+='【売上金額】\n';
+    ['shopify','employee','wholesale','amazon','qoo10','rakuten'].forEach(c=>{
+      if(chs[c]){report+=`${chIcons[c]||c}: ¥${chs[c].rev.toLocaleString()}\n`;totalRev+=chs[c].rev}
+    });
+    report+=`📊 合計: ¥${totalRev.toLocaleString()}\n\n`;
+  });
+
+  const totalAll=o.reduce((s,x)=>s+Number(x.total||0),0);
+  report+=`${'='.repeat(40)}\n総売上合計: ¥${totalAll.toLocaleString()}\n`;
+
+  document.getElementById('tab-report').innerHTML=`
+    <div class="card" style="margin-bottom:16px">
+      <h3>売上報告テキスト <button class="copy-btn" onclick="copyReport()">📋 クリップボードにコピー</button></h3>
+      <div class="report-preview" id="reportText">${report}</div>
+    </div>`;
+}
+
+function copyReport(){
+  const text=document.getElementById('reportText').textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn=document.querySelector('.copy-btn');btn.textContent='✅ コピーしました';
+    setTimeout(()=>btn.textContent='📋 クリップボードにコピー',2000);
+  });
+}
+
+// ===== 6. 利益比較 =====
+function renderProfit(d,o){
+  // Period comparison
+  const dates=d.map(x=>x.date).sort();
+  if(dates.length<2){document.getElementById('tab-profit').innerHTML='<div class="card">データ不足</div>';return}
+  const mid=dates[Math.floor(dates.length/2)];
+  const prev=d.filter(x=>x.date<mid),curr=d.filter(x=>x.date>=mid);
+  const prevO=o.filter(x=>x.order_date&&x.order_date<mid),currO=o.filter(x=>x.order_date&&x.order_date>=mid);
+
+  const prevRev=prev.reduce((s,x)=>s+Number(x.revenue||0),0);
+  const currRev=curr.reduce((s,x)=>s+Number(x.revenue||0),0);
+  const diff=currRev-prevRev;
+  const prevQty=prevO.reduce((s,x)=>s+(x.quantity||0),0);
+  const currQty=currO.reduce((s,x)=>s+(x.quantity||0),0);
+
+  // Product breakdown
+  const prodPrev={},prodCurr={};
+  prevO.forEach(x=>{const n=normProd(x.product_name);if(!prodPrev[n])prodPrev[n]={qty:0,rev:0};prodPrev[n].qty+=(x.quantity||0);prodPrev[n].rev+=Number(x.total||0)});
+  currO.forEach(x=>{const n=normProd(x.product_name);if(!prodCurr[n])prodCurr[n]={qty:0,rev:0};prodCurr[n].qty+=(x.quantity||0);prodCurr[n].rev+=Number(x.total||0)});
+  const allProds=new Set([...Object.keys(prodPrev),...Object.keys(prodCurr)]);
+  let profitRows=[...allProds].sort().map(n=>{
+    const p=prodPrev[n]||{qty:0,rev:0},c=prodCurr[n]||{qty:0,rev:0};
+    const d=c.rev-p.rev;
+    return`<tr><td>${n}</td><td class="num">${fmt(p.qty)}</td><td class="num">${fmt(c.qty)}</td><td class="num">${yen(p.rev)}</td><td class="num">${yen(c.rev)}</td><td class="num" style="color:${d>=0?'var(--green)':'var(--red)'}">${d>=0?'+':''}${yen(d)}</td></tr>`;
+  }).join('');
+
+  document.getElementById('tab-profit').innerHTML=`
+    <div class="grid grid-3">
+      <div class="card"><h2>前半期間 販売数</h2><div class="metric" style="color:var(--sub)">${fmt(prevQty)}<span style="font-size:14px">個</span></div><div class="metric-sub">${dates[0]} ~ ${mid}</div></div>
+      <div class="card"><h2>後半期間 販売数</h2><div class="metric" style="color:var(--accent)">${fmt(currQty)}<span style="font-size:14px">個</span></div><div class="metric-sub">${mid} ~ ${dates[dates.length-1]}</div></div>
+      <div class="card"><h2>売上増減</h2><div class="metric" style="color:${diff>=0?'var(--green)':'var(--red)'}">${diff>=0?'+':''}${yen(diff)}</div></div>
+    </div>
+    <div class="grid grid-1"><div class="card"><h3>商品別 期間比較</h3>
+      <table><thead><tr><th>商品名</th><th class="num">前半数量</th><th class="num">後半数量</th><th class="num">前半売上</th><th class="num">後半売上</th><th class="num">増減</th></tr></thead><tbody>${profitRows}</tbody></table>
+    </div></div>`;
+}
+
+// ===== 7. KPIレポート =====
+function renderKPI(d,o,g,s){
+  const rev=d.reduce((s,x)=>s+Number(x.revenue||0),0);
+  const ords=d.reduce((s,x)=>s+(x.order_count||0),0);
+  const daily=g.filter(x=>x.metric_type==='daily');
+  const devs=g.filter(x=>x.metric_type==='device');
+  const srcs=g.filter(x=>x.metric_type==='source').sort((a,b)=>(b.sessions||0)-(a.sessions||0));
+  const tSess=daily.reduce((s,x)=>s+(x.sessions||0),0);
+  const aov=ords>0?Math.round(rev/ords):0;
+
+  // Data sources
+  const dsSt=[{n:'Shopify売上',ok:d.length>0},{n:'GA4セッション',ok:daily.length>0},{n:'GA4流入元',ok:srcs.length>0},{n:'GA4デバイス別',ok:devs.length>0},{n:'SNS分析',ok:s.length>0}];
+  let dsHtml=dsSt.map(x=>`<div style="display:flex;align-items:center;gap:6px;font-size:12px"><span style="width:8px;height:8px;border-radius:50%;background:${x.ok?'var(--green)':'var(--red)'}"></span>${x.n}</div>`).join('');
+
+  // Source grid
+  const srcIcons={google:'🔍',instagram:'📷',tiktok:'🎵',line:'💬','(direct)':'🌐',facebook:'📘'};
+  let srcGrid=srcs.slice(0,5).map(x=>{const ic=Object.entries(srcIcons).find(([k])=>x.dimension.toLowerCase().includes(k));return`<div style="background:#f8f9fb;border-radius:10px;padding:14px;text-align:center"><div style="font-size:20px">${ic?ic[1]:'📊'}</div><div style="font-size:11px;color:var(--sub);margin:4px 0">${x.dimension}</div><div style="font-size:22px;font-weight:700">${fmt(x.sessions)}</div></div>`}).join('');
+
+  // Monthly funnel
+  const mGA4={},mOrd={};
+  daily.forEach(x=>{const m=x.date.slice(0,7);if(!mGA4[m])mGA4[m]={sess:0,cv:0};mGA4[m].sess+=(x.sessions||0);mGA4[m].cv+=(x.conversions||0)});
+  d.forEach(x=>{const m=x.date.slice(0,7);if(!mOrd[m])mOrd[m]={ord:0,rev:0};mOrd[m].ord+=(x.order_count||0);mOrd[m].rev+=Number(x.revenue||0)});
+  const allM=[...new Set([...Object.keys(mGA4),...Object.keys(mOrd)])].sort();
+  let mfRows=allM.map(m=>{const ga=mGA4[m]||{sess:0,cv:0};const or=mOrd[m]||{ord:0,rev:0};return`<tr><td>${m}</td><td class="num">${fmt(ga.sess)}</td><td class="num">${fmt(or.ord)}</td><td class="num">${pct(or.ord,ga.sess)}</td><td class="num">${yen(or.rev)}</td></tr>`}).join('');
+
+  // Product ranking
+  const prods={};o.forEach(x=>{const n=normProd(x.product_name);if(!prods[n])prods[n]={rev:0,qty:0};prods[n].rev+=Number(x.total||0);prods[n].qty+=(x.quantity||0)});
+  const pRank=Object.entries(prods).sort((a,b)=>b[1].rev-a[1].rev).slice(0,5);
+  let rankHtml=pRank.map(([n,v],i)=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0f0"><div style="width:24px;height:24px;border-radius:50%;background:${i<3?'var(--employee)':'#e5e7eb'};color:${i<3?'#fff':'#888'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${i+1}</div><div style="flex:1;font-size:12px">${n}</div><div style="font-weight:700;font-size:12px;color:var(--accent)">${yen(v.rev)}</div></div>`).join('');
+
+  // Device
+  const totalDev=devs.reduce((s,x)=>s+(x.sessions||0),0);
+  let devHtml=devs.map(x=>{const p=totalDev>0?((x.sessions/totalDev)*100).toFixed(1):0;const ic=x.dimension.toLowerCase().includes('mobile')?'📱':x.dimension.toLowerCase().includes('desktop')?'💻':'📟';return`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0f0"><span style="font-size:18px">${ic}</span><div style="flex:1;font-size:12px">${x.dimension}</div><div style="font-weight:700;font-size:12px">${fmt(x.sessions)}</div><div style="font-size:11px;color:var(--sub);width:50px;text-align:right">${p}%</div></div>`}).join('');
+
+  // Subscription / repeat
+  const subs=o.filter(x=>x.is_subscription);
+  const repeatOrders=subs.filter(x=>(x.subscription_count||0)>=2);
+
+  document.getElementById('tab-kpi').innerHTML=`
+    <div class="card" style="margin-bottom:16px"><h3>📡 データソース状況 <span class="badge-info">v009 Supabase</span></h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px">${dsHtml}</div></div>
+
+    <div class="card" style="margin-bottom:16px"><h3>🔄 ファネル分析 <span class="badge-info">GA4 + Shopify</span></h3>
+      <div class="funnel">
+        <div class="funnel-step" style="background:rgba(102,126,234,.1);border:1px solid rgba(102,126,234,.3)"><div class="fs-title" style="color:var(--accent)">訪問</div><div class="fs-val" style="color:var(--accent)">${fmt(tSess)}</div><div class="fs-rate">サイト訪問</div></div>
+        <div class="funnel-arrow">→</div>
+        <div class="funnel-step" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3)"><div class="fs-title" style="color:var(--green)">購入</div><div class="fs-val" style="color:var(--green)">${fmt(ords)}</div><div class="fs-rate">購入完了</div></div>
+        <div class="funnel-arrow">→</div>
+        <div class="funnel-step" style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3)"><div class="fs-title" style="color:var(--purple)">CVR</div><div class="fs-val" style="color:var(--purple)">${pct(ords,tSess)}</div><div class="fs-rate">全体CVR</div></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px"><h3>🎯 主要コンバージョン率</h3>
+      <div class="grid grid-3" style="margin-top:10px">
+        <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:10px;padding:18px;text-align:center"><div style="font-size:10px;font-weight:700;color:var(--employee)">PAGE → PURCHASE (CVR)</div><div style="font-size:12px;color:var(--sub);margin:4px 0">訪問 → 購入率</div><div style="font-size:28px;font-weight:700;color:var(--employee)">${pct(ords,tSess)}</div></div>
+        <div style="background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:10px;padding:18px;text-align:center"><div style="font-size:10px;font-weight:700;color:var(--green)">売上 / セッション</div><div style="font-size:12px;color:var(--sub);margin:4px 0">セッションあたり売上</div><div style="font-size:28px;font-weight:700;color:var(--green)">${yen(tSess>0?Math.round(rev/tSess):0)}</div></div>
+        <div style="background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.3);border-radius:10px;padding:18px;text-align:center"><div style="font-size:10px;font-weight:700;color:var(--purple)">AOV</div><div style="font-size:12px;color:var(--sub);margin:4px 0">平均注文額</div><div style="font-size:28px;font-weight:700;color:var(--purple)">${yen(aov)}</div></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px"><h3>📊 流入元別セッション数 <span class="badge-info">GA4連携</span></h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:10px">${srcGrid||'<div style="color:var(--sub)">データなし</div>'}</div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px"><h3>📅 月次ファネル分析 <span class="badge-info">GA4 + Shopify</span></h3>
+      <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:20px;margin-top:10px">
+        <table><thead><tr><th>月</th><th class="num">訪問</th><th class="num">購入</th><th class="num">CVR</th><th class="num">売上</th></tr></thead><tbody>${mfRows||'<tr><td colspan="5">データなし</td></tr>'}</tbody></table>
+        <div class="chart-box"><canvas id="cMonthFunnel"></canvas></div>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card"><h3>🏆 商品別売上ランキング</h3>${rankHtml||'<div style="color:var(--sub);padding:20px;text-align:center">データなし</div>'}</div>
+      <div class="card"><h3>📱 デバイス別分析</h3>${devHtml||'<div style="color:var(--sub);padding:20px;text-align:center">データなし</div>'}</div>
+    </div>
+
+    <div class="grid grid-2" style="margin-top:16px">
+      <div class="card"><h3>🔄 リピート分析（定期購入）</h3>
+        <table>
+          <tr><td>定期注文数</td><td class="num"><strong>${fmt(subs.length)}</strong></td></tr>
+          <tr><td>リピート(2回目以降)</td><td class="num"><strong>${fmt(repeatOrders.length)}</strong></td></tr>
+          <tr><td>リピート率</td><td class="num"><strong>${pct(repeatOrders.length,subs.length)}</strong></td></tr>
+        </table>
+      </div>
+      <div class="card"><h3>📱 SNSパフォーマンス</h3>
+        ${['instagram','tiktok','line','threads'].map(p=>{const d=s.filter(x=>x.platform===p).sort((a,b)=>b.date.localeCompare(a.date));if(!d.length)return'';const l=d[0];const prev=d.length>7?d[7]:d[d.length-1];const fNow=snsVal(l,'followers');const fPrev=snsVal(prev,'followers');const diff=fNow-fPrev;const diffStr=diff>0?`<span style="color:var(--green)">+${fmt(diff)}</span>`:diff<0?`<span style="color:var(--red)">${fmt(diff)}</span>`:'±0';return`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0f0"><span style="font-size:16px">${{instagram:'📷',tiktok:'🎵',line:'💬',threads:'🧵'}[p]}</span><div style="flex:1"><div style="font-size:12px;font-weight:600">${{instagram:'Instagram',tiktok:'TikTok',line:'LINE',threads:'Threads'}[p]}</div><div style="font-size:10px;color:var(--sub)">7日比: ${diffStr}</div></div><div style="font-size:16px;font-weight:700">${fmt(fNow)}</div></div>`}).join('')}
+      </div>
+    </div>`;
+
+  // Monthly funnel chart
+  destroyC('cMonthFunnel');
+  if(allM.length){
+    charts.cMonthFunnel=new Chart(document.getElementById('cMonthFunnel'),{type:'bar',data:{labels:allM,datasets:[
+      {label:'訪問',data:allM.map(m=>(mGA4[m]||{}).sess||0),backgroundColor:'rgba(102,126,234,.5)',yAxisID:'y'},
+      {label:'購入',data:allM.map(m=>(mOrd[m]||{}).ord||0),backgroundColor:'rgba(74,222,128,.5)',yAxisID:'y'},
+      {label:'CVR%',data:allM.map(m=>{const s=(mGA4[m]||{}).sess||0;const o=(mOrd[m]||{}).ord||0;return s>0?((o/s)*100):0}),type:'line',borderColor:'#a78bfa',backgroundColor:'transparent',yAxisID:'y1',tension:.3,pointRadius:3},
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:10}}},datalabels:{display:false}},scales:{x:{ticks:{font:{size:10}},grid:{display:false}},y:{position:'left',grid:{color:'rgba(0,0,0,.05)'}},y1:{position:'right',ticks:{callback:v=>v.toFixed(1)+'%'},grid:{display:false}}}}});
+  }
+}
+
+// ===== 8. 在庫 =====
+function renderInv(inv){
+  const latestDate=inv.length>0?inv[0].snapshot_date:null;
+  const latest=inv.filter(i=>i.snapshot_date===latestDate);
+  const alertCnt=latest.filter(i=>i.is_alert).length;
+  let rows=latest.map(i=>`<tr class="${i.is_alert?'alert-row':''}"><td>${i.sku}</td><td>${i.product_name||'-'}</td><td class="num">${fmt(i.quantity)}</td><td class="num">${fmt(i.threshold)}</td><td>${i.is_alert?'<span style="color:var(--red)">⚠ 要補充</span>':'<span style="color:var(--green)">✓ OK</span>'}</td></tr>`).join('');
+
+  // Trend (if multiple dates)
+  const snapDates=[...new Set(inv.map(i=>i.snapshot_date))].sort();
+  let trendHtml='';
+  if(snapDates.length>1){
+    trendHtml=`<div class="card" style="margin-bottom:16px"><h2>在庫推移</h2><div class="chart-box"><canvas id="cInvTrend"></canvas></div></div>`;
+  }
+
+  document.getElementById('tab-inventory').innerHTML=`
+    ${trendHtml}
+    <div class="card"><h3>在庫状況（${latestDate||'-'}時点）${alertCnt>0?`<span class="badge badge-ng">要補充: ${alertCnt}件</span>`:'<span class="badge badge-ok">正常</span>'}</h3>
+      <table><thead><tr><th>SKU</th><th>商品名</th><th class="num">在庫数</th><th class="num">閾値</th><th>状態</th></tr></thead><tbody>${rows||'<tr><td colspan="5">データなし</td></tr>'}</tbody></table>
+    </div>`;
+
+  if(snapDates.length>1){
+    destroyC('cInvTrend');
+    const skus=[...new Set(inv.map(i=>i.sku))];
+    const datasets=skus.map((sku,i)=>{
+      const data=snapDates.map(d=>{const r=inv.find(x=>x.snapshot_date===d&&x.sku===sku);return r?r.quantity:null});
+      return{label:sku,data,borderColor:['#667eea','#f59e0b','#4ade80','#ff6b81','#a78bfa','#00d4aa'][i%6],tension:.3,pointRadius:2,fill:false,spanGaps:true};
+    });
+    charts.cInvTrend=new Chart(document.getElementById('cInvTrend'),{type:'line',data:{labels:snapDates,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{datalabels:{display:false},legend:{position:'bottom',labels:{font:{size:10}}}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(0,0,0,.05)'}}}}});
+  }
+}
+
+// SNSデータをextra_jsonからfallback取得 (ダッシュボード概要タブ等で使用)
+function snsVal(row, key){
+  if(!row) return 0;
+  if(row[key] && row[key]>0) return row[key];
+  try{
+    const ej=JSON.parse(row.extra_json||'{}');
+    if(ej[key]>0) return ej[key];
+    const am=ej.account_metrics||{};
+    if(am[key]>0) return am[key];
+    if(key==='followers'){
+      if(ej.friends&&ej.friends.target_reach>0) return ej.friends.target_reach;
+    }
+    if(key==='reach') return ej.reach_30d||am.reach_30d||0;
+    if(key==='impressions') return ej.views_30d||ej.video_views_7d||0;
+    if(key==='likes') return ej.interactions_30d||ej.likes_7d||0;
+  }catch(e){}
+  return row[key]||0;
+}
+
+// ===== 9. SNS分析 (v008移植版) =====
+let snsSubTab='summary';
+function switchSns(tab){snsSubTab=tab;renderSNS(S)}
+
+// extra_jsonをパースして account_metrics 相当のオブジェクトを返す
+function parseSnsExtra(row){
+  try{ return JSON.parse(row.extra_json||'{}'); }catch(e){ return {}; }
+}
+
+// SNSデータを platform + account_metrics 形式に正規化
+function normalizeSnsRows(sns, platform){
+  return sns.filter(x=>x.platform===platform).sort((a,b)=>a.date.localeCompare(b.date)).map(row=>{
+    const ej=parseSnsExtra(row);
+    const result={date:row.date, is_dummy:ej.collection_method==='sample'};
+    if(platform==='instagram'){
+      result.account_metrics={
+        followers:ej.followers||row.followers||0,
+        reach_30d:ej.reach_30d||0,
+        interactions_30d:ej.interactions_30d||0,
+        profile_access:ej.profile_views||ej.profile_access||0,
+        external_link_taps:ej.link_taps||ej.external_link_taps||0,
+        views_30d:ej.views_30d||0,
+        content_engagement_rate:ej.content_engagement_rate||0
+      };
+      if(ej.top_posts_30d) result.top_posts_30d=ej.top_posts_30d;
+      if(ej.content_view_ratio) result.content_view_ratio=ej.content_view_ratio;
+    } else if(platform==='tiktok'){
+      result.account_metrics={
+        followers_total:ej.followers||row.followers||0,
+        followers_change_7d:ej.followers_change_7d||0,
+        video_views_7d:ej.video_views_7d||0,
+        likes_7d:ej.likes_7d||0,
+        comments_7d:ej.comments_7d||0,
+        shares_7d:ej.shares_7d||0,
+        profile_views_7d:ej.profile_views_7d||0
+      };
+      if(ej.demographics) result.demographics=ej.demographics;
+      if(ej.traffic_sources) result.traffic_sources=ej.traffic_sources;
+      if(ej.top_posts_7d) result.top_posts_7d=ej.top_posts_7d;
+    } else if(platform==='line'){
+      // LINE: extra_json をそのままマージ
+      Object.assign(result, ej);
+      result.friends=ej.friends||{};
+      result.messages=ej.messages||{};
+      result.chat=ej.chat||{};
+      result.rich_menu=ej.rich_menu||{};
+      result.voom=ej.voom||{};
+      result.demographics=ej.demographics||{};
+      result.broadcasts=ej.broadcasts||[];
+    } else if(platform==='threads'){
+      result.account_metrics={
+        followers:ej.followers||row.followers||0,
+        views_30d:ej.views_30d||0,
+        interactions_30d:ej.interactions_30d||0
+      };
+      result.interactions=ej.interactions||{};
+      result.view_sources=ej.view_sources||{};
+      result.demographics=ej.demographics||{};
+      if(ej.posts) result.posts=ej.posts;
+    }
+    return result;
+  });
+}
+
+// 日付間を線形補間で埋める (v008移植)
+function interpolateDailyMap(sparseMap){
+  const dates=Object.keys(sparseMap).sort();
+  if(dates.length<2) return sparseMap;
+  const d0=new Date(dates[0]),d1=new Date(dates[dates.length-1]);
+  const allD=[];
+  for(let d=new Date(d0);d<=d1;d.setDate(d.getDate()+1)) allD.push(d.toISOString().slice(0,10));
+  const filled={};
+  allD.forEach(d=>{filled[d]=sparseMap[d]!==undefined?sparseMap[d]:null});
+  let prevIdx=null;
+  for(let i=0;i<allD.length;i++){
+    if(filled[allD[i]]!==null){
+      if(prevIdx!==null&&i-prevIdx>1){
+        const v0=filled[allD[prevIdx]],v1=filled[allD[i]];
+        for(let j=prevIdx+1;j<i;j++){
+          const ratio=(j-prevIdx)/(i-prevIdx);
+          filled[allD[j]]=Math.round(v0+(v1-v0)*ratio);
+        }
+      }
+      prevIdx=i;
+    }
+  }
+  return filled;
+}
+
+// SNSチャート作成ヘルパー
+const snsChartInstances={};
+function snsCreateChart(canvasId,config){
+  if(snsChartInstances[canvasId]){snsChartInstances[canvasId].destroy();delete snsChartInstances[canvasId]}
+  const el=document.getElementById(canvasId);if(!el)return;
+  snsChartInstances[canvasId]=new Chart(el,config);
+}
+
+// TikTok推定フォロワー計算
+function ttEstimatedFollowers(ttData, targetMetrics){
+  if(ttData.length===0) return 0;
+  const base=(ttData[0].account_metrics||{}).followers_total||1300;
+  const firstChange=(ttData[0].account_metrics||{}).followers_change_7d||0;
+  return base+((targetMetrics.followers_change_7d||0)-firstChange);
+}
+
+function renderSNS(sns){
+  // データを正規化
+  const ig=normalizeSnsRows(sns,'instagram');
+  const tt=normalizeSnsRows(sns,'tiktok');
+  const ln=normalizeSnsRows(sns,'line');
+  const th=normalizeSnsRows(sns,'threads');
+
+  const pN={instagram:'Instagram',tiktok:'TikTok',line:'LINE',threads:'Threads'};
+  const pI={instagram:'📷',tiktok:'🎵',line:'💬',threads:'🧵'};
+  const pC={instagram:'#e4405f',tiktok:'#000',line:'#06c755',threads:'#000'};
+
+  // KPIカード
+  const igLast=ig.length>0?(ig[ig.length-1].account_metrics||{}):{};
+  const ttLast=tt.length>0?(tt[tt.length-1].account_metrics||{}):{};
+  const lnLast=ln.length>0?(ln[ln.length-1].friends||{}):{};
+  const thLast=th.length>0?(th[th.length-1].account_metrics||{}):{};
+  const ttEstFw=tt.length>0?ttEstimatedFollowers(tt,ttLast):0;
+
+  let kpis=`
+    <div class="card"><h2>📷 Instagram</h2><div class="metric" style="color:#e4405f">${(igLast.followers||0).toLocaleString()}</div><div class="metric-sub">フォロワー | リーチ30d: ${(igLast.reach_30d||0).toLocaleString()}</div></div>
+    <div class="card"><h2>🎵 TikTok</h2><div class="metric">≈${ttEstFw.toLocaleString()}</div><div class="metric-sub">推定フォロワー | 視聴7d: ${(ttLast.video_views_7d||0).toLocaleString()}</div></div>
+    <div class="card"><h2>💬 LINE</h2><div class="metric" style="color:#06c755">${(lnLast.target_reach||0).toLocaleString()}</div><div class="metric-sub">ターゲットリーチ</div></div>
+    <div class="card"><h2>🧵 Threads</h2><div class="metric">${(thLast.followers||0).toLocaleString()}</div><div class="metric-sub">フォロワー | 閲覧30d: ${(thLast.views_30d||0).toLocaleString()}</div></div>`;
+
+  // サブタブ
+  let subBtns=['summary','instagram','tiktok','line','threads'].map(t=>
+    `<button class="sns-sub-btn ${snsSubTab===t?'active':''}" onclick="switchSns('${t}')">${t==='summary'?'📊 サマリー':pI[t]+' '+pN[t]}</button>`
+  ).join('');
+
+  let content='';
+
+  if(snsSubTab==='summary'){
+    content=renderSnsSummaryContent(ig,tt,ln,th);
+  } else if(snsSubTab==='instagram'){
+    content=renderSnsInstagramContent(ig);
+  } else if(snsSubTab==='tiktok'){
+    content=renderSnsTikTokContent(tt);
+  } else if(snsSubTab==='line'){
+    content=renderSnsLineContent(ln);
+  } else if(snsSubTab==='threads'){
+    content=renderSnsThreadsContent(th);
+  }
+
+  document.getElementById('tab-sns').innerHTML=`
+    <div class="grid grid-4">${kpis}</div>
+    <div class="sns-sub-tabs">${subBtns}</div>
+    ${content}`;
+
+  // チャート描画はDOM挿入後に遅延実行
+  setTimeout(()=>{
+    if(snsSubTab==='summary') renderSnsSummaryCharts(ig,tt,ln,th);
+    else if(snsSubTab==='instagram') renderSnsInstagramCharts(ig);
+    else if(snsSubTab==='tiktok') renderSnsTikTokCharts(tt);
+    else if(snsSubTab==='line') renderSnsLineCharts(ln);
+    else if(snsSubTab==='threads') renderSnsThreadsCharts(th);
+  },50);
+}
+
+// ========== サマリー ==========
+function renderSnsSummaryContent(ig,tt,ln,th){
+  th=th||[];
+  const igL=ig.length>0?(ig[ig.length-1].account_metrics||{}):{};
+  const ttL=tt.length>0?(tt[tt.length-1].account_metrics||{}):{};
+  const lnL=ln.length>0?ln[ln.length-1]:{};
+  const lnFr=lnL.friends||{};const lnRm=lnL.rich_menu||{};const lnMsg=lnL.messages||{};
+  const thL2=th.length>0?(th[th.length-1].account_metrics||{}):{};
+  const ttEstFw=tt.length>0?ttEstimatedFollowers(tt,ttL):'---';
+  const igER=igL.reach_30d>0?((igL.interactions_30d||0)/igL.reach_30d*100).toFixed(2)+'%':'---';
+  const ttER=ttL.video_views_7d>0?((ttL.likes_7d||0)/ttL.video_views_7d*100).toFixed(2)+'%':'---';
+
+  const compRows=[
+    ['フォロワー/リーチ',(igL.followers||0).toLocaleString(),'≈'+(typeof ttEstFw==='number'?ttEstFw.toLocaleString():ttEstFw),(lnFr.target_reach||0).toLocaleString()],
+    ['リーチ/視聴/配信',(igL.reach_30d||0).toLocaleString()+' (30d)',(ttL.video_views_7d||0).toLocaleString()+' (7d)',(lnMsg.total_30d||0).toLocaleString()+'通 (30d)'],
+    ['インタラクション',(igL.interactions_30d||0).toLocaleString()+' (30d)',(ttL.likes_7d||0).toLocaleString()+' (7d)',(lnRm.total_clicks||0).toLocaleString()+' RMクリック'],
+    ['ER/CTR',igER,ttER,(lnRm.overall_click_rate_pct||0).toFixed(1)+'% CTR'],
+    ['プロフ/ブロック率',(igL.profile_access||0).toLocaleString(),(ttL.profile_views_7d||0).toLocaleString(),lnFr.total_added>0?(lnFr.blocked/lnFr.total_added*100).toFixed(1)+'%':'---']
+  ];
+  let compTbody=compRows.map(r=>`<tr style="border-bottom:1px solid var(--border)"><td style="padding:10px">${r[0]}</td><td class="num" style="color:#E1306C;padding:10px">${r[1]}</td><td class="num" style="padding:10px">${r[2]}</td><td class="num" style="color:#06C755;padding:10px">${r[3]}</td></tr>`).join('');
+
+  return `
+    <div class="grid grid-2" style="margin-bottom:16px">
+      <div class="card"><h3>フォロワー推移（IG vs TT）</h3><div class="chart-box"><canvas id="cSnsFwOverlay"></canvas></div></div>
+      <div class="card"><h3>閲覧数推移（IG リーチ vs TT 視聴）</h3><div class="chart-box"><canvas id="cSnsViewsOverlay"></canvas></div></div>
+    </div>
+    <div class="card"><h3>プラットフォーム比較</h3>
+      <table><thead><tr><th>指標</th><th class="num" style="color:#E1306C">Instagram</th><th class="num">TikTok</th><th class="num" style="color:#06C755">LINE</th></tr></thead>
+      <tbody>${compTbody}</tbody></table>
+    </div>`;
+}
+function renderSnsSummaryCharts(ig,tt,ln,th){
+  th=th||[];
+  // フォロワー推移オーバーレイ (補間付き)
+  const igFwRaw={};ig.forEach(d=>{igFwRaw[d.date]=(d.account_metrics||{}).followers||0});
+  const ttFwRaw={};
+  if(tt.length>0){
+    const base=(tt[0].account_metrics||{}).followers_total||1300;
+    const fc=(tt[0].account_metrics||{}).followers_change_7d||0;
+    tt.forEach(d=>{const c7=(d.account_metrics||{}).followers_change_7d||0;ttFwRaw[d.date]=base+(c7-fc)});
+  }
+  const igFwMap=interpolateDailyMap(igFwRaw);const ttFwMap=interpolateDailyMap(ttFwRaw);
+  const allDates=[...new Set([...Object.keys(igFwMap),...Object.keys(ttFwMap)])].sort();
+  snsCreateChart('cSnsFwOverlay',{type:'line',data:{labels:allDates,datasets:[
+    {label:'IG フォロワー',data:allDates.map(d=>igFwMap[d]||null),borderColor:'#E1306C',backgroundColor:'#E1306C22',tension:.3,yAxisID:'y',pointRadius:2},
+    {label:'TT 推定フォロワー',data:allDates.map(d=>ttFwMap[d]!=null?ttFwMap[d]:null),borderColor:'#000',backgroundColor:'#00000022',tension:.3,yAxisID:'y1',pointRadius:2}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{datalabels:{display:false}},scales:{
+    y:{position:'left',title:{display:true,text:'Instagram'},ticks:{color:'#E1306C'}},
+    y1:{position:'right',title:{display:true,text:'TT 推定フォロワー'},grid:{drawOnChartArea:false},ticks:{color:'#000'}}
+  }}});
+
+  // 閲覧数推移オーバーレイ
+  const igReachRaw={};ig.forEach(d=>{igReachRaw[d.date]=(d.account_metrics||{}).reach_30d||0});
+  const ttViewsRaw={};tt.forEach(d=>{ttViewsRaw[d.date]=(d.account_metrics||{}).video_views_7d||0});
+  const igReachMap=interpolateDailyMap(igReachRaw);const ttViewsMap=interpolateDailyMap(ttViewsRaw);
+  const allDatesV=[...new Set([...Object.keys(igReachMap),...Object.keys(ttViewsMap)])].sort();
+  snsCreateChart('cSnsViewsOverlay',{type:'line',data:{labels:allDatesV,datasets:[
+    {label:'IG リーチ30d',data:allDatesV.map(d=>igReachMap[d]||null),borderColor:'#E1306C',backgroundColor:'#E1306C22',tension:.3,yAxisID:'y',pointRadius:2},
+    {label:'TT 視聴数7d',data:allDatesV.map(d=>ttViewsMap[d]||null),borderColor:'#000',backgroundColor:'#00000022',tension:.3,yAxisID:'y1',pointRadius:2}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{datalabels:{display:false}},scales:{
+    y:{position:'left',title:{display:true,text:'IG リーチ'},ticks:{color:'#E1306C'}},
+    y1:{position:'right',title:{display:true,text:'TT 視聴'},grid:{drawOnChartArea:false},ticks:{color:'#000'}}
+  }}});
+}
+
+// ========== Instagram詳細 ==========
+function renderSnsInstagramContent(ig){
+  if(ig.length===0) return '<div class="card">Instagramデータなし</div>';
+  const m=(ig[ig.length-1].account_metrics||{});
+  const er=m.reach_30d>0?((m.interactions_30d||0)/m.reach_30d*100).toFixed(2)+'%':'---';
+
+  // トップ投稿 (最新の top_posts_30d を後方スキャンで取得)
+  let topPosts=[];
+  for(let i=ig.length-1;i>=0;i--){if(ig[i].top_posts_30d&&ig[i].top_posts_30d.length>0){topPosts=ig[i].top_posts_30d;break;}}
+  let tpRows=topPosts.slice(0,15).map(p=>{
+    const cap=(p.caption||'').substring(0,40)+((p.caption||'').length>40?'...':'');
+    const wt=p.avg_watch_time_sec?p.avg_watch_time_sec.toFixed(1)+'s':'---';
+    const cr=p.completion_rate_pct?p.completion_rate_pct.toFixed(1)+'%':'---';
+    return `<tr><td>${p.rank||''}</td><td>${p.type||'---'}</td><td class="num">${(p.views||0).toLocaleString()}</td><td title="${(p.caption||'').replace(/"/g,'&quot;')}">${cap}</td><td>${wt}</td><td>${cr}</td></tr>`;
+  }).join('')||'<tr><td colspan="6">投稿データなし</td></tr>';
+
+  // コンテンツ種別比率
+  let cvr={};
+  for(let i=ig.length-1;i>=0;i--){if(ig[i].content_view_ratio&&Object.keys(ig[i].content_view_ratio).length>0){cvr=ig[i].content_view_ratio;break;}}
+
+  return `
+    <div class="grid grid-3" style="margin-bottom:16px">
+      <div class="card"><h3>フォロワー</h3><div class="metric" style="color:#E1306C">${(m.followers||0).toLocaleString()}</div></div>
+      <div class="card"><h3>リーチ30d</h3><div class="metric">${(m.reach_30d||0).toLocaleString()}</div></div>
+      <div class="card"><h3>ER</h3><div class="metric">${er}</div></div>
+    </div>
+    <div class="grid grid-2" style="margin-bottom:16px">
+      <div class="card"><h3>フォロワー推移</h3><div class="chart-box"><canvas id="cSnsIgFw"></canvas></div></div>
+      <div class="card"><h3>エンゲージメント推移</h3><div class="chart-box"><canvas id="cSnsIgEng"></canvas></div></div>
+    </div>
+    <div class="grid grid-2" style="margin-bottom:16px">
+      <div class="card"><h3>投稿ビュー分布</h3><div class="chart-box"><canvas id="cSnsIgViews"></canvas></div></div>
+      <div class="card"><h3>コンテンツ種別比率</h3><div class="chart-box"><canvas id="cSnsIgRatio"></canvas></div></div>
+    </div>
+    <div class="card" style="margin-bottom:16px"><h3>トップ投稿 (30d)</h3>
+      <table><thead><tr><th>#</th><th>種別</th><th class="num">ビュー</th><th>キャプション</th><th>視聴時間</th><th>完了率</th></tr></thead>
+      <tbody>${tpRows}</tbody></table>
+    </div>`;
+}
+function renderSnsInstagramCharts(ig){
+  if(ig.length===0) return;
+  // 補間
+  const fwRaw={};ig.forEach(d=>{fwRaw[d.date]=(d.account_metrics||{}).followers||0});
+  const fwMap=interpolateDailyMap(fwRaw);const dates=Object.keys(fwMap).sort();
+  const reachRaw={};ig.forEach(d=>{reachRaw[d.date]=(d.account_metrics||{}).reach_30d||0});
+  const reachMap=interpolateDailyMap(reachRaw);
+  const interRaw={};ig.forEach(d=>{interRaw[d.date]=(d.account_metrics||{}).interactions_30d||0});
+  const interMap=interpolateDailyMap(interRaw);
+
+  snsCreateChart('cSnsIgFw',{type:'line',data:{labels:dates,datasets:[{label:'フォロワー',data:dates.map(d=>fwMap[d]),borderColor:'#E1306C',backgroundColor:'#E1306C33',fill:true,tension:.3,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{datalabels:{display:false}}}});
+  snsCreateChart('cSnsIgEng',{type:'line',data:{labels:dates,datasets:[
+    {label:'リーチ',data:dates.map(d=>reachMap[d]),borderColor:'#E1306C',tension:.3,pointRadius:2},
+    {label:'インタラクション',data:dates.map(d=>interMap[d]),borderColor:'#667eea',tension:.3,pointRadius:2}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{datalabels:{display:false}}}});
+
+  // 投稿ビュー分布
+  let topPosts=[];
+  for(let i=ig.length-1;i>=0;i--){if(ig[i].top_posts_30d&&ig[i].top_posts_30d.length>0){topPosts=ig[i].top_posts_30d;break;}}
+  if(topPosts.length>0){
+    const sorted=[...topPosts].sort((a,b)=>(b.views||0)-(a.views||0)).slice(0,30);
+    const typeLabel={Reel:'リール',Post:'投稿',Story:'ストーリー'};
+    snsCreateChart('cSnsIgViews',{type:'bar',data:{
+      labels:sorted.map(p=>{const d=p.date?p.date.replace(/^\d{4}-/,'').replace('-','/'):('');const t=typeLabel[p.type]||p.type||'';return d?d+' '+t:'#'+(p.rank||'')}),
+      datasets:[{label:'ビュー数',data:sorted.map(p=>p.views||0),backgroundColor:sorted.map(p=>p.type&&p.type.includes('Reel')?'#667eea':'#E1306C')}]
+    },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{font:{size:10},maxRotation:45}}},plugins:{
+      datalabels:{display:true,anchor:'end',align:'top',font:{size:10,weight:'bold'},formatter:v=>v.toLocaleString(),color:'#333'},
+      legend:{display:true,labels:{generateLabels:()=>[{text:'リール',fillStyle:'#667eea',strokeStyle:'#667eea'},{text:'投稿',fillStyle:'#E1306C',strokeStyle:'#E1306C'}]}}
+    }}});
+  }
+
+  // コンテンツ種別比率
+  let cvr={};
+  for(let i=ig.length-1;i>=0;i--){if(ig[i].content_view_ratio&&Object.keys(ig[i].content_view_ratio).length>0){cvr=ig[i].content_view_ratio;break;}}
+  if(Object.keys(cvr).length>0){
+    const nameMap={reels:'リール動画',stories:'ストーリーズ',posts:'投稿'};
+    const keys=Object.keys(cvr);
+    snsCreateChart('cSnsIgRatio',{type:'doughnut',data:{
+      labels:keys.map(k=>(nameMap[k]||k)+' '+(cvr[k]||0).toFixed(1)+'%'),
+      datasets:[{data:Object.values(cvr),backgroundColor:['#E1306C','#f09433','#667eea','#4ade80']}]
+    },options:{responsive:true,maintainAspectRatio:false,plugins:{
+      datalabels:{display:true,formatter:v=>v.toFixed(1)+'%',color:'#fff',font:{size:13,weight:'bold'}},
+      legend:{position:'right',labels:{font:{size:12},padding:12}}
+    }}});
+  }
+}
+
+// ========== TikTok詳細 ==========
+function renderSnsTikTokContent(tt){
+  if(tt.length===0) return '<div class="card">TikTokデータなし</div>';
+  const m=(tt[tt.length-1].account_metrics||{});
+  const estFw=ttEstimatedFollowers(tt,m);
+  const traffic=tt[tt.length-1].traffic_sources||{};
+  const demo=tt[tt.length-1].demographics||{};
+
+  return `
+    <div class="grid grid-3" style="margin-bottom:16px">
+      <div class="card"><h3>推定フォロワー</h3><div class="metric">≈${estFw.toLocaleString()}</div><div class="metric-sub">純増7d: ${(m.followers_change_7d||0).toLocaleString()}</div></div>
+      <div class="card"><h3>視聴数 7d</h3><div class="metric">${(m.video_views_7d||0).toLocaleString()}</div></div>
+      <div class="card"><h3>いいね 7d</h3><div class="metric">${(m.likes_7d||0).toLocaleString()}</div></div>
+    </div>
+    <div class="grid grid-2" style="margin-bottom:16px">
+      <div class="card"><h3>推定フォロワー推移</h3><div class="chart-box"><canvas id="cSnsTtFw"></canvas></div></div>
+      <div class="card"><h3>エンゲージメント推移</h3><div class="chart-box"><canvas id="cSnsTtEng"></canvas></div></div>
+    </div>
+    <div class="grid grid-2" style="margin-bottom:16px">
+      <div class="card"><h3>年齢分布</h3><div class="chart-box"><canvas id="cSnsTtAge"></canvas></div></div>
+      <div class="card"><h3>トラフィックソース</h3><div class="chart-box"><canvas id="cSnsTtTraffic"></canvas></div></div>
+    </div>`;
+}
+function renderSnsTikTokCharts(tt){
+  if(tt.length===0) return;
+  // 推定フォロワー補間
+  const base=(tt[0].account_metrics||{}).followers_total||1300;
+  const fc=(tt[0].account_metrics||{}).followers_change_7d||0;
+  const fwRaw={};tt.forEach(d=>{const c7=(d.account_metrics||{}).followers_change_7d||0;fwRaw[d.date]=base+(c7-fc)});
+  const fwMap=interpolateDailyMap(fwRaw);const dates=Object.keys(fwMap).sort();
+  const viewsRaw={};tt.forEach(d=>{viewsRaw[d.date]=(d.account_metrics||{}).video_views_7d||0});
+  const viewsMap=interpolateDailyMap(viewsRaw);
+  const likesRaw={};tt.forEach(d=>{likesRaw[d.date]=(d.account_metrics||{}).likes_7d||0});
+  const likesMap=interpolateDailyMap(likesRaw);
+
+  snsCreateChart('cSnsTtFw',{type:'line',data:{labels:dates,datasets:[{label:'推定フォロワー',data:dates.map(d=>fwMap[d]),borderColor:'#000',backgroundColor:'#00000022',fill:true,tension:.3,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{datalabels:{display:false}}}});
+  snsCreateChart('cSnsTtEng',{type:'line',data:{labels:dates,datasets:[
+    {label:'視聴数',data:dates.map(d=>viewsMap[d]),borderColor:'#000',tension:.3,pointRadius:2},
+    {label:'いいね',data:dates.map(d=>likesMap[d]),borderColor:'#667eea',tension:.3,pointRadius:2}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{datalabels:{display:false}}}});
+
+  // 年齢分布
+  const demo=tt[tt.length-1].demographics||{};const age=demo.age||{};
+  if(Object.keys(age).length>0){
+    snsCreateChart('cSnsTtAge',{type:'bar',data:{labels:Object.keys(age),datasets:[{label:'割合(%)',data:Object.values(age),backgroundColor:['#60a5fa','#4ade80','#fbbf24','#f87171','#a78bfa']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{datalabels:{display:true,formatter:v=>v.toFixed(1)+'%',color:'#333',font:{size:11}},legend:{display:false}},scales:{y:{beginAtZero:true,title:{display:true,text:'%'}}}}});
+  }
+
+  // トラフィックソース
+  const traffic=tt[tt.length-1].traffic_sources||{};
+  if(Object.keys(traffic).length>0){
+    const tLabels={recommend:'おすすめ',search:'検索',profile:'プロフ',following:'フォロー中',music:'音源'};
+    snsCreateChart('cSnsTtTraffic',{type:'doughnut',data:{labels:Object.keys(traffic).map(k=>tLabels[k]||k),datasets:[{data:Object.values(traffic),backgroundColor:['#000','#4361ee','#E1306C','#4ade80','#fbbf24']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{datalabels:{display:true,formatter:v=>v.toFixed(1)+'%',color:'#fff',font:{weight:'bold'}}}}});
+  }
+}
+
+// ========== LINE詳細 ==========
+function renderSnsLineContent(ln){
+  if(ln.length===0) return '<div class="card">LINEデータなし</div>';
+  const latest=ln[ln.length-1];
+  const fr=latest.friends||{};const msg=latest.messages||{};const rm=latest.rich_menu||{};const voom=latest.voom||{};const chat=latest.chat||{};
+
+  let bcRows=(latest.broadcasts||[]).map(b=>{
+    const openC=b.open_rate_pct>=45?'color:#16a34a':b.open_rate_pct>=30?'':'color:#ef4444';
+    return `<tr><td>${b.date}</td><td class="num">${(b.delivered||0).toLocaleString()}</td><td class="num">${(b.opened||0).toLocaleString()}</td><td class="num" style="${openC}">${(b.open_rate_pct||0).toFixed(1)}%</td><td class="num">${(b.clicked||0).toLocaleString()}</td><td class="num">${(b.click_rate_pct||0).toFixed(1)}%</td></tr>`;
+  }).join('')||'<tr><td colspan="6">配信データなし</td></tr>';
+
+  const areas=rm.areas||{};
+  let rmRows='';let totalClicks=0;
+  Object.entries(areas).forEach(([key,area])=>{totalClicks+=(area.clicks||0);rmRows+=`<tr><td style="font-weight:600">${key}</td><td>${area.label||''}</td><td class="num">${(area.clicks||0).toLocaleString()}</td><td class="num">${(area.click_rate_pct||0).toFixed(1)}%</td></tr>`});
+  rmRows+=`<tr style="border-top:2px solid var(--border);font-weight:700"><td>合計</td><td>—</td><td class="num">${totalClicks.toLocaleString()}</td><td class="num">${(rm.overall_click_rate_pct||0).toFixed(1)}%</td></tr>`;
+
+  return `
+    <div class="grid grid-3" style="margin-bottom:16px">
+      <div class="card"><h3>ターゲットリーチ</h3><div class="metric" style="color:#06c755">${(fr.target_reach||0).toLocaleString()}</div><div class="metric-sub">${(fr.target_reach_change_7d||0)>=0?'+':''}${fr.target_reach_change_7d||0} (7日間)</div></div>
+      <div class="card"><h3>ブロック</h3><div class="metric">${(fr.blocked||0).toLocaleString()}</div><div class="metric-sub">率 ${fr.total_added>0?(fr.blocked/fr.total_added*100).toFixed(1)+'%':'---'}</div></div>
+      <div class="card"><h3>リッチメニュー CTR</h3><div class="metric">${(rm.overall_click_rate_pct||0).toFixed(1)}%</div></div>
+    </div>
+    <div class="grid grid-2" style="margin-bottom:16px">
+      <div class="card"><h3>ターゲットリーチ推移</h3><div class="chart-box"><canvas id="cSnsLnReach"></canvas></div></div>
+      <div class="card"><h3>性別/年齢分布</h3><div class="grid grid-2"><div class="chart-box"><canvas id="cSnsLnGender"></canvas></div><div class="chart-box"><canvas id="cSnsLnAge"></canvas></div></div></div>
+    </div>
+    <div class="card" style="margin-bottom:16px"><h3>配信履歴</h3>
+      <table><thead><tr><th>日付</th><th class="num">配信数</th><th class="num">開封数</th><th class="num">開封率</th><th class="num">クリック数</th><th class="num">クリック率</th></tr></thead>
+      <tbody>${bcRows}</tbody></table>
+    </div>
+    <div class="card"><h3>リッチメニュー</h3>
+      <table><thead><tr><th>エリア</th><th>ラベル</th><th class="num">クリック数</th><th class="num">CTR</th></tr></thead>
+      <tbody>${rmRows}</tbody></table>
+    </div>`;
+}
+function renderSnsLineCharts(ln){
+  if(ln.length===0) return;
+  // ターゲットリーチ推移
+  snsCreateChart('cSnsLnReach',{type:'line',data:{labels:ln.map(d=>d.date),datasets:[{label:'ターゲットリーチ',data:ln.map(d=>{const v=(d.friends||{}).target_reach;return v?v:null;}),borderColor:'#06C755',backgroundColor:'rgba(6,199,85,0.1)',fill:true,tension:.3,spanGaps:true,pointRadius:ln.map(d=>{const v=(d.friends||{}).target_reach;return v?5:0;}),pointBackgroundColor:'#06C755'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{datalabels:{display:false}}}});
+
+  const demo=ln[ln.length-1].demographics||{};
+  const gender=demo.gender||{};
+  if(Object.keys(gender).length>0){
+    const gLabels={female:'女性',male:'男性',unknown:'不明'};
+    snsCreateChart('cSnsLnGender',{type:'doughnut',data:{labels:Object.keys(gender).map(k=>gLabels[k]||k),datasets:[{data:Object.values(gender),backgroundColor:['#E1306C','#4285f4','#ccc']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{datalabels:{display:true,formatter:v=>v.toFixed(1)+'%',color:'#fff',font:{weight:'bold'}}}}});
+  }
+  const age=demo.age||{};
+  if(Object.keys(age).length>0){
+    snsCreateChart('cSnsLnAge',{type:'bar',data:{labels:Object.keys(age),datasets:[{label:'%',data:Object.values(age),backgroundColor:'rgba(6,199,85,0.7)'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{datalabels:{display:true,formatter:v=>v.toFixed(1)+'%',color:'#333',font:{size:11}},legend:{display:false}},scales:{y:{beginAtZero:true,title:{display:true,text:'%'}}}}});
+  }
+}
+
+// ===== SEO分析タブ =====
+const SEO_SITES={HD:{name:'家来るドクター',color:'#7c3aed'},chiba:{name:'千葉美容',color:'#ec4899'},nishi:{name:'西春クリニック',color:'#0891b2'},yoko:{name:'横浜内科',color:'#ea580c'}};
+let seoArtState={page:0,sortKey:'clicks',sortDir:'desc',siteFilter:'all'};
+function renderSEO(seoData,articles){
+  const el=document.getElementById('tab-seo');
+  if(!seoData||seoData.length===0){el.innerHTML='<div class="card"><h2>SEO分析</h2><p>SEOデータがありません。集計更新ボタンでGA4+Search Consoleデータを取得してください。</p></div><div id="seoArticleWrap"></div>';renderSeoArticles(articles||[]);return;}
+  // Supabase行をサイト別に分割
+  const byKey={};
+  seoData.forEach(r=>{const k=r.site_key;if(!byKey[k])byKey[k]=[];byKey[k].push(r)});
+  const keys=Object.keys(SEO_SITES).filter(k=>byKey[k]&&byKey[k].length>0);
+  if(keys.length===0){el.innerHTML='<div class="card"><h2>SEO分析</h2><p>選択期間内にSEOデータがありません。</p></div><div id="seoArticleWrap"></div>';renderSeoArticles(articles||[]);return;}
+  // 各サイトのseriesを日付昇順にソート
+  keys.forEach(k=>byKey[k].sort((a,b)=>a.date.localeCompare(b.date)));
+
+  // 直近14日 vs その前14日を比較
+  function calcPeriods(series){
+    if(!series||series.length<28)return null;
+    const recent=series.slice(-14),prev=series.slice(-28,-14);
+    const sum=(a,k)=>a.reduce((s,d)=>s+(Number(d[k])||0),0);
+    const r={};
+    for(const k of['active_users','sessions','clicks','impressions']){
+      const rc=sum(recent,k),pv=sum(prev,k);
+      r[k]={current:rc,previous:pv,change:pv>0?((rc-pv)/pv*100):0};
+    }
+    r.ctr_current=r.impressions.current>0?(r.clicks.current/r.impressions.current*100):0;
+    r.ctr_previous=r.impressions.previous>0?(r.clicks.previous/r.impressions.previous*100):0;
+    r.ctr_change=r.ctr_previous>0?((r.ctr_current-r.ctr_previous)/r.ctr_previous*100):0;
+    return r;
+  }
+  // 移動平均
+  function ma7(series,key){
+    const r=[];
+    for(let i=0;i<series.length;i++){
+      if(i<6){r.push(null);continue;}
+      let s=0;for(let j=i-6;j<=i;j++)s+=Number(series[j][key])||0;
+      r.push(Math.round(s/7));
+    }
+    return r;
+  }
+  // 傾向分析テキスト
+  function analyzeTrend(siteKey,series){
+    const p=calcPeriods(series);
+    if(!p)return'データ不足';
+    const msgs=[];
+    const auC=p.active_users.change;
+    if(auC>10)msgs.push(`AU前2週比<strong style="color:#16a34a">+${auC.toFixed(1)}%</strong>好調`);
+    else if(auC<-10)msgs.push(`AU前2週比<strong style="color:#dc2626">${auC.toFixed(1)}%</strong>下落傾向`);
+    else msgs.push(`AU前2週比${auC>0?'+':''}${auC.toFixed(1)}%横ばい`);
+    const clC=p.clicks.change;
+    if(clC>15)msgs.push(`クリック<strong style="color:#16a34a">+${clC.toFixed(1)}%</strong>増加`);
+    else if(clC<-15)msgs.push(`クリック<strong style="color:#dc2626">${clC.toFixed(1)}%</strong>減少`);
+    const ctrNow=p.ctr_current.toFixed(2);
+    if(p.ctr_change>10)msgs.push(`CTR ${ctrNow}%（改善傾向）`);
+    else if(p.ctr_change<-10)msgs.push(`CTR ${ctrNow}%（低下傾向）`);
+    else msgs.push(`CTR ${ctrNow}%（安定）`);
+    if(series.length>=28){
+      const w4=series.slice(-28,-21).reduce((a,d)=>a+Number(d.active_users),0);
+      const w1=series.slice(-7).reduce((a,d)=>a+Number(d.active_users),0);
+      if(w1>w4*1.15)msgs.push('直近4週で<strong style="color:#16a34a">上昇トレンド</strong>');
+      else if(w1<w4*0.85)msgs.push('直近4週で<strong style="color:#dc2626">下降トレンド</strong>');
+    }
+    return msgs.join('、');
+  }
+
+  // === スコアカード ===
+  let totalAU=0,totalClicks=0,totalImp=0,totalSess=0;
+  keys.forEach(k=>byKey[k].forEach(r=>{totalAU+=Number(r.active_users)||0;totalClicks+=Number(r.clicks)||0;totalImp+=Number(r.impressions)||0;totalSess+=Number(r.sessions)||0}));
+  const dates0=byKey[keys[0]];
+  const period=dates0.length?`${dates0[0].date} ～ ${dates0[dates0.length-1].date}`:'';
+  let html='<div class="grid grid-4" style="margin-bottom:20px">';
+  html+=`<div class="card"><h2>全サイト合計AU</h2><div class="metric">${totalAU.toLocaleString()}</div><div class="metric-sub">${period}</div></div>`;
+  html+=`<div class="card"><h2>合計セッション</h2><div class="metric">${totalSess.toLocaleString()}</div></div>`;
+  html+=`<div class="card"><h2>合計クリック</h2><div class="metric">${totalClicks.toLocaleString()}</div></div>`;
+  html+=`<div class="card"><h2>平均CTR</h2><div class="metric">${totalImp>0?(totalClicks/totalImp*100).toFixed(2):'0'}%</div><div class="metric-sub">全サイト加重平均</div></div>`;
+  html+='</div>';
+
+  // === サイト別カード（前2週比較） ===
+  html+='<div class="grid grid-4" style="margin-bottom:20px">';
+  keys.forEach(k=>{
+    const cfg=SEO_SITES[k]||{name:k,color:'#666'};
+    const p=calcPeriods(byKey[k]);
+    if(!p){html+=`<div class="card"><h2>${cfg.name}</h2><p>データ不足</p></div>`;return;}
+    const arrow=(v)=>v>0?`<span style="color:#16a34a">▲+${v.toFixed(1)}%</span>`:(v<0?`<span style="color:#dc2626">▼${v.toFixed(1)}%</span>`:`<span style="color:#888">→${v.toFixed(1)}%</span>`);
+    html+=`<div class="card" style="border-left:4px solid ${cfg.color}">
+      <h2>${cfg.name}</h2>
+      <table style="font-size:12px;width:100%">
+        <tr><td>AU</td><td class="num">${p.active_users.current.toLocaleString()}</td><td class="num">${arrow(p.active_users.change)}</td></tr>
+        <tr><td>クリック</td><td class="num">${p.clicks.current.toLocaleString()}</td><td class="num">${arrow(p.clicks.change)}</td></tr>
+        <tr><td>表示回数</td><td class="num">${p.impressions.current.toLocaleString()}</td><td class="num">${arrow(p.impressions.change)}</td></tr>
+        <tr><td>CTR</td><td class="num">${p.ctr_current.toFixed(2)}%</td><td class="num">${arrow(p.ctr_change)}</td></tr>
+      </table>
+      <div class="metric-sub" style="margin-top:8px">直近14日 vs 前14日</div>
+    </div>`;
+  });
+  html+='</div>';
+
+  // === サイト間ベンチマーク棒グラフ ===
+  html+='<div class="grid grid-2" style="margin-bottom:20px">';
+  html+='<div class="card"><h2>サイト間比較 — AU数（直近14日）</h2><div class="chart-box" style="height:220px"><canvas id="cSeoAuBar"></canvas></div></div>';
+  html+='<div class="card"><h2>サイト間比較 — CTR（直近14日）</h2><div class="chart-box" style="height:220px"><canvas id="cSeoCtrBar"></canvas></div></div>';
+  html+='</div>';
+
+  // === トレンドチャート（7日移動平均） ===
+  html+='<div class="card" style="margin-bottom:20px"><h2>アクティブユーザー推移（7日移動平均）</h2><div class="chart-box" style="height:320px"><canvas id="cSeoTrend"></canvas></div></div>';
+
+  // === 傾向分析コメント ===
+  html+='<div class="card" style="margin-bottom:20px"><h2>傾向分析サマリー</h2>';
+  keys.forEach(k=>{
+    const cfg=SEO_SITES[k]||{name:k,color:'#666'};
+    html+=`<div style="padding:10px 0;border-bottom:1px solid #f0f0f0">
+      <strong style="color:${cfg.color}">${cfg.name}</strong>
+      <div style="margin-top:4px;font-size:13px;line-height:1.8">${analyzeTrend(k,byKey[k])}</div>
+    </div>`;
+  });
+  html+='</div>';
+
+  // === EC商品×SEO連携インサイト ===
+  html+='<div class="card"><h2>EC商品 × SEO連携インサイト</h2><div style="font-size:13px;line-height:1.8">';
+  const growthRanking=keys.map(k=>{
+    const p=calcPeriods(byKey[k]);
+    return{key:k,name:(SEO_SITES[k]||{}).name||k,auGrowth:p?p.active_users.change:0,clickGrowth:p?p.clicks.change:0};
+  }).sort((a,b)=>b.auGrowth-a.auGrowth);
+  const best=growthRanking[0],worst=growthRanking[growthRanking.length-1];
+  html+=`<p><strong>成長率1位:</strong> ${best.name}（AU ${best.auGrowth>0?'+':''}${best.auGrowth.toFixed(1)}%）— EC商品バナー/CTAを強化推奨。</p>`;
+  if(worst.auGrowth<0)html+=`<p><strong>要注意:</strong> ${worst.name}（AU ${worst.auGrowth.toFixed(1)}%）— 記事リライトや新規記事投入を推奨。</p>`;
+  html+=`<p><strong>CTR改善余地:</strong> CTRが低いサイトはタイトル・ディスクリプションの見直しで同じ表示回数からクリック増が期待できます。</p>`;
+  html+='</div></div>';
+
+  // 記事別詳細テーブル用コンテナ
+  html+='<div id="seoArticleWrap"></div>';
+
+  el.innerHTML=html;
+
+  // --- チャート描画 ---
+  const auData=keys.map(k=>{const p=calcPeriods(byKey[k]);return p?p.active_users.current:0});
+  destroyC('cSeoAuBar');
+  charts['cSeoAuBar']=new Chart(document.getElementById('cSeoAuBar'),{type:'bar',data:{labels:keys.map(k=>(SEO_SITES[k]||{}).name||k),datasets:[{data:auData,backgroundColor:keys.map(k=>(SEO_SITES[k]||{}).color||'#666')}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},datalabels:{display:true,anchor:'end',align:'top',formatter:v=>v.toLocaleString(),font:{weight:'bold',size:11}}},scales:{y:{beginAtZero:true}}}});
+
+  const ctrData=keys.map(k=>{const p=calcPeriods(byKey[k]);return p?parseFloat(p.ctr_current.toFixed(2)):0});
+  destroyC('cSeoCtrBar');
+  charts['cSeoCtrBar']=new Chart(document.getElementById('cSeoCtrBar'),{type:'bar',data:{labels:keys.map(k=>(SEO_SITES[k]||{}).name||k),datasets:[{data:ctrData,backgroundColor:keys.map(k=>(SEO_SITES[k]||{}).color||'#666')}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},datalabels:{display:true,anchor:'end',align:'top',formatter:v=>v+'%',font:{weight:'bold',size:11}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>v+'%'}}}}});
+
+  const allDates=[...new Set(byKey[keys[0]].map(d=>d.date))].sort();
+  const trendDatasets=keys.map(k=>{
+    const maData=ma7(byKey[k],'active_users');
+    return{label:(SEO_SITES[k]||{}).name||k,data:maData,borderColor:(SEO_SITES[k]||{}).color||'#666',backgroundColor:'transparent',borderWidth:2,pointRadius:0,tension:0.3};
+  });
+  destroyC('cSeoTrend');
+  charts['cSeoTrend']=new Chart(document.getElementById('cSeoTrend'),{type:'line',data:{labels:allDates,datasets:trendDatasets},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top'},datalabels:{display:false}},scales:{x:{ticks:{maxTicksAuto:true,autoSkip:true,maxRotation:0}},y:{beginAtZero:false}}}});
+
+  // === 記事別詳細テーブル ===
+  renderSeoArticles(articles||[]);
+}
+
+function renderSeoArticles(articles){
+  const wrap=document.getElementById('seoArticleWrap');
+  if(!wrap)return;
+  if(!articles||articles.length===0){
+    wrap.innerHTML='<div class="card"><h2>記事別SEOデータ</h2><p>記事別データがありません。集計更新ボタンでSearch Consoleデータを取得してください。</p></div>';
+    return;
+  }
+  const st=seoArtState;
+  // フィルタ
+  let rows=st.siteFilter==='all'?articles:articles.filter(a=>a.site_key===st.siteFilter);
+  // ソート
+  rows=rows.slice().sort((a,b)=>{
+    let av=a[st.sortKey],bv=b[st.sortKey];
+    if(typeof av==='string')return (av||'').localeCompare(bv||'','ja')*(st.sortDir==='asc'?1:-1);
+    return((av||0)-(bv||0))*(st.sortDir==='asc'?1:-1);
+  });
+  // 統計
+  const total=rows.length;
+  const totalClicks=rows.reduce((s,r)=>s+(r.clicks||0),0);
+  const totalImp=rows.reduce((s,r)=>s+(r.impressions||0),0);
+  const avgCtr=totalImp>0?(totalClicks/totalImp*100).toFixed(2):'0';
+  // ページネーション
+  const perPage=20;
+  const maxPage=Math.max(0,Math.ceil(total/perPage)-1);
+  if(st.page>maxPage)st.page=maxPage;
+  const start=st.page*perPage;
+  const pageRows=rows.slice(start,start+perPage);
+  const period=rows[0]?`${rows[0].period_start||''} ～ ${rows[0].period_end||''}`:'';
+
+  // サイトフィルタボタン
+  const sites=[{key:'all',name:'全サイト'},...Object.entries(SEO_SITES).map(([k,v])=>({key:k,name:v.name}))];
+  let filterHtml=sites.map(s=>`<button onclick="seoArtState.siteFilter='${s.key}';seoArtState.page=0;renderSeoArticles(SEO_ART)" style="padding:4px 12px;border:1px solid ${st.siteFilter===s.key?'#667eea':'#ddd'};background:${st.siteFilter===s.key?'#667eea':'#fff'};color:${st.siteFilter===s.key?'#fff':'#333'};border-radius:6px;cursor:pointer;font-size:12px">${s.name}</button>`).join('');
+
+  // ソートヘッダークリック用
+  const sortIcon=(key)=>{
+    if(st.sortKey!==key)return'<span style="color:#ccc">⇅</span>';
+    return st.sortDir==='asc'?'<span style="color:#667eea">▲</span>':'<span style="color:#667eea">▼</span>';
+  };
+  const sortClick=(key)=>`onclick="if(seoArtState.sortKey==='${key}'){seoArtState.sortDir=seoArtState.sortDir==='asc'?'desc':'asc'}else{seoArtState.sortKey='${key}';seoArtState.sortDir='desc'};seoArtState.page=0;renderSeoArticles(SEO_ART)"`;
+
+  let h='<div class="card" style="margin-top:20px">';
+  h+='<h2>記事別SEO詳細</h2>';
+  // 統計バー
+  h+=`<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:10px 14px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">`;
+  h+=`<span style="font-size:14px;font-weight:700">${fmt(total)} 件</span>`;
+  h+=`<span style="font-size:12px;color:#666">合計クリック <strong>${fmt(totalClicks)}</strong></span>`;
+  h+=`<span style="font-size:12px;color:#666">合計表示 <strong>${fmt(totalImp)}</strong></span>`;
+  h+=`<span style="font-size:12px;color:#666">平均CTR <strong>${avgCtr}%</strong></span>`;
+  if(period)h+=`<span style="font-size:11px;color:#999;margin-left:auto">${period}</span>`;
+  h+='</div>';
+  // フィルタ
+  h+=`<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">${filterHtml}</div>`;
+  // テーブル
+  h+=`<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse">`;
+  h+=`<thead><tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0">`;
+  h+=`<th style="padding:8px;text-align:left;cursor:pointer;white-space:nowrap" ${sortClick('site_key')}>サイト ${sortIcon('site_key')}</th>`;
+  h+=`<th style="padding:8px;text-align:left;cursor:pointer;min-width:250px" ${sortClick('title')}>記事 ${sortIcon('title')}</th>`;
+  h+=`<th style="padding:8px;text-align:right;cursor:pointer;white-space:nowrap" ${sortClick('clicks')}>クリック ${sortIcon('clicks')}</th>`;
+  h+=`<th style="padding:8px;text-align:right;cursor:pointer;white-space:nowrap" ${sortClick('impressions')}>表示回数 ${sortIcon('impressions')}</th>`;
+  h+=`<th style="padding:8px;text-align:right;cursor:pointer;white-space:nowrap" ${sortClick('ctr')}>CTR ${sortIcon('ctr')}</th>`;
+  h+=`<th style="padding:8px;text-align:right;cursor:pointer;white-space:nowrap" ${sortClick('position')}>平均順位 ${sortIcon('position')}</th>`;
+  h+=`</tr></thead><tbody>`;
+  pageRows.forEach((r,i)=>{
+    const bg=i%2===0?'#fff':'#fafafa';
+    const siteColor=(SEO_SITES[r.site_key]||{}).color||'#666';
+    const siteName=(SEO_SITES[r.site_key]||{}).name||r.site_key;
+    const pos=r.position!=null?Number(r.position).toFixed(1):'-';
+    const posColor=pos!=='-'?(Number(pos)<=3?'#ca8a04':Number(pos)<=10?'#3b82f6':'#333'):'#999';
+    const ctrVal=r.ctr!=null?(Number(r.ctr)*100).toFixed(2)+'%':'-';
+    h+=`<tr style="background:${bg};border-bottom:1px solid #f0f0f0">`;
+    h+=`<td style="padding:6px 8px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${siteColor};margin-right:4px"></span>${siteName}</td>`;
+    h+=`<td style="padding:6px 8px"><a href="${r.url}" target="_blank" rel="noopener" style="color:#3b82f6;text-decoration:none" title="${r.url}">${r.title||r.slug}</a>${r.title?`<div style="font-size:10px;color:#94a3b8;margin-top:1px">${r.slug}</div>`:''}</td>`;
+    h+=`<td style="padding:6px 8px;text-align:right;font-weight:600">${fmt(r.clicks)}</td>`;
+    h+=`<td style="padding:6px 8px;text-align:right">${fmt(r.impressions)}</td>`;
+    h+=`<td style="padding:6px 8px;text-align:right">${ctrVal}</td>`;
+    h+=`<td style="padding:6px 8px;text-align:right;color:${posColor};font-weight:${Number(pos)<=10?'600':'400'}">${pos}</td>`;
+    h+=`</tr>`;
+  });
+  h+=`</tbody></table></div>`;
+  // ページネーション
+  if(total>perPage){
+    h+=`<div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-top:12px;padding:8px">`;
+    h+=`<button onclick="seoArtState.page=Math.max(0,seoArtState.page-1);renderSeoArticles(SEO_ART)" style="padding:6px 14px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:12px" ${st.page===0?'disabled':''}>&laquo; 前へ</button>`;
+    h+=`<span style="font-size:12px;color:#666">${st.page+1} / ${maxPage+1} ページ（${start+1}～${Math.min(start+perPage,total)} / ${total}件）</span>`;
+    h+=`<button onclick="seoArtState.page=Math.min(${maxPage},seoArtState.page+1);renderSeoArticles(SEO_ART)" style="padding:6px 14px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:12px" ${st.page>=maxPage?'disabled':''}> 次へ &raquo;</button>`;
+    h+=`</div>`;
+  }
+  h+='</div>';
+  wrap.innerHTML=h;
+}
+
+const GAS_SYNC_URL='https://script.google.com/macros/s/AKfycbzHBAGsgTyjXpT9CK1R9rt67_eXhymiHAj2Eb3ENCZzTaTg9a_WWcT8bPkNz6CWF8XO/exec';
+const SNS_API_URL='http://127.0.0.1:3456';
+
+// SNS収集データをSupabaseにupsert
+async function upsertSnsToSupabase(platform, data){
+  const today=new Date().toISOString().slice(0,10);
+  const am=data.account_metrics||{};
+  const friends=data.friends||{};
+  const row={
+    date:today, platform,
+    followers: data.followers||am.followers||friends.target_reach||0,
+    posts: data.posts||data.post_count||am.posts||0,
+    likes: data.likes||data.total_likes||data.interactions_30d||data.likes_7d||0,
+    comments: data.comments||data.comments_7d||0,
+    shares: data.shares||data.shares_7d||0,
+    impressions: data.impressions||am.views_90d||data.views_30d||data.video_views_7d||0,
+    reach: data.reach||am.reach_30d||data.reach_30d||0,
+    extra_json: JSON.stringify(data)
+  };
+  const r=await fetch(`${SB}/rest/v1/kpi_sns_metrics?on_conflict=date,platform`,{
+    method:'POST',
+    headers:{...H,'Authorization':'Bearer '+SK,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+    body:JSON.stringify(row)
+  });
+  return r.ok;
+}
+
+async function runSync(){
+  const btn=document.getElementById('syncBtn');
+  const box=document.getElementById('syncResult');
+  btn.disabled=true;btn.textContent='同期中...';
+  box.style.display='block';
+  box.style.background='#f0f4ff';box.style.border='1px solid #c7d2fe';
+  box.innerHTML='<strong>集計実行中...</strong> スプレッドシート・GA4のデータをSupabaseに同期しています。';
+
+  const labels={daily_summary:'日次サマリー',orders:'注文データ',ga4:'GA4',inventory:'在庫',sns:'SNS'};
+  let results={};
+  let hasError=false;
+
+  // 1. GAS Web App → EC/GA4/在庫 をSupabaseに同期
+  try{
+    const r=await fetch(GAS_SYNC_URL,{redirect:'follow',signal:AbortSignal.timeout(120000)});
+    const ct=r.headers.get('content-type')||'';
+    if(!r.ok||!ct.includes('json')){
+      const txt=await r.text();
+      const preview=txt.substring(0,200);
+      throw new Error('HTTP '+r.status+' ('+ct.split(';')[0]+') '+preview);
+    }
+    const gasData=await r.json();
+    Object.assign(results,gasData);
+  }catch(e){
+    results.daily_summary={ok:false,error:'GAS同期失敗: '+e.message};
+    results.orders={ok:false,error:'GAS同期失敗: '+e.message};
+    results.ga4={ok:false,error:'GAS同期失敗: '+e.message};
+    results.inventory={ok:false,error:'GAS同期失敗: '+e.message};
+    hasError=true;
+  }
+
+  // 2. SNS収集APIサーバー（Chrome起動時に自動起動）→ 収集 → Supabaseに直接書き込み
+  box.innerHTML='<strong>集計実行中...</strong> SNSデータを収集しています。';
+  try{
+    const st=await fetch(SNS_API_URL+'/status',{cache:'no-store',signal:AbortSignal.timeout(3000)}).then(r=>r.json()).catch(()=>null);
+    if(st&&st.cdp&&st.cdp.available){
+      const openTabs=Object.entries(st.cdp.tabs).filter(([,v])=>v).map(([k])=>k);
+      if(openTabs.length>0){
+        const cr=await fetch(SNS_API_URL+'/collect',{cache:'no-store',signal:AbortSignal.timeout(360000)});
+        const cd=await cr.json();
+        if(cd.success&&cd.data){
+          let cnt=0;
+          for(const[p,d]of Object.entries(cd.data)){
+            if(d&&await upsertSnsToSupabase(p,d))cnt++;
+          }
+          results.sns={ok:true,count:cnt};
+          // kpi_sync_statusのsns行を更新
+          try{await fetch(`${SB}/rest/v1/kpi_sync_status?sync_type=eq.sns`,{method:'PATCH',headers:{...H,'Authorization':'Bearer '+SK,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({last_sync:new Date().toISOString(),record_count:cnt,status:'ok',error_msg:null})})}catch(e){}
+          const closed=Object.entries(st.cdp.tabs).filter(([,v])=>!v).map(([k])=>k);
+          if(closed.length>0)results.sns.partial_skip='タブ未検出: '+closed.join(', ');
+        }else{
+          results.sns={ok:false,error:cd.error||'収集失敗'};
+        }
+      }else{
+        results.sns={ok:false,skipped:true,reason:'SNSタブが開いていません（LINE/Instagram/TikTok）'};
+      }
+    }else if(st){
+      results.sns={ok:false,skipped:true,reason:'Chrome CDPに接続できません（--remote-debugging-port=9222で起動してください）'};
+    }else{
+      results.sns={ok:false,skipped:true,reason:'SNS収集サーバー未起動（Chrome起動.batから起動してください）'};
+    }
+  }catch(e){
+    results.sns={ok:false,skipped:true,reason:'SNS収集エラー: '+e.message};
+  }
+
+  // 3. 結果表示
+  let html='<strong>同期完了</strong><br>';
+  let hasSkip=false;
+  for(const[k,v]of Object.entries(results)){
+    const label=labels[k]||k;
+    if(v.ok){
+      html+=`<span style="color:#16a34a">\u2713</span> ${label}: ${v.count||0}件同期`;
+      if(v.partial_skip)html+=` <span style="color:#d97706">（${v.partial_skip}）</span>`;
+      html+='<br>';
+    }else if(v.skipped){
+      hasSkip=true;
+      html+=`<span style="color:#d97706">\u25b3</span> ${label}: スキップ — ${v.reason}<br>`;
+    }else{
+      hasError=true;
+      html+=`<span style="color:#dc2626">\u2717</span> ${label}: エラー — ${v.error||'不明'}<br>`;
+    }
+  }
+  box.style.background=hasError?'#fef2f2':hasSkip?'#fffbeb':'#f0fdf4';
+  box.style.border=hasError?'1px solid #fca5a5':hasSkip?'1px solid #fcd34d':'1px solid #86efac';
+  box.innerHTML=html;
+
+  // 4. Supabaseからデータ再読み込み
+  try{ await init(); }catch(e){}
+  btn.disabled=false;btn.textContent='\u21bb 集計更新';
+}
+
+init();
+
+// ========== Threads ==========
+function renderSnsThreadsContent(th){
+  if(th.length===0) return '<div class="card"><p>Threadsデータがありません</p></div>';
+  const last=th[th.length-1];
+  const am=last.account_metrics||{};
+  const inter=last.interactions||{};
+  const vs=last.view_sources||{};
+  const demo=last.demographics||{};
+  const gender=demo.gender||{};
+  const age=demo.age||{};
+  const loc=demo.location||{};
+  const engRate=am.views_30d>0?((am.interactions_30d||0)/am.views_30d*100).toFixed(2):'--';
+
+  return `
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>📈 フォロワー推移</h3>
+        <div style="position:relative;height:180px"><canvas id="sns-threads-followers"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>📊 フォロワー増減</h3>
+        <div style="position:relative;height:180px"><canvas id="sns-threads-followers-delta"></canvas></div>
+      </div>
+    </div>
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>👁 閲覧数・インタラクション推移</h3>
+        <div style="position:relative;height:180px"><canvas id="sns-threads-engagement"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>📈 エンゲージメント率推移</h3>
+        <div style="position:relative;height:180px"><canvas id="sns-threads-eng-rate"></canvas></div>
+      </div>
+    </div>
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>📊 閲覧ソース（最新）</h3>
+        <div style="position:relative;height:180px"><canvas id="sns-threads-sources"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>📊 閲覧ソース推移</h3>
+        <div style="position:relative;height:180px"><canvas id="sns-threads-sources-trend"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>📝 投稿パフォーマンス</h3>
+      <div id="sns-threads-posts"></div>
+    </div>
+    <div class="card">
+      <h3>📊 投稿別閲覧数比較</h3>
+      <div style="position:relative;height:200px"><canvas id="sns-threads-post-views"></canvas></div>
+    </div>
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>🧵 サマリー</h3>
+        <table style="font-size:13px"><thead><tr><th>指標</th><th>値</th></tr></thead><tbody>
+          <tr><td>フォロワー</td><td><strong>${(am.followers||0).toLocaleString()}</strong></td></tr>
+          <tr><td>閲覧数 (30d)</td><td>${(am.views_30d||0).toLocaleString()}</td></tr>
+          <tr><td>インタラクション (30d)</td><td>${(am.interactions_30d||0).toLocaleString()}</td></tr>
+          <tr><td>エンゲージメント率</td><td><strong>${engRate}%</strong></td></tr>
+          <tr><td>いいね</td><td>${inter.likes||0}</td></tr>
+          <tr><td>引用</td><td>${inter.quotes||0}</td></tr>
+          <tr><td>返信</td><td>${inter.replies||0}</td></tr>
+          <tr><td>再投稿</td><td>${inter.reposts||0}</td></tr>
+        </tbody></table>
+      </div>
+      <div class="card">
+        <h3>📈 フォロワー成長率</h3>
+        <div style="position:relative;height:180px"><canvas id="sns-threads-growth-rate"></canvas></div>
+      </div>
+    </div>
+    <div class="grid grid-3">
+      <div class="card">
+        <h3>👤 性別</h3>
+        <div style="position:relative;height:180px"><canvas id="sns-threads-gender"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>📅 年齢層</h3>
+        <div style="position:relative;height:180px"><canvas id="sns-threads-age"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>📍 地域</h3>
+        <div style="position:relative;height:180px"><canvas id="sns-threads-location"></canvas></div>
+      </div>
+    </div>`;
+}
+function renderSnsThreadsCharts(th){
+  if(th.length===0) return;
+  const last=th[th.length-1];
+  const vs=last.view_sources||{};
+  const demo=last.demographics||{};
+  const gender=demo.gender||{};
+  const age=demo.age||{};
+  const loc=demo.location||{};
+  const dates=th.map(x=>x.date);
+  const followers=th.map(x=>(x.account_metrics||{}).followers||0);
+  const views=th.map(x=>(x.account_metrics||{}).views_30d||0);
+  const interactions=th.map(x=>(x.account_metrics||{}).interactions_30d||0);
+
+  // 1. フォロワー推移
+  snsCreateChart('sns-threads-followers',{
+    type:'line',
+    data:{labels:dates,datasets:[{label:'フォロワー',data:followers,borderColor:'#000',backgroundColor:'rgba(0,0,0,0.05)',fill:true,tension:0.3,pointRadius:th.length===1?6:3,pointBackgroundColor:'#000'}]},
+    options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:false}}}
+  });
+
+  // 2. フォロワー増減
+  if(followers.length>=2){
+    const deltas=followers.map((f,i)=>i===0?0:f-followers[i-1]);
+    const deltaColors=deltas.map(d=>d>0?'#10b981':d<0?'#ef4444':'#d1d5db');
+    snsCreateChart('sns-threads-followers-delta',{
+      type:'bar',
+      data:{labels:dates,datasets:[{label:'増減',data:deltas,backgroundColor:deltaColors,borderRadius:2}]},
+      options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+    });
+  }
+
+  // 3. 閲覧数・インタラクション推移
+  if(views.some(v=>v>0)||interactions.some(v=>v>0)){
+    snsCreateChart('sns-threads-engagement',{
+      type:'line',
+      data:{labels:dates,datasets:[
+        {label:'閲覧数(30d)',data:views,borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,0.08)',fill:true,tension:0.3,yAxisID:'y'},
+        {label:'インタラクション(30d)',data:interactions,borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,0.08)',fill:true,tension:0.3,yAxisID:'y1'}
+      ]},
+      options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{y:{type:'linear',position:'left',beginAtZero:true,title:{display:true,text:'閲覧数'}},y1:{type:'linear',position:'right',beginAtZero:true,grid:{drawOnChartArea:false},title:{display:true,text:'インタラクション'}}}}
+    });
+  }
+
+  // 4. エンゲージメント率推移
+  const engRates=th.map(x=>{
+    const v=(x.account_metrics||{}).views_30d||0;
+    const i=(x.account_metrics||{}).interactions_30d||0;
+    return v>0?(i/v*100):0;
+  });
+  if(engRates.some(r=>r>0)){
+    snsCreateChart('sns-threads-eng-rate',{
+      type:'line',
+      data:{labels:dates,datasets:[{label:'エンゲージメント率(%)',data:engRates.map(r=>parseFloat(r.toFixed(2))),borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,0.08)',fill:true,tension:0.3,pointRadius:3}]},
+      options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{callback:function(v){return v+'%'}}}}}
+    });
+  }
+
+  // 5. 閲覧ソース（最新・doughnut）
+  const srcLabels=[],srcData=[],srcColors=['#4f46e5','#06b6d4','#f59e0b','#10b981','#94a3b8'];
+  const srcMap={search:'検索',profile:'プロフィール',recommend:'おすすめ',following:'フォロー中',other:'その他'};
+  Object.entries(vs).forEach(([k,v],i)=>{if(v>0){srcLabels.push(srcMap[k]||k);srcData.push(v);}});
+  if(srcData.length>0){
+    snsCreateChart('sns-threads-sources',{
+      type:'doughnut',
+      data:{labels:srcLabels,datasets:[{data:srcData,backgroundColor:srcColors.slice(0,srcData.length),borderWidth:2}]},
+      options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:function(c){return c.label+': '+c.parsed+'%'}}}}}
+    });
+  }
+
+  // 6. 閲覧ソース推移（積み上げ棒）
+  const srcKeys=['search','profile','recommend','following','other'];
+  const srcTrendData={};
+  srcKeys.forEach(k=>{srcTrendData[k]=[]});
+  th.forEach(d=>{
+    const s=d.view_sources||{};
+    srcKeys.forEach(k=>{srcTrendData[k].push(s[k]||0)});
+  });
+  const activeSrcKeys=srcKeys.filter(k=>srcTrendData[k].some(v=>v>0));
+  if(activeSrcKeys.length>0){
+    const srcTrendColors={search:'#4f46e5',profile:'#06b6d4',recommend:'#f59e0b',following:'#10b981',other:'#94a3b8'};
+    snsCreateChart('sns-threads-sources-trend',{
+      type:'bar',
+      data:{labels:dates,datasets:activeSrcKeys.map(k=>({label:srcMap[k]||k,data:srcTrendData[k],backgroundColor:srcTrendColors[k],borderRadius:1}))},
+      options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:10}}}},scales:{x:{stacked:true},y:{stacked:true,ticks:{callback:function(v){return v+'%'}}}}}
+    });
+  }
+
+  // 7. 投稿パフォーマンステーブル（詳細版）
+  const postsEl=document.getElementById('sns-threads-posts');
+  if(postsEl){
+    const allPosts=[];
+    th.forEach(d=>{if(d.posts)d.posts.forEach(p=>{if(!allPosts.find(x=>x.post_id===p.post_id))allPosts.push(p)})});
+    if(allPosts.length>0){
+      allPosts.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      const hasDetail=allPosts.some(p=>p.interactions_detail||p.view_sources);
+      let header,rowFn;
+      if(hasDetail){
+        header='<tr><th>日付</th><th>内容</th><th>閲覧</th><th>♥</th><th>返信</th><th>引用</th><th>再投稿</th><th>フォロー</th></tr>';
+        rowFn=p=>{const id=p.interactions_detail||{};return `<tr><td style="white-space:nowrap">${p.date||''}</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(p.content||'').substring(0,35)}</td><td style="text-align:right;font-weight:bold">${(p.views||0).toLocaleString()}</td><td style="text-align:right">${id.likes||p.likes||0}</td><td style="text-align:right">${id.replies||0}</td><td style="text-align:right">${id.quotes||0}</td><td style="text-align:right">${id.reposts||0}</td><td style="text-align:right">${p.follows_from_post||0}</td></tr>`;};
+      } else {
+        header='<tr><th>日付</th><th>内容</th><th>閲覧</th><th>♥</th></tr>';
+        rowFn=p=>`<tr><td style="white-space:nowrap">${p.date||''}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(p.content||'').substring(0,40)}</td><td style="text-align:right;font-weight:bold">${(p.views||0).toLocaleString()}</td><td style="text-align:right">${p.likes||0}</td></tr>`;
+      }
+      postsEl.innerHTML=`<table style="width:100%;font-size:13px"><thead>${header}</thead><tbody>${allPosts.map(rowFn).join('')}</tbody></table>`;
+    } else {
+      postsEl.innerHTML='<p style="color:#999;font-size:13px">投稿データなし（次回収集時に取得）</p>';
+    }
+  }
+
+  // 8. 投稿別閲覧数比較（横棒）
+  const allPostsForChart=[];
+  th.forEach(d=>{if(d.posts)d.posts.forEach(p=>{if(!allPostsForChart.find(x=>x.post_id===p.post_id))allPostsForChart.push(p)})});
+  if(allPostsForChart.length>0){
+    allPostsForChart.sort((a,b)=>(a.views||0)-(b.views||0));
+    const postLabels=allPostsForChart.map(p=>(p.content||'').substring(0,20)||(p.date||''));
+    const postViews=allPostsForChart.map(p=>p.views||0);
+    snsCreateChart('sns-threads-post-views',{
+      type:'bar',
+      data:{labels:postLabels,datasets:[{label:'閲覧数',data:postViews,backgroundColor:'#6366f1',borderRadius:4}]},
+      options:{maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true}}}
+    });
+  }
+
+  // 9. フォロワー成長率
+  if(followers.length>=2){
+    const growthRates=followers.map((f,i)=>{
+      if(i===0||followers[i-1]===0) return 0;
+      return parseFloat(((f-followers[i-1])/followers[i-1]*100).toFixed(3));
+    });
+    snsCreateChart('sns-threads-growth-rate',{
+      type:'line',
+      data:{labels:dates,datasets:[{label:'成長率(%)',data:growthRates,borderColor:'#10b981',backgroundColor:'rgba(16,185,129,0.08)',fill:true,tension:0.3,pointRadius:3}]},
+      options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:function(v){return v+'%'}}}}}
+    });
+  }
+
+  // 10. 性別 (doughnut)
+  if(gender.female||gender.male||gender.other){
+    snsCreateChart('sns-threads-gender',{
+      type:'doughnut',
+      data:{labels:['女性','男性','その他'],datasets:[{data:[gender.female||0,gender.male||0,gender.other||0],backgroundColor:['#ec4899','#3b82f6','#a3a3a3'],borderWidth:2}]},
+      options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:function(c){return c.label+': '+c.parsed+'%'}}}}}
+    });
+  }
+
+  // 11. 年齢層 (horizontal bar)
+  const ageLabels=Object.keys(age);
+  const ageData=Object.values(age);
+  if(ageLabels.length>0){
+    snsCreateChart('sns-threads-age',{
+      type:'bar',
+      data:{labels:ageLabels,datasets:[{label:'割合(%)',data:ageData,backgroundColor:'#6366f1',borderRadius:4}]},
+      options:{maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,max:100,ticks:{callback:function(v){return v+'%'}}}}}
+    });
+  }
+
+  // 12. 地域 (horizontal bar)
+  const locLabels=Object.keys(loc);
+  const locData=Object.values(loc);
+  if(locLabels.length>0){
+    snsCreateChart('sns-threads-location',{
+      type:'bar',
+      data:{labels:locLabels,datasets:[{label:'割合(%)',data:locData,backgroundColor:'#10b981',borderRadius:4}]},
+      options:{maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{callback:function(v){return v+'%'}}}}}
+    });
+  }
+}
+
+
+// ===== 最新履歴タブ =====
+function renderHistory(orders,syncStatus){
+  const el=document.getElementById('tab-history');if(!el)return;
+  const dayNames=['日','月','火','水','木','金','土'];
+  const sorted=[...orders].sort((a,b)=>{
+    const da=a.order_datetime||a.order_date||'';
+    const db=b.order_datetime||b.order_date||'';
+    return db.localeCompare(da);
+  }).slice(0,50);
+
+  // --- システム同期ステータスパネル ---
+  const now=new Date();
+  function fmtSyncTime(dt){
+    if(!dt)return'<span style="color:#bbb">未同期</span>';
+    const d=new Date(dt);if(isNaN(d))return dt;
+    const mm=d.getMonth()+1,dd=d.getDate(),dow=dayNames[d.getDay()];
+    const hh=String(d.getHours()).padStart(2,'0'),mi=String(d.getMinutes()).padStart(2,'0');
+    const diffMin=Math.floor((now-d)/60000);
+    let ago=diffMin<1?'たった今':diffMin<60?diffMin+'分前':diffMin<1440?Math.floor(diffMin/60)+'時間前':Math.floor(diffMin/1440)+'日前';
+    return mm+'/'+dd+'('+dow+') '+hh+':'+mi+' <span style="font-size:11px;color:'+(diffMin<30?'#16a34a':'#999')+'">'+ago+'</span>';
+  }
+  function dotColor(dt){
+    if(!dt)return'#ccc';
+    const d=new Date(dt);if(isNaN(d))return'#ccc';
+    const m=Math.floor((now-d)/60000);
+    return m<60?'#22c55e':m<1440?'#f59e0b':'#ef4444';
+  }
+  // kpi_sync_statusからsync_typeごとのlast_syncを取得
+  const syMap={};
+  (syncStatus||[]).forEach(s=>{syMap[s.sync_type]={last_sync:s.last_sync,status:s.status,count:s.record_count,error:s.error_msg}});
+  // 表示する同期項目
+  const syncItems=[
+    {key:'_dashboard',label:'\u{1F4CA} ダッシュボード読込',color:'#667eea',time:now.toISOString()},
+    {key:'shopify',label:'\u{1F6D2} Shopify/社割/卸売 同期',color:'#96bf48',time:syMap.shopify?.last_sync},
+    {key:'amazon_qoo10',label:'\u{1F4E6} Amazon/Qoo10/楽天 同期',color:'#ff9900',time:syMap.amazon_qoo10?.last_sync},
+    {key:'ga4',label:'\u{1F4C8} GA4 同期',color:'#4285f4',time:syMap.ga4?.last_sync},
+    {key:'inventory',label:'\u{1F4DD} 在庫 同期',color:'#10b981',time:syMap.inventory?.last_sync},
+    {key:'sns',label:'\u{1F4F1} SNS 同期',color:'#e1306c',time:syMap.sns?.last_sync},
+  ];
+  const syncRows=syncItems.map(it=>{
+    const st=syMap[it.key];
+    const hasErr=st&&st.status==='error';
+    const errMsg=hasErr?'<div style="font-size:11px;color:#ef4444;margin-top:2px">'+st.error+'</div>':'';
+    const countStr=st&&st.count?'<span style="font-size:11px;color:#999;margin-left:6px">'+st.count+'件</span>':'';
+    return'<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid #f5f5f5">'+
+      '<span style="width:8px;height:8px;border-radius:50%;background:'+dotColor(it.time)+';display:inline-block;margin-top:5px;flex-shrink:0"></span>'+
+      '<div style="min-width:180px;font-size:13px;font-weight:500;border-left:3px solid '+it.color+';padding-left:8px">'+it.label+countStr+'</div>'+
+      '<div style="font-size:13px;color:#444">'+fmtSyncTime(it.time)+errMsg+'</div>'+
+    '</div>';
+  }).join('');
+  const syncPanel='<div class="card" style="margin-bottom:12px">'+
+    '<h3 style="font-size:14px;margin-bottom:8px">\u{1F504} システム同期ステータス</h3>'+
+    syncRows+
+    '<p style="font-size:11px;color:#bbb;margin:8px 0 0">\u{1F7E2} 1時間以内\u3000\u{1F7E1} 24時間以内\u3000\u{1F534} 24時間超\u3000\u{26AA} 未同期</p></div>';
+
+  const chIcon={shopify:'\u{1F6D2}',amazon:'\u{1F4E6}',qoo10:'\u{1F3EA}',rakuten:'\u{1F3EF}',employee:'\u{1F464}',wholesale:'\u{1F3E5}'};
+
+  let rows=sorted.map(o=>{
+    const dt=o.order_datetime||o.order_date||'';
+    let dateDisp='';
+    if(dt){
+      const d=new Date(dt.replace(/-/g,'/'));
+      if(!isNaN(d)){
+        const mm=d.getMonth()+1,dd=d.getDate(),dow=dayNames[d.getDay()];
+        const hh=d.getHours(),mi=String(d.getMinutes()).padStart(2,'0');
+        if(dt.length>10){
+          dateDisp=mm+'/'+dd+'('+dow+') '+hh+':'+mi;
+        } else {
+          dateDisp=mm+'/'+dd+'('+dow+')';
+        }
+      } else { dateDisp=dt; }
+    }
+    const ch=o.channel||'';
+    const prod=normProd(o.product_name)||'\u4E0D\u660E';
+    const qty=o.quantity||1;
+    const total=o.total||0;
+    return '<tr>'+
+      '<td style="white-space:nowrap;font-size:13px">'+dateDisp+'</td>'+
+      '<td>'+chBadge(ch)+'</td>'+
+      '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+prod+'</td>'+
+      '<td class="num">'+qty+'</td>'+
+      '<td class="num" style="font-weight:600">'+yen(total)+'</td>'+
+    '</tr>';
+  }).join('');
+
+  const chCounts={};
+  sorted.forEach(o=>{const c=o.channel||'other';chCounts[c]=(chCounts[c]||0)+1});
+  const chSummary=Object.entries(chCounts).sort((a,b)=>b[1]-a[1]).map(([c,n])=>
+    chBadge(c)+' <b>'+n+'\u4EF6</b>'
+  ).join('\u3000');
+
+  el.innerHTML=syncPanel+'<div class="card" style="margin-bottom:16px">'+
+    '<h3>\u{1F4CB} \u5168\u5A92\u4F53 \u6700\u65B0\u6CE8\u6587\u5C65\u6B74\uFF08\u65B0\u3057\u3044\u9806 50\u4EF6\uFF09</h3>'+
+    '<p style="font-size:12px;color:#999;margin:4px 0 12px">\u5A92\u4F53\u5185\u8A33: '+chSummary+'</p>'+
+    '<div style="overflow-x:auto">'+
+    '<table style="width:100%;font-size:13px">'+
+    '<thead><tr>'+
+    '<th style="min-width:100px">\u65E5\u6642</th>'+
+    '<th>\u5A92\u4F53</th>'+
+    '<th>\u5546\u54C1\u540D</th>'+
+    '<th class="num">\u6570\u91CF</th>'+
+    '<th class="num">\u58F2\u4E0A</th>'+
+    '</tr></thead>'+
+    '<tbody>'+rows+'</tbody>'+
+    '</table></div></div>';
+}
+
+</script>
+</body>
+</html>

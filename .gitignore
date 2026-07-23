@@ -1,0 +1,37 @@
+# Temp files
+*.zip
+*.backup
+gas_v01_backup.txt
+github_paste.txt
+
+# Archive (v0.2/v0.3 backups, not tracked)
+archive/
+
+# Legacy files (replaced by demo.html)
+index_demo.html
+index_demo_v02.html
+
+# Screenshots & generated images
+screenshots/
+qr_codes/
+
+# Python scripts (dev tools)
+*.py
+*.ps1
+
+# Data files (patient CSV etc.)
+data/
+
+# Claude Code local settings (user-specific)
+.claude/settings.local.json
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Allow karte_v02 manual screenshots
+!karte_v02/manual/screenshots/
+
+# 患者レセプトUKEテストデータは公開しない（個人情報・医療情報）
+_uke_test/
+*.uke

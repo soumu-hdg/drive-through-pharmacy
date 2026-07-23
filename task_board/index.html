@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>タスクボード - HUNDRED DOCTOR</title>
+<style>
+:root {
+  --cork: #c8a97e;
+  --cork-dark: #8d6e4a;
+  --cork-shadow: rgba(0,0,0,0.15);
+  --text: #333;
+  --text-muted: #777;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', 'Meiryo', 'Hiragino Sans', sans-serif;
+  background: #f5f0eb;
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ===== Login Screen ===== */
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #3e2723 0%, #5d4037 50%, #795548 100%);
+  padding: 24px;
+}
+.login-screen.hidden { display: none; }
+.login-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 36px 32px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.3);
+  text-align: center;
+}
+.login-card h1 {
+  font-size: 24px;
+  margin-bottom: 6px;
+  color: #3e2723;
+}
+.login-card .login-sub {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 24px;
+}
+.member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.member-btn {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  border: 2px solid #e0d5c8;
+  border-radius: 12px;
+  background: #faf7f4;
+  font-size: 16px;
+  font-weight: 600;
+  color: #5d4037;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.member-btn:hover {
+  background: #5d4037;
+  color: #fff;
+  border-color: #5d4037;
+  transform: scale(1.02);
+}
+
+/* ===== Main App (hidden until login) ===== */
+.app-main { display: none; }
+.app-main.active { display: block; }
+
+/* ===== Header ===== */
+.app-header {
+  background: linear-gradient(135deg, #3e2723 0%, #5d4037 100%);
+  color: #fff;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.app-header h1 {
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.user-badge {
+  background: rgba(255,255,255,0.15);
+  padding: 4px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.logout-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+}
+.logout-btn:hover { background: rgba(255,255,255,0.15); }
+.date-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.date-nav button {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: #fff;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 15px;
+  transition: background 0.2s;
+}
+.date-nav button:hover { background: rgba(255,255,255,0.3); }
+.date-display {
+  font-size: 15px;
+  font-weight: 600;
+  min-width: 150px;
+  text-align: center;
+}
+.today-btn {
+  background: #ff8f00;
+  border: none;
+  color: #fff;
+  padding: 5px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.today-btn:hover { background: #ff6f00; }
+
+/* ===== Stats Bar ===== */
+.stats-bar {
+  background: #fff;
+  padding: 8px 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 1px solid #e0d5c8;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.stat-item { display: flex; align-items: center; gap: 5px; }
+.stat-dot { width: 10px; height: 10px; border-radius: 50%; }
+.stat-dot.done { background: #4caf50; }
+.stat-dot.inprog { background: #2196f3; }
+.stat-dot.pending { background: #ff9800; }
+.stat-dot.empty { background: #e0e0e0; }
+.stat-value { font-weight: 700; }
+.stats-bar .team-rate {
+  margin-left: auto;
+  font-weight: 700;
+  font-size: 14px;
+  color: #5d4037;
+}
+
+/* ===== Board Grid ===== */
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  padding: 20px 24px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* ===== Person Card ===== */
+.person-card { display: flex; flex-direction: column; }
+.person-card.is-mine .person-name { background: linear-gradient(135deg, #1565c0, #1976d2); }
+.person-name {
+  background: #5d4037;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 12px 12px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.person-name .rate { font-size: 12px; opacity: 0.85; font-weight: 400; }
+.cork-board {
+  background-color: #b8956a;
+  background-image: var(--cork-texture, none);
+  background-size: 200px 200px;
+  background-repeat: repeat;
+  border: 3px solid var(--cork-dark);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  padding: 14px;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow:
+    inset 0 2px 10px rgba(0,0,0,0.25),
+    inset 0 -1px 6px rgba(0,0,0,0.1),
+    inset 0 0 40px rgba(80,50,20,0.08);
+  position: relative;
+}
+.cork-board.readonly { opacity: 0.85; }
+
+/* ===== Sticky Notes ===== */
+.sticky-note {
+  padding: 10px 14px;
+  border-radius: 2px;
+  font-size: 13px;
+  line-height: 1.5;
+  position: relative;
+  box-shadow: 2px 3px 7px rgba(0,0,0,0.2);
+  transition: transform 0.15s, box-shadow 0.15s;
+  min-height: 48px;
+}
+.sticky-note.clickable { cursor: pointer; }
+.sticky-note.clickable:hover {
+  transform: scale(1.02);
+  box-shadow: 3px 5px 12px rgba(0,0,0,0.25);
+}
+.sticky-note::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #d32f2f 40%, #b71c1c 100%);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+.sticky-note.c0 { background: #fff9c4; transform: rotate(-1.2deg); }
+.sticky-note.c1 { background: #f8bbd0; transform: rotate(0.8deg); }
+.sticky-note.c2 { background: #b3e5fc; transform: rotate(-0.6deg); }
+.sticky-note.c0.clickable:hover { transform: rotate(-1.2deg) scale(1.02); }
+.sticky-note.c1.clickable:hover { transform: rotate(0.8deg) scale(1.02); }
+.sticky-note.c2.clickable:hover { transform: rotate(-0.6deg) scale(1.02); }
+
+.note-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #1a1a1a;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.note-detail { font-size: 11.5px; color: #555; }
+
+/* Delete button on hover */
+.note-delete-btn {
+  position: absolute;
+  top: 50%;
+  right: -14px;
+  transform: translateY(-50%) scale(0);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: #ef5350;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  transition: transform 0.15s, background 0.15s;
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+}
+.sticky-note.clickable:hover .note-delete-btn {
+  transform: translateY(-50%) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+.note-delete-btn:hover {
+  background: #c62828;
+  transform: translateY(-50%) scale(1.15) !important;
+}
+
+/* Status: done */
+.sticky-note.done { opacity: 0.75; }
+.sticky-note.done .note-title { text-decoration: line-through; color: #888; }
+.sticky-note.done .note-detail { text-decoration: line-through; color: #999; }
+.crayon-check {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-8deg);
+  font-size: 48px;
+  font-weight: 900;
+  color: rgba(76, 175, 80, 0.45);
+  font-family: 'Segoe Script', 'Comic Sans MS', cursive;
+  pointer-events: none;
+  text-shadow: 2px 0 0 rgba(76,175,80,0.1);
+  user-select: none;
+}
+
+/* Status: in-progress */
+.sticky-note.in-progress .note-title { color: #1565c0; }
+.crayon-inprog {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-5deg);
+  width: 44px;
+  height: 44px;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.4;
+}
+/* SVG circular arrow drawn via CSS */
+.crayon-inprog svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* ===== Status Picker (popup on click) ===== */
+.status-picker-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+}
+.status-picker-overlay.active { display: block; }
+.status-picker {
+  position: fixed;
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+  z-index: 260;
+  display: flex;
+  gap: 8px;
+}
+.sp-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  cursor: pointer;
+  background: #fafafa;
+  transition: all 0.15s;
+  min-width: 80px;
+  font-family: inherit;
+}
+.sp-btn:hover { transform: scale(1.05); }
+.sp-btn.sp-done { border-color: #a5d6a7; }
+.sp-btn.sp-done:hover { background: #e8f5e9; }
+.sp-btn.sp-inprog { border-color: #90caf9; }
+.sp-btn.sp-inprog:hover { background: #e3f2fd; }
+.sp-btn.sp-undo { border-color: #ffe0b2; }
+.sp-btn.sp-undo:hover { background: #fff8e1; }
+.sp-icon { font-size: 28px; }
+.sp-label { font-size: 11px; font-weight: 600; color: #555; }
+
+/* ===== Add Task ===== */
+.add-task-area {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+  align-items: flex-end;
+}
+.add-task-inputs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.add-task-inputs input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 2px dashed #a0845a;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.6);
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+}
+.add-task-inputs input.input-detail {
+  font-size: 11.5px;
+  padding: 5px 10px;
+  border-style: dotted;
+  border-color: #b89a6e;
+}
+.add-task-inputs input::placeholder { color: #a08060; }
+.add-task-inputs input:focus { border-color: #5d4037; background: rgba(255,255,255,0.9); }
+.add-task-btn {
+  background: #5d4037;
+  color: #fff;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.add-task-btn:hover { background: #4e342e; }
+
+/* ===== Handover ===== */
+.handover-area { border-top: 2px dashed #a0845a; margin-top: 8px; padding-top: 8px; }
+.handover-area textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.5);
+  font-size: 12px;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+  min-height: 36px;
+}
+.handover-area textarea:focus { background: rgba(255,255,255,0.85); }
+.handover-area textarea:read-only { cursor: default; }
+.handover-label { font-size: 11px; color: #7a5c3a; margin-bottom: 4px; font-weight: 600; }
+.handover-footer { display: flex; justify-content: flex-end; margin-top: 4px; }
+.memo-save-btn {
+  background: #5d4037;
+  color: #fff;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  opacity: 0.85;
+  transition: opacity 0.2s, background 0.2s;
+}
+.memo-save-btn:hover { opacity: 1; background: #4e342e; }
+
+/* ===== Edit Modal ===== */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+.modal h3 { font-size: 18px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.modal label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #555; }
+.modal input, .modal textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid #e0d5c8;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  margin-bottom: 12px;
+}
+.modal input:focus, .modal textarea:focus { border-color: #5d4037; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+.modal-actions button {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn-cancel { background: #e0e0e0; color: #555; }
+.btn-cancel:hover { background: #d0d0d0; }
+.btn-save { background: #5d4037; color: #fff; }
+.btn-save:hover { background: #4e342e; }
+.btn-delete { background: #ef5350; color: #fff; }
+.btn-delete:hover { background: #e53935; }
+
+/* ===== Toast ===== */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: #333;
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 24px;
+  font-size: 14px;
+  z-index: 300;
+  opacity: 0;
+  transition: all 0.3s;
+  pointer-events: none;
+}
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+/* ===== Responsive ===== */
+@media (max-width: 700px) {
+  .board-grid { grid-template-columns: 1fr; padding: 12px; gap: 14px; }
+}
+@media (min-width: 701px) and (max-width: 1000px) {
+  .board-grid { grid-template-columns: repeat(2, 1fr); }
+  .app-header { padding: 10px 14px; }
+  .app-header h1 { font-size: 17px; }
+  .stats-bar { gap: 10px; padding: 6px 14px; font-size: 12px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Login Screen ===== -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <h1>📋 タスクボード</h1>
+    <p class="login-sub">HUNDRED DOCTOR</p>
+    <p style="font-size:14px; color:#555; margin-bottom:16px;">担当者を選択してください</p>
+    <div class="member-list" id="memberList"></div>
+  </div>
+</div>
+
+<!-- ===== Main App ===== -->
+<div class="app-main" id="appMain">
+  <!-- Header -->
+  <div class="app-header">
+    <h1>📋 タスクボード</h1>
+    <div class="header-right">
+      <div class="user-badge">
+        👤 <span id="currentUserName"></span>
+        <span id="syncStatus" style="font-size:10px; margin-left:4px; opacity:0.7;" title="クラウド同期"></span>
+      </div>
+      <button class="logout-btn" onclick="logout()">切替</button>
+      <div class="date-nav">
+        <button onclick="changeDate(-1)">◀</button>
+        <span class="date-display" id="dateDisplay"></span>
+        <button onclick="changeDate(1)">▶</button>
+        <button class="today-btn" onclick="goToday()">今日</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat-item"><span class="stat-dot done"></span> 完了: <span class="stat-value" id="statDone">0</span></div>
+    <div class="stat-item"><span class="stat-dot inprog"></span> 進行中: <span class="stat-value" id="statInprog">0</span></div>
+    <div class="stat-item"><span class="stat-dot pending"></span> 未着手: <span class="stat-value" id="statPending">0</span></div>
+    <div class="stat-item"><span class="stat-dot empty"></span> 未入力: <span class="stat-value" id="statEmpty">0</span>名</div>
+    <div class="team-rate" id="teamRate">チーム達成率: --%</div>
+  </div>
+
+  <!-- Board Grid -->
+  <div class="board-grid" id="boardGrid"></div>
+</div>
+
+<!-- Status Picker -->
+<div class="status-picker-overlay" id="spOverlay" onclick="closeStatusPicker()"></div>
+<div class="status-picker" id="statusPicker" style="display:none;"></div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3>📝 タスク編集</h3>
+    <label>タスク名</label>
+    <input type="text" id="editTitle" placeholder="タスク名">
+    <label>メモ（任意）</label>
+    <textarea id="editDetail" rows="2" placeholder="補足メモ"></textarea>
+    <div class="modal-actions">
+      <button class="btn-delete" onclick="deleteTask()">削除</button>
+      <button class="btn-cancel" onclick="closeEditModal()">キャンセル</button>
+      <button class="btn-save" onclick="saveEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== Constants =====
+const MEMBERS = ['沓名','田中','森','佐川','西村','湯浅','長部','萩原','加藤'];
+const COLORS = ['c0','c1','c2'];
+const MAX_TASKS = 3;
+const GAS_URL = 'https://script.google.com/macros/s/AKfycby3-lL2lSaqJQBhgDbY1twkH0tbDEALp8zjToa1Q3kJVE5v-qw4jSnijJVYWDexbMo/exec';
+// Task status: 'pending' | 'in-progress' | 'done'
+
+let currentUser = null;
+let currentDate = new Date();
+let data = {};
+let editingMember = null;
+let editingIndex = null;
+let syncInProgress = false;
+
+// Circular arrow SVG for in-progress (hand-drawn style recycling arrow)
+const INPROG_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M24 6 C13 6 6 14.5 6 24 C6 33.5 13.5 42 24 42 C34 42 41 34 42 25"
+    stroke="#1565c0" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.55"
+    stroke-dasharray="0" />
+  <polygon points="44,20 42,28 36,22" fill="#1565c0" opacity="0.55"/>
+</svg>`;
+
+// ===== Persistence =====
+function loadData() {
+  try {
+    const s = localStorage.getItem('taskboard_data_v2');
+    if (s) data = JSON.parse(s);
+  } catch(e) { data = {}; }
+}
+function saveData() {
+  localStorage.setItem('taskboard_data_v2', JSON.stringify(data));
+  // GAS同期（非同期・バックグラウンド）
+  if (currentUser) {
+    syncToGAS(dateKey(currentDate), currentUser);
+  }
+}
+
+// ===== GAS同期 =====
+function syncToGAS(dateStr, member) {
+  if (syncInProgress) return;
+  const dayData = data[dateStr];
+  if (!dayData || !dayData[member]) return;
+  const md = dayData[member];
+  const payload = {
+    action: 'saveDay',
+    date: dateStr,
+    member: member,
+    tasks: md.tasks.map(t => ({
+      title: t.title,
+      detail: t.detail || '',
+      status: t.status || 'pending'
+    })),
+    memo: md.handover || ''
+  };
+  syncInProgress = true;
+  setSyncStatus('syncing');
+  // GAS Web Appは302リダイレクトするため、fetchのPOSTはGETに変換されてしまう
+  // 対策: mode:'no-cors'で送信し、確認はGETで行う
+  fetch(GAS_URL, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    mode: 'no-cors'
+  })
+  .then(() => {
+    console.log('GAS sync sent (no-cors)');
+    setSyncStatus('ok');
+  })
+  .catch(err => { console.warn('GAS sync failed:', err); setSyncStatus('error'); })
+  .finally(() => { syncInProgress = false; });
+}
+
+function setSyncStatus(state) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  if (state === 'syncing') { el.textContent = '↻'; el.style.color = '#ff9800'; }
+  else if (state === 'ok') { el.textContent = '☁'; el.style.color = '#4caf50'; setTimeout(() => { el.textContent = ''; }, 3000); }
+  else if (state === 'error') { el.textContent = '⚠'; el.style.color = '#f44336'; }
+  else { el.textContent = ''; }
+}
+
+function loadFromGAS(dateStr) {
+  return fetch(GAS_URL + '?action=load&date=' + encodeURIComponent(dateStr), { redirect: 'follow' })
+    .then(r => r.json())
+    .then(res => {
+      if (res.error) { console.warn('GAS load error:', res.error); return; }
+      if (!res.data) return;
+      const k = dateStr;
+      if (!data[k]) data[k] = {};
+      // GASデータをローカルにマージ（GAS優先）
+      for (const member of Object.keys(res.data)) {
+        const remote = res.data[member];
+        data[k][member] = {
+          tasks: (remote.tasks || []).map(t => ({
+            title: t.title,
+            detail: t.detail || '',
+            status: t.status || 'pending'
+          })),
+          handover: remote.memo || ''
+        };
+      }
+      localStorage.setItem('taskboard_data_v2', JSON.stringify(data));
+      render();
+      console.log('GAS load OK for', dateStr);
+    })
+    .catch(err => console.warn('GAS load failed (using local):', err));
+}
+
+// ===== Login =====
+function initLogin() {
+  const saved = localStorage.getItem('taskboard_user');
+  if (saved && MEMBERS.includes(saved)) {
+    loginAs(saved);
+    return;
+  }
+  showLoginScreen();
+}
+function showLoginScreen() {
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('appMain').classList.remove('active');
+  const list = document.getElementById('memberList');
+  list.innerHTML = MEMBERS.map(m =>
+    `<button class="member-btn" onclick="loginAs('${m}')">${m}</button>`
+  ).join('');
+}
+function loginAs(name) {
+  currentUser = name;
+  localStorage.setItem('taskboard_user', name);
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('appMain').classList.add('active');
+  document.getElementById('currentUserName').textContent = name;
+  render();
+  // GASからデータ読み込み（バックグラウンド）
+  loadFromGAS(dateKey(currentDate));
+}
+function logout() {
+  currentUser = null;
+  localStorage.removeItem('taskboard_user');
+  showLoginScreen();
+}
+
+// ===== Date =====
+function dateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function formatDate(d) {
+  const days = ['日','月','火','水','木','金','土'];
+  return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}（${days[d.getDay()]}）`;
+}
+function changeDate(delta) {
+  currentDate.setDate(currentDate.getDate() + delta);
+  render();
+  loadFromGAS(dateKey(currentDate));
+}
+function goToday() { currentDate = new Date(); render(); loadFromGAS(dateKey(currentDate)); }
+
+// ===== Data Access =====
+function getDayData() {
+  const k = dateKey(currentDate);
+  if (!data[k]) data[k] = {};
+  return data[k];
+}
+function getMemberData(member) {
+  const d = getDayData();
+  if (!d[member]) d[member] = { tasks: [], handover: '' };
+  // Migrate old data (done boolean -> status string)
+  d[member].tasks.forEach(t => {
+    if (t.status === undefined) {
+      t.status = t.done ? 'done' : 'pending';
+      delete t.done;
+    }
+  });
+  return d[member];
+}
+function isMyBoard(member) { return member === currentUser; }
+
+// ===== Render =====
+function render() {
+  document.getElementById('dateDisplay').textContent = formatDate(currentDate);
+  const grid = document.getElementById('boardGrid');
+  grid.innerHTML = '';
+
+  let totalDone = 0, totalInprog = 0, totalTasks = 0, emptyCount = 0;
+
+  MEMBERS.forEach(member => {
+    const md = getMemberData(member);
+    const tasks = md.tasks;
+    const done = tasks.filter(t => t.status === 'done').length;
+    const inprog = tasks.filter(t => t.status === 'in-progress').length;
+    const completed = done + inprog; // 進行中も達成扱い
+    const total = tasks.length;
+    totalDone += done;
+    totalInprog += inprog;
+    totalTasks += total;
+    if (total === 0) emptyCount++;
+
+    const mine = isMyBoard(member);
+    const rate = total > 0 ? Math.round(completed / total * 100) : 0;
+
+    const card = document.createElement('div');
+    card.className = 'person-card' + (mine ? ' is-mine' : '');
+
+    const rateText = total > 0 ? `${completed}/${total} (${rate}%)` : '未入力';
+
+    card.innerHTML = `
+      <div class="person-name">
+        <span>${member}${mine ? ' ★' : ''}</span>
+        <span class="rate">${rateText}</span>
+      </div>
+      <div class="cork-board${mine ? '' : ' readonly'}">
+        ${tasks.map((t, i) => renderSticky(member, t, i, mine)).join('')}
+        ${mine && total < MAX_TASKS ? `
+          <div class="add-task-area">
+            <div class="add-task-inputs">
+              <input type="text" id="input-${member}" placeholder="タスク名（例: カルテ入力）" maxlength="30"
+                onkeydown="if(event.key==='Enter'){document.getElementById('detail-${member}').focus();}">
+              <input type="text" id="detail-${member}" class="input-detail" placeholder="詳細（例: 午前の患者5名分）任意" maxlength="40"
+                onkeydown="if(event.key==='Enter')addTask('${member}')">
+            </div>
+            <button class="add-task-btn" onclick="addTask('${member}')">+</button>
+          </div>
+        ` : ''}
+        <div class="handover-area">
+          <div class="handover-label">📝 メモ</div>
+          <textarea placeholder="${mine ? '自由入力（任意）' : ''}"
+            id="memo-${member}"
+            ${mine ? `oninput="updateHandoverLocal('${member}', this.value)"` : 'readonly'}
+          >${escHtml(md.handover)}</textarea>
+          ${mine ? `<div class="handover-footer"><button class="memo-save-btn" onclick="saveMemoToGAS('${member}')">☁ 保存</button></div>` : ''}
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+
+  // Stats
+  document.getElementById('statDone').textContent = totalDone;
+  document.getElementById('statInprog').textContent = totalInprog;
+  document.getElementById('statPending').textContent = totalTasks - totalDone - totalInprog;
+  document.getElementById('statEmpty').textContent = emptyCount;
+  const totalCompleted = totalDone + totalInprog;
+  const teamRate = totalTasks > 0 ? Math.round(totalCompleted / totalTasks * 100) : 0;
+  document.getElementById('teamRate').textContent = `チーム達成率: ${totalTasks > 0 ? teamRate + '%' : '--'}`;
+}
+
+function renderSticky(member, task, index, mine) {
+  const st = task.status || 'pending';
+  const isDone = st === 'done';
+  const isInprog = st === 'in-progress';
+
+  let overlay = '';
+  if (isDone) overlay = `<span class="crayon-check">✓</span>`;
+  if (isInprog) overlay = `<div class="crayon-inprog">${INPROG_SVG}</div>`;
+
+  const clickable = mine ? ' clickable' : '';
+  const onclick = mine ? `onclick="openStatusPicker(event, '${member}', ${index})"` : '';
+  const ondblclick = mine ? `ondblclick="openEditModal('${member}', ${index})"` : '';
+
+  const deleteBtn = mine
+    ? `<button class="note-delete-btn" onclick="event.stopPropagation(); confirmDelete('${member}', ${index})" title="削除">🗑</button>`
+    : '';
+
+  return `
+    <div class="sticky-note ${COLORS[index % 3]} ${isDone ? 'done' : ''} ${isInprog ? 'in-progress' : ''}${clickable}"
+         ${onclick} ${ondblclick}>
+      ${overlay}
+      ${deleteBtn}
+      <div class="note-title">
+        <span>${escHtml(task.title)}</span>
+      </div>
+      ${task.detail ? '<div class="note-detail">' + escHtml(task.detail) + '</div>' : ''}
+    </div>
+  `;
+}
+
+// ===== Status Picker =====
+let pickerMember = null, pickerIndex = null;
+
+function openStatusPicker(event, member, index) {
+  event.stopPropagation();
+  pickerMember = member;
+  pickerIndex = index;
+
+  const task = getMemberData(member).tasks[index];
+  const st = task.status || 'pending';
+
+  const picker = document.getElementById('statusPicker');
+  let buttons = '';
+
+  if (st === 'pending') {
+    buttons = `
+      <button class="sp-btn sp-done" onclick="setStatus('done')">
+        <span class="sp-icon" style="font-family:'Segoe Script','Comic Sans MS',cursive; color:#4caf50; font-size:32px; font-weight:900;">✓</span>
+        <span class="sp-label">完了</span>
+      </button>
+      <button class="sp-btn sp-inprog" onclick="setStatus('in-progress')">
+        <span class="sp-icon">${INPROG_SVG.replace('viewBox', 'width="32" height="32" viewBox')}</span>
+        <span class="sp-label">進行中</span>
+      </button>
+    `;
+  } else if (st === 'in-progress') {
+    buttons = `
+      <button class="sp-btn sp-done" onclick="setStatus('done')">
+        <span class="sp-icon" style="font-family:'Segoe Script','Comic Sans MS',cursive; color:#4caf50; font-size:32px; font-weight:900;">✓</span>
+        <span class="sp-label">完了</span>
+      </button>
+      <button class="sp-btn sp-undo" onclick="setStatus('pending')">
+        <span class="sp-icon">↩️</span>
+        <span class="sp-label">未着手に戻す</span>
+      </button>
+    `;
+  } else { // done
+    buttons = `
+      <button class="sp-btn sp-inprog" onclick="setStatus('in-progress')">
+        <span class="sp-icon">${INPROG_SVG.replace('viewBox', 'width="32" height="32" viewBox')}</span>
+        <span class="sp-label">進行中に戻す</span>
+      </button>
+      <button class="sp-btn sp-undo" onclick="setStatus('pending')">
+        <span class="sp-icon">↩️</span>
+        <span class="sp-label">未着手に戻す</span>
+      </button>
+    `;
+  }
+
+  picker.innerHTML = buttons;
+  picker.style.display = 'flex';
+  document.getElementById('spOverlay').classList.add('active');
+
+  // Position near the click
+  const rect = event.currentTarget.getBoundingClientRect();
+  const x = Math.min(rect.left, window.innerWidth - 220);
+  const y = rect.bottom + 8;
+  picker.style.left = Math.max(8, x) + 'px';
+  picker.style.top = Math.min(y, window.innerHeight - 100) + 'px';
+}
+
+function setStatus(status) {
+  const md = getMemberData(pickerMember);
+  md.tasks[pickerIndex].status = status;
+  saveData();
+  closeStatusPicker();
+  render();
+  const labels = { 'done': '完了', 'in-progress': '進行中', 'pending': '未着手' };
+  showToast(`「${md.tasks[pickerIndex].title}」→ ${labels[status]}`);
+}
+
+function closeStatusPicker() {
+  document.getElementById('statusPicker').style.display = 'none';
+  document.getElementById('spOverlay').classList.remove('active');
+  pickerMember = null;
+  pickerIndex = null;
+}
+
+// ===== Add Task =====
+function addTask(member) {
+  if (!isMyBoard(member)) return;
+  const input = document.getElementById('input-' + member);
+  const detailInput = document.getElementById('detail-' + member);
+  const title = input.value.trim();
+  if (!title) { input.focus(); return; }
+  const detail = detailInput ? detailInput.value.trim() : '';
+  const md = getMemberData(member);
+  if (md.tasks.length >= MAX_TASKS) { showToast('タスクは最大3つまでです'); return; }
+  md.tasks.push({ title, detail, status: 'pending' });
+  saveData();
+  render();
+  showToast('タスクを追加しました');
+  setTimeout(() => {
+    const el = document.getElementById('input-' + member);
+    if (el) el.focus();
+  }, 50);
+}
+
+function updateHandoverLocal(member, value) {
+  if (!isMyBoard(member)) return;
+  getMemberData(member).handover = value;
+  localStorage.setItem('taskboard_data_v2', JSON.stringify(data));
+}
+function saveMemoToGAS(member) {
+  if (!isMyBoard(member)) return;
+  syncToGAS(dateKey(currentDate), member);
+  showToast('メモを保存しました');
+}
+
+// ===== Edit Modal =====
+function openEditModal(member, index) {
+  if (!isMyBoard(member)) return;
+  editingMember = member;
+  editingIndex = index;
+  const task = getMemberData(member).tasks[index];
+  document.getElementById('editTitle').value = task.title;
+  document.getElementById('editDetail').value = task.detail || '';
+  document.getElementById('editModal').classList.add('active');
+}
+function closeEditModal() {
+  document.getElementById('editModal').classList.remove('active');
+  editingMember = null;
+  editingIndex = null;
+}
+function saveEdit() {
+  if (editingMember === null) return;
+  const md = getMemberData(editingMember);
+  const title = document.getElementById('editTitle').value.trim();
+  if (!title) { showToast('タスク名を入力してください'); return; }
+  md.tasks[editingIndex].title = title;
+  md.tasks[editingIndex].detail = document.getElementById('editDetail').value.trim();
+  saveData();
+  closeEditModal();
+  render();
+}
+function deleteTask() {
+  if (editingMember === null) return;
+  getMemberData(editingMember).tasks.splice(editingIndex, 1);
+  saveData();
+  closeEditModal();
+  render();
+  showToast('タスクを削除しました');
+}
+
+// ===== Inline Delete (hover trash icon) =====
+function confirmDelete(member, index) {
+  if (!isMyBoard(member)) return;
+  const task = getMemberData(member).tasks[index];
+  if (confirm(`「${task.title}」を削除しますか？`)) {
+    getMemberData(member).tasks.splice(index, 1);
+    saveData();
+    render();
+    showToast('タスクを削除しました');
+  }
+}
+
+// ===== Toast =====
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ===== Util =====
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ===== Init =====
+loadData();
+
+// Sample data: show only once (first-ever access), not every new day
+if (!localStorage.getItem('taskboard_sample_shown')) {
+  const todayKey = dateKey(new Date());
+  if (!data[todayKey]) {
+    data[todayKey] = {
+      '沓名': { tasks: [
+        { title: '週次MTG準備', detail: 'アジェンダ作成', status: 'done' },
+        { title: '売上データ確認', detail: 'Amazon・Qoo10', status: 'pending' },
+      ], handover: '' },
+      '田中': { tasks: [
+        { title: '固定費レビュー', detail: '3月分', status: 'done' },
+        { title: '予算承認対応', detail: '', status: 'in-progress' },
+      ], handover: '' },
+      '森': { tasks: [
+        { title: '在庫DB整合チェック', detail: 'スプレッドシート', status: 'done' },
+        { title: '注文処理', detail: '本日分12件', status: 'done' },
+        { title: '返品対応', detail: 'Qoo10 1件', status: 'pending' },
+      ], handover: '返品は明日集荷手配' },
+      '佐川': { tasks: [
+        { title: 'KPIレポート提出', detail: '週次', status: 'in-progress' },
+        { title: '利益率計算', detail: 'HUNDRED DOCTOR', status: 'pending' },
+      ], handover: '' },
+      '西村': { tasks: [
+        { title: 'Amazon広告調整', detail: 'CPC確認', status: 'done' },
+        { title: 'SEOキーワード分析', detail: '', status: 'in-progress' },
+      ], handover: '' },
+      '湯浅': { tasks: [
+        { title: '商品撮影', detail: '新商品3点', status: 'done' },
+        { title: '動画編集', detail: 'SNS用30秒', status: 'in-progress' },
+      ], handover: '' },
+      '長部': { tasks: [
+        { title: '出荷確認', detail: '本日分', status: 'done' },
+        { title: 'CVR分析', detail: 'LP改善用', status: 'done' },
+        { title: '配送業者連絡', detail: '遅延分フォロー', status: 'pending' },
+      ], handover: '遅延2件、明朝再確認' },
+      '萩原': { tasks: [
+        { title: '請求書処理', detail: '3月分', status: 'done' },
+        { title: '経費精算', detail: '', status: 'pending' },
+      ], handover: '' },
+      '加藤': { tasks: [
+        { title: 'SNS投稿', detail: 'Instagram 2本', status: 'done' },
+        { title: 'インフルエンサー連絡', detail: '3名', status: 'in-progress' },
+      ], handover: '' },
+    };
+    saveData();
+  }
+  localStorage.setItem('taskboard_sample_shown', '1');
+}
+
+// Modal close on overlay click
+document.getElementById('editModal').addEventListener('click', function(e) {
+  if (e.target === this) closeEditModal();
+});
+
+// ===== Cork Texture Generator =====
+(function generateCorkTexture() {
+  const size = 200;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  // Base warm cork color
+  ctx.fillStyle = '#b8956a';
+  ctx.fillRect(0, 0, size, size);
+
+  // Layer 1: coarse grain (large random dots)
+  for (let i = 0; i < 3000; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const r = Math.random() * 2.5 + 0.3;
+    const brightness = Math.random() * 60 - 30;
+    const base = 160 + brightness;
+    const g = Math.max(0, Math.min(255, base - 20 + Math.random() * 15));
+    const b = Math.max(0, Math.min(255, base - 50 + Math.random() * 10));
+    ctx.fillStyle = `rgba(${Math.round(base + 20)}, ${Math.round(g)}, ${Math.round(b)}, ${0.15 + Math.random() * 0.2})`;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Layer 2: fine speckle (tiny dots for grit)
+  for (let i = 0; i < 8000; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const dark = Math.random() > 0.5;
+    ctx.fillStyle = dark
+      ? `rgba(80, 50, 20, ${0.05 + Math.random() * 0.12})`
+      : `rgba(220, 190, 150, ${0.08 + Math.random() * 0.15})`;
+    ctx.fillRect(x, y, Math.random() * 1.5 + 0.5, Math.random() * 1.5 + 0.5);
+  }
+
+  // Layer 3: subtle darker veins / streaks
+  ctx.strokeStyle = 'rgba(100, 65, 30, 0.06)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 15; i++) {
+    ctx.beginPath();
+    let sx = Math.random() * size;
+    let sy = Math.random() * size;
+    ctx.moveTo(sx, sy);
+    for (let j = 0; j < 6; j++) {
+      sx += (Math.random() - 0.5) * 40;
+      sy += (Math.random() - 0.5) * 40;
+      ctx.lineTo(sx, sy);
+    }
+    ctx.stroke();
+  }
+
+  // Layer 4: pin holes (tiny dark circles scattered)
+  for (let i = 0; i < 30; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    ctx.fillStyle = `rgba(60, 35, 10, ${0.08 + Math.random() * 0.06})`;
+    ctx.beginPath();
+    ctx.arc(x, y, 0.8 + Math.random() * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const dataUrl = canvas.toDataURL('image/png');
+  document.documentElement.style.setProperty('--cork-texture', `url("${dataUrl}")`);
+})();
+
+initLogin();
+</script>
+</body>
+</html>

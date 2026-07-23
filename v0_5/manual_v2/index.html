@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>薬品在庫管理 v0.5 はじめてガイド</title>
+<style>
+:root {
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --primary-light: #dbeafe;
+  --success: #16a34a;
+  --warning: #f59e0b;
+  --danger: #dc2626;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --bg: #f1f5f9;
+  --card: #ffffff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+}
+.header {
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%);
+  color: #fff;
+  padding: 48px 24px 40px;
+  text-align: center;
+}
+.header h1 { font-size: 32px; font-weight: 800; margin-bottom: 12px; }
+.header .subtitle { font-size: 16px; opacity: 0.95; margin-bottom: 4px; }
+.header .version { display: inline-block; background: rgba(255,255,255,0.2); padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-top: 12px; }
+.container { max-width: 880px; margin: 0 auto; padding: 32px 16px 80px; }
+
+.intro {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 28px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+  border-left: 6px solid var(--primary);
+}
+.intro h2 { font-size: 20px; color: var(--primary); margin-bottom: 12px; }
+.intro p { color: var(--text-muted); }
+
+.toc {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 32px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.toc h3 { font-size: 16px; color: var(--text-muted); margin-bottom: 12px; font-weight: 700; }
+.toc ol { padding-left: 20px; }
+.toc li { padding: 4px 0; }
+.toc a { color: var(--primary); text-decoration: none; font-weight: 600; }
+.toc a:hover { text-decoration: underline; }
+
+.step {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--border);
+}
+.step-num {
+  flex-shrink: 0;
+  width: 56px; height: 56px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 800;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+.step-title { font-size: 22px; font-weight: 700; }
+.step-body { color: var(--text); }
+.step-body p { margin-bottom: 12px; }
+
+.screenshot {
+  margin: 20px 0;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  background: #fff;
+}
+.screenshot img { display: block; width: 100%; height: auto; }
+.screenshot-caption {
+  background: #f8fafc;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+}
+
+.note {
+  background: #fef9c3;
+  border-left: 4px solid var(--warning);
+  padding: 14px 18px;
+  border-radius: 8px;
+  margin: 16px 0;
+  font-size: 14px;
+}
+.note-title { font-weight: 700; color: #92400e; margin-bottom: 4px; }
+
+.tip {
+  background: #ecfdf5;
+  border-left: 4px solid var(--success);
+  padding: 14px 18px;
+  border-radius: 8px;
+  margin: 16px 0;
+  font-size: 14px;
+}
+.tip-title { font-weight: 700; color: #166534; margin-bottom: 4px; }
+
+.danger {
+  background: #fef2f2;
+  border-left: 4px solid var(--danger);
+  padding: 14px 18px;
+  border-radius: 8px;
+  margin: 16px 0;
+  font-size: 14px;
+}
+.danger-title { font-weight: 700; color: #991b1b; margin-bottom: 4px; }
+
+.checklist {
+  background: var(--primary-light);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin: 16px 0;
+}
+.checklist-title { font-weight: 700; color: var(--primary-dark); margin-bottom: 8px; font-size: 14px; }
+.checklist ul { list-style: none; padding: 0; }
+.checklist li { padding: 4px 0; padding-left: 24px; position: relative; font-size: 14px; }
+.checklist li::before { content: '☑'; position: absolute; left: 0; color: var(--primary); font-weight: 700; }
+
+kbd {
+  background: #f1f5f9;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: monospace;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.btn-mock {
+  display: inline-block;
+  padding: 4px 12px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 2px;
+}
+.btn-mock.red { background: var(--danger); }
+.btn-mock.green { background: var(--success); }
+
+.footer {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 32px 16px;
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+}
+
+@media (max-width: 600px) {
+  .step { padding: 20px; }
+  .step-num { width: 44px; height: 44px; font-size: 20px; }
+  .step-title { font-size: 18px; }
+  .header h1 { font-size: 24px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📋 はじめての薬品在庫管理</h1>
+  <div class="subtitle">パソコン・スマホ操作が苦手な方向け ステップ式ガイド</div>
+  <div class="subtitle">薬品在庫管理 v0.5 / 西春内科・在宅クリニック</div>
+  <div class="version">v0.5 対応版 (2026-04-07)</div>
+</div>
+
+<div class="container">
+
+<div class="intro">
+  <h2>このガイドでわかること</h2>
+  <p>「薬を出した」「薬が届いた」を記録するだけで、在庫の数が自動で減ったり増えたりするシステムです。<br>
+  画面を見ながら順番にボタンを押すだけで使えます。<strong>難しい知識は必要ありません。</strong></p>
+</div>
+
+<div class="toc">
+  <h3>📖 目次</h3>
+  <ol>
+    <li><a href="#step1">画面を開く</a></li>
+    <li><a href="#step2">出庫モードを選ぶ（薬を渡すとき）</a></li>
+    <li><a href="#step3">患者名と担当者を入れる</a></li>
+    <li><a href="#step4">薬を選ぶ（その①：用途から選ぶ）</a></li>
+    <li><a href="#step5">薬を選ぶ（その②：カテゴリを選ぶ）</a></li>
+    <li><a href="#step6">薬を選ぶ（その③：薬品を選ぶ）</a></li>
+    <li><a href="#step7">数量を確認して登録する</a></li>
+    <li><a href="#step8">在庫を確認する</a></li>
+    <li><a href="#step9">履歴を確認する</a></li>
+    <li><a href="#troubleshoot">困ったとき</a></li>
+  </ol>
+</div>
+
+<!-- STEP 1 -->
+<div class="step" id="step1">
+  <div class="step-header">
+    <div class="step-num">1</div>
+    <div class="step-title">画面を開く</div>
+  </div>
+  <div class="step-body">
+    <p>パソコンまたはスマホのブラウザ（Chrome / Safari など）で、以下のリンクを開きます。</p>
+    <p><a href="https://soumu-lgtm.github.io/drive-through-pharmacy/v0_5/index.html" target="_blank" style="color:var(--primary); font-weight:700;">▶ 薬品在庫管理 v0.5 を開く</a></p>
+    <div class="tip">
+      <div class="tip-title">💡 ブックマークがおすすめ</div>
+      初めて開いたら、ブラウザの「★」ボタンでブックマークに追加しておくと、次から1クリックで開けます。
+    </div>
+    <p>開くと、こんな画面が出ます。</p>
+    <div class="screenshot">
+      <img src="screenshots/01_initial.png" alt="初期画面">
+      <div class="screenshot-caption">画面1: アプリを開いた直後の初期画面</div>
+    </div>
+    <p>上から順に並んでいるもの：</p>
+    <ul style="padding-left: 24px;">
+      <li><strong>入庫（仕入）</strong>と<strong>出庫（処方）</strong>のモード切替ボタン</li>
+      <li><strong>QRコード読み取り</strong>のエリア</li>
+      <li><strong>患者名</strong>を入れる欄</li>
+      <li><strong>担当者</strong>を選ぶ欄</li>
+    </ul>
+    <p>下の青い帯には<strong>「スキャン / 在庫 / 履歴」</strong>の3つのタブがあります。</p>
+  </div>
+</div>
+
+<!-- STEP 2 -->
+<div class="step" id="step2">
+  <div class="step-header">
+    <div class="step-num">2</div>
+    <div class="step-title">出庫モードを選ぶ（薬を渡すとき）</div>
+  </div>
+  <div class="step-body">
+    <p>画面の上にある<strong>「出庫（処方）」</strong>と書かれた赤いボタンをタップします。</p>
+    <p>初期状態では、<strong>すでに「出庫（処方）」が選ばれている</strong>ことが多いです（赤い枠で囲まれていればOK）。</p>
+    <div class="tip">
+      <div class="tip-title">💡 入庫と出庫の違い</div>
+      <strong>入庫（仕入）</strong> = 薬が新しく届いた時（在庫が増える）<br>
+      <strong>出庫（処方）</strong> = 患者さんに薬を渡した時（在庫が減る）
+    </div>
+  </div>
+</div>
+
+<!-- STEP 3 -->
+<div class="step" id="step3">
+  <div class="step-header">
+    <div class="step-num">3</div>
+    <div class="step-title">患者名と担当者を入れる</div>
+  </div>
+  <div class="step-body">
+    <p>下にスクロールすると<strong>「患者」</strong>欄があります。患者さんの名前または番号をタップして入力してください。</p>
+    <p>その下の<strong>「担当者」</strong>欄をタップすると、自分の名前を選べます。</p>
+    <div class="screenshot">
+      <img src="screenshots/02_patient_operator.png" alt="患者名と担当者を入力">
+      <div class="screenshot-caption">画面2: 患者名「山田太郎」と担当者「島原」を入力した状態</div>
+    </div>
+    <div class="checklist">
+      <div class="checklist-title">この時点でやること</div>
+      <ul>
+        <li>患者名を入力した</li>
+        <li>担当者を選んだ</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 4 -->
+<div class="step" id="step4">
+  <div class="step-header">
+    <div class="step-num">4</div>
+    <div class="step-title">薬を選ぶ（その①：用途から選ぶ）</div>
+  </div>
+  <div class="step-body">
+    <p>画面の中ほどにある暗い色のボックスの中に、<strong>「手動で薬品を選択」</strong>という小さな青いリンクがあります。これをタップしてください。</p>
+    <div class="note">
+      <div class="note-title">📷 QRコードで読み取る場合</div>
+      薬の箱にQRコードシールが貼ってある場合は「カメラを起動」ボタンを押して、カメラで読み取ることもできます。慣れたらこちらのほうが速いです。
+    </div>
+    <p>タップすると、画面の真ん中に<strong>「用途から選ぶ」</strong>というウィンドウが出てきます。</p>
+    <div class="screenshot">
+      <img src="screenshots/03_drug_list.png" alt="用途選択画面">
+      <div class="screenshot-caption">画面3: 「用途から選ぶ」のウィンドウ</div>
+    </div>
+    <p>ここでは、患者さんに合わせて<strong>「小児（こども）」「成人（おとな）」「検査」「外用（塗り薬・吸入など）」</strong>から選びます。</p>
+    <p>例：大人向けの薬を選ぶときは <strong>「成人」</strong> をタップ。</p>
+  </div>
+</div>
+
+<!-- STEP 5 -->
+<div class="step" id="step5">
+  <div class="step-header">
+    <div class="step-num">5</div>
+    <div class="step-title">薬を選ぶ（その②：カテゴリを選ぶ）</div>
+  </div>
+  <div class="step-body">
+    <p>「成人」を選ぶと、薬の種類別にリストが出てきます。</p>
+    <div class="screenshot">
+      <img src="screenshots/04_drug_select.png" alt="成人カテゴリ画面">
+      <div class="screenshot-caption">画面4: 成人向けの薬カテゴリ一覧</div>
+    </div>
+    <p>たとえば：</p>
+    <ul style="padding-left: 24px;">
+      <li>痰がからむとき → <strong>去痰剤</strong></li>
+      <li>吐き気があるとき → <strong>吐気止め</strong></li>
+      <li>咳がひどいとき → <strong>咳止め</strong></li>
+      <li>花粉症のとき → <strong>抗アレルギー剤</strong></li>
+    </ul>
+    <p>欲しいカテゴリをタップしてください。ここでは例として <strong>「咳止め」</strong> を選びます。</p>
+    <div class="tip">
+      <div class="tip-title">💡 検索もできます</div>
+      画面上の検索ボックスに薬の名前を入れると、カテゴリを選ばずに直接探せます。
+    </div>
+  </div>
+</div>
+
+<!-- STEP 6 -->
+<div class="step" id="step6">
+  <div class="step-header">
+    <div class="step-num">6</div>
+    <div class="step-title">薬を選ぶ（その③：薬品を選ぶ）</div>
+  </div>
+  <div class="step-body">
+    <p>カテゴリを選ぶと、その中の薬品リストが出ます。</p>
+    <div class="screenshot">
+      <img src="screenshots/05_drug_items.png" alt="薬品リスト">
+      <div class="screenshot-caption">画面5: 「咳止め」カテゴリの薬品一覧。在庫数が一目でわかります</div>
+    </div>
+    <p>各薬品には、その下に<strong>「在庫: ○○錠」</strong>と書かれています。</p>
+    <div class="tip">
+      <div class="tip-title">💡 並び順のルール</div>
+      <strong>在庫がある薬</strong>が上に並びます。在庫が0の薬や外用薬は下にまとめられているので、迷いにくいです。
+    </div>
+    <p>渡したい薬をタップしてください。例：<strong>「メジコン錠15mg（在庫1000錠）」</strong></p>
+  </div>
+</div>
+
+<!-- STEP 7 -->
+<div class="step" id="step7">
+  <div class="step-header">
+    <div class="step-num">7</div>
+    <div class="step-title">数量を確認して登録する</div>
+  </div>
+  <div class="step-body">
+    <p>薬品をタップすると、画面下の<strong>「登録リスト」</strong>に追加されます。</p>
+    <div class="screenshot">
+      <img src="screenshots/06_quantity.png" alt="数量入力と登録">
+      <div class="screenshot-caption">画面6: 登録リストに薬品が追加された状態</div>
+    </div>
+    <p>数量の調整方法：</p>
+    <ul style="padding-left: 24px;">
+      <li><span class="btn-mock">−</span> ボタンで減らす</li>
+      <li><span class="btn-mock">＋</span> ボタンで増やす</li>
+      <li><span class="btn-mock red">×</span> ボタンでこの薬品を取り消す</li>
+    </ul>
+    <div class="note">
+      <div class="note-title">⚠️ 「-1」って何？</div>
+      出庫モードでは、数量はマイナスで表示されます。「-1」は「1錠減らす（=患者さんに1錠渡した）」という意味です。
+    </div>
+    <p>複数の薬を同時に登録したいときは、<strong>「+ 薬品を追加（手動選択）」</strong>ボタンで何度でも追加できます。</p>
+    <p>すべて入力できたら、画面下の赤い<strong>「まとめて出庫」</strong>ボタンをタップ。これで在庫が更新され、履歴に記録されます。</p>
+    <div class="checklist">
+      <div class="checklist-title">登録前のチェック</div>
+      <ul>
+        <li>患者名は正しいか？</li>
+        <li>担当者は自分の名前になっているか？</li>
+        <li>薬品名・数量は正しいか？</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 8 -->
+<div class="step" id="step8">
+  <div class="step-header">
+    <div class="step-num">8</div>
+    <div class="step-title">在庫を確認する</div>
+  </div>
+  <div class="step-body">
+    <p>画面の下にある<strong>「在庫」</strong>タブをタップすると、すべての薬品の在庫数が一覧で見られます。</p>
+    <div class="screenshot">
+      <img src="screenshots/07_inventory_tab.png" alt="在庫タブ">
+      <div class="screenshot-caption">画面7: 在庫一覧。各薬品の現在数（包・錠）が表示されます</div>
+    </div>
+    <p>見方：</p>
+    <ul style="padding-left: 24px;">
+      <li><strong>薬品名</strong>と<strong>M001〜M183</strong>の管理コード</li>
+      <li><strong>カテゴリ</strong>（去痰剤、咳止めなど）</li>
+      <li><strong>分3</strong>（1日3回）など、用法</li>
+      <li><strong>右側の大きな数字</strong>が現在の在庫数</li>
+    </ul>
+    <p>上のボックスから検索やカテゴリ切替もできます。</p>
+  </div>
+</div>
+
+<!-- STEP 9 -->
+<div class="step" id="step9">
+  <div class="step-header">
+    <div class="step-num">9</div>
+    <div class="step-title">履歴を確認する</div>
+  </div>
+  <div class="step-body">
+    <p>画面下の<strong>「履歴」</strong>タブをタップすると、本日登録した出庫・入庫がすべて見られます。</p>
+    <div class="screenshot">
+      <img src="screenshots/08_history_tab.png" alt="履歴タブ">
+      <div class="screenshot-caption">画面8: 履歴タブ。当日に行った操作がここに記録されます</div>
+    </div>
+    <p>今日まだ何も登録していなければ「履歴がありません」と表示されます。</p>
+    <div class="tip">
+      <div class="tip-title">💡 何のための画面？</div>
+      「さっき登録したけど合ってたっけ？」を確認するときに使います。間違って登録してしまった時も、ここで気づけます。
+    </div>
+  </div>
+</div>
+
+<!-- TROUBLESHOOT -->
+<div class="step" id="troubleshoot">
+  <div class="step-header">
+    <div class="step-num">？</div>
+    <div class="step-title">困ったとき</div>
+  </div>
+  <div class="step-body">
+    <h3 style="margin-top: 12px; margin-bottom: 8px; font-size: 16px;">Q. 在庫数が画面と実物で違う</h3>
+    <p>画面下の「在庫」タブを開いて、画面を上から下にスワイプ（引っ張る）してみてください。サーバーの最新数と同期されます。</p>
+
+    <h3 style="margin-top: 16px; margin-bottom: 8px; font-size: 16px;">Q. 間違えて登録してしまった</h3>
+    <p>「履歴」タブから該当の記録を見つけて、削除ボタンで取り消せます（管理者権限が必要な場合があります）。</p>
+
+    <h3 style="margin-top: 16px; margin-bottom: 8px; font-size: 16px;">Q. 画面が真っ白で何も出ない</h3>
+    <p>ブラウザの再読み込み（更新）をしてください。<br>
+    パソコンの場合は <kbd>F5</kbd> キー、スマホの場合はアドレスバー横の更新マーク。</p>
+
+    <h3 style="margin-top: 16px; margin-bottom: 8px; font-size: 16px;">Q. 薬品が見つからない</h3>
+    <p>検索ボックスに、薬品名の一部を入れてみてください。ひらがな・漢字どちらでもOKです。</p>
+
+    <div class="danger">
+      <div class="danger-title">🚨 それでも解決しないとき</div>
+      事務スタッフ（佐川）までお声がけください。
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="footer">
+  薬品在庫管理 v0.5 はじめてガイド | 西春内科・在宅クリニック<br>
+  最終更新: 2026-04-07
+</div>
+
+</body>
+</html>

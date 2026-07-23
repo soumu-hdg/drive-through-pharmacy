@@ -1,0 +1,2076 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HD Profit Simulator - 粗利シミュレーター</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --ai:#264653;--wasu:#457b9d;--beni:#c1272d;--matcha:#606c38;
+  --sumi:#2b2b2b;--nezumi:#787878;--hai:#a0a0a0;
+  --shiro:#fafaf8;--kinari:#f5f3ee;--sen:#d5d1c8;
+  --font-min:"游明朝","YuMincho","Hiragino Mincho ProN",serif;
+  --font-go:"游ゴシック体","YuGothic","Hiragino Sans","Segoe UI",sans-serif;
+  --c-shopify:#5c8a3e;--c-amazon:#d48a1a;--c-qoo10:#c93545;
+  --c-rakuten:#a01010;--c-tiktok:#333;--c-clinic:#457b9d;
+  --c-enko:#8b7355;--c-mega:#e06080;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-go);color:var(--sumi);background:var(--kinari);line-height:1.7;font-size:13px}
+.header{background:var(--ai);color:#fff;padding:14px 24px;display:flex;align-items:center;gap:16px}
+.header h1{font-family:var(--font-min);font-size:18px;letter-spacing:.1em;font-weight:600}
+.header .sub{font-size:11px;opacity:.7;margin-left:auto}
+.tabs{display:flex;gap:0;background:#fff;border-bottom:2px solid var(--ai);padding:0 16px;position:sticky;top:0;z-index:100}
+.tab{padding:10px 18px;font-size:12px;font-weight:600;color:var(--nezumi);cursor:pointer;border-bottom:3px solid transparent;transition:all .15s;letter-spacing:.04em}
+.tab:hover{color:var(--ai);background:var(--kinari)}
+.tab.active{color:var(--ai);border-bottom-color:var(--ai);background:var(--shiro)}
+
+/* グローバル期間バー */
+.period-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 24px;background:#fff;border-bottom:1px solid var(--sen);position:sticky;top:43px;z-index:99}
+.period-bar label{font-size:11px;font-weight:600;color:var(--ai)}
+.period-bar input[type=date],.period-bar input[type=month]{font-size:12px;padding:4px 8px;border:1px solid var(--sen);border-radius:2px;font-family:var(--font-go)}
+.period-bar .sep{color:var(--hai);font-size:13px}
+.period-bar .btn-p{padding:4px 10px;font-size:11px;font-weight:600;border:1px solid var(--sen);border-radius:2px;background:var(--shiro);color:var(--ai);cursor:pointer;transition:all .12s;font-family:var(--font-go)}
+.period-bar .btn-p:hover,.period-bar .btn-p.active{background:var(--ai);color:#fff}
+.period-bar .btn-fetch{padding:5px 16px;font-size:12px;font-weight:700;border:none;border-radius:2px;background:var(--ai);color:#fff;cursor:pointer;font-family:var(--font-go)}
+.period-bar .btn-fetch:hover{background:var(--wasu)}
+.period-bar .btn-fetch:disabled{background:var(--hai);cursor:wait}
+.period-bar .status{font-size:11px;color:var(--nezumi);margin-left:4px}
+.period-bar .status.ok{color:var(--matcha)}
+.period-bar .status.error{color:var(--beni)}
+
+.main{max-width:1400px;margin:0 auto;padding:20px}
+.panel{display:none}
+.panel.show{display:block}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.g4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+.g5{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px}
+.card{background:#fff;border:1px solid var(--sen);border-left:4px solid var(--ai);padding:16px 18px;margin-bottom:0}
+.card h2{font-family:var(--font-min);font-size:15px;color:var(--ai);border-bottom:1px solid var(--sen);padding-bottom:6px;margin-bottom:10px;letter-spacing:.06em}
+.card h3{font-size:13px;color:var(--wasu);font-weight:600;margin:12px 0 6px}
+.kpi{text-align:center;padding:14px}
+.kpi .label{font-size:11px;color:var(--nezumi);margin-bottom:4px}
+.kpi .value{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.kpi .value.plus{color:var(--matcha)}
+.kpi .value.minus{color:var(--beni)}
+.kpi .unit{font-size:12px;color:var(--hai);margin-left:2px}
+table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0}
+th,td{padding:7px 10px;border:1px solid var(--sen)}
+th{background:var(--kinari);font-weight:600;color:var(--ai);text-align:left;white-space:nowrap;font-size:11px}
+td{font-variant-numeric:tabular-nums}
+td.num{text-align:right}
+tr:hover td{background:#f0efe8}
+.hm-50{background:#d4e6c3}.hm-40{background:#e2efd6}.hm-30{background:#eef5e6}
+.hm-20{background:#fef9e7}.hm-10{background:#fdebd0}.hm-0{background:#f5b7b1}
+.hm-neg{background:#e74c3c;color:#fff}
+.badge{display:inline-block;padding:1px 7px;font-size:10px;font-weight:600;border:1px solid;border-radius:2px}
+.badge-ai{border-color:var(--ai);color:var(--ai)}
+.badge-beni{border-color:var(--beni);color:var(--beni)}
+.badge-matcha{border-color:var(--matcha);color:var(--matcha)}
+.ctrl{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:#fff;border:1px solid var(--sen);border-left:4px solid var(--wasu)}
+.ctrl label{font-size:11px;font-weight:600;color:var(--ai)}
+.ctrl select,.ctrl input[type=range]{font-size:12px;padding:4px 8px;border:1px solid var(--sen);border-radius:2px;font-family:var(--font-go)}
+.ctrl select{min-width:140px}
+.chart-wrap{position:relative;height:260px;margin:8px 0}
+.wf{display:flex;align-items:flex-end;gap:4px;height:220px;padding:20px 0 30px;position:relative}
+.wf-bar{flex:1;display:flex;flex-direction:column;align-items:center;position:relative}
+.wf-fill{width:80%;border-radius:2px 2px 0 0;position:absolute;bottom:0;transition:height .3s}
+.wf-fill.cost{background:var(--beni)}.wf-fill.profit{background:var(--matcha)}.wf-fill.base{background:var(--wasu)}.wf-fill.neutral{background:var(--hai)}
+.wf-label{position:absolute;bottom:-22px;font-size:9px;color:var(--nezumi);white-space:nowrap;text-align:center;width:100%}
+.wf-amount{position:absolute;top:-18px;font-size:10px;font-weight:600;width:100%;text-align:center}
+.sim-result{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+.sim-box{background:var(--shiro);border:1px solid var(--sen);padding:12px;text-align:center}
+.sim-box .sim-label{font-size:10px;color:var(--nezumi)}
+.sim-box .sim-value{font-size:22px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+/* 実績セクション */
+.actual-section{margin-top:18px;border-top:2px dashed var(--sen);padding-top:14px}
+.actual-section h2{color:var(--matcha)}
+.no-data-msg{text-align:center;padding:24px;color:var(--hai);font-size:12px}
+
+/* データ信頼度バッジ */
+.src{display:inline-block;padding:1px 6px;font-size:9px;font-weight:700;border-radius:2px;vertical-align:middle;margin-left:4px;letter-spacing:.02em}
+.src-a{background:#1a6b3c;color:#fff}  /* 確定値: Supabase実データそのまま */
+.src-b{background:#b8860b;color:#fff}  /* 推計値: 実データ+固定マスタ計算 */
+.src-c{background:#555;color:#fff}     /* 理論値: マスタデータのみの計算 */
+.src-ref{display:inline-block;padding:0 4px;font-size:8px;font-weight:600;border-radius:2px;vertical-align:middle;margin-left:2px;letter-spacing:.01em;border:1px solid}
+.src-sb{background:#e8f5e9;color:#1a6b3c;border-color:#1a6b3c}   /* Supabase */
+.src-ss{background:#fff8e1;color:#8b6914;border-color:#b8860b}   /* スプレッドシート */
+/* 凡例ボックス */
+.legend-box{display:flex;flex-direction:column;gap:6px;padding:10px 14px;margin-bottom:14px;background:#fff;border:1px solid var(--sen);border-left:4px solid var(--nezumi);font-size:11px;color:var(--sumi)}
+.legend-box .legend-row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.legend-box .src,.legend-box .src-ref{margin-left:0}
+/* テーブルヘッダ内バッジ微調整 */
+th .src{vertical-align:baseline}
+@media(max-width:768px){
+  .g2,.g3,.g4,.g5{grid-template-columns:1fr}
+  .tabs{overflow-x:auto}
+  .sim-result{grid-template-columns:repeat(2,1fr)}
+  .period-bar{flex-direction:column;align-items:stretch}
+}
+/* 支払通知書スタイル */
+.invoice-sheet{max-width:720px;margin:0 auto;background:#fff;padding:40px 48px;border:1px solid var(--sen);font-family:var(--font-min);font-size:13px;color:#222;line-height:1.8}
+.invoice-sheet .inv-title{text-align:center;font-size:22px;font-weight:700;letter-spacing:.2em;border-bottom:2px solid #222;padding-bottom:8px;margin-bottom:24px}
+.invoice-sheet .inv-date{text-align:right;font-size:12px;margin-bottom:16px}
+.invoice-sheet .inv-header{display:flex;gap:24px;margin-bottom:20px}
+.invoice-sheet .inv-to{flex:1}
+.invoice-sheet .inv-from{flex:1;text-align:right;font-size:11px;line-height:1.6}
+.invoice-sheet .inv-to .company{font-size:16px;font-weight:700}
+.invoice-sheet .inv-to .suffix{font-size:14px;margin-left:8px}
+.invoice-sheet .inv-amount-box{border:2px solid #222;padding:10px 20px;display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.invoice-sheet .inv-amount-box .label{font-size:13px;font-weight:600}
+.invoice-sheet .inv-amount-box .amount{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.invoice-sheet .inv-amount-box .tax-note{font-size:11px;color:#666}
+.invoice-sheet table{width:100%;border-collapse:collapse;margin:16px 0;font-size:12px}
+.invoice-sheet th,.invoice-sheet td{border:1px solid #999;padding:6px 10px}
+.invoice-sheet th{background:#f0f0ec;font-weight:600;text-align:center;font-size:11px}
+.invoice-sheet td.num{text-align:right;font-variant-numeric:tabular-nums}
+.invoice-sheet .inv-total-row td{font-weight:700;background:#f0f0ec}
+.invoice-sheet .inv-note{margin-top:20px;font-size:11px;color:#555;line-height:1.6;border-top:1px solid #ccc;padding-top:12px}
+
+@media print{
+  @page{size:A4 portrait;margin:0}
+  body{background:#fff;font-size:11px;margin:0;padding:0}
+  .header,.tabs,.ctrl,.no-print,.period-bar,.legend-box,.main>.legend-box{display:none !important}
+  .panel{display:none !important}
+  .panel.print-target{display:block !important;padding:0;margin:0}
+  .main{padding:0;margin:0;max-width:100%}
+  .card{border:1px solid #999;break-inside:avoid}
+  table{font-size:10px}
+  th{background:var(--kinari) !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .hm-50,.hm-40,.hm-30,.hm-20,.hm-10,.hm-0,.hm-neg{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  tr{break-inside:avoid}
+  canvas{display:none}
+  .invoice-sheet{border:none;padding:8mm 12mm;max-width:100%;font-size:10.5px;page-break-inside:avoid;line-height:1.4}
+  .invoice-sheet th,.invoice-sheet .inv-total-row td{background:#f0f0ec !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .invoice-sheet table{font-size:9.5px}
+  .invoice-sheet th,.invoice-sheet td{padding:3px 6px}
+  .invoice-sheet .inv-title{font-size:18px;margin-bottom:10px}
+  .invoice-sheet .inv-date{margin-bottom:8px}
+  .invoice-sheet .inv-header{margin-bottom:12px}
+  .invoice-sheet .inv-amount-box{margin-bottom:14px;padding:6px 14px}
+  .invoice-sheet .inv-amount-box .amount{font-size:18px}
+  .invoice-sheet .inv-note{font-size:9px;margin-top:10px;padding-top:8px;line-height:1.4}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>HUNDRED DOCTOR 粗利シミュレーター</h1>
+  <span class="sub">HD Profit Simulator v2.1 | データ: <span id="masterSourceBadge" style="font-weight:700">読込中</span> | 機密: 社内限定</span>
+</div>
+
+<div class="tabs" id="tabs">
+  <div class="tab active" onclick="showTab(0)">粗利一覧</div>
+  <div class="tab" onclick="showTab(1)">コスト内訳</div>
+  <div class="tab" onclick="showTab(2)">シミュレーター</div>
+  <div class="tab" onclick="showTab(3)">医師報酬</div>
+  <div class="tab" onclick="showTab(4)">HD報酬比較</div>
+  <div class="tab" onclick="showTab(5)">トライアル</div>
+  <div class="tab" onclick="showTab(6)">実装予定</div>
+  <div class="tab" onclick="showTab(7)">支払通知書</div>
+</div>
+
+<!-- グローバル期間バー -->
+<div class="period-bar no-print">
+  <label>実績期間:</label>
+  <input type="date" id="dateFrom">
+  <span class="sep">〜</span>
+  <input type="date" id="dateTo">
+  <span class="sep">|</span>
+  <input type="month" id="monthPick" onchange="onMonthPick()">
+  <span class="sep">|</span>
+  <button class="btn-p" onclick="setPeriod('thisMonth',this)">今月</button>
+  <button class="btn-p" onclick="setPeriod('lastMonth',this)">先月</button>
+  <button class="btn-p" onclick="setPeriod('last3',this)">過去3ヶ月</button>
+  <button class="btn-p" onclick="setPeriod('last6',this)">過去6ヶ月</button>
+  <button class="btn-p" onclick="setPeriod('thisYear',this)">今年度</button>
+  <button class="btn-fetch" id="btnFetch" onclick="fetchAndApply()">集計実行</button>
+  <span class="status" id="gStatus"></span>
+</div>
+
+<div class="main">
+
+<!-- 凡例 -->
+<div class="legend-box no-print">
+  <div class="legend-row">
+    <span style="font-weight:600;color:var(--ai)">信頼度:</span>
+    <span><span class="src src-a">確定値</span> Supabase実データをそのまま表示</span>
+    <span><span class="src src-b">推計値</span> 実データ+マスタ原価で計算</span>
+    <span><span class="src src-c">理論値</span> 定価×固定マスタのみ（実売データ不使用）</span>
+  </div>
+  <div class="legend-row">
+    <span style="font-weight:600;color:var(--ai)">参照元:</span>
+    <span><span class="src-ref src-sb">SB</span> Supabase（注文: kpi_orders / マスタ: kpi_product_master, kpi_channel_master, kpi_pricing_override, kpi_fixed_costs）</span>
+  </div>
+</div>
+
+<!-- ==================== タブ0: 粗利一覧 ==================== -->
+<div class="panel show" id="p0">
+  <div class="ctrl no-print">
+    <label>割引:</label>
+    <select id="discountSel" onchange="renderMatrix()">
+      <option value="0">定価</option><option value="1">10%OFF</option><option value="2">20%OFF</option>
+      <option value="3">30%OFF</option><option value="4">50%OFF</option><option value="5">1000円OFF</option><option value="6">メガポ</option>
+    </select>
+    <label style="margin-left:16px">表示:</label>
+    <select id="viewMode" onchange="renderMatrix()">
+      <option value="profit">粗利額</option><option value="margin">粗利率</option>
+      <option value="revenue">売上</option><option value="hd">HD報酬</option><option value="doctor">医師報酬</option>
+    </select>
+  </div>
+  <div class="g4" id="matrixKpi" style="margin-bottom:14px"></div>
+  <div class="card">
+    <h2>商品 x チャネル 粗利マトリクス <span class="src src-c">理論値</span><span class="src-ref src-sb">SB</span></h2>
+    <p style="font-size:11px;color:var(--nezumi);margin:2px 0 8px;letter-spacing:.02em">※ 1個あたりの理論粗利額です。実売データではありません。実績は下部「実績クロス集計」を参照してください。</p>
+    <div style="overflow-x:auto"><table id="matrixTable"></table></div>
+  </div>
+  <!-- 実績セクション -->
+  <div class="actual-section" id="matrixActual"></div>
+</div>
+
+<!-- ==================== タブ1: コスト内訳 ==================== -->
+<div class="panel" id="p1">
+  <div class="ctrl no-print">
+    <label>商品:</label>
+    <select id="wfProduct" onchange="renderWaterfall()"></select>
+    <label>チャネル:</label>
+    <select id="wfChannel" onchange="renderWaterfall()"></select>
+    <label>割引:</label>
+    <select id="wfDiscount" onchange="renderWaterfall()">
+      <option value="0">定価</option><option value="1">10%OFF</option><option value="2">20%OFF</option>
+      <option value="3">30%OFF</option><option value="4">50%OFF</option><option value="5">1000円OFF</option>
+    </select>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <h2>コスト構造ウォーターフォール <span class="src src-c">理論値</span><span class="src-ref src-sb">SB</span></h2>
+      <div class="wf" id="wfChart"></div>
+    </div>
+    <div class="card">
+      <h2>内訳テーブル <span class="src src-c">理論値</span><span class="src-ref src-sb">SB</span></h2>
+      <table id="wfTable"></table>
+      <div class="card" style="margin-top:12px;border-left-color:var(--matcha)">
+        <h3>原価内訳</h3>
+        <table id="costBreakdown"></table>
+      </div>
+    </div>
+  </div>
+  <div class="actual-section" id="costActual"></div>
+</div>
+
+<!-- ==================== タブ2: シミュレーター ==================== -->
+<div class="panel" id="p2">
+  <div class="g2">
+    <div class="card">
+      <h2>条件設定</h2>
+      <div style="display:grid;gap:14px">
+        <div><label style="font-size:11px;color:var(--ai);font-weight:600">商品</label>
+          <select id="simProduct" onchange="runSim()" style="width:100%;padding:6px;margin-top:4px"></select></div>
+        <div><label style="font-size:11px;color:var(--ai);font-weight:600">チャネル</label>
+          <select id="simChannel" onchange="runSim()" style="width:100%;padding:6px;margin-top:4px"></select></div>
+        <div><label style="font-size:11px;color:var(--ai);font-weight:600">割引率: <span id="simDiscLabel">0%</span></label>
+          <input type="range" id="simDisc" min="0" max="60" value="0" step="1" oninput="runSim()" style="width:100%;margin-top:4px"></div>
+        <div><label style="font-size:11px;color:var(--ai);font-weight:600">数量: <span id="simQtyLabel">1</span>個</label>
+          <input type="range" id="simQty" min="1" max="5" value="1" oninput="runSim()" style="width:100%;margin-top:4px"></div>
+      </div>
+    </div>
+    <div class="card" style="border-left-color:var(--matcha)">
+      <h2>シミュレーション結果 <span class="src src-c">理論値</span><span class="src-ref src-sb">SB</span></h2>
+      <div class="sim-result" id="simResult"></div>
+      <div style="margin-top:16px"><h3>明細</h3><table id="simDetail"></table></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h2>複数購入 粗利比較（定価・同一チャネル）<span class="src src-c">理論値</span><span class="src-ref src-sb">SB</span></h2>
+    <div class="ctrl no-print" style="border:none;padding:0;margin-bottom:10px">
+      <label>チャネル:</label><select id="multiCh" onchange="renderMulti()"></select>
+    </div>
+    <div style="overflow-x:auto"><table id="multiTable"></table></div>
+  </div>
+  <div class="actual-section" id="simActual"></div>
+</div>
+
+<!-- ==================== タブ3: 医師報酬 ==================== -->
+<div class="panel" id="p3">
+  <div class="g3" id="doctorCards"></div>
+  <div class="actual-section" id="doctorActual"></div>
+</div>
+
+<!-- ==================== タブ4: HD報酬比較 ==================== -->
+<div class="panel" id="p4">
+  <div class="card">
+    <h2>全商品 HD報酬比較（定価・Shopify基準）<span class="src src-c">理論値</span><span class="src-ref src-sb">SB</span></h2>
+    <table id="hdTable"></table>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h2>固定原価 内訳 <span class="src src-c">理論値</span><span class="src-ref src-sb">SB</span></h2>
+    <table id="costDetailTable"></table>
+  </div>
+  <div class="actual-section" id="hdActual"></div>
+</div>
+
+<!-- ==================== タブ5: トライアル ==================== -->
+<div class="panel" id="p5">
+  <div class="g2">
+    <div class="card" style="border-left-color:var(--beni)">
+      <h2>トライアルセット 基本情報</h2>
+      <table id="trialBase"></table>
+      <p style="margin-top:10px;font-size:11px;color:var(--beni);font-weight:600">※ トライアルセットは広告宣伝費として計上。赤字は新規顧客獲得コストとして許容。</p>
+    </div>
+    <div class="card" style="border-left-color:var(--beni)">
+      <h2>チャネル別 粗利計算（決済手数料込み）</h2>
+      <table id="trialChannels"></table>
+      <p style="margin-top:10px;font-size:11px;color:var(--nezumi)">※ 1件あたりの広告宣伝費: 79円〜196円（チャネルにより異なる）</p>
+    </div>
+  </div>
+  <div class="actual-section" id="trialActual"></div>
+</div>
+
+<!-- ==================== タブ6: 実装予定 ==================== -->
+<div class="panel" id="p6">
+
+  <div class="card" style="border-left-color:var(--beni)">
+    <h2 style="color:var(--beni)">重大 — 計算結果に大きな乖離が生じる項目</h2>
+
+    <h3 style="margin-top:14px">1. TikTokショップの固定原価が未反映 <span class="badge badge-matcha">対応済 2026-06-18</span></h3>
+    <p style="font-size:12px;color:var(--sumi);margin-bottom:8px"><del>Excelでは TikTokショップのみ固定原価が他チャネルより高く設定されているが、ツールでは全チャネル共通の原価を使用している。</del> → <strong style="color:var(--matcha)">P[]にtiktokCostプロパティ追加、getCost()でチャネル判定して原価差し替え。Excel12テストケースで検証済み。</strong></p>
+    <table>
+      <tr><th>商品</th><th>現在の原価</th><th>Excel TikTok原価</th><th>差額</th></tr>
+      <tr><td>スキンローション</td><td class="num">665</td><td class="num">970</td><td class="num" style="color:var(--beni)">+305</td></tr>
+      <tr><td>スキンセラム</td><td class="num">1,060</td><td class="num">1,470</td><td class="num" style="color:var(--beni)">+410</td></tr>
+      <tr><td>スキンケアセット</td><td class="num">1,725</td><td class="num">2,440</td><td class="num" style="color:var(--beni)">+715</td></tr>
+      <tr><td>メンズスキンローション</td><td class="num">868</td><td class="num">1,120</td><td class="num" style="color:var(--beni)">+252</td></tr>
+      <tr><td>メンズスキンセラム</td><td class="num">1,432</td><td class="num">1,770</td><td class="num" style="color:var(--beni)">+338</td></tr>
+      <tr><td>メンズスキンケアセット</td><td class="num">2,300</td><td class="num">2,890</td><td class="num" style="color:var(--beni)">+590</td></tr>
+      <tr><td>わき用クリーム</td><td class="num">1,390</td><td class="num">1,390</td><td class="num">±0</td></tr>
+    </table>
+
+    <h3 style="margin-top:18px">2. クリニック販売の特別価格が未反映 <span class="badge badge-matcha">対応済 2026-06-18</span></h3>
+    <p style="font-size:12px;color:var(--sumi);margin-bottom:8px"><del>ツールは定価で計算しているが、Excelではクリニック専用の低価格が適用される。</del> → <strong style="color:var(--matcha)">P[]にclinicPrice追加、getSalePrice()でチャネル判定。送料・箱代も0円に設定済み。</strong></p>
+    <table>
+      <tr><th>商品</th><th>ツール（定価）</th><th>Excel クリニック価格</th><th>差額</th></tr>
+      <tr><td>わき用クリーム</td><td class="num">3,980</td><td class="num">2,985</td><td class="num" style="color:var(--beni)">-995</td></tr>
+      <tr><td>スキンローション</td><td class="num">3,980</td><td class="num">1,990</td><td class="num" style="color:var(--beni)">-1,990</td></tr>
+      <tr><td>スキンセラム</td><td class="num">4,980</td><td class="num">2,490</td><td class="num" style="color:var(--beni)">-2,490</td></tr>
+      <tr><td>メンズスキンローション</td><td class="num">3,980</td><td class="num">1,990</td><td class="num" style="color:var(--beni)">-1,990</td></tr>
+      <tr><td>メンズスキンセラム</td><td class="num">4,980</td><td class="num">2,490</td><td class="num" style="color:var(--beni)">-2,490</td></tr>
+    </table>
+
+    <h3 style="margin-top:18px">3. 縁故販売の特別価格が未反映 <span class="badge badge-matcha">対応済 2026-06-18</span></h3>
+    <p style="font-size:12px;color:var(--sumi);margin-bottom:8px"><del>ツールは定価で計算しているが、Excelでは縁故専用の低価格が適用される。</del> → <strong style="color:var(--matcha)">P[]にenkoPrice追加、getSalePrice()でチャネル判定。送料・箱代も0円に設定済み。</strong></p>
+    <table>
+      <tr><th>商品</th><th>ツール（定価）</th><th>Excel 縁故価格</th><th>差額</th></tr>
+      <tr><td>わき用クリーム</td><td class="num">3,980</td><td class="num">2,000</td><td class="num" style="color:var(--beni)">-1,980</td></tr>
+      <tr><td>スキンローション</td><td class="num">3,980</td><td class="num">1,500</td><td class="num" style="color:var(--beni)">-2,480</td></tr>
+      <tr><td>スキンセラム</td><td class="num">4,980</td><td class="num">2,000</td><td class="num" style="color:var(--beni)">-2,980</td></tr>
+      <tr><td>メンズスキンローション</td><td class="num">3,980</td><td class="num">1,500</td><td class="num" style="color:var(--beni)">-2,480</td></tr>
+      <tr><td>メンズスキンセラム</td><td class="num">4,980</td><td class="num">2,000</td><td class="num" style="color:var(--beni)">-2,980</td></tr>
+    </table>
+  </div>
+
+  <div class="card" style="border-left-color:var(--c-amazon);margin-top:16px">
+    <h2 style="color:#b8860b">中程度 — 特定条件で計算がズレる項目</h2>
+
+    <h3 style="margin-top:14px">4. セット商品のメガポ販売価格が特殊計算 <span class="badge badge-matcha">対応済 2026-06-18</span></h3>
+    <p style="font-size:12px;color:var(--sumi);margin-bottom:4px"><del>ツール: <code>定価 × 0.9</code> → セット = 8,064円</del></p>
+    <p style="font-size:12px;color:var(--sumi);margin-bottom:4px">Excel: <code>(定価 - 1,000) × 0.9</code> → セット = 7,164円</p>
+    <p style="font-size:12px;color:var(--sumi)"> → <strong style="color:var(--matcha)">getSalePrice()でisSetフラグ判定、メガポの場合(定価-1000)×0.9を適用。手数料基準も(定価-1000)×5.9%に修正済み。</strong></p>
+
+    <h3 style="margin-top:18px">5. 50%OFF / 1000円OFFの対象範囲に制限なし <span class="badge badge-matcha">対応済 2026-06-18</span></h3>
+    <p style="font-size:12px;color:var(--sumi);margin-bottom:4px"><del><strong>50%OFF:</strong> わき用クリームに50%OFFは存在しない。TikTokにも50%OFFなし。</del></p>
+    <p style="font-size:12px;color:var(--sumi);margin-bottom:4px"><del><strong>1000円OFF:</strong> セット商品2種のみ。</del></p>
+    <p style="font-size:12px;color:var(--sumi)"> → <strong style="color:var(--matcha)">isDiscountValid()関数で制限判定。マトリクスでは「—」表示、ウォーターフォールでは警告バナー表示。クリニック/縁故は定価のみに制限。</strong></p>
+  </div>
+
+  <div class="card" style="border-left-color:var(--matcha);margin-top:16px">
+    <h2 style="color:var(--matcha)">軽微 — 端数・表示レベルの差異</h2>
+
+    <h3 style="margin-top:14px">6. 医師報酬の端数処理（Excel内の不整合）</h3>
+    <p style="font-size:12px;color:var(--sumi);margin-bottom:4px">HD報酬比較シート: <code>floor(粗利×5%)</code> を明記 → ローション = 121円</p>
+    <p style="font-size:12px;color:var(--sumi);margin-bottom:4px">個別商品シート: 同じローション Shopify定価で 122円（ROUND使用の可能性）</p>
+    <p style="font-size:12px;color:var(--sumi)">ツールは <code>Math.floor</code> を使用しており、HD報酬比較シートと一致。個別シートとは最大1円の差異が出る場合がある。</p>
+
+    <h3 style="margin-top:18px">7. Amazonクーポン150円の適用範囲</h3>
+    <p style="font-size:12px;color:var(--sumi)">ツール: 10%OFF〜50%OFFに150円クーポンを加算。Excel: 同範囲（10%/20%/30%/50%OFF）に適用。概ね一致。ただし定価購入にはクーポンなし、わき用に50%OFFがないため実質的に問題なし。</p>
+  </div>
+
+  <div class="card" style="border-left-color:var(--wasu);margin-top:16px">
+    <h2>対応優先度まとめ</h2>
+    <table>
+      <tr><th>優先度</th><th>項目</th><th>影響範囲</th><th>ステータス</th></tr>
+      <tr style="background:#f0f8f0"><td><span class="badge badge-beni">重大</span></td><td>TikTok原価上乗せ</td><td>6商品 × TikTokチャネル</td><td style="color:var(--matcha);font-weight:700">対応済</td></tr>
+      <tr style="background:#f0f8f0"><td><span class="badge badge-beni">重大</span></td><td>クリニック特別価格</td><td>全商品 × クリニック</td><td style="color:var(--matcha);font-weight:700">対応済</td></tr>
+      <tr style="background:#f0f8f0"><td><span class="badge badge-beni">重大</span></td><td>縁故特別価格</td><td>全商品 × 縁故</td><td style="color:var(--matcha);font-weight:700">対応済</td></tr>
+      <tr style="background:#f0f8f0"><td><span class="badge" style="border-color:#b8860b;color:#b8860b">中</span></td><td>セット×メガポ特殊計算</td><td>セット2商品 × メガポ</td><td style="color:var(--matcha);font-weight:700">対応済</td></tr>
+      <tr style="background:#f0f8f0"><td><span class="badge" style="border-color:#b8860b;color:#b8860b">中</span></td><td>割引パターン対象制限</td><td>UI選択肢の制限</td><td style="color:var(--matcha);font-weight:700">対応済</td></tr>
+      <tr><td><span class="badge badge-matcha">軽微</span></td><td>医師報酬 floor/round</td><td>最大1円差</td><td>Excel内不整合</td></tr>
+      <tr><td><span class="badge badge-matcha">軽微</span></td><td>Amazonクーポン範囲</td><td>ほぼ一致</td><td style="color:var(--matcha);font-weight:700">対応済</td></tr>
+    </table>
+    <p style="margin-top:12px;font-size:11px;color:var(--nezumi)">※ 参照元: 粗利計算_完全版_v1.xlsx（全10シート）との照合結果。最終更新: 2026-06-18。</p>
+  </div>
+
+  <div class="card" style="border-left-color:var(--ai);margin-top:16px">
+    <h2 style="color:var(--ai)">Supabase移行状況 — 全マスタSB統合完了</h2>
+    <p style="font-size:12px;color:var(--sumi);margin-bottom:10px">全マスタデータ（商品・チャネル・価格オーバーライド・固定コスト）をSupabaseに移行済み。<strong>SB参照のみで全計算を完結</strong>。スプレッドシートはフォールバック用に保持。</p>
+
+    <h3 style="margin-top:14px">Phase 1: 商品マスタテーブル <code>product_master</code></h3>
+    <table>
+      <tr><th>カラム</th><th>型</th><th>現在の参照元</th><th>説明</th></tr>
+      <tr><td>id</td><td>text PK</td><td>—</td><td>waki, lotion, serum, set, m_lotion, m_serum, m_set, trial</td></tr>
+      <tr><td>name</td><td>text</td><td>SB確定</td><td>商品名</td></tr>
+      <tr><td>price</td><td>int</td><td>SB確定</td><td>定価</td></tr>
+      <tr><td>cost</td><td>int</td><td>SB確定</td><td>標準固定原価</td></tr>
+      <tr><td>tiktok_cost</td><td>int</td><td>SB確定</td><td>TikTok用原価</td></tr>
+      <tr><td>clinic_price</td><td>int null</td><td>SB確定</td><td>クリニック販売価格</td></tr>
+      <tr><td>enko_price</td><td>int null</td><td>SB確定</td><td>縁故販売価格</td></tr>
+      <tr><td>box_cost</td><td>int</td><td>SB確定</td><td>配送箱代</td></tr>
+      <tr><td>is_set</td><td>bool</td><td>SB確定</td><td>セット商品フラグ</td></tr>
+      <tr><td>doctor_name</td><td>text</td><td>SB確定</td><td>担当医師名</td></tr>
+      <tr><td>doctor_rate</td><td>numeric</td><td>SB確定</td><td>医師報酬率(0.05/0.50)</td></tr>
+      <tr><td>detail_prod</td><td>int</td><td>SB確定</td><td>原価内訳: 製品代</td></tr>
+      <tr><td>detail_bottle</td><td>int</td><td>SB確定</td><td>原価内訳: 容器代</td></tr>
+      <tr><td>detail_casebox</td><td>int</td><td>SB確定</td><td>原価内訳: 化粧箱代</td></tr>
+      <tr><td>detail_initial</td><td>int</td><td>SB確定</td><td>原価内訳: イニシャル</td></tr>
+      <tr><td>updated_at</td><td>timestamptz</td><td>—</td><td>最終更新日時</td></tr>
+    </table>
+
+    <h3 style="margin-top:14px">Phase 2: チャネルマスタテーブル <code>channel_master</code></h3>
+    <table>
+      <tr><th>カラム</th><th>型</th><th>説明</th></tr>
+      <tr><td>id</td><td>text PK</td><td>shopify, amazon, qoo10, rakuten, mega, tiktok, clinic, enko</td></tr>
+      <tr><td>name</td><td>text</td><td>表示名</td></tr>
+      <tr><td>fee_rate</td><td>numeric</td><td>決済手数料率</td></tr>
+      <tr><td>has_shipping</td><td>bool</td><td>送料有無</td></tr>
+      <tr><td>has_box</td><td>bool</td><td>箱代有無</td></tr>
+      <tr><td>color</td><td>text</td><td>UI表示色</td></tr>
+    </table>
+
+    <h3 style="margin-top:14px">Phase 3: 割引パターンテーブル <code>discount_pattern</code></h3>
+    <table>
+      <tr><th>カラム</th><th>型</th><th>説明</th></tr>
+      <tr><td>id</td><td>int PK</td><td>0=定価, 1=10%OFF, ... 6=メガポ</td></tr>
+      <tr><td>name</td><td>text</td><td>表示名</td></tr>
+      <tr><td>calc_type</td><td>text</td><td>percent / fixed / mega</td></tr>
+      <tr><td>value</td><td>numeric</td><td>割引値(0.1, 1000, etc)</td></tr>
+    </table>
+
+    <h3 style="margin-top:14px">Phase 4: 価格/原価オーバーライド <code>kpi_pricing_override</code></h3>
+    <table>
+      <tr><th>カラム</th><th>型</th><th>説明</th></tr>
+      <tr><td>product_id</td><td>text FK</td><td>商品ID</td></tr>
+      <tr><td>channel_id</td><td>text FK</td><td>チャネルID</td></tr>
+      <tr><td>override_type</td><td>text</td><td>'price' or 'cost'</td></tr>
+      <tr><td>value</td><td>int</td><td>上書き値</td></tr>
+      <tr><td>note</td><td>text</td><td>'TikTok用原価' 等</td></tr>
+    </table>
+    <p style="font-size:11px;color:var(--nezumi);margin-top:4px">→ TikTok原価・クリニック価格・縁故価格を統一管理。product_masterに全部入れるより柔軟。</p>
+
+    <h3 style="margin-top:14px">Phase 5: 固定コスト <code>kpi_fixed_costs</code></h3>
+    <table>
+      <tr><th>カラム</th><th>型</th><th>説明</th></tr>
+      <tr><td>key</td><td>text PK</td><td>shipping, amazon_coupon, trial_price 等</td></tr>
+      <tr><td>value</td><td>numeric</td><td>数値</td></tr>
+      <tr><td>label</td><td>text</td><td>表示名</td></tr>
+    </table>
+
+    <h3 style="margin-top:14px">同期方式</h3>
+    <p style="font-size:12px;color:var(--sumi);margin-bottom:4px"><strong>初期投入:</strong> Supabase SQL Editorで直接INSERT（初回のみ）</p>
+    <p style="font-size:12px;color:var(--sumi);margin-bottom:4px"><strong>更新:</strong> マスタ変更は年1-2回 → <strong>Supabase Dashboard直接編集で十分</strong>。自動同期は不要。</p>
+    <p style="font-size:12px;color:var(--sumi);margin-bottom:4px"><strong>HTML側:</strong> 起動時に4テーブルをPromise.all→P[]/C[]/OVERRIDES{}を動的生成。フォールバック付き。</p>
+    <p style="font-size:12px;color:var(--sumi)"><strong>効果:</strong> 原価変更時にHTML再編集不要。全値がSB「確定」扱いに。</p>
+
+    <h3 style="margin-top:14px">移行ステータス</h3>
+    <table>
+      <tr><th>Phase</th><th>内容</th><th>所要</th><th>ステータス</th></tr>
+      <tr><td>1</td><td>kpi_product_master テーブル作成+初期データ</td><td>15分</td><td>未着手</td></tr>
+      <tr><td>2</td><td>kpi_channel_master テーブル作成+初期データ</td><td>10分</td><td>未着手</td></tr>
+      <tr><td>3</td><td>kpi_pricing_override テーブル+TikTok/クリニック/縁故データ</td><td>15分</td><td>未着手</td></tr>
+      <tr><td>4</td><td>kpi_fixed_costs テーブル+送料/クーポン/トライアル</td><td>5分</td><td>未着手</td></tr>
+      <tr><td>5</td><td>HTML側をSB動的読込に切替（loadMasters+フォールバック）</td><td>1-2時間</td><td>未着手</td></tr>
+      <tr><td>6</td><td>信頼度バッジ「推計→確定」昇格+凡例更新</td><td>30分</td><td>未着手</td></tr>
+    </table>
+  </div>
+
+</div>
+
+<!-- ==================== タブ7: 支払通知書 ==================== -->
+<div class="panel" id="p7">
+  <div class="ctrl no-print">
+    <label>医師/宛先:</label>
+    <select id="invoiceDoctor" onchange="fetchInvoiceData()"></select>
+    <label>対象月:</label>
+    <input type="month" id="invoiceMonth" onchange="fetchInvoiceData()">
+    <button class="btn-fetch" onclick="fetchInvoiceData()" style="margin-left:8px">データ取得</button>
+    <button class="btn-p" onclick="printInvoice()" style="margin-left:auto">印刷 / PDF</button>
+    <button class="btn-p" onclick="showCalcBreakdown()" style="margin-left:6px">内訳計算</button>
+    <span class="status" id="invoiceStatus"></span>
+  </div>
+  <div id="invoiceArea" style="margin-top:14px">
+    <div class="no-data-msg">医師を選択し「データ取得」を押してください</div>
+  </div>
+  <div id="calcBreakdownArea" class="no-print" style="display:none;margin-top:14px"></div>
+  <!-- Amazon取引CSVインポート -->
+  <details class="no-print" style="margin-top:20px;border:1px solid #ccc;border-radius:4px;padding:8px">
+    <summary style="cursor:pointer;font-weight:700;color:var(--kon)">Amazon取引CSVインポート（クーポン割引反映）</summary>
+    <div style="margin-top:10px;font-size:13px;color:#666">
+      Amazon Seller Central の「トランザクション」CSVをアップロードすると、プロモーション割引をSupabase kpi_ordersに反映します。
+    </div>
+    <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+      <input type="file" id="amzCsvFile" accept=".csv">
+      <button class="btn-fetch" onclick="importAmazonTransactionCsv()">インポート実行</button>
+      <label style="font-size:12px"><input type="checkbox" id="amzCsvDryRun" checked> ドライラン（実際に更新しない）</label>
+    </div>
+    <div id="amzCsvResult" style="margin-top:8px;font-size:13px;max-height:400px;overflow:auto"></div>
+  </details>
+</div>
+
+</div>
+
+<script>
+/* ===== Supabase ===== */
+const SB='https://dyjhxkqzxibcpgoefbiv.supabase.co',SK='sb_publishable_bOK3qqLHkM1fFOojh3slpg_glKQoP3g';
+const H={'apikey':SK,'Authorization':'Bearer '+SK};
+async function sbGetAll(table,params=''){
+  let all=[],off=0,B=1000;
+  while(true){
+    const s=params?'&':'';
+    const r=await fetch(`${SB}/rest/v1/${table}?${params}${s}limit=${B}&offset=${off}`,{headers:{...H,'Range':`${off}-${off+B-1}`,'Prefer':'count=exact'}});
+    const d=await r.json();
+    if(!Array.isArray(d)||!d.length)break;
+    all=all.concat(d);
+    if(d.length<B)break;
+    off+=B;
+  }
+  return all;
+}
+/* 重複データ除去: Shopify旧ハッシュID除外 + 完全重複行除外 */
+function dedupOrders(orders){
+  // Shopify旧フォーマット（#で始まらない数字ID）を除外
+  let clean=orders.filter(o=>!(o.channel==='shopify'&&/^\d+$/.test(o.order_id)));
+  // 完全重複行を除外（order_id+channel+product_name+order_date）
+  const seen=new Set();
+  clean=clean.filter(o=>{
+    const k=`${o.order_id}|${o.channel}|${o.product_name}|${o.order_date}`;
+    if(seen.has(k))return false;
+    seen.add(k);return true;
+  });
+  return clean;
+}
+
+/* ===== データ定義（ハードコードフォールバック） ===== */
+let P=[
+  {id:'waki',name:'わき用クリーム',price:3980,cost:1390,tiktokCost:1390,clinicPrice:2985,enkoPrice:2000,box:140,doc:'朝岡',dr:.50,isSet:false,has50off:false,detail:{prod:940,bottle:180,casebox:60,initial:210}},
+  {id:'lotion',name:'スキンローション',price:3980,cost:665,tiktokCost:970,clinicPrice:1990,enkoPrice:1500,box:125,doc:'東山',dr:.05,isSet:false,has50off:true,detail:{prod:400,bottle:180,casebox:45,initial:40}},
+  {id:'serum',name:'スキンセラム',price:4980,cost:1060,tiktokCost:1470,clinicPrice:2490,enkoPrice:2000,box:125,doc:'東山',dr:.05,isSet:false,has50off:true,detail:{prod:525,bottle:450,casebox:45,initial:40}},
+  {id:'set',name:'スキンケアセット',price:8960,cost:1725,tiktokCost:2440,clinicPrice:null,enkoPrice:null,box:125,doc:'東山',dr:.05,isSet:true,has50off:true,detail:{prod:925,bottle:630,casebox:90,initial:80}},
+  {id:'m_lotion',name:'メンズスキンローション',price:3980,cost:868,tiktokCost:1120,clinicPrice:1990,enkoPrice:1500,box:125,doc:'辺土名',dr:.05,isSet:false,has50off:true,detail:{prod:428,bottle:336,casebox:65,initial:39}},
+  {id:'m_serum',name:'メンズスキンセラム',price:4980,cost:1432,tiktokCost:1770,clinicPrice:2490,enkoPrice:2000,box:125,doc:'辺土名',dr:.05,isSet:false,has50off:true,detail:{prod:561,bottle:756,casebox:76,initial:39}},
+  {id:'m_set',name:'メンズスキンケアセット',price:8960,cost:2300,tiktokCost:2890,clinicPrice:null,enkoPrice:null,box:125,doc:'辺土名',dr:.05,isSet:true,has50off:true,detail:{prod:989,bottle:1092,casebox:141,initial:78}},
+];
+const PRODUCT_ALIASES={'わき用クリーム':0,'ワキ用クリーム':0,'脇用クリーム':0,'スキンローション':1,'skinlotion':1,'スキンセラム':2,'skinserum':2,'スキンケアセット':3,'メンズスキンローション':4,'メンズローション':4,'menslotion':4,'メンズスキンセラム':5,'メンズセラム':5,'mensserum':5,'メンズスキンケアセット':6,'メンズセット':6};
+function findPI(name){
+  if(!name)return-1;const n=String(name).trim();
+  if(PRODUCT_ALIASES[n]!==undefined)return PRODUCT_ALIASES[n];
+  const l=n.toLowerCase();
+  if(l.includes('トライアル')||l.includes('trial'))return-2; /* トライアルは別計算 */
+  if(l.includes('メンズ')||l.includes('mens')){if(l.includes('セット'))return 6;if(l.includes('セラム')||l.includes('serum'))return 5;if(l.includes('ローション')||l.includes('lotion'))return 4;}
+  if(l.includes('セット'))return 3;if(l.includes('セラム')||l.includes('serum'))return 2;if(l.includes('ローション')||l.includes('lotion'))return 1;if(l.includes('わき')||l.includes('ワキ')||l.includes('脇'))return 0;return-1;
+}
+let C=[
+  {id:'shopify',name:'Shopify',fee:.04,color:'var(--c-shopify)',hasShipping:true,hasBox:true,allowsDiscount:true,allows50off:true},
+  {id:'amazon',name:'Amazon',fee:.10,color:'var(--c-amazon)',hasShipping:true,hasBox:true,allowsDiscount:true,allows50off:true},
+  {id:'qoo10',name:'Qoo10',fee:.10,color:'var(--c-qoo10)',hasShipping:true,hasBox:true,allowsDiscount:true,allows50off:true},
+  {id:'rakuten',name:'楽天',fee:.12,color:'var(--c-rakuten)',hasShipping:true,hasBox:true,allowsDiscount:true,allows50off:true},
+  {id:'tiktok',name:'TikTokショップ',fee:.10,color:'var(--c-tiktok)',hasShipping:true,hasBox:true,allowsDiscount:true,allows50off:false},
+  {id:'clinic',name:'クリニック',fee:0,color:'var(--c-clinic)',hasShipping:false,hasBox:false,allowsDiscount:false,allows50off:false},
+  {id:'enko',name:'縁故',fee:0,color:'var(--c-enko)',hasShipping:false,hasBox:false,allowsDiscount:false,allows50off:false},
+  {id:'mega',name:'Qoo10メガポ',fee:.059,color:'var(--c-mega)',hasShipping:true,hasBox:true,allowsDiscount:true,allows50off:true},
+];
+const CHANNEL_MAP={'shopify':0,'Shopify':0,'amazon':1,'Amazon':1,'qoo10':2,'Qoo10':2,'楽天':3,'rakuten':3,'Rakuten':3,'tiktok':4,'TikTok':4,'TikTokショップ':4,'クリニック':5,'clinic':5,'直販':5,'wholesale':5,'卸':5,'縁故':6,'enko':6,'知人':6,'employee':6,'社員':6,'Qoo10メガポ':7,'メガポ':7};
+function findCI(ch){
+  if(!ch)return-1;const n=String(ch).trim();
+  if(CHANNEL_MAP[n]!==undefined)return CHANNEL_MAP[n];
+  const l=n.toLowerCase();
+  if(l.includes('shopify'))return 0;if(l.includes('amazon'))return 1;if(l.includes('メガポ'))return 7;if(l.includes('qoo10'))return 2;if(l.includes('楽天')||l.includes('rakuten'))return 3;if(l.includes('tiktok'))return 4;if(l.includes('クリニック'))return 5;if(l.includes('縁故')||l.includes('employee')||l.includes('社員'))return 6;return-1;
+}
+const DISC=[{name:'定価',calc:p=>p},{name:'10%OFF',calc:p=>Math.floor(p*.9)},{name:'20%OFF',calc:p=>Math.floor(p*.8)},{name:'30%OFF',calc:p=>Math.floor(p*.7)},{name:'50%OFF',calc:p=>Math.floor(p*.5)},{name:'1000円OFF',calc:p=>p-1000},{name:'メガポ',calc:p=>Math.floor(p*.9)}];
+let SHIP=600,TRIAL={price:980,cost:874,ship:185};
+let masterSource='hardcoded'; /* 'supabase' or 'hardcoded' */
+
+/* ===== オーバーライドマップ（汎用） ===== */
+let OV={}; // key: "productId_channelId_type" → value
+let D=[];  // 医師マスタ配列
+
+/* ===== Supabaseマスタ動的読込 ===== */
+async function loadMasters(){
+  try{
+    const [prods,chans,overrides,costs,doctors]=await Promise.all([
+      sbGetAll('kpi_product_master','order=sort_order'),
+      sbGetAll('kpi_channel_master','order=sort_order'),
+      sbGetAll('kpi_pricing_override',''),
+      sbGetAll('kpi_fixed_costs',''),
+      sbGetAll('kpi_doctor_master','order=sort_order').catch(()=>[]),
+    ]);
+    if(!prods.length||!chans.length){console.warn('SBマスタ空→フォールバック');return}
+    /* オーバーライドを汎用マップ化 */
+    OV={};
+    overrides.forEach(o=>{OV[o.product_id+'_'+o.channel_id+'_'+o.override_type]=o.value});
+    /* 医師マスタ */
+    if(doctors.length){
+      D=doctors.map(r=>({id:r.id,name:r.name,displayName:r.display_name,rate:Number(r.rate),color:r.color||'#333',sortOrder:r.sort_order}));
+    }
+    /* P[]再構築（ハードコードのclinicPrice/enkoPrice/tiktokCostを保持） */
+    const oldP=P.slice(); // ハードコード値のバックアップ
+    P=prods.map(r=>{
+      const docInfo=D.find(d=>d.id===r.doctor_id)||D.find(d=>d.name===r.doctor_name)||{name:r.doctor_name,rate:Number(r.doctor_rate),id:null,color:'#333'};
+      const old=oldP.find(op=>op.id===r.id)||{};
+      return {
+        id:r.id, name:r.name, price:r.price, cost:r.cost, box:r.box,
+        doc:docInfo.name, dr:docInfo.rate, doctorId:docInfo.id, doctorColor:docInfo.color,
+        isSet:r.is_set, has50off:r.has_50off,
+        clinicPrice:r.clinic_price||old.clinicPrice||null,
+        enkoPrice:r.enko_price||old.enkoPrice||null,
+        tiktokCost:r.tiktok_cost||old.tiktokCost||null,
+        detail:{prod:r.detail_prod,bottle:r.detail_bottle,casebox:r.detail_casebox,initial:r.detail_initial},
+      };
+    });
+    /* C[]再構築 */
+    /* allows_discount/allows_50off: カラム未追加時はhas_shipping/has_boxから推定 */
+    C=chans.map(r=>{
+      const hasShip=r.has_shipping!==false, hasBox=r.has_box!==false;
+      return {
+        id:r.id, name:r.name, fee:Number(r.fee_rate), color:r.color||'#333',
+        hasShipping:hasShip, hasBox:hasBox,
+        allowsDiscount: r.allows_discount!==undefined ? r.allows_discount : hasShip,
+        allows50off: r.allows_50off!==undefined ? r.allows_50off : true,
+      };
+    });
+    /* 固定コスト */
+    const costMap={};costs.forEach(c=>{costMap[c.key]=Number(c.value)});
+    if(costMap.shipping)SHIP=costMap.shipping;
+    if(costMap.trial_price)TRIAL.price=costMap.trial_price;
+    if(costMap.trial_cost)TRIAL.cost=costMap.trial_cost;
+    if(costMap.trial_ship)TRIAL.ship=costMap.trial_ship;
+    masterSource='supabase';
+    console.log('マスタデータ: Supabase読込完了',{products:P.length,channels:C.length,doctors:D.length,overrides:overrides.length,costs:costs.length});
+  }catch(e){
+    console.warn('SBマスタ読込失敗→フォールバック',e);
+    masterSource='hardcoded';
+  }
+  /* フォールバック時もOV/Dを初期化 */
+  if(!Object.keys(OV).length) buildFallbackOV();
+  if(!D.length) buildFallbackDoctors();
+}
+/* ハードコードP[]からオーバーライドマップを逆生成 */
+function buildFallbackOV(){
+  OV={};
+  P.forEach(p=>{
+    if(p.tiktokCost&&p.tiktokCost!==p.cost) OV[p.id+'_tiktok_cost']=p.tiktokCost;
+    if(p.clinicPrice) OV[p.id+'_clinic_price']=p.clinicPrice;
+    if(p.enkoPrice) OV[p.id+'_enko_price']=p.enkoPrice;
+  });
+}
+/* ハードコードP[]から医師マスタを逆生成 */
+function buildFallbackDoctors(){
+  const docMap={};
+  const defaultColors={'朝岡':'#c93545','東山':'#457b9d','辺土名':'#8b7355'};
+  P.forEach(p=>{
+    if(!docMap[p.doc]) docMap[p.doc]={id:null,name:p.doc,displayName:p.doc+'医師',rate:p.dr,color:defaultColors[p.doc]||'#333',sortOrder:Object.keys(docMap).length+1};
+  });
+  D=Object.values(docMap).sort((a,b)=>a.sortOrder-b.sortOrder);
+  /* P[]にdoctorId/doctorColorを付与 */
+  P.forEach(p=>{const di=D.find(d=>d.name===p.doc);if(di){p.doctorColor=di.color}});
+}
+/* P[]から医師別商品グループを動的生成 */
+function buildDoctorGroups(){
+  const map={};
+  P.forEach((p,pi)=>{
+    const key=p.doc;
+    if(!map[key]){
+      const di=D.find(d=>d.name===key);
+      map[key]={
+        name:key,
+        displayName:di?di.displayName:key+'医師',
+        rate:p.dr,
+        color:p.doctorColor||(di?di.color:'#333'),
+        pis:[],
+        sortOrder:di?di.sortOrder:999,
+      };
+    }
+    map[key].pis.push(pi);
+  });
+  return Object.values(map).sort((a,b)=>a.sortOrder-b.sortOrder);
+}
+
+/* ===== 割引パターン対象制限 ===== */
+function isDiscountValid(pi,ci,di){
+  const p=P[pi],c=C[ci];
+  // 50%OFF: 商品側has50offフラグ + チャネル側allows50offフラグ
+  if(di===4&&(!p.has50off||!c.allows50off))return false;
+  // 1000円OFF: セット商品のみ
+  if(di===5&&!p.isSet)return false;
+  // チャネルが割引不可の場合は定価のみ
+  if(!c.allowsDiscount&&di!==0)return false;
+  return true;
+}
+
+/* ===== チャネル別原価・価格取得（オーバーライドマップ駆動） ===== */
+function getCost(p,c){
+  const ov=OV[p.id+'_'+c.id+'_cost'];
+  if(ov!==undefined)return ov;
+  return p.cost;
+}
+function getSalePrice(p,c,di){
+  // チャネル別価格オーバーライド（クリニック/縁故等）
+  const ovPrice=OV[p.id+'_'+c.id+'_price'];
+  if(!c.allowsDiscount && ovPrice!==undefined) return ovPrice;
+  if(!c.allowsDiscount) return p.price;
+  const d=DISC[di];
+  if(di===6&&p.isSet) return Math.floor((p.price-1000)*0.9); /* セット商品メガポ: (定価-1000)×0.9 */
+  return d.calc(p.price);
+}
+
+/* ===== 計算エンジン ===== */
+function calc(pi,ci,di,qty=1){
+  const p=P[pi],c=C[ci],sp=getSalePrice(p,c,di),rev=sp*qty;
+  const unitCost=getCost(p,c);
+  let feeBase=rev,feeRate=c.fee;
+  if(di===6&&c.id==='mega'){feeRate=.059;feeBase=(p.isSet?p.price-1000:p.price)*qty}
+  const fee=feeBase*feeRate,ship=c.hasShipping?SHIP:0,box=c.hasBox?p.box:0;
+  const amzCoupon=(c.id==='amazon'&&di>=1&&di<=4)?150:0;
+  const costTotal=unitCost*qty+fee+ship+box+amzCoupon,gp=rev-costTotal,gm=rev>0?gp/rev*100:0;
+  const docFee=Math.round(gp*p.dr),hdFee=gp-docFee;
+  return{rev,sp,fee,ship,box,amzCoupon,costGoods:unitCost*qty,costTotal,gp,gm,docFee,hdFee,feeRate};
+}
+function calcOrder(o){
+  const pi=findPI(o.product_name),ci=findCI(o.channel);
+  if(pi===-2){
+    /* トライアルセット: 専用計算 */
+    const qty=o.quantity||1,rev=Number(o.total)||TRIAL.price*qty;
+    const fee=ci>=0?Math.floor(rev*C[ci].fee):0;
+    const cog=TRIAL.cost*qty,ship=TRIAL.ship,costTotal=cog+fee+ship,gp=rev-costTotal;
+    return{pi:-2,ci:ci>=0?ci:0,rev,fee,ship,box:0,costGoods:cog,costTotal,gp,gm:rev>0?gp/rev*100:0,docFee:0,hdFee:gp,qty,date:o.order_date,isTrial:true};
+  }
+  if(pi<0||ci<0)return null;
+  const p=P[pi],c=C[ci],qty=o.quantity||1;
+  // unit_price解釈: qty>1の場合unit_priceがライン合計の可能性あり
+  let unitPrice=Number(o.unit_price)||p.price;
+  if(qty>1&&unitPrice>p.price*1.1) unitPrice=Math.round(unitPrice/qty);
+  // 割引自動判定: 実単価と定価を比較（明示的discount優先）
+  let disc=Number(o.discount)||0;
+  let discPerUnit=disc>0&&qty>0?disc/qty:0;
+  let autoDisc=0;
+  if(disc===0&&unitPrice>0&&p.price>0&&unitPrice<p.price*0.98){
+    autoDisc=(p.price-unitPrice); // 1個あたりの割引額
+  }
+  // 1個あたりの売上
+  let unitRev=unitPrice;
+  if(discPerUnit>0) unitRev=unitPrice-discPerUnit;
+  // Amazonクーポン: 割引がある場合に加算
+  const hasAmzCoupon=(c.id==='amazon'&&(disc>0||autoDisc>0||unitPrice<p.price*0.98));
+  const amzCoupon=hasAmzCoupon?150:0;
+  // 1個単位で独立計算（送料・梱包も1個ごと）
+  const unitCost=getCost(p,c);
+  const fee1=unitRev*c.fee,ship1=c.hasShipping?SHIP:0,box1=c.hasBox?p.box:0;
+  const ct1=unitCost+fee1+ship1+box1+amzCoupon;
+  const gp1=unitRev-ct1;
+  const docFee1=Math.round(gp1*p.dr);
+  const hdFee1=gp1-docFee1;
+  // 合計（qty倍）
+  const rev=unitRev*qty,fee=fee1*qty,ship=ship1*qty,box=box1*qty;
+  const cog=unitCost*qty,costTotal=ct1*qty,gp=gp1*qty,gm=rev>0?gp/rev*100:0;
+  const docFee=docFee1*qty,hdFee=hdFee1*qty;
+  return{pi,ci,rev,fee,ship,box,amzCoupon:amzCoupon*qty,costGoods:cog,costTotal,gp,gm,docFee,hdFee,qty,date:o.order_date,discount:disc,autoDisc:autoDisc*qty,unitPrice,unitRev,docFee1};
+}
+
+/* ===== フォーマッター ===== */
+function yen(v){return'¥'+Math.floor(v).toLocaleString('ja-JP')}
+function yenS(v){return v<0?'<span style="color:var(--beni)">▲'+Math.abs(Math.floor(v)).toLocaleString('ja-JP')+'</span>':yen(v)}
+function pct(v){return v.toFixed(1)+'%'}
+function hmClass(m){if(m<0)return'hm-neg';if(m<10)return'hm-0';if(m<20)return'hm-10';if(m<30)return'hm-20';if(m<40)return'hm-30';if(m<50)return'hm-40';return'hm-50'}
+function kpiCard(l,v,ok){return'<div class="card kpi"><div class="label">'+l+'</div><div class="value '+(ok?'plus':'minus')+'">'+v+'</div></div>'}
+function row(a,b,c){return'<tr><td>'+a+'</td><td class="num">'+b+'</td><td style="font-size:11px;color:var(--nezumi)">'+c+'</td></tr>'}
+function row2(a,b){return'<tr><td>'+a+'</td><td class="num">'+b+'</td></tr>'}
+function simBox(l,v,ok=true){return'<div class="sim-box"><div class="sim-label">'+l+'</div><div class="sim-value" style="color:'+(ok?'var(--matcha)':'var(--beni)')+'">'+v+'</div></div>'}
+
+/* ===== グローバル実績データ ===== */
+let G={loaded:false, orders:[], calc:[], from:'', to:'',
+  byPI:{}, byCI:{}, byDate:{}, byPC:{}};
+
+/* ===== 期間バー ===== */
+function fmtD(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function setPeriod(p,btn){
+  const t=new Date(),y=t.getFullYear(),m=t.getMonth();let f,e;
+  switch(p){
+    case'thisMonth':f=new Date(y,m,1);e=t;break;
+    case'lastMonth':f=new Date(y,m-1,1);e=new Date(y,m,0);break;
+    case'last3':f=new Date(y,m-2,1);e=t;break;
+    case'last6':f=new Date(y,m-5,1);e=t;break;
+    case'thisYear':f=new Date(y,0,1);e=t;break;
+  }
+  document.getElementById('dateFrom').value=fmtD(f);
+  document.getElementById('dateTo').value=fmtD(e);
+  document.querySelectorAll('.btn-p').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+}
+function onMonthPick(){
+  const v=document.getElementById('monthPick').value;if(!v)return;
+  const[y,m]=v.split('-').map(Number),f=new Date(y,m-1,1),e=new Date(y,m,0),t=new Date();
+  document.getElementById('dateFrom').value=fmtD(f);
+  document.getElementById('dateTo').value=fmtD(e>t?t:e);
+  document.querySelectorAll('.btn-p').forEach(b=>b.classList.remove('active'));
+}
+function setStatus(msg,cls){const el=document.getElementById('gStatus');el.textContent=msg;el.className='status'+(cls?' '+cls:'')}
+
+async function fetchAndApply(){
+  const from=document.getElementById('dateFrom').value,to=document.getElementById('dateTo').value;
+  if(!from||!to){setStatus('日付を選択','error');return}
+  if(from>to){setStatus('開始>終了','error');return}
+  document.getElementById('btnFetch').disabled=true;
+  setStatus('取得中...','');
+  try{
+    const [rawOrders,excludedList]=await Promise.all([
+      sbGetAll('kpi_orders',`order_date=gte.${from}&order_date=lte.${to}&select=order_id,channel,order_date,product_name,sku,quantity,unit_price,total,discount,is_subscription`),
+      sbGetAll('kpi_excluded_orders','select=order_id')
+    ]);
+    const excludedIds=new Set(excludedList.map(e=>e.order_id));
+    const filteredOrders=rawOrders.filter(o=>!excludedIds.has(o.order_id));
+    if(excludedIds.size)console.log(`[除外] ${rawOrders.length-filteredOrders.length}件の社員テスト購入を除外（除外リスト${excludedIds.size}件）`);
+    const orders=dedupOrders(filteredOrders);
+    // 計算
+    G={loaded:true,orders,calc:[],from,to,byPI:{},byCI:{},byDate:{},byPC:{},unmatched:{prod:{},ch:{}}};
+    orders.forEach(o=>{
+      const r=calcOrder(o);
+      if(r){
+        G.calc.push(r);
+        // byPI
+        if(!G.byPI[r.pi])G.byPI[r.pi]={rev:0,cost:0,gp:0,docFee:0,hdFee:0,qty:0,n:0};
+        const bp=G.byPI[r.pi];bp.rev+=r.rev;bp.cost+=r.costTotal;bp.gp+=r.gp;bp.docFee+=r.docFee;bp.hdFee+=r.hdFee;bp.qty+=r.qty;bp.n++;
+        // byCI
+        if(!G.byCI[r.ci])G.byCI[r.ci]={rev:0,cost:0,gp:0,docFee:0,hdFee:0,qty:0,n:0};
+        const bc=G.byCI[r.ci];bc.rev+=r.rev;bc.cost+=r.costTotal;bc.gp+=r.gp;bc.docFee+=r.docFee;bc.hdFee+=r.hdFee;bc.qty+=r.qty;bc.n++;
+        // byDate
+        if(!G.byDate[r.date])G.byDate[r.date]={rev:0,cost:0,gp:0,n:0};
+        const bd=G.byDate[r.date];bd.rev+=r.rev;bd.cost+=r.costTotal;bd.gp+=r.gp;bd.n++;
+        // byPC
+        const k=r.pi+'_'+r.ci;
+        if(!G.byPC[k])G.byPC[k]={rev:0,gp:0,qty:0,n:0};
+        const bpc=G.byPC[k];bpc.rev+=r.rev;bpc.gp+=r.gp;bpc.qty+=r.qty;bpc.n++;
+      } else {
+        if(findPI(o.product_name)<0&&o.product_name)G.unmatched.prod[o.product_name]=(G.unmatched.prod[o.product_name]||0)+1;
+        if(findCI(o.channel)<0&&o.channel)G.unmatched.ch[o.channel]=(G.unmatched.ch[o.channel]||0)+1;
+      }
+    });
+    setStatus(`${orders.length}件取得 (${from} 〜 ${to})`,'ok');
+    // 全タブの実績セクション更新
+    renderActualAll();
+  }catch(e){setStatus('エラー: '+e.message,'error');console.error(e)}
+  finally{document.getElementById('btnFetch').disabled=false}
+}
+
+/* ===== 実績セクション共通ヘルパー ===== */
+function periodLabel(){return'<span class="badge badge-matcha">実績: '+G.from+' 〜 '+G.to+'</span>'}
+function noDataHTML(){return'<div class="no-data-msg">期間バーから「集計実行」を押すと実績データが表示されます</div>'}
+function totals(){
+  let r=0,c=0,g=0,d=0,h=0,q=0,n=0;
+  G.calc.forEach(x=>{r+=x.rev;c+=x.costTotal;g+=x.gp;d+=x.docFee;h+=x.hdFee;q+=x.qty;n++});
+  return{rev:r,cost:c,gp:g,docFee:d,hdFee:h,qty:q,n,gm:r>0?g/r*100:0};
+}
+
+/* ===== 全タブ実績更新 ===== */
+function renderActualAll(){
+  renderActualMatrix();
+  renderActualCost();
+  renderActualSim();
+  renderActualDoctor();
+  renderActualHD();
+  renderActualTrial();
+}
+
+/* --- タブ0: 粗利一覧 実績 --- */
+let chartMatrix=null;
+function renderActualMatrix(){
+  const el=document.getElementById('matrixActual');
+  if(!G.loaded){el.innerHTML=noDataHTML();return}
+  const t=totals();
+  let h='<div class="g5" style="margin-bottom:14px">';
+  h+=kpiCard('期間売上 <span class="src src-a">確定</span><span class="src-ref src-sb">SB</span>',yen(t.rev),true)+kpiCard('期間粗利 <span class="src src-b">推計</span><span class="src-ref src-sb">SB</span>',yenS(t.gp),t.gp>=0)+kpiCard('期間粗利率 <span class="src src-b">推計</span><span class="src-ref src-sb">SB</span>',pct(t.gm),t.gm>=30);
+  h+=kpiCard('期間HD報酬 <span class="src src-b">推計</span><span class="src-ref src-sb">SB</span>',yenS(t.hdFee),t.hdFee>=0)+kpiCard('注文行数 <span class="src src-a">確定</span><span class="src-ref src-sb">SB</span>',t.n.toLocaleString()+'<span class="unit">件</span>',true);
+  h+='</div>';
+  // 日次チャート
+  h+='<div class="card" style="margin-bottom:14px"><h2>日次売上・粗利推移 <span class="src src-a">確定</span><span class="src src-b">推計</span> <span class="src-ref src-sb">SB</span> '+periodLabel()+'</h2><div class="chart-wrap"><canvas id="chartMatrix"></canvas></div></div>';
+  // 商品別・チャネル別チャート（横並び）
+  h+='<div class="g2" style="margin-bottom:14px">';
+  h+='<div class="card"><h2>商品別 粗利実績 <span class="src src-b">推計</span> '+periodLabel()+'</h2><div class="chart-wrap"><canvas id="chartByProduct"></canvas></div></div>';
+  h+='<div class="card"><h2>チャネル別 粗利実績 <span class="src src-b">推計</span> '+periodLabel()+'</h2><div class="chart-wrap"><canvas id="chartByChannel"></canvas></div></div>';
+  h+='</div>';
+  // 商品別粗利率・チャネル別売上構成（横並び）
+  h+='<div class="g2" style="margin-bottom:14px">';
+  h+='<div class="card"><h2>商品別 粗利率 <span class="src src-b">推計</span> '+periodLabel()+'</h2><div class="chart-wrap"><canvas id="chartProductGM"></canvas></div></div>';
+  h+='<div class="card"><h2>チャネル別 売上構成 <span class="src src-a">確定</span> '+periodLabel()+'</h2><div class="chart-wrap"><canvas id="chartChannelPie"></canvas></div></div>';
+  h+='</div>';
+  // 実績クロス集計
+  h+='<div class="card"><h2>商品 x チャネル 実績クロス集計 <span class="src src-b">推計</span> <span class="src-ref src-sb">SB</span> '+periodLabel()+'</h2>';
+  h+='<div style="overflow-x:auto"><table><thead><tr><th>商品＼チャネル</th>';
+  C.forEach(c=>h+='<th style="text-align:center">'+c.name+'</th>');
+  h+='<th style="text-align:center;font-weight:700">合計</th></tr></thead><tbody>';
+  P.forEach((p,pi)=>{
+    h+='<tr><th>'+p.name+'</th>';let rt=0;
+    C.forEach((_,ci)=>{
+      const d=G.byPC[pi+'_'+ci];
+      if(d){const gm=d.rev>0?d.gp/d.rev*100:0;h+=`<td class="num ${hmClass(gm)}">${yenS(d.gp)} <span class="src src-b" style="font-size:8px">推計</span><br><small style="color:var(--nezumi)">${d.qty}個 <span class="src src-a" style="font-size:7px">確定</span></small></td>`;rt+=d.gp}
+      else h+='<td class="num" style="color:var(--hai)">-</td>';
+    });
+    h+='<td class="num" style="font-weight:700">'+yenS(rt)+'</td></tr>';
+  });
+  h+='</tbody></table></div></div>';
+  el.innerHTML=h;
+  // チャート描画
+  renderDailyChart('chartMatrix',G.byDate,G.from,G.to,'chartMatrix');
+  renderByProductChart();
+  renderByChannelChart();
+  renderProductGMChart();
+  renderChannelPieChart();
+}
+
+let charts={};
+function renderDailyChart(canvasId,byDate,from,to,key){
+  const cv=document.getElementById(canvasId);if(!cv)return;
+  const dates=[],d=new Date(from),end=new Date(to);
+  while(d<=end){dates.push(fmtD(d));d.setDate(d.getDate()+1)}
+  const rv=dates.map(dt=>(byDate[dt]||{}).rev||0),gp=dates.map(dt=>(byDate[dt]||{}).gp||0);
+  const lb=dates.map(dt=>{const[,m,dy]=dt.split('-');return m+'/'+dy});
+  if(charts[key])charts[key].destroy();
+  charts[key]=new Chart(cv,{
+    type:'bar',data:{labels:lb,datasets:[
+      {label:'売上',data:rv,backgroundColor:'rgba(69,123,157,0.6)',borderColor:'rgba(69,123,157,1)',borderWidth:1,order:2},
+      {label:'粗利',data:gp,type:'line',borderColor:'#606c38',backgroundColor:'rgba(96,108,56,0.15)',fill:true,tension:.3,pointRadius:dates.length>60?0:3,borderWidth:2,order:1}
+    ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{position:'top',labels:{font:{size:11}}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': ¥'+Math.floor(ctx.parsed.y).toLocaleString()}}},
+      scales:{x:{ticks:{font:{size:10},maxRotation:45,autoSkip:true,maxTicksLimit:31}},y:{ticks:{font:{size:10},callback:v=>'¥'+(v>=10000?Math.floor(v/10000)+'万':v.toLocaleString())}}}}
+  });
+}
+
+/* --- 商品別粗利チャート --- */
+function renderByProductChart(){
+  const cv=document.getElementById('chartByProduct');if(!cv)return;
+  const items=[];
+  P.forEach((p,pi)=>{
+    const d=G.byPI[pi];
+    if(d&&d.gp!==0) items.push({name:p.name.replace(/スキン/,'S-').replace(/メンズ/,'M-'),rev:d.rev,gp:d.gp,qty:d.qty});
+  });
+  // トライアル
+  const trialData=G.byPI[-2];
+  if(trialData) items.push({name:'トライアル',rev:trialData.rev,gp:trialData.gp,qty:trialData.qty});
+  items.sort((a,b)=>b.gp-a.gp);
+  if(charts.byProduct)charts.byProduct.destroy();
+  charts.byProduct=new Chart(cv,{
+    type:'bar',data:{labels:items.map(i=>i.name),datasets:[
+      {label:'売上',data:items.map(i=>i.rev),backgroundColor:'rgba(69,123,157,0.5)',borderColor:'rgba(69,123,157,1)',borderWidth:1},
+      {label:'粗利',data:items.map(i=>i.gp),backgroundColor:items.map(i=>i.gp>=0?'rgba(96,108,56,0.7)':'rgba(193,39,45,0.5)'),borderColor:items.map(i=>i.gp>=0?'#606c38':'#c1272d'),borderWidth:1}
+    ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{position:'top',labels:{font:{size:10}}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': ¥'+Math.floor(ctx.parsed.x).toLocaleString()}}},
+      scales:{x:{ticks:{font:{size:10},callback:v=>'¥'+(Math.abs(v)>=10000?Math.floor(v/10000)+'万':v.toLocaleString())}},y:{ticks:{font:{size:10}}}}}
+  });
+}
+
+/* --- チャネル別粗利チャート --- */
+function renderByChannelChart(){
+  const cv=document.getElementById('chartByChannel');if(!cv)return;
+  const items=[];
+  const chColors=['var(--c-shopify)','var(--c-amazon)','var(--c-qoo10)','var(--c-rakuten)','var(--c-tiktok)','var(--c-clinic)','var(--c-enko)','var(--c-mega)'];
+  const rawColors=['#5c8a3e','#d48a1a','#c93545','#a01010','#333333','#457b9d','#8b7355','#e06080'];
+  C.forEach((c,ci)=>{
+    const d=G.byCI[ci];
+    if(d&&d.rev>0) items.push({name:c.name,rev:d.rev,gp:d.gp,qty:d.qty,color:rawColors[ci]||'#666'});
+  });
+  items.sort((a,b)=>b.gp-a.gp);
+  if(charts.byChannel)charts.byChannel.destroy();
+  charts.byChannel=new Chart(cv,{
+    type:'bar',data:{labels:items.map(i=>i.name),datasets:[
+      {label:'売上',data:items.map(i=>i.rev),backgroundColor:items.map(i=>i.color+'99'),borderColor:items.map(i=>i.color),borderWidth:1},
+      {label:'粗利',data:items.map(i=>i.gp),backgroundColor:items.map(i=>i.gp>=0?'rgba(96,108,56,0.7)':'rgba(193,39,45,0.5)'),borderColor:items.map(i=>i.gp>=0?'#606c38':'#c1272d'),borderWidth:1}
+    ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{position:'top',labels:{font:{size:10}}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': ¥'+Math.floor(ctx.parsed.x).toLocaleString()}}},
+      scales:{x:{ticks:{font:{size:10},callback:v=>'¥'+(Math.abs(v)>=10000?Math.floor(v/10000)+'万':v.toLocaleString())}},y:{ticks:{font:{size:10}}}}}
+  });
+}
+
+/* --- 商品別粗利率チャート --- */
+function renderProductGMChart(){
+  const cv=document.getElementById('chartProductGM');if(!cv)return;
+  const items=[];
+  P.forEach((p,pi)=>{
+    const d=G.byPI[pi];
+    if(d&&d.rev>0) items.push({name:p.name.replace(/スキン/,'S-').replace(/メンズ/,'M-'),gm:d.gp/d.rev*100,gp:d.gp,rev:d.rev});
+  });
+  items.sort((a,b)=>b.gm-a.gm);
+  if(charts.productGM)charts.productGM.destroy();
+  charts.productGM=new Chart(cv,{
+    type:'bar',data:{labels:items.map(i=>i.name),datasets:[
+      {label:'粗利率',data:items.map(i=>+i.gm.toFixed(1)),backgroundColor:items.map(i=>i.gm>=50?'rgba(96,108,56,0.7)':i.gm>=30?'rgba(69,123,157,0.6)':'rgba(193,39,45,0.5)'),
+       borderColor:items.map(i=>i.gm>=50?'#606c38':i.gm>=30?'#457b9d':'#c1272d'),borderWidth:1}
+    ]},options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toFixed(1)+'%（粗利¥'+items[ctx.dataIndex].gp.toLocaleString()+'）'}}},
+      scales:{x:{ticks:{font:{size:10}}},y:{max:100,ticks:{font:{size:10},callback:v=>v+'%'}}}}
+  });
+}
+
+/* --- チャネル別売上構成ドーナツ --- */
+function renderChannelPieChart(){
+  const cv=document.getElementById('chartChannelPie');if(!cv)return;
+  const items=[];
+  const rawColors=['#5c8a3e','#d48a1a','#c93545','#a01010','#333333','#457b9d','#8b7355','#e06080'];
+  C.forEach((c,ci)=>{
+    const d=G.byCI[ci];
+    if(d&&d.rev>0) items.push({name:c.name,rev:d.rev,color:rawColors[ci]||'#666'});
+  });
+  items.sort((a,b)=>b.rev-a.rev);
+  if(charts.channelPie)charts.channelPie.destroy();
+  const totalRev=items.reduce((s,i)=>s+i.rev,0);
+  charts.channelPie=new Chart(cv,{
+    type:'doughnut',data:{labels:items.map(i=>i.name),datasets:[
+      {data:items.map(i=>i.rev),backgroundColor:items.map(i=>i.color+'cc'),borderColor:'#fff',borderWidth:2}
+    ]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
+      plugins:{legend:{position:'right',labels:{font:{size:11},generateLabels:ch=>{
+        return items.map((it,i)=>({text:it.name+' '+Math.round(it.rev/totalRev*100)+'%',fillStyle:it.color+'cc',strokeStyle:'#fff',lineWidth:2,index:i}));
+      }}},tooltip:{callbacks:{label:ctx=>{const v=ctx.parsed;return ctx.label+': ¥'+v.toLocaleString()+' ('+Math.round(v/totalRev*100)+'%)';}}}}}
+  });
+}
+
+/* --- タブ1: コスト内訳 実績 --- */
+function renderActualCost(){
+  const el=document.getElementById('costActual');
+  if(!G.loaded){el.innerHTML=noDataHTML();return}
+  const pi=+document.getElementById('wfProduct').value,ci=+document.getElementById('wfChannel').value;
+  // 選択中の商品×チャネルの実績
+  const filtered=G.calc.filter(r=>r.pi===pi&&r.ci===ci);
+  let h='<div class="card" style="border-left-color:var(--matcha)"><h2>選択条件の実績データ <span class="src src-b">推計</span> <span class="src-ref src-sb">SB</span> '+periodLabel()+'</h2>';
+  if(!filtered.length){h+='<p class="no-data-msg">この商品×チャネルの注文データはありません</p>'}
+  else{
+    let tr=0,tc=0,tg=0,tq=0;filtered.forEach(r=>{tr+=r.rev;tc+=r.costTotal;tg+=r.gp;tq+=r.qty});
+    const gm=tr>0?tg/tr*100:0;
+    h+='<table><thead><tr><th>項目</th><th class="num">実績値</th><th>信頼度</th><th>参照元</th><th class="num">理論値(定価1個) <span class="src src-c">理論</span><span class="src-ref src-sb">SB</span></th></tr></thead><tbody>';
+    const th=calc(pi,ci,0);
+    h+=`<tr><td>注文数</td><td class="num">${filtered.length}件 (${tq}個)</td><td><span class="src src-a">確定</span></td><td><span class="src-ref src-sb">SB</span></td><td class="num">-</td></tr>`;
+    h+=`<tr><td>売上合計</td><td class="num">${yen(tr)}</td><td><span class="src src-a">確定</span></td><td><span class="src-ref src-sb">SB</span></td><td class="num">${yen(th.rev)} /個</td></tr>`;
+    h+=`<tr><td>原価合計</td><td class="num">${yen(tc)}</td><td><span class="src src-b">推計</span></td><td><span class="src-ref src-sb">SB</span></td><td class="num">${yen(th.costTotal)} /個</td></tr>`;
+    h+=`<tr style="font-weight:700;background:var(--kinari)"><td>粗利合計</td><td class="num ${hmClass(gm)}">${yenS(tg)}</td><td><span class="src src-b">推計</span></td><td><span class="src-ref src-sb">SB</span></td><td class="num">${yenS(th.gp)} /個</td></tr>`;
+    h+=`<tr><td>粗利率</td><td class="num ${hmClass(gm)}">${pct(gm)}</td><td><span class="src src-b">推計</span></td><td><span class="src-ref src-sb">SB</span></td><td class="num">${pct(th.gm)}</td></tr>`;
+    h+='</tbody></table>';
+  }
+  h+='</div>';
+  el.innerHTML=h;
+}
+
+/* --- タブ2: シミュレーター 実績 --- */
+function renderActualSim(){
+  const el=document.getElementById('simActual');
+  if(!G.loaded){el.innerHTML=noDataHTML();return}
+  const pi=+document.getElementById('simProduct').value,ci=+document.getElementById('simChannel').value;
+  const filtered=G.calc.filter(r=>r.pi===pi&&r.ci===ci);
+  let h='<div class="card" style="border-left-color:var(--matcha)"><h2>同条件の実績 <span class="src src-a">確定</span><span class="src src-b">推計</span> <span class="src-ref src-sb">SB</span> '+periodLabel()+'</h2>';
+  if(!filtered.length){h+='<p class="no-data-msg">この商品×チャネルの注文データはありません</p>'}
+  else{
+    let tr=0,tg=0,tq=0,th=0;filtered.forEach(r=>{tr+=r.rev;tg+=r.gp;tq+=r.qty;th+=r.hdFee});
+    h+=`<div class="sim-result">`;
+    h+=simBox('実績売上 <span class="src src-a">確定</span><span class="src-ref src-sb">SB</span>',yen(tr));
+    h+=simBox('実績粗利 <span class="src src-b">推計</span><span class="src-ref src-sb">SB</span>',yenS(tg),tg>=0);
+    h+=simBox('実績粗利率 <span class="src src-b">推計</span><span class="src-ref src-sb">SB</span>',pct(tr>0?tg/tr*100:0),tg>=0);
+    h+=simBox('実績HD報酬 <span class="src src-b">推計</span><span class="src-ref src-sb">SB</span>',yenS(th),th>=0);
+    h+=`</div>`;
+    h+=`<p style="font-size:11px;color:var(--nezumi);margin-top:8px">${filtered.length}件 / ${tq}個の注文データ</p>`;
+  }
+  h+='</div>';
+  el.innerHTML=h;
+}
+
+/* --- タブ3: 医師報酬 実績 --- */
+function renderActualDoctor(){
+  const el=document.getElementById('doctorActual');
+  if(!G.loaded){el.innerHTML=noDataHTML();return}
+  const docs=buildDoctorGroups();
+  // チャート用エリア
+  let h='<div class="g2" style="margin-bottom:14px">';
+  h+='<div class="card"><h2>医師別 報酬比較 <span class="src src-b">推計</span> '+periodLabel()+'</h2><div class="chart-wrap"><canvas id="chartDoctorBar"></canvas></div></div>';
+  h+='<div class="card"><h2>粗利の分配構造 <span class="src src-b">推計</span> '+periodLabel()+'</h2><div class="chart-wrap"><canvas id="chartDoctorPie"></canvas></div></div>';
+  h+='</div>';
+  h+='<div class="card" style="border-left-color:var(--matcha)"><h2>医師別 期間実績 <span class="src src-a">確定</span><span class="src src-b">推計</span> <span class="src-ref src-sb">SB</span> '+periodLabel()+'</h2>';
+  h+='<table><thead><tr><th>医師</th><th class="num">注文数 <span class="src src-a">確定</span><span class="src-ref src-sb">SB</span></th><th class="num">売上 <span class="src src-a">確定</span><span class="src-ref src-sb">SB</span></th><th class="num">粗利 <span class="src src-b">推計</span><span class="src-ref src-sb">SB</span></th><th class="num">医師報酬 <span class="src src-b">推計</span><span class="src-ref src-sb">SB</span></th><th class="num">HD報酬 <span class="src src-b">推計</span><span class="src-ref src-sb">SB</span></th></tr></thead><tbody>';
+  let totalD=0,totalH=0;
+  const docData=[];
+  docs.forEach(doc=>{
+    let dr=0,dg=0,dd=0,dh=0,dn=0;
+    doc.pis.forEach(pi=>{const b=G.byPI[pi];if(b){dr+=b.rev;dg+=b.gp;dd+=b.docFee;dh+=b.hdFee;dn+=b.n}});
+    totalD+=dd;totalH+=dh;
+    docData.push({name:doc.displayName,rev:dr,gp:dg,docFee:dd,hdFee:dh,n:dn,color:doc.color});
+    h+=`<tr><td>${doc.displayName}</td><td class="num">${dn}</td><td class="num">${yen(dr)}</td><td class="num">${yenS(dg)}</td><td class="num" style="font-weight:700">${yen(dd)}</td><td class="num">${yenS(dh)}</td></tr>`;
+  });
+  h+=`<tr style="font-weight:700;background:var(--kinari)"><td>合計</td><td class="num">${G.calc.length}</td><td class="num">${yen(totals().rev)}</td><td class="num">${yenS(totals().gp)}</td><td class="num">${yen(totalD)}</td><td class="num">${yenS(totalH)}</td></tr>`;
+  h+='</tbody></table></div>';
+  el.innerHTML=h;
+  // 医師別スタック棒グラフ
+  if(charts.doctorBar)charts.doctorBar.destroy();
+  const cvB=document.getElementById('chartDoctorBar');
+  if(cvB){
+    charts.doctorBar=new Chart(cvB,{
+      type:'bar',data:{labels:docData.map(d=>d.name),datasets:[
+        {label:'医師報酬',data:docData.map(d=>d.docFee),backgroundColor:docData.map(d=>d.color+'cc'),borderColor:docData.map(d=>d.color),borderWidth:1},
+        {label:'HD報酬',data:docData.map(d=>d.hdFee),backgroundColor:'rgba(96,108,56,0.6)',borderColor:'#606c38',borderWidth:1}
+      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:10}}},
+        tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': ¥'+ctx.parsed.y.toLocaleString()}}},
+        scales:{x:{stacked:true,ticks:{font:{size:11}}},y:{stacked:true,ticks:{font:{size:10},callback:v=>'¥'+v.toLocaleString()}}}}
+    });
+  }
+  // 粗利分配ドーナツ
+  if(charts.doctorPie)charts.doctorPie.destroy();
+  const cvP=document.getElementById('chartDoctorPie');
+  if(cvP&&(totalD+totalH)>0){
+    const pieData=[...docData.filter(d=>d.docFee>0).map(d=>({label:d.name,val:d.docFee,color:d.color})),{label:'HD取り分',val:totalH,color:'#606c38'}];
+    const pieTotal=pieData.reduce((s,d)=>s+d.val,0);
+    charts.doctorPie=new Chart(cvP,{
+      type:'doughnut',data:{labels:pieData.map(d=>d.label),datasets:[{data:pieData.map(d=>d.val),backgroundColor:pieData.map(d=>d.color+'cc'),borderColor:'#fff',borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'50%',plugins:{legend:{position:'right',labels:{font:{size:11},generateLabels:()=>pieData.map((d,i)=>({text:d.label+' ¥'+d.val.toLocaleString()+' ('+Math.round(d.val/pieTotal*100)+'%)',fillStyle:d.color+'cc',strokeStyle:'#fff',lineWidth:2,index:i}))}},
+        tooltip:{callbacks:{label:ctx=>ctx.label+': ¥'+ctx.parsed.toLocaleString()+' ('+Math.round(ctx.parsed/pieTotal*100)+'%)'}}}}
+    });
+  }
+}
+
+/* --- タブ4: HD報酬比較 実績 --- */
+function renderActualHD(){
+  const el=document.getElementById('hdActual');
+  if(!G.loaded){el.innerHTML=noDataHTML();return}
+  // チャート用エリア
+  let h='<div class="g2" style="margin-bottom:14px">';
+  h+='<div class="card"><h2>商品別 HD報酬 vs 医師報酬 <span class="src src-b">推計</span> '+periodLabel()+'</h2><div class="chart-wrap"><canvas id="chartHDvsDoc"></canvas></div></div>';
+  h+='<div class="card"><h2>チャネル別 コスト構造 <span class="src src-b">推計</span> '+periodLabel()+'</h2><div class="chart-wrap"><canvas id="chartChCost"></canvas></div></div>';
+  h+='</div>';
+  h+='<div class="card" style="border-left-color:var(--matcha)"><h2>商品別 実績HD報酬 <span class="src src-a">確定</span><span class="src src-b">推計</span> <span class="src-ref src-sb">SB</span> '+periodLabel()+'</h2>';
+  h+='<table><thead><tr><th>商品</th><th class="num">注文数 <span class="src src-a">確定</span><span class="src-ref src-sb">SB</span></th><th class="num">数量 <span class="src src-a">確定</span><span class="src-ref src-sb">SB</span></th><th class="num">売上 <span class="src src-a">確定</span><span class="src-ref src-sb">SB</span></th><th class="num">粗利 <span class="src src-b">推計</span><span class="src-ref src-sb">SB</span></th><th class="num">粗利率 <span class="src src-b">推計</span></th><th class="num">医師報酬 <span class="src src-b">推計</span><span class="src-ref src-sb">SB</span></th><th class="num">HD報酬 <span class="src src-b">推計</span><span class="src-ref src-sb">SB</span></th></tr></thead><tbody>';
+  const t=totals();
+  const hdItems=[];
+  P.forEach((p,pi)=>{
+    const b=G.byPI[pi];if(!b)return;
+    const gm=b.rev>0?b.gp/b.rev*100:0;
+    hdItems.push({name:p.name.replace(/スキン/,'S-').replace(/メンズ/,'M-'),rev:b.rev,gp:b.gp,docFee:b.docFee,hdFee:b.hdFee,qty:b.qty,n:b.n});
+    h+=`<tr><td>${p.name}</td><td class="num">${b.n}</td><td class="num">${b.qty}</td><td class="num">${yen(b.rev)}</td><td class="num ${hmClass(gm)}">${yenS(b.gp)}</td><td class="num ${hmClass(gm)}">${pct(gm)}</td><td class="num">${yen(b.docFee)}</td><td class="num" style="font-weight:700">${yenS(b.hdFee)}</td></tr>`;
+  });
+  h+=`<tr style="font-weight:700;background:var(--kinari)"><td>合計</td><td class="num">${t.n}</td><td class="num">${t.qty}</td><td class="num">${yen(t.rev)}</td><td class="num">${yenS(t.gp)}</td><td class="num">${pct(t.gm)}</td><td class="num">${yen(t.docFee)}</td><td class="num">${yenS(t.hdFee)}</td></tr>`;
+  h+='</tbody></table>';
+  // チャネル別
+  h+='<h3 style="margin-top:14px">チャネル別 実績 <span class="src src-a">確定</span><span class="src src-b">推計</span> <span class="src-ref src-sb">SB</span></h3>';
+  h+='<table><thead><tr><th>チャネル</th><th class="num">注文数 <span class="src src-a">確定</span><span class="src-ref src-sb">SB</span></th><th class="num">売上 <span class="src src-a">確定</span><span class="src-ref src-sb">SB</span></th><th class="num">粗利 <span class="src src-b">推計</span><span class="src-ref src-sb">SB</span></th><th class="num">粗利率 <span class="src src-b">推計</span></th><th class="num">HD報酬 <span class="src src-b">推計</span><span class="src-ref src-sb">SB</span></th></tr></thead><tbody>';
+  const chItems=[];
+  C.forEach((c,ci)=>{
+    const b=G.byCI[ci];if(!b)return;
+    const gm=b.rev>0?b.gp/b.rev*100:0;
+    chItems.push({name:c.name,rev:b.rev,gp:b.gp,cost:b.cost,hdFee:b.hdFee,docFee:b.docFee,color:c.color||'#333'});
+    h+=`<tr><td><span style="display:inline-block;width:8px;height:8px;background:${c.color};margin-right:6px"></span>${c.name}</td><td class="num">${b.n}</td><td class="num">${yen(b.rev)}</td><td class="num ${hmClass(gm)}">${yenS(b.gp)}</td><td class="num ${hmClass(gm)}">${pct(gm)}</td><td class="num">${yenS(b.hdFee)}</td></tr>`;
+  });
+  h+='</tbody></table></div>';
+  el.innerHTML=h;
+  // HD vs Doctor 横棒
+  if(charts.hdvsDoc)charts.hdvsDoc.destroy();
+  const cv1=document.getElementById('chartHDvsDoc');
+  if(cv1&&hdItems.length){
+    hdItems.sort((a,b)=>b.hdFee-a.hdFee);
+    charts.hdvsDoc=new Chart(cv1,{
+      type:'bar',data:{labels:hdItems.map(i=>i.name),datasets:[
+        {label:'HD報酬',data:hdItems.map(i=>i.hdFee),backgroundColor:'rgba(96,108,56,0.7)',borderColor:'#606c38',borderWidth:1},
+        {label:'医師報酬',data:hdItems.map(i=>i.docFee),backgroundColor:'rgba(193,39,45,0.5)',borderColor:'#c1272d',borderWidth:1}
+      ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:10}}},
+        tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': ¥'+ctx.parsed.x.toLocaleString()}}},
+        scales:{x:{stacked:true,ticks:{font:{size:10},callback:v=>'¥'+v.toLocaleString()}},y:{stacked:true,ticks:{font:{size:10}}}}}
+    });
+  }
+  // チャネル別コスト構造（売上に対する原価・手数料・粗利の内訳）
+  if(charts.chCost)charts.chCost.destroy();
+  const cv2=document.getElementById('chartChCost');
+  if(cv2&&chItems.length){
+    chItems.sort((a,b)=>b.rev-a.rev);
+    const costOnly=chItems.map(i=>i.rev-i.gp); // 原価+手数料等
+    charts.chCost=new Chart(cv2,{
+      type:'bar',data:{labels:chItems.map(i=>i.name),datasets:[
+        {label:'原価+手数料',data:costOnly,backgroundColor:'rgba(120,120,120,0.4)',borderColor:'#787878',borderWidth:1},
+        {label:'医師報酬',data:chItems.map(i=>i.docFee),backgroundColor:'rgba(193,39,45,0.4)',borderColor:'#c1272d',borderWidth:1},
+        {label:'HD報酬',data:chItems.map(i=>i.hdFee),backgroundColor:'rgba(96,108,56,0.7)',borderColor:'#606c38',borderWidth:1}
+      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:10}}},
+        tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': ¥'+ctx.parsed.y.toLocaleString()}}},
+        scales:{x:{stacked:true,ticks:{font:{size:10}}},y:{stacked:true,ticks:{font:{size:10},callback:v=>'¥'+(v>=10000?Math.floor(v/10000)+'万':v.toLocaleString())}}}}
+    });
+  }
+}
+
+/* --- タブ5: トライアル 実績 --- */
+function renderActualTrial(){
+  const el=document.getElementById('trialActual');
+  if(!G.loaded){el.innerHTML=noDataHTML();return}
+  const trialOrders=G.orders.filter(o=>{
+    const n=String(o.product_name||'').toLowerCase();
+    return n.includes('トライアル')||n.includes('trial');
+  });
+  let h='';
+  if(!trialOrders.length){
+    h+='<div class="card" style="border-left-color:var(--beni)"><h2>トライアルセット 期間実績 '+periodLabel()+'</h2>';
+    h+='<p class="no-data-msg">トライアルセットの注文データはありません</p></div>';
+  } else{
+    let tr=0;trialOrders.forEach(o=>tr+=Number(o.total)||TRIAL.price);
+    const cost=(TRIAL.cost+TRIAL.ship)*trialOrders.length;
+    const gp=tr-cost;
+    const adCostPer=Math.abs(Math.round(gp/trialOrders.length));
+    // チャート + テーブル横並び
+    h+='<div class="g2" style="margin-bottom:14px">';
+    h+='<div class="card" style="border-left-color:var(--beni)"><h2>トライアル 売上 vs 原価 <span class="src src-b">推計</span> '+periodLabel()+'</h2><div class="chart-wrap"><canvas id="chartTrialBar"></canvas></div></div>';
+    h+='<div class="card" style="border-left-color:var(--beni)"><h2>1件あたりコスト内訳 <span class="src src-c">理論</span></h2><div class="chart-wrap"><canvas id="chartTrialCost"></canvas></div></div>';
+    h+='</div>';
+    h+='<div class="card" style="border-left-color:var(--beni)"><h2>トライアルセット 期間実績 <span class="src src-a">確定</span><span class="src src-b">推計</span> <span class="src-ref src-sb">SB</span> '+periodLabel()+'</h2>';
+    h+=`<table><thead><tr><th>項目</th><th class="num">値</th><th>信頼度</th><th>参照元</th></tr></thead><tbody>`;
+    h+=`<tr><td>注文数</td><td class="num">${trialOrders.length}件</td><td><span class="src src-a">確定</span></td><td><span class="src-ref src-sb">SB</span></td></tr>`;
+    h+=`<tr><td>売上合計</td><td class="num">${yen(tr)}</td><td><span class="src src-a">確定</span></td><td><span class="src-ref src-sb">SB</span></td></tr>`;
+    h+=`<tr><td>原価合計(推定)</td><td class="num">${yen(cost)}</td><td><span class="src src-b">推計</span></td><td><span class="src-ref src-sb">SB</span></td></tr>`;
+    h+=`<tr style="font-weight:700"><td>粗利合計</td><td class="num" style="color:var(--beni)">${yenS(gp)}</td><td><span class="src src-b">推計</span></td><td><span class="src-ref src-sb">SB</span></td></tr>`;
+    h+=`<tr><td>1件あたり広告宣伝費</td><td class="num" style="color:var(--beni)">¥${adCostPer.toLocaleString()}</td><td><span class="src src-b">推計</span></td><td><span class="src-ref src-sb">SB</span></td></tr>`;
+    h+='</tbody></table></div>';
+  }
+  el.innerHTML=h;
+  // トライアル棒グラフ: 売上 vs 原価
+  if(charts.trialBar)charts.trialBar.destroy();
+  const cv1=document.getElementById('chartTrialBar');
+  if(cv1&&trialOrders.length){
+    let tr2=0;trialOrders.forEach(o=>tr2+=Number(o.total)||TRIAL.price);
+    const cost2=(TRIAL.cost+TRIAL.ship)*trialOrders.length;
+    const gp2=tr2-cost2;
+    charts.trialBar=new Chart(cv1,{
+      type:'bar',data:{labels:['売上','原価','粗利(赤字)'],datasets:[{
+        data:[tr2,cost2,gp2],
+        backgroundColor:['rgba(69,123,157,0.6)','rgba(120,120,120,0.5)','rgba(193,39,45,0.5)'],
+        borderColor:['#457b9d','#787878','#c1272d'],borderWidth:1
+      }]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>'¥'+ctx.parsed.y.toLocaleString()}}},
+        scales:{y:{ticks:{font:{size:10},callback:v=>'¥'+v.toLocaleString()}}}}
+    });
+  }
+  // 1件あたりコスト内訳ドーナツ
+  if(charts.trialCost)charts.trialCost.destroy();
+  const cv2=document.getElementById('chartTrialCost');
+  if(cv2&&trialOrders.length){
+    const fee=Math.floor(TRIAL.price*0.04); // Shopify手数料
+    const parts=[
+      {label:'原価',val:TRIAL.cost,color:'#787878'},
+      {label:'送料',val:TRIAL.ship,color:'#457b9d'},
+      {label:'手数料(4%)',val:fee,color:'#d48a1a'}
+    ];
+    const totalCost=parts.reduce((s,p)=>s+p.val,0);
+    charts.trialCost=new Chart(cv2,{
+      type:'doughnut',data:{labels:parts.map(p=>p.label),datasets:[{data:parts.map(p=>p.val),backgroundColor:parts.map(p=>p.color+'cc'),borderColor:'#fff',borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'50%',plugins:{
+        legend:{position:'right',labels:{font:{size:11},generateLabels:()=>parts.map((p,i)=>({text:p.label+' ¥'+p.val+' ('+Math.round(p.val/totalCost*100)+'%)',fillStyle:p.color+'cc',strokeStyle:'#fff',lineWidth:2,index:i}))}},
+        tooltip:{callbacks:{label:ctx=>ctx.label+': ¥'+ctx.parsed.toLocaleString()}},
+        title:{display:true,text:'原価合計 ¥'+totalCost+' > 売価 ¥'+TRIAL.price,font:{size:11},color:'#c1272d'}}}
+    });
+  }
+}
+
+/* ===== タブ0: 粗利一覧 ===== */
+function renderMatrix(){
+  const di=+document.getElementById('discountSel').value,mode=document.getElementById('viewMode').value;
+  let tR=0,tG=0,bestGM=-999,bestN='',worstGM=999,worstN='';
+  P.forEach((p,pi)=>C.forEach((c,ci)=>{if(!isDiscountValid(pi,ci,di))return;const r=calc(pi,ci,di);tR+=r.rev;tG+=r.gp;const k=p.name+'/'+c.name;if(r.gm>bestGM){bestGM=r.gm;bestN=k}if(r.gm<worstGM){worstGM=r.gm;worstN=k}}));
+  const avgGM=tR>0?tG/tR*100:0;
+  document.getElementById('matrixKpi').innerHTML=kpiCard('平均粗利率',pct(avgGM),avgGM>=30)+kpiCard('総粗利額',yen(tG),tG>0)+kpiCard('最高粗利率',pct(bestGM)+'<br><small style="font-size:10px;color:var(--nezumi)">'+bestN+'</small>',true)+kpiCard('最低粗利率',pct(worstGM)+'<br><small style="font-size:10px;color:var(--nezumi)">'+worstN+'</small>',worstGM>=0);
+  let h='<thead><tr><th>商品＼チャネル</th>';C.forEach(c=>h+='<th style="text-align:center">'+c.name+'</th>');h+='</tr></thead><tbody>';
+  P.forEach((p,pi)=>{h+='<tr><th>'+p.name+'</th>';C.forEach((c,ci)=>{if(!isDiscountValid(pi,ci,di)){h+='<td class="num" style="text-align:right;color:#ccc;font-size:10px">—</td>';return}const r=calc(pi,ci,di);let v,cls;if(mode==='profit'){v=yenS(r.gp);cls=hmClass(r.gm)}else if(mode==='margin'){v=pct(r.gm);cls=hmClass(r.gm)}else if(mode==='revenue'){v=yen(r.rev);cls=''}else if(mode==='hd'){v=yenS(r.hdFee);cls=r.hdFee<0?'hm-neg':''}else{v=yenS(r.docFee);cls=''}h+='<td class="num '+cls+'" style="text-align:right">'+v+'</td>'});h+='</tr>'});
+  h+='</tbody>';document.getElementById('matrixTable').innerHTML=h;
+  if(G.loaded)renderActualMatrix();
+}
+
+/* ===== タブ1: ウォーターフォール ===== */
+function renderWaterfall(){
+  const pi=+document.getElementById('wfProduct').value,ci=+document.getElementById('wfChannel').value,di=+document.getElementById('wfDiscount').value;
+  const wfWarn=document.getElementById('wfWarn');
+  if(wfWarn)wfWarn.remove();
+  if(!isDiscountValid(pi,ci,di)){const w=document.createElement('div');w.id='wfWarn';w.style.cssText='background:#fff3cd;border-left:3px solid #b8860b;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#856404';w.textContent='⚠ この商品×チャネル×割引の組合せはExcel上に存在しません（参考値として表示）';document.getElementById('wfChart').parentNode.insertBefore(w,document.getElementById('wfChart'))}
+  const r=calc(pi,ci,di),p=P[pi];
+  const items=[{label:'売上',val:r.rev,type:'base'},{label:'原価',val:-r.costGoods,type:'cost'},{label:'決済手数料',val:-r.fee,type:'cost'},{label:'通信費',val:-r.ship,type:'cost'},{label:'配送箱代',val:-r.box,type:'cost'}];
+  if(r.amzCoupon>0)items.push({label:'Amazonクーポン',val:-r.amzCoupon,type:'cost'});
+  items.push({label:'粗利',val:r.gp,type:r.gp>=0?'profit':'cost'});
+  const mx=r.rev,cH=180;let wh='',run=0;
+  items.forEach((it,i)=>{const iT=(i===0||i===items.length-1);const bH=Math.abs(it.val)/mx*cH;let bot=0;if(iT)bot=0;else{run+=it.val;bot=Math.max(0,run/mx*cH)}wh+=`<div class="wf-bar"><div class="wf-amount">${it.val<0?'▲'+Math.abs(it.val).toLocaleString():it.val.toLocaleString()}</div><div class="wf-fill ${it.type}" style="height:${bH}px;bottom:${iT?0:bot}px"></div><div class="wf-label">${it.label}</div></div>`;if(!iT&&i===0)run=r.rev});
+  document.getElementById('wfChart').innerHTML=wh;
+  let t='<thead><tr><th>項目</th><th style="text-align:right">金額</th><th>計算式</th></tr></thead><tbody>';
+  t+=row('売上',yen(r.rev),p.name+' '+yen(r.sp)+' x 1')+row('固定原価','▲'+yen(r.costGoods).slice(1),yen(r.costGoods))+row('決済手数料('+pct(r.feeRate*100)+')','▲'+yen(r.fee).slice(1),yen(r.rev)+' x '+pct(r.feeRate*100))+row('通信費','▲'+yen(r.ship).slice(1),'配送あり')+row('配送箱代','▲'+yen(r.box).slice(1),p.box+'円');
+  if(r.amzCoupon>0)t+=row('Amazonクーポン','▲'+yen(r.amzCoupon).slice(1),'150円');
+  t+='<tr style="font-weight:700;background:var(--kinari)"><td>粗利</td><td class="num" style="color:'+(r.gp>=0?'var(--matcha)':'var(--beni)')+'">'+yenS(r.gp)+'</td><td>粗利率 '+pct(r.gm)+'</td></tr>';
+  t+='<tr><td>医師報酬('+p.doc+' '+pct(p.dr*100)+')</td><td class="num">'+yenS(r.docFee)+'</td><td>粗利 x '+pct(p.dr*100)+'</td></tr>';
+  t+='<tr style="font-weight:700"><td>HD報酬</td><td class="num" style="color:var(--matcha)">'+yenS(r.hdFee)+'</td><td>粗利 - 医師報酬</td></tr></tbody>';
+  document.getElementById('wfTable').innerHTML=t;
+  const d=p.detail;let cb='<thead><tr><th>項目</th><th style="text-align:right">金額</th></tr></thead><tbody>';
+  cb+=row2('製品代',yen(d.prod))+row2('容器代',yen(d.bottle))+row2('化粧箱代',yen(d.casebox))+row2('イニシャル',yen(d.initial));
+  const wfCost=getCost(p,C[ci]);
+  cb+='<tr style="font-weight:700;background:var(--kinari)"><td>合計</td><td class="num">'+yen(wfCost)+'</td></tr>';
+  if(wfCost!==p.cost)cb+='<tr><td colspan="2" style="font-size:10px;color:var(--beni)">※ TikTokショップは原価上乗せあり（通常'+yen(p.cost)+'→'+yen(wfCost)+'）</td></tr>';
+  cb+='</tbody>';
+  document.getElementById('costBreakdown').innerHTML=cb;
+  if(G.loaded)renderActualCost();
+}
+
+/* ===== タブ2: シミュレーター ===== */
+function runSim(){
+  const pi=+document.getElementById('simProduct').value,ci=+document.getElementById('simChannel').value;
+  const discPct=+document.getElementById('simDisc').value,qty=+document.getElementById('simQty').value;
+  document.getElementById('simDiscLabel').textContent=discPct+'%';document.getElementById('simQtyLabel').textContent=qty;
+  const p=P[pi],c=C[ci];
+  let sp;
+  const ovPrice=OV[p.id+'_'+c.id+'_price'];
+  if(!c.allowsDiscount && ovPrice!==undefined) sp=ovPrice;
+  else if(!c.allowsDiscount) sp=p.price;
+  else sp=Math.floor(p.price*(1-discPct/100));
+  const rev=sp*qty,unitCost=getCost(p,c);
+  const fee=Math.floor(rev*c.fee),ship=c.hasShipping?SHIP:0,box=c.hasBox?p.box:0;
+  const cog=unitCost*qty,total=cog+fee+ship+box,gp=rev-total,gm=rev>0?gp/rev*100:0,docFee=Math.floor(gp*p.dr),hdFee=gp-docFee;
+  document.getElementById('simResult').innerHTML=simBox('販売価格',yen(sp))+simBox('粗利額',yenS(gp),gp>=0)+simBox('粗利率',pct(gm),gm>=20)+simBox('HD報酬',yenS(hdFee),hdFee>=0);
+  let t='<thead><tr><th>項目</th><th style="text-align:right">金額</th></tr></thead><tbody>';
+  t+=row2('定価',yen(p.price))+row2('割引率',discPct+'%')+row2('販売価格',yen(sp))+row2('数量',qty+'個')+row2('売上',yen(rev));
+  t+='<tr><td colspan="2" style="background:var(--kinari);font-weight:600;color:var(--ai)">コスト</td></tr>';
+  t+=row2('固定原価 x'+qty,yen(cog))+row2('決済手数料('+pct(c.fee*100)+')',yen(fee))+row2('通信費',yen(ship))+row2('配送箱代',yen(box));
+  t+='<tr style="font-weight:700;background:var(--kinari)"><td>粗利</td><td class="num" style="color:'+(gp>=0?'var(--matcha)':'var(--beni)')+'">'+yenS(gp)+'</td></tr>';
+  t+=row2('医師報酬('+p.doc+' '+pct(p.dr*100)+')',yen(docFee))+'<tr style="font-weight:700"><td>HD報酬</td><td class="num" style="color:var(--matcha)">'+yenS(hdFee)+'</td></tr></tbody>';
+  document.getElementById('simDetail').innerHTML=t;
+  if(G.loaded)renderActualSim();
+}
+function renderMulti(){
+  const ci=+document.getElementById('multiCh').value;
+  const combos=[[[0,1],'わき用クリーム + スキンローション'],[[0,1,2],'わき + ローション + セラム'],[[0,1,2,3],'わき + ローション + セラム + セット'],[[3,4,5,6],'メンズローション + セラム + セット + スキンケアセット'],[[0,1,2,3,4],'5商品（女性4 + メンズローション）']];
+  let h='<thead><tr><th>組み合わせ</th><th class="num">商品数</th><th class="num">販売価格</th><th class="num">原価合計</th><th class="num">決済手数料</th><th class="num">通信費</th><th class="num">箱代</th><th class="num">経費合計</th><th class="num">粗利</th><th class="num">粗利率</th></tr></thead><tbody>';
+  combos.forEach(([pis,name])=>{const c=C[ci];let tp=0,tc=0;pis.forEach(pi=>{tp+=P[pi].price;tc+=getCost(P[pi],c)});const fee=Math.floor(tp*c.fee),ship=c.hasShipping?SHIP:0,box=c.hasBox?125:0,exp=tc+fee+ship+box,gp=tp-exp,gm=tp>0?gp/tp*100:0;h+='<tr><td>'+name+'</td><td class="num">'+pis.length+'</td><td class="num">'+yen(tp)+'</td><td class="num">'+yen(tc)+'</td><td class="num">'+yen(fee)+'</td><td class="num">'+yen(ship)+'</td><td class="num">'+yen(box)+'</td><td class="num">'+yen(exp)+'</td><td class="num '+hmClass(gm)+'">'+yenS(gp)+'</td><td class="num '+hmClass(gm)+'">'+pct(gm)+'</td></tr>'});
+  h+='</tbody>';document.getElementById('multiTable').innerHTML=h;
+}
+
+/* ===== タブ3: 医師報酬 ===== */
+function renderDoctors(){
+  /* P[]のdocプロパティから医師グループを動的生成 */
+  const docs=buildDoctorGroups();
+  let html='';
+  docs.forEach(doc=>{
+    const rateStr=Math.round(doc.rate*100)+'%';
+    const isHigh=doc.rate>=0.10;
+    html+='<div class="card" style="border-left-color:'+(isHigh?'var(--beni)':'var(--wasu)')+'">';
+    html+='<h2>'+doc.displayName+' <span class="badge '+(isHigh?'badge-beni':'badge-ai')+'">報酬率 '+rateStr+'</span></h2>';
+    html+='<table><thead><tr><th>商品</th><th>チャネル</th><th class="num">粗利</th><th class="num">医師報酬</th><th class="num">HD報酬</th></tr></thead><tbody>';
+    doc.pis.forEach(pi=>{C.forEach((c,ci)=>{const r=calc(pi,ci,0);html+='<tr><td>'+P[pi].name+'</td><td>'+c.name+'</td><td class="num">'+yenS(r.gp)+'</td><td class="num">'+yen(r.docFee)+'</td><td class="num">'+yenS(r.hdFee)+'</td></tr>'})});
+    html+='</tbody></table></div>';
+  });
+  document.getElementById('doctorCards').innerHTML=html;
+  if(G.loaded)renderActualDoctor();
+}
+
+/* ===== タブ4: HD報酬比較 ===== */
+function renderHD(){
+  let h='<thead><tr><th>商品</th><th class="num">定価</th><th class="num">固定原価</th><th class="num">決済手数料</th><th class="num">通信費</th><th class="num">配送箱代</th><th class="num">原価合計</th><th class="num">粗利</th><th class="num">粗利率</th><th class="num">医師報酬</th><th class="num">HD報酬</th></tr></thead><tbody>';
+  P.forEach((p,pi)=>{const r=calc(pi,0,0);h+='<tr><td>'+p.name+'</td><td class="num">'+yen(p.price)+'</td><td class="num">'+yen(p.cost)+'</td><td class="num">'+yen(r.fee)+'</td><td class="num">'+yen(r.ship)+'</td><td class="num">'+yen(r.box)+'</td><td class="num">'+yen(r.costTotal)+'</td><td class="num '+hmClass(r.gm)+'">'+yenS(r.gp)+'</td><td class="num">'+pct(r.gm)+'</td><td class="num">'+yen(r.docFee)+'</td><td class="num" style="font-weight:700;color:var(--matcha)">'+yenS(r.hdFee)+'</td></tr>'});
+  h+='</tbody>';document.getElementById('hdTable').innerHTML=h;
+  let d='<thead><tr><th>商品</th><th class="num">固定原価</th><th class="num">製品代</th><th class="num">容器代</th><th class="num">化粧箱代</th><th class="num">イニシャル</th></tr></thead><tbody>';
+  P.forEach(p=>{d+='<tr><td>'+p.name+'</td><td class="num" style="font-weight:700">'+yen(p.cost)+'</td><td class="num">'+yen(p.detail.prod)+'</td><td class="num">'+yen(p.detail.bottle)+'</td><td class="num">'+yen(p.detail.casebox)+'</td><td class="num">'+yen(p.detail.initial)+'</td></tr>'});
+  d+='</tbody>';document.getElementById('costDetailTable').innerHTML=d;
+  if(G.loaded)renderActualHD();
+}
+
+/* ===== タブ5: トライアル ===== */
+function renderTrial(){
+  const t=TRIAL;let h='<thead><tr><th>項目</th><th class="num">金額</th></tr></thead><tbody>';
+  h+=row2('販売価格',yen(t.price))+row2('原価',yen(t.cost))+row2('送料',yen(t.ship));
+  h+='<tr style="font-weight:700;background:var(--kinari)"><td>原価合計</td><td class="num">'+yen(t.cost+t.ship)+'</td></tr>';
+  h+='<tr style="font-weight:700"><td>粗利</td><td class="num" style="color:var(--beni)">▲'+Math.abs(t.price-(t.cost+t.ship)).toLocaleString()+'</td></tr></tbody>';
+  document.getElementById('trialBase').innerHTML=h;
+  /* 配送ありチャネルのみ（C[]から動的生成） */
+  const chs=C.filter(c=>c.hasShipping);
+  let tc='<thead><tr><th>チャネル</th><th class="num">販売価格</th><th class="num">原価</th><th class="num">送料</th><th class="num">決済手数料</th><th class="num">原価合計</th><th class="num">粗利</th></tr></thead><tbody>';
+  chs.forEach(c=>{const fee=Math.ceil(t.price*c.fee),total=t.cost+t.ship+fee,gp=t.price-total;tc+='<tr><td>'+c.name+'</td><td class="num">'+yen(t.price)+'</td><td class="num">'+yen(t.cost)+'</td><td class="num">'+yen(t.ship)+'</td><td class="num">'+yen(fee)+'</td><td class="num">'+yen(total)+'</td><td class="num" style="color:'+(gp>=0?'var(--matcha)':'var(--beni)')+';font-weight:700">'+(gp>=0?yen(gp):'▲'+Math.abs(gp).toLocaleString())+'</td></tr>'});
+  tc+='</tbody>';document.getElementById('trialChannels').innerHTML=tc;
+  if(G.loaded)renderActualTrial();
+}
+
+/* ===== タブ切替 ===== */
+function showTab(n){
+  document.querySelectorAll('.panel').forEach((el,i)=>el.classList.toggle('show',i===n));
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',i===n));
+}
+
+/* ===== 初期化 ===== */
+function initSelects(){
+  ['wfProduct','simProduct'].forEach(id=>{const s=document.getElementById(id);P.forEach((p,i)=>s.add(new Option(p.name,i)))});
+  ['wfChannel','simChannel','multiCh'].forEach(id=>{const s=document.getElementById(id);C.forEach((c,i)=>s.add(new Option(c.name,i)))});
+}
+/* ===== タブ7: 支払通知書 ===== */
+let invoiceData={loaded:false, orders:[], month:'', doctor:''};
+
+/* 医師→宛先情報マッピング */
+const INVOICE_RECIPIENTS={
+  '東山':{company:'株式会社ヒトノリノベーション',suffix:'御中',bank:'カ）ヒトノリノベーション'},
+  '朝岡':{company:'朝岡医師',suffix:'御中',bank:''},
+  '辺土名':{company:'辺土名医師',suffix:'御中',bank:''},
+};
+const INVOICE_SENDER={
+  company:'HUNDRED DOCTOR JAPAN株式会社',
+  representative:'代表取締役　沓名 悠多',
+  zip:'〒481-0041',
+  address:'愛知県北名古屋市九之坪北浦31番地',
+  tel:'TEL：050-8880-9898',
+  registration:'登録番号：T9180001137055',
+};
+
+function initInvoiceSelects(){
+  const sel=document.getElementById('invoiceDoctor');
+  sel.innerHTML='<option value="">-- 選択 --</option>';
+  const groups=buildDoctorGroups();
+  groups.forEach(g=>{
+    sel.add(new Option(g.displayName,g.name));
+  });
+  // デフォルト: 先月
+  const t=new Date(),y=t.getFullYear(),m=t.getMonth(); // 0-indexed
+  const lastM=m===0?12:m, lastY=m===0?y-1:y;
+  document.getElementById('invoiceMonth').value=lastY+'-'+String(lastM).padStart(2,'0');
+}
+
+async function fetchInvoiceData(){
+  const docName=document.getElementById('invoiceDoctor').value;
+  const monthVal=document.getElementById('invoiceMonth').value;
+  const statusEl=document.getElementById('invoiceStatus');
+  if(!docName){statusEl.textContent='医師を選択してください';statusEl.className='status error';return}
+  if(!monthVal){statusEl.textContent='月を選択してください';statusEl.className='status error';return}
+  const[y,m]=monthVal.split('-').map(Number);
+  const from=monthVal+'-01';
+  const lastDay=new Date(y,m,0).getDate();
+  const to=monthVal+'-'+String(lastDay).padStart(2,'0');
+  statusEl.textContent='取得中...';statusEl.className='status';
+  try{
+    const [rawOrders,excludedList2]=await Promise.all([
+      sbGetAll('kpi_orders',`order_date=gte.${from}&order_date=lte.${to}&select=order_id,channel,order_date,product_name,sku,quantity,unit_price,total,discount,is_subscription`),
+      sbGetAll('kpi_excluded_orders','select=order_id')
+    ]);
+    const exIds2=new Set(excludedList2.map(e=>e.order_id));
+    const orders=dedupOrders(rawOrders.filter(o=>!exIds2.has(o.order_id)));
+    // 該当医師の商品のみフィルタ
+    const docProducts=P.filter(p=>p.doc===docName);
+    const docProdNames=new Set(docProducts.map(p=>p.name));
+    const filtered=orders.filter(o=>{
+      const pi=findPI(o.product_name);
+      return pi>=0 && P[pi].doc===docName;
+    });
+    invoiceData={loaded:true, orders:filtered, month:monthVal, doctor:docName, from, to, allOrders:orders};
+    statusEl.textContent=`${filtered.length}件取得 (${m}月分)`;statusEl.className='status ok';
+    renderInvoice();
+  }catch(e){
+    statusEl.textContent='エラー: '+e.message;statusEl.className='status error';
+  }
+}
+
+function renderInvoice(){
+  const area=document.getElementById('invoiceArea');
+  if(!invoiceData.loaded){area.innerHTML='<div class="no-data-msg">医師を選択し「データ取得」を押してください</div>';return}
+  const docName=invoiceData.doctor;
+  const[y,m]=invoiceData.month.split('-').map(Number);
+  const recipient=INVOICE_RECIPIENTS[docName]||{company:docName+'医師',suffix:'御中',bank:''};
+  const sender=INVOICE_SENDER;
+
+  // 商品×チャネル別に集計して明細行を作成
+  const {items:lineItems, hasBundleOrders}=buildInvoiceLines(invoiceData.orders, docName);
+  const subtotal=lineItems.reduce((s,l)=>s+l.amount,0);
+  const tax=Math.round(subtotal*10/110);
+  const total=subtotal;
+
+  // 売上・数量集計（サマリー用）
+  let summaryRev=0, summaryQty=0, summaryDocFee=0;
+  const chSummary={};
+  invoiceData.orders.forEach(o=>{
+    const r=calcOrder(o);
+    if(!r)return;
+    summaryRev+=r.rev;summaryQty+=r.qty;summaryDocFee+=r.docFee;
+    const ci=r.ci;const cName=ci>=0?C[ci].name:'不明';
+    if(!chSummary[cName])chSummary[cName]={rev:0,qty:0,docFee:0};
+    chSummary[cName].rev+=r.rev;chSummary[cName].qty+=r.qty;chSummary[cName].docFee+=r.docFee;
+  });
+
+  // 支払日: 翌月20日
+  const payDate=new Date(y,m,20);
+  const payDateStr=payDate.getFullYear()+'年'+(payDate.getMonth()+1)+'月'+payDate.getDate()+'日';
+
+  let h='';
+
+  // ===== arari.png レイアウトのサマリー =====
+  h+='<div class="card no-print" style="margin-bottom:16px;border-left-color:var(--wasu)">';
+  h+='<h2 style="font-family:var(--font-min)">医師請求用 売上・販売実績・報酬集計 <span class="badge badge-ai">'+m+'月分</span></h2>';
+  h+='<div class="g4" style="margin:12px 0">';
+  h+=kpiCard('販売数量合計',summaryQty.toLocaleString()+'<span class="unit">個</span>',true);
+  h+=kpiCard('売上金額合計',yen(summaryRev),true);
+  h+=kpiCard('医師報酬合計 <small>(報酬率'+Math.round(P.find(p=>p.doc===docName)?.dr*100||0)+'%)</small>',yen(summaryDocFee),true);
+  h+='</div>';
+  // チャネル別サマリー
+  h+='<h3>チャネル別サマリー</h3>';
+  h+='<div class="g5" style="margin:8px 0">';
+  Object.entries(chSummary).sort((a,b)=>b[1].rev-a[1].rev).forEach(([name,d])=>{
+    h+='<div class="card kpi" style="border-left-color:var(--wasu);padding:10px">';
+    h+='<div class="label" style="font-size:10px">'+name+'</div>';
+    h+='<div style="font-size:16px;font-weight:700;margin:4px 0">'+yen(d.rev)+'</div>';
+    h+='<div style="font-size:10px;color:var(--nezumi)">'+d.qty+'個 / 報酬 '+yen(d.docFee)+'</div>';
+    h+='</div>';
+  });
+  h+='</div>';
+  // 請求明細一覧（サマリー内テーブル）
+  h+='<h3>請求明細一覧</h3>';
+  h+='<div style="overflow-x:auto"><table><thead><tr><th>日付</th><th>商品名</th><th>チャネル</th><th class="num">数量</th><th class="num">売上</th><th class="num">報酬</th></tr></thead><tbody>';
+  invoiceData.orders.slice(0,30).forEach(o=>{
+    const r=calcOrder(o);
+    if(!r)return;
+    const ci=r.ci;
+    h+='<tr><td>'+o.order_date+'</td><td>'+o.product_name+'</td><td>'+(ci>=0?C[ci].name:'')+'</td><td class="num">'+(o.quantity||1)+'</td><td class="num">'+yen(r.rev)+'</td><td class="num">'+yen(r.docFee)+'</td></tr>';
+  });
+  if(invoiceData.orders.length>30) h+='<tr><td colspan="6" style="text-align:center;color:var(--hai)">... 他 '+(invoiceData.orders.length-30)+'件</td></tr>';
+  h+='<tr style="font-weight:700;background:var(--kinari)"><td colspan="3">合計</td><td class="num">'+summaryQty+'</td><td class="num">'+yen(summaryRev)+'</td><td class="num">'+yen(summaryDocFee)+'</td></tr>';
+  h+='</tbody></table></div></div>';
+
+  // ===== 支払通知書本体 =====
+  h+='<div class="invoice-sheet" id="invoiceSheet">';
+  // タイトル
+  h+='<div class="inv-title">支払通知書</div>';
+  // 日付
+  h+='<div class="inv-date">'+payDateStr+'</div>';
+  // ヘッダ（宛先 / 差出人）
+  h+='<div class="inv-header">';
+  h+='<div class="inv-to"><span class="company">'+recipient.company+'</span><span class="suffix">'+recipient.suffix+'</span>';
+  if(recipient.bank) h+='<div style="font-size:12px;margin-top:4px">振込先：'+recipient.bank+'</div>';
+  h+='</div>';
+  h+='<div class="inv-from">';
+  h+='<div>'+sender.zip+'</div>';
+  h+='<div>'+sender.address+'</div>';
+  h+='<div style="font-weight:700;font-size:13px;margin-top:4px">'+sender.company+'</div>';
+  h+='<div>'+sender.representative+'</div>';
+  h+='<div>'+sender.tel+'</div>';
+  h+='<div>'+sender.registration+'</div>';
+  h+='</div></div>';
+  // 支払金額
+  h+='<div class="inv-amount-box">';
+  h+='<span class="label">支払金額</span>';
+  h+='<span class="amount">¥'+total.toLocaleString('ja-JP')+'</span>';
+  h+='<span class="tax-note">（税込み）</span>';
+  h+='</div>';
+  // 明細テーブル
+  h+='<table><thead><tr><th style="width:70px">取引年月日</th><th>取引内容</th><th style="width:50px">数量</th><th style="width:60px">単価</th><th style="width:80px">金額</th></tr></thead><tbody>';
+  const monthLabel=m+'月分';
+  lineItems.forEach((l,i)=>{
+    h+='<tr>';
+    h+='<td>'+(i===0?monthLabel:'')+'</td>';
+    h+='<td>'+l.description+'</td>';
+    h+='<td class="num">'+l.qty+'</td>';
+    h+='<td class="num">'+l.unitPrice.toLocaleString()+'</td>';
+    h+='<td class="num">'+(l.amount?l.amount.toLocaleString():'')+'</td>';
+    h+='</tr>';
+  });
+  // 空行（明細行数に応じて調整、1ページに収める）
+  const maxRows=lineItems.length<=8?12:lineItems.length<=12?lineItems.length:0;
+  const emptyRows=Math.max(0, maxRows-lineItems.length);
+  for(let i=0;i<emptyRows;i++){
+    h+='<tr><td></td><td></td><td></td><td></td><td></td></tr>';
+  }
+  // 小計・消費税・合計
+  h+='<tr class="inv-total-row"><td colspan="3"></td><td class="num">小計</td><td class="num">'+subtotal.toLocaleString()+'</td></tr>';
+  h+='<tr class="inv-total-row"><td colspan="3"></td><td class="num">消費税</td><td class="num">'+tax.toLocaleString()+'</td></tr>';
+  h+='<tr class="inv-total-row"><td colspan="3"></td><td class="num">合計</td><td class="num" style="font-size:14px">'+total.toLocaleString()+'</td></tr>';
+  h+='</tbody></table>';
+  // 備考
+  h+='<div class="inv-note">';
+  h+='<strong>備考</strong><br>';
+  if(hasBundleOrders){
+    h+='※ 単価欄に「@」表記のある行は、同一注文内で複数商品をご購入いただいた際の按分単価です。<br>';
+  }
+  h+='記載内容に相違がございましたら、3営業日以内にご連絡ください。<br>';
+  h+='期日までにご連絡がない場合は、本通知記載の金額にて<br>';
+  h+='振り込み手続きを進めさせていただきます。';
+  h+='</div>';
+  h+='</div>';
+  area.innerHTML=h;
+}
+
+function buildInvoiceLines(orders, docName){
+  /* === 固定テンプレート方式 v2 ===
+     参考PDF完全準拠:
+     1. Shopifyは#始まりの注文のみ（定期contractは除外）
+     2. 同一注文IDのローション+セラム → セットとしてペア化
+     3. 割引検出: unit_price < 定価 で自動判定
+     4. 記述形式: PDF準拠（EC無prefix, Amazon/Qoo10 prefix, クリニック/縁故 suffix） */
+  const docProds=P.filter(p=>p.doc===docName);
+  if(!docProds.length) return {items:[], hasBundleOrders:false};
+
+  // === Step 1: Pre-process orders ===
+  // 1a: Shopify orders — #始まりのみ（定期contract IDを除外）
+  let processed=orders.filter(o=>{
+    if(findCI(o.channel)===0) return String(o.order_id).startsWith('#');
+    return true;
+  });
+
+  // 1b: ローション+セラム同一注文 → セットにペア化（EC/Amazon/Qoo10のみ、クリニック/縁故は個別のまま）
+  const setProduct=docProds.find(p=>p.isSet);
+  const lotionProduct=docProds.find(p=>p.name.includes('ローション')&&!p.isSet);
+  const serumProduct=docProds.find(p=>p.name.includes('セラム')&&!p.isSet);
+  if(setProduct && lotionProduct && serumProduct){
+    const lotionPI=P.indexOf(lotionProduct), serumPI=P.indexOf(serumProduct);
+    // ペア化対象チャネル: EC(0),Amazon(1),Qoo10(2),楽天(3),TikTok(4),Qoo10メガポ(7)
+    const pairableChannels=new Set([0,1,2,3,4,7]);
+    const byOrder={};
+    processed.forEach(o=>{
+      const ci=findCI(o.channel);
+      if(!pairableChannels.has(ci)){return;} // クリニック/縁故はペア化対象外→後で直接追加
+      const oid=o.order_id;if(!byOrder[oid])byOrder[oid]=[];byOrder[oid].push(o);
+    });
+    const paired=[];
+    // ペア化対象外の注文をそのまま追加
+    processed.forEach(o=>{
+      const ci=findCI(o.channel);
+      if(!pairableChannels.has(ci)) paired.push(o);
+    });
+    Object.entries(byOrder).forEach(([oid,items])=>{
+      const lotions=items.filter(o=>findPI(o.product_name)===lotionPI);
+      const serums=items.filter(o=>findPI(o.product_name)===serumPI);
+      const others=items.filter(o=>{const pi=findPI(o.product_name);return pi!==lotionPI&&pi!==serumPI;});
+      const pairCount=Math.min(lotions.length, serums.length);
+      for(let i=0;i<pairCount;i++){
+        const lo=lotions[i],se=serums[i];
+        paired.push({
+          order_id:oid, channel:lo.channel, order_date:lo.order_date,
+          product_name:setProduct.name, quantity:1,
+          unit_price:Number(lo.unit_price)+Number(se.unit_price),
+          total:(Number(lo.total)||Number(lo.unit_price))+(Number(se.total)||Number(se.unit_price)),
+          discount:0, is_subscription:lo.is_subscription||se.is_subscription
+        });
+      }
+      for(let i=pairCount;i<lotions.length;i++) paired.push(lotions[i]);
+      for(let i=pairCount;i<serums.length;i++) paired.push(serums[i]);
+      others.forEach(o=>paired.push(o));
+    });
+    processed=paired;
+  }
+
+  // === Step 2: テンプレート行生成（PDF行順序準拠） ===
+  // 商品順: ローション→セラム→セット（non-set先, set後）
+  const sortedProds=[...docProds].sort((a,b)=>{
+    if(a.isSet!==b.isSet) return a.isSet?1:-1;
+    return P.indexOf(a)-P.indexOf(b);
+  });
+  // 記述形式: PDF準拠
+  //  EC:       {product}定価販売 / {product}10%OFFキャンペーン販売
+  //  Amazon:   Amazon{product}定価販売 / Amazon{product}20%OFFキャンペーン販売
+  //  Qoo10:    Qoo10{product}定価販売
+  //  クリニック: {product}クリニック販売
+  //  縁故:     {product}縁故販売
+  const tiers=[
+    {ci:0, prefix:'',       discIdx:0, suffix:'定価販売'},
+    {ci:0, prefix:'',       discIdx:1, suffix:'10%OFFキャンペーン販売'},
+    {ci:1, prefix:'Amazon', discIdx:0, suffix:'定価販売'},
+    {ci:1, prefix:'Amazon', discIdx:2, suffix:'20%OFFキャンペーン販売'},
+    {ci:2, prefix:'Qoo10',  discIdx:0, suffix:'定価販売'},
+    {ci:5, prefix:'',       discIdx:null, suffix:'クリニック販売'},
+    {ci:6, prefix:'',       discIdx:null, suffix:'縁故販売'},
+  ];
+  const items=[];
+  tiers.forEach(t=>{
+    sortedProds.forEach(p=>{
+      const pi=P.indexOf(p);
+      // クリニック/縁故: 価格未設定 or セット商品はスキップ
+      if(t.ci===5&&(!p.clinicPrice||p.isSet)) return;
+      if(t.ci===6&&(!p.enkoPrice||p.isSet)) return;
+      // 医師報酬単価
+      let docFeePerUnit=0;
+      if(t.discIdx!==null){
+        const r=calc(pi, t.ci, t.discIdx, 1);
+        docFeePerUnit=Math.round(r.gp*p.dr);
+      } else {
+        const rev=(t.ci===5)?p.clinicPrice:p.enkoPrice;
+        const unitCost=getCost(p, C[t.ci]);
+        docFeePerUnit=Math.round((rev-unitCost)*p.dr);
+      }
+      const desc=t.prefix+p.name+t.suffix;
+      items.push({description:desc, qty:0, unitPrice:docFeePerUnit, amount:0,
+        _pi:pi, _ci:t.ci, _discIdx:t.discIdx});
+    });
+  });
+
+  // === Step 3: 前処理済み注文をテンプレート行にマッチング ===
+  const unmatched=[];
+  processed.forEach(o=>{
+    const pi=findPI(o.product_name);
+    if(pi<0) return;
+    const ci=findCI(o.channel);
+    if(ci<0) return;
+    const qty=o.quantity||1;
+    // クリニック/縁故: 直接マッチ
+    if(ci===5||ci===6){
+      const row=items.find(it=>it._pi===pi&&it._ci===ci);
+      if(row){row.qty+=qty;row.amount=row.unitPrice*row.qty;}
+      else unmatched.push(o);
+      return;
+    }
+    // 割引判定: discount値(クーポン割引額) または unit_priceと定価を比較
+    let discIdx=0;
+    const unitPrice=Number(o.unit_price)||0;
+    const price=P[pi].price;
+    const discountAmt=Number(o.discount)||0;
+    // 方法1: Supabaseのdiscount列にクーポン割引額が入っている場合
+    if(discountAmt>0&&price>0){
+      const ratio=discountAmt/price;
+      if(Math.abs(ratio-0.5)<0.05) discIdx=4;
+      else if(Math.abs(ratio-0.3)<0.05) discIdx=3;
+      else if(Math.abs(ratio-0.2)<0.05) discIdx=2;
+      else if(Math.abs(ratio-0.1)<0.05) discIdx=1;
+      else{
+        const chanDiscRows=items.filter(it=>it._pi===pi&&it._ci===ci&&it._discIdx>0);
+        if(chanDiscRows.length===1) discIdx=chanDiscRows[0]._discIdx;
+      }
+    }
+    // 方法2: unit_price自体が定価より低い場合(Shopify定期購入など)
+    else if(price>0&&unitPrice>0&&unitPrice<price*0.98){
+      const ratio=1-unitPrice/price;
+      if(Math.abs(ratio-0.5)<0.05) discIdx=4;
+      else if(Math.abs(ratio-0.3)<0.05) discIdx=3;
+      else if(Math.abs(ratio-0.2)<0.05) discIdx=2;
+      else if(Math.abs(ratio-0.1)<0.05) discIdx=1;
+      else{
+        const chanDiscRows=items.filter(it=>it._pi===pi&&it._ci===ci&&it._discIdx>0);
+        if(chanDiscRows.length===1) discIdx=chanDiscRows[0]._discIdx;
+      }
+    }
+    const row=items.find(it=>it._pi===pi&&it._ci===ci&&it._discIdx===discIdx);
+    if(row){row.qty+=qty;row.amount=row.unitPrice*row.qty;}
+    else{
+      const r=calcOrder(o);
+      if(r){
+        const docFee1=r.docFee1!==undefined?r.docFee1:(qty>0?Math.floor(r.docFee/qty):0);
+        unmatched.push({description:'(その他) '+P[pi].name+' '+C[ci].name, qty, unitPrice:docFee1, amount:r.docFee});
+      }
+    }
+  });
+
+  // 金額再計算 + unmatched追加
+  items.forEach(it=>{it.amount=it.unitPrice*it.qty});
+  unmatched.forEach(u=>{if(u.description)items.push(u);});
+
+  // 原価行: 開発投資医師(dr>=0.5)のみ
+  let totalQty=0;
+  items.forEach(l=>totalQty+=l.qty);
+  const devProds=docProds.filter(p=>p.dr>=0.5);
+  if(devProds.length>0&&totalQty>0){
+    devProds.forEach(p=>{
+      const genka=p.detail?(p.detail.prod||0)+(p.detail.bottle||0)+(p.detail.casebox||0):0;
+      if(genka>0) items.push({description:'原価', qty:totalQty, unitPrice:genka, amount:genka*totalQty});
+    });
+  }
+  items.forEach(it=>{delete it._pi;delete it._ci;delete it._discIdx});
+  return {items, hasBundleOrders:false};
+}
+
+function buildLineDesc(product, channel, order, bundleCount){
+  const name=product.name;
+  const qty=order.quantity||1;
+  bundleCount=bundleCount||1;
+  // チャネルプレフィックス: (EC), (Amazon), (Qoo10), (クリニック), (縁故) 等
+  let chTag='(EC)';
+  if(channel==='Amazon') chTag='(Amazon)';
+  else if(channel==='Qoo10') chTag='(Qoo10)';
+  else if(channel==='楽天') chTag='(楽天)';
+  else if(channel==='TikTok') chTag='(TikTok)';
+  else if(channel==='クリニック') chTag='(クリニック)';
+  else if(channel==='縁故') chTag='(縁故)';
+  else if(channel==='Qoo10メガポ') chTag='(メガポ)';
+  const qtyLabel=''; // 個口表記廃止: 単価同一のため1個購入行に数量合算
+  // 定期購入判定
+  const isSub=order.is_subscription===true||order.is_subscription==='true';
+  // 割引検出
+  let discLabel='';
+  const disc=Number(order.discount)||0;
+  const unitPrice=Number(order.unit_price)||0;
+  const price=product.price;
+  if(disc>0){
+    const rawTotal=Number(order.total)||0;
+    const actualUnit=qty>0?(rawTotal-disc)/qty:rawTotal-disc;
+    if(price>0&&actualUnit>0){
+      const ratio=1-actualUnit/price;
+      if(Math.abs(ratio-0.5)<0.05) discLabel='50％OFFキャンペーン';
+      else if(Math.abs(ratio-0.3)<0.05) discLabel='30％OFFキャンペーン';
+      else if(Math.abs(ratio-0.2)<0.05) discLabel='20％OFFキャンペーン';
+      else if(Math.abs(ratio-0.1)<0.05) discLabel='10％OFFキャンペーン';
+      else{
+        const diff=price-actualUnit;
+        if(Math.abs(diff-1000)<50) discLabel='1,000円OFFキャンペーン';
+        else if(disc>0) discLabel=Math.round(ratio*100)+'％OFFキャンペーン';
+      }
+    }
+  }
+  // 定期購入で単価が定価より低い場合（キャンペーン扱い）
+  if(!discLabel&&isSub&&unitPrice>0&&price>0&&unitPrice<price*0.98){
+    const ratio=Math.round((1-unitPrice/price)*100);
+    discLabel=ratio+'％OFFキャンペーン';
+  }
+  // 定期のみ（割引なし）は定価販売扱い → discLabel空のまま
+  // 自動割引検出（unit_price < 定価: Amazon等のキャンペーン）※クリニック/縁故は固定価格なので除外
+  if(!discLabel&&unitPrice>0&&price>0&&unitPrice<price*0.98&&channel!=='クリニック'&&channel!=='縁故'){
+    const ratio=Math.round((1-unitPrice/price)*100);
+    discLabel=ratio+'％OFFキャンペーン';
+  }
+  // 販売種別を組み立て（クリニック/縁故は「販売」のみ）
+  let saleType;
+  if(channel==='クリニック'||channel==='縁故') saleType='販売';
+  else saleType=discLabel?discLabel+'販売':'定価販売';
+  return chTag+' '+name+saleType+qtyLabel;
+}
+
+function showCalcBreakdown(){
+  const area=document.getElementById('calcBreakdownArea');
+  if(!invoiceData.loaded){alert('先にデータを取得してください');return}
+  // トグル表示
+  if(area.style.display!=='none'){area.style.display='none';return}
+  area.style.display='block';
+
+  const docName=invoiceData.doctor;
+  const orders=invoiceData.orders;
+  let h='<div style="background:#fff;border:1px solid var(--sen);padding:20px">';
+  h+='<h3 style="margin-bottom:12px;border-bottom:2px solid var(--ai);padding-bottom:6px">報酬計算 内訳詳細</h3>';
+
+  // 計算式の説明
+  h+='<div style="background:var(--kinari);padding:12px;margin-bottom:16px;font-size:12px;line-height:1.8;border-left:3px solid var(--wasu)">';
+  h+='<strong>計算式</strong><br>';
+  h+='① 売上 = 注文合計額 − 割引額<br>';
+  h+='② 手数料 = 売上 × チャネル手数料率（小数保持）<br>';
+  h+='③ 原価合計 = 商品原価×数量 + 手数料 + 送料 + 梱包費<br>';
+  h+='④ 粗利 = 売上 − 原価合計<br>';
+  h+='⑤ <strong>医師報酬 = round(粗利 × 報酬率)</strong>　※四捨五入<br>';
+  h+='⑥ HD報酬 = 粗利 − 医師報酬';
+  h+='</div>';
+
+  // マスタ情報表示
+  const docProducts=P.filter(p=>p.doc===docName);
+  h+='<div style="margin-bottom:16px">';
+  h+='<strong>マスタ情報（'+docName+'先生 担当商品）</strong>';
+  h+='<table style="font-size:11px;margin-top:6px"><thead><tr><th>商品</th><th class="num">定価</th><th class="num">原価</th><th class="num">梱包費</th><th class="num">報酬率</th></tr></thead><tbody>';
+  docProducts.forEach(p=>{
+    h+='<tr><td>'+p.name+'</td><td class="num">'+yen(p.price)+'</td><td class="num">'+yen(p.cost)+'</td><td class="num">'+yen(p.box)+'</td><td class="num">'+(p.dr*100)+'%</td></tr>';
+  });
+  h+='</tbody></table>';
+  h+='</div>';
+
+  // チャネル手数料率
+  h+='<div style="margin-bottom:16px">';
+  h+='<strong>チャネル手数料率・送料</strong>';
+  h+='<table style="font-size:11px;margin-top:6px"><thead><tr><th>チャネル</th><th class="num">手数料率</th><th class="num">送料</th><th class="num">梱包</th></tr></thead><tbody>';
+  C.forEach(c=>{
+    h+='<tr><td>'+c.name+'</td><td class="num">'+(c.fee*100).toFixed(1)+'%</td><td class="num">'+(c.hasShipping?yen(SHIP):'−')+'</td><td class="num">'+(c.hasBox?'商品別':'−')+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  h+='</div>';
+
+  // 注文別明細
+  h+='<strong>注文別 計算内訳（全'+orders.length+'件）</strong>';
+  h+='<div style="overflow-x:auto;margin-top:6px"><table style="font-size:11px">';
+  h+='<thead><tr><th>日付</th><th>注文ID</th><th>商品</th><th>CH</th><th class="num">数量</th>';
+  h+='<th class="num">①売上</th><th class="num">割引</th>';
+  h+='<th class="num">原価×数</th><th class="num">②手数料</th><th class="num">送料</th><th class="num">梱包</th>';
+  h+='<th class="num">③原価計</th><th class="num">④粗利</th><th class="num">率</th><th class="num">⑤医師報酬</th><th class="num">⑥HD</th>';
+  h+='<th>計算式</th></tr></thead><tbody>';
+
+  let totalDoc=0, totalHd=0;
+  orders.forEach(o=>{
+    const r=calcOrder(o);
+    if(!r)return;
+    const pi=r.pi,ci=r.ci;
+    const p=pi>=0?P[pi]:null;
+    const c=ci>=0?C[ci]:null;
+    const qty=r.qty||1;
+    const disc=r.discount||0;
+    const pName=p?p.name:(pi===-2?'トライアルセット':'?');
+    const cName=c?c.name:'?';
+    const drPct=p?(p.dr*100)+'%':'0%';
+    totalDoc+=r.docFee; totalHd+=r.hdFee;
+
+    // 計算式テキスト
+    let formula='';
+    if(pi===-2){
+      formula='トライアル: 報酬=0';
+    } else {
+      formula='粗利'+Math.floor(r.gp)+'×'+drPct+'='+r.docFee;
+    }
+
+    h+='<tr>';
+    h+='<td>'+o.order_date+'</td>';
+    h+='<td style="font-size:10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+o.order_id+'">'+o.order_id+'</td>';
+    h+='<td>'+pName+'</td>';
+    h+='<td>'+cName+'</td>';
+    h+='<td class="num">'+qty+'</td>';
+    h+='<td class="num">'+yen(r.rev)+'</td>';
+    h+='<td class="num">'+(disc>0?yen(disc):'−')+'</td>';
+    h+='<td class="num">'+yen(r.costGoods)+'</td>';
+    h+='<td class="num">'+yen(r.fee)+'</td>';
+    h+='<td class="num">'+(r.ship>0?yen(r.ship):'−')+'</td>';
+    h+='<td class="num">'+(r.box>0?yen(r.box):'−')+'</td>';
+    h+='<td class="num">'+yen(r.costTotal)+'</td>';
+    h+='<td class="num">'+yenS(r.gp)+'</td>';
+    h+='<td class="num">'+drPct+'</td>';
+    h+='<td class="num" style="font-weight:700">'+yen(r.docFee)+'</td>';
+    h+='<td class="num">'+yen(r.hdFee)+'</td>';
+    h+='<td style="font-size:10px;color:var(--nezumi)">'+formula+'</td>';
+    h+='</tr>';
+  });
+  h+='<tr style="font-weight:700;background:var(--kinari)"><td colspan="14">合計</td>';
+  h+='<td class="num">'+yen(totalDoc)+'</td><td class="num">'+yen(totalHd)+'</td><td></td></tr>';
+  h+='</tbody></table></div>';
+
+  // 支払通知書との照合
+  h+='<div style="margin-top:12px;padding:10px;background:#f0f7ff;border:1px solid var(--wasu);font-size:12px">';
+  h+='<strong>照合チェック</strong><br>';
+  const invoiceTotal=invoiceData.orders.reduce((s,o)=>{const r=calcOrder(o);return s+(r?r.docFee:0)},0);
+  const tax=Math.round(invoiceTotal*10/110);
+  h+='内訳計算 医師報酬合計: <strong>'+yen(totalDoc)+'</strong>（税込）<br>';
+  h+='うち消費税相当額: '+yen(tax)+'<br>';
+  if(totalDoc===invoiceTotal){
+    h+='<span style="color:var(--matcha);font-weight:700">✓ 支払通知書の合計と一致</span>';
+  } else {
+    h+='<span style="color:var(--beni);font-weight:700">✗ 支払通知書の合計（'+yen(invoiceTotal)+'）と不一致 — 差額: '+yen(Math.abs(totalDoc-invoiceTotal))+'</span>';
+  }
+  h+='</div>';
+
+  h+='</div>';
+  area.innerHTML=h;
+}
+
+/* ===== Amazon取引CSVインポート ===== */
+async function importAmazonTransactionCsv(){
+  const fileInput=document.getElementById('amzCsvFile');
+  const dryRun=document.getElementById('amzCsvDryRun').checked;
+  const resultEl=document.getElementById('amzCsvResult');
+  if(!fileInput.files.length){resultEl.innerHTML='<span style="color:red">CSVファイルを選択してください</span>';return}
+  resultEl.innerHTML='読み込み中...';
+  const text=await fileInput.files[0].text();
+  // CSV解析（UTF-8 BOM対応）
+  const lines=text.replace(/^\uFEFF/,'').split('\n').filter(l=>l.trim());
+  if(lines.length<2){resultEl.innerHTML='<span style="color:red">データなし</span>';return}
+  const headers=parseCSVLine(lines[0]);
+  const iDate=headers.indexOf('日付'),iType=headers.indexOf('トランザクションの種類');
+  const iOrderId=headers.indexOf('注文番号'),iPromo=headers.indexOf('プロモーション割引合計');
+  const iPrice=headers.indexOf('商品価格合計'),iProduct=headers.indexOf('商品の詳細');
+  if(iOrderId<0||iPromo<0){resultEl.innerHTML='<span style="color:red">必須列が見つかりません（注文番号, プロモーション割引合計）</span>';return}
+  // プロモ割引ありの注文を収集
+  const promoOrders=[];
+  for(let i=1;i<lines.length;i++){
+    const cols=parseCSVLine(lines[i]);
+    const promo=parseInt(cols[iPromo]||'0',10);
+    const txnType=cols[iType]||'';
+    if(promo!==0&&txnType.includes('注文')){
+      promoOrders.push({date:cols[iDate]||'',orderId:cols[iOrderId]||'',promo,price:cols[iPrice]||'',product:(cols[iProduct]||'').substring(0,40)});
+    }
+  }
+  resultEl.innerHTML=`CSV解析完了: ${lines.length-1}行中 ${promoOrders.length}件のプロモーション割引あり<br>Supabase照合中...`;
+  // Supabaseの全Amazon注文を取得
+  const allAmz=await sbGetAll('kpi_orders','channel=eq.amazon&select=order_id,sku,unit_price,quantity,discount');
+  const amzMap={};
+  allAmz.forEach(o=>{const k=o.order_id;if(!amzMap[k])amzMap[k]=[];amzMap[k].push(o)});
+  // 照合＆更新候補作成
+  const updates=[];
+  const notFound=[];
+  for(const po of promoOrders){
+    const rows=amzMap[po.orderId];
+    if(!rows){notFound.push(po);continue}
+    const absPromo=Math.abs(po.promo);
+    // 全行の合計数量
+    const totalQty=rows.reduce((s,r)=>s+r.quantity,0);
+    // 商品価格合計(税抜)から税込割引単価を計算
+    for(const r of rows){
+      // 按分: 各行のunit_price比率で割引を配分
+      const totalPrice=rows.reduce((s,x)=>s+x.unit_price,0);
+      const ratio=totalPrice>0?r.unit_price/totalPrice:1/rows.length;
+      const linePromo=absPromo*ratio;
+      // 税込み変換 & 数量あたり
+      const perUnitDisc=Math.round(linePromo*1.1/r.quantity);
+      const currentDisc=Number(r.discount)||0;
+      if(perUnitDisc!==currentDisc){
+        updates.push({orderId:r.order_id,sku:r.sku,oldDisc:currentDisc,newDisc:perUnitDisc,qty:r.quantity,unitPrice:r.unit_price,promoRaw:po.promo,date:po.date});
+      }
+    }
+  }
+  // 結果表示
+  let h=`<strong>照合結果:</strong> 割引注文${promoOrders.length}件, 更新対象${updates.length}件, 未一致${notFound.length}件<br>`;
+  if(updates.length>0){
+    h+='<table style="font-size:12px;border-collapse:collapse;margin-top:6px;width:100%"><tr style="background:#f0f0f0"><th>注文ID</th><th>SKU</th><th>数量</th><th>単価</th><th>現在disc</th><th>→新disc</th><th>CSV promo</th><th>日付</th></tr>';
+    updates.forEach(u=>{
+      const changed=u.oldDisc!==u.newDisc;
+      h+=`<tr style="${changed?'background:#fff3cd':''}"><td>${u.orderId}</td><td>${u.sku}</td><td>${u.qty}</td><td>¥${u.unitPrice.toLocaleString()}</td><td>${u.oldDisc}</td><td><strong>${u.newDisc}</strong></td><td>${u.promoRaw}</td><td>${u.date}</td></tr>`;
+    });
+    h+='</table>';
+  }
+  if(notFound.length>0){
+    h+='<details style="margin-top:6px"><summary>未一致 '+notFound.length+'件</summary><ul style="font-size:12px">';
+    notFound.forEach(n=>{h+=`<li>${n.date} ${n.orderId} promo=${n.promo} ${n.product}</li>`});
+    h+='</ul></details>';
+  }
+  if(dryRun){
+    h+=`<div style="margin-top:8px;padding:6px;background:#e8f5e9;border-radius:4px"><strong>ドライラン:</strong> 上記${updates.length}件を確認後、チェックを外して再実行するとSupabaseに反映します</div>`;
+  }else if(updates.length>0){
+    h+='<div style="margin-top:8px">Supabase更新中...</div>';
+    resultEl.innerHTML=h;
+    let ok=0,fail=0;
+    for(const u of updates){
+      try{
+        const url=`${SB}/rest/v1/kpi_orders?order_id=eq.${encodeURIComponent(u.orderId)}&sku=eq.${encodeURIComponent(u.sku)}&channel=eq.amazon`;
+        const r=await fetch(url,{method:'PATCH',headers:{...H,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({discount:u.newDisc})});
+        if(r.ok)ok++;else fail++;
+      }catch(e){fail++}
+    }
+    h+=`<div style="margin-top:8px;padding:6px;background:${fail?'#ffebee':'#e8f5e9'};border-radius:4px"><strong>更新完了:</strong> 成功${ok}件, 失敗${fail}件</div>`;
+  }
+  resultEl.innerHTML=h;
+}
+function parseCSVLine(line){
+  const result=[];let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++}else inQ=!inQ}
+    else if(c===','&&!inQ){result.push(cur.trim());cur=''}
+    else if(c==='\r'){}
+    else cur+=c;
+  }
+  result.push(cur.trim());return result;
+}
+
+function printInvoice(){
+  if(!invoiceData.loaded){alert('先にデータを取得してください');return}
+  // 支払通知書パネルのみ印刷対象に
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('print-target'));
+  document.getElementById('p7').classList.add('print-target');
+  // ヘッダー/フッター対策: タイトルを空にしてURLも隠す
+  const origTitle=document.title;
+  document.title=' ';
+  window.print();
+  // 印刷後に戻す
+  setTimeout(()=>{
+    document.title=origTitle;
+    document.getElementById('p7').classList.remove('print-target');
+  },1000);
+}
+
+window.addEventListener('DOMContentLoaded',async()=>{
+  // Supabaseマスタ読込（失敗時はハードコードフォールバック）
+  await loadMasters();
+  initSelects();renderMatrix();renderWaterfall();runSim();renderMulti();renderDoctors();renderHD();renderTrial();
+  initInvoiceSelects();
+  // デフォルト: 今月
+  const t=new Date(),f=new Date(t.getFullYear(),t.getMonth(),1);
+  document.getElementById('dateFrom').value=fmtD(f);document.getElementById('dateTo').value=fmtD(t);
+  // データソースバッジ表示
+  const badge=document.getElementById('masterSourceBadge');
+  if(badge)badge.textContent=masterSource==='supabase'?'Supabase':'ローカル';
+  if(badge)badge.style.color=masterSource==='supabase'?'var(--matcha)':'var(--nezumi)';
+  // 各タブの実績セクションに初期メッセージ
+  renderActualAll();
+});
+</script>
+</body>
+</html>

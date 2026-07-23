@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>クリニック予約システム｜デモ</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="demo-page">
+<header class="demo-head">
+  <div class="demo-head-title">
+    <span class="demo-brand">クリニック予約システム</span>
+    <span class="desc">左（お客様）で予約すると、右（受付ボード）に<strong style="color:#4ade80">サブ秒で反映</strong>されます。</span>
+  </div>
+  <nav class="demo-nav" aria-label="ページ切替">
+    <span class="demo-nav-label">表示ページ：</span>
+    <a class="demo-nav-link active" href="demo.html">同期デモ<small>この画面</small></a>
+    <a class="demo-nav-link" href="index.html" target="_blank" rel="noopener"><span class="tag patient">お客様</span>予約サイト<small>別画面で開く ↗</small></a>
+    <a class="demo-nav-link" href="board.html" target="_blank" rel="noopener"><span class="tag admin">管理</span>受付ボード<small>別画面で開く ↗</small></a>
+  </nav>
+</header>
+<div class="demo-grid">
+  <div class="demo-pane">
+    <div class="demo-label"><span class="tag patient">お客様</span> 予約サイト（index.html） <a class="demo-open" href="index.html" target="_blank" rel="noopener">単独で開く ↗</a></div>
+    <iframe src="index.html" title="お客様向け予約サイト"></iframe>
+  </div>
+  <div class="demo-pane">
+    <div class="demo-label"><span class="tag admin">管理</span> 受付ライブボード（board.html） <a class="demo-open" href="board.html" target="_blank" rel="noopener">単独で開く ↗</a></div>
+    <iframe src="board.html" title="受付ボード"></iframe>
+  </div>
+</div>
+<!-- BroadcastChannel/Supabase Realtime は同一オリジンのiframe間・別タブ間で共有され、各画面が独立に同期を受信する。 -->
+</body>
+</html>

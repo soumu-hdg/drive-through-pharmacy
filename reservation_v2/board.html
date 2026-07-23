@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>受付ライブボード｜予約統括システム</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .admin-view{ display:none; }
+  .admin-view.active{ display:block; }
+  .placeholder-box{ text-align:center; padding:48px 20px; color:var(--sub); }
+  .placeholder-box .pi{ font-size:15px; font-weight:700; color:var(--dark); margin-bottom:8px; }
+  .placeholder-box .avail{ margin-top:16px; font-size:13px; }
+  .avail-list{ display:inline-flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:8px; }
+  .avail-list a{ font-size:12.5px; color:var(--blue); text-decoration:none; border:1px solid var(--border); border-radius:6px; padding:6px 12px; cursor:pointer; }
+  .avail-list a:hover{ background:var(--blue-light); }
+  .nf-times{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .slot-grid-day{ margin-bottom:14px; }
+  .slot-grid-day .d{ font-weight:700; margin-bottom:6px; }
+  .slot-cap{ display:inline-flex; flex-direction:column; align-items:center; min-width:66px; border:1px solid var(--border); border-radius:8px; padding:6px 4px; font-size:13px; }
+  .slot-cap.full{ background:#f3f4f6; color:#9ca3af; }
+  .slot-cap .rem{ font-size:11px; color:var(--sub); }
+</style>
+</head>
+<body>
+<header class="admin-header">
+  <div class="admin-header-top">
+    <span class="brand">予約統括システム 受付ボード <small>リアルタイム同期</small></span>
+    <span style="display:flex;gap:14px;align-items:center">
+      <span class="latency" id="latency">同期待機中…</span>
+      <a class="to-patient" href="index.html" target="_blank">患者向けサイトを開く ↗</a>
+    </span>
+  </div>
+  <nav class="admin-tabs" id="adminTabs">
+    <a class="tab active" data-tab="board" onclick="showAdminTab('board')">日別ボード</a>
+    <a class="tab" data-tab="list" onclick="showAdminTab('list')">予約一覧</a>
+    <a class="tab" data-tab="new" onclick="showAdminTab('new')">電話予約の代理入力</a>
+    <a class="tab" data-tab="slots" onclick="showAdminTab('slots')">予約枠の確認</a>
+    <a class="tab" data-tab="menus" onclick="showAdminTab('menus')">美容メニュー</a>
+    <a class="tab" data-tab="staff" onclick="showAdminTab('staff')">スタッフ</a>
+    <a class="tab" data-tab="import" onclick="showAdminTab('import')">CSV取り込み</a>
+  </nav>
+</header>
+<main>
+  <!-- 日別ボード -->
+  <div id="view-board" class="admin-view active">
+    <div class="board-toolbar">
+      <button class="secondary small" onclick="shift(-1)">‹ 前日</button>
+      <input type="date" id="dateInput" onchange="setDate(this.value)">
+      <button class="secondary small" onclick="shift(1)">翌日 ›</button>
+      <span class="day" id="dayLabel"></span>
+      <span style="margin-left:auto"><button class="small" onclick="resetDemo()">デモ初期化</button></span>
+    </div>
+    <div class="stat-row" id="stats"></div>
+    <div id="board"></div>
+  </div>
+
+  <!-- 予約一覧 -->
+  <div id="view-list" class="admin-view"></div>
+
+  <!-- 電話予約の代理入力 -->
+  <div id="view-new" class="admin-view"></div>
+
+  <!-- 予約枠の確認 -->
+  <div id="view-slots" class="admin-view"></div>
+
+  <!-- 準備中 -->
+  <div id="view-menus" class="admin-view"></div>
+  <div id="view-staff" class="admin-view"></div>
+  <div id="view-import" class="admin-view"></div>
+</main>
+
+<script>window.__RSV_SUPABASE__ = true;</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="store.js"></script>
+<script>
+/* 受付ライブボード（タブ切替式）：患者予約が入った瞬間に日別ボード・予約一覧へ即反映 */
+function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+let curTab = "board";
+let curDate = Store.todayStr();
+let prevCodes = new Set();
+
+/* ---------------- タブ切替 ---------------- */
+function showAdminTab(id){
+  curTab = id;
+  document.querySelectorAll('#adminTabs .tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===id));
+  document.querySelectorAll('.admin-view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  renderTab(id);
+}
+function renderTab(id){
+  if(id==="board") renderBoard();
+  else if(id==="list") renderList();
+  else if(id==="new") renderNew();
+  else if(id==="slots") renderSlots();
+  else if(id==="menus") renderPlaceholder("menus");
+  else if(id==="staff") renderPlaceholder("staff");
+  else if(id==="import") renderPlaceholder("import");
+}
+
+/* ---------------- 日別ボード ---------------- */
+function setDate(d){ curDate = d; renderBoard(); }
+function shift(n){ curDate = Store.addDays(curDate, n); renderBoard(); }
+function currentCodes(){ return new Set(Store.dayReservations(curDate).map(r=>r.code)); }
+
+function renderBoard(flashCodes){
+  document.getElementById("dateInput").value = curDate;
+  document.getElementById("dayLabel").textContent = Store.fmtJa(curDate);
+  const rows = Store.dayReservations(curDate);
+  const byClinic = {};
+  rows.forEach(r=>{ const c = Store.clinicOfCs(r.csId); (byClinic[c.name] = byClinic[c.name] || []).push(r); });
+
+  const total = rows.length, firstVisit = rows.filter(r=>r.visitType==="FIRST").length, web = rows.filter(r=>r.channel==="WEB").length;
+  document.getElementById("stats").innerHTML = `
+    <div class="stat"><div class="num">${total}</div><div class="label">この日の予約</div></div>
+    <div class="stat"><div class="num warn">${firstVisit}</div><div class="label">初診</div></div>
+    <div class="stat"><div class="num">${web}</div><div class="label">Web予約</div></div>
+    <div class="stat"><div class="num">${total-web}</div><div class="label">電話/その他</div></div>`;
+
+  if(total===0){ document.getElementById("board").innerHTML = '<div class="card">この日の予約はありません。患者向けサイトや「電話予約の代理入力」から予約すると、ここに即時反映されます。</div>'; return; }
+
+  document.getElementById("board").innerHTML = Object.entries(byClinic).map(([name, list])=>{
+    const trs = list.map(r=>{
+      const svc = Store.serviceOfCs(r.csId), menu = r.menuId ? Store.menuById(r.menuId) : null, isNew = flashCodes && flashCodes.has(r.code);
+      return `<tr class="${isNew?"flash-new":""}">
+        <td style="font-weight:700">${r.time}</td>
+        <td>${esc(svc.name)}${menu?`<div class="muted" style="font-size:12px">${esc(menu.name)}</div>`:""}</td>
+        <td>${esc(r.name)} 様${r.visitType==="FIRST"?'<span class="badge first" style="margin-left:4px">初診</span>':""}${isNew?'<span class="new-tag">NEW</span>':""}</td>
+        <td>${r.channel==="WEB"?'<span class="badge web">Web</span>':'<span class="badge phone">電話</span>'}</td>
+        <td><span class="muted" style="font-size:12px">${esc(r.phone)}</span></td>
+        <td><button class="small secondary" onclick="markVisited('${esc(r.code)}')">来院</button> <button class="small danger" onclick="cancelRes('${esc(r.code)}')">取消</button></td>
+      </tr>`;
+    }).join("");
+    return `<div class="card">
+      <h2 style="margin-top:0">${esc(name)}クリニック（${list.length}件）</h2>
+      <table><thead><tr><th style="width:64px">時刻</th><th>内容</th><th>患者</th><th style="width:60px">経路</th><th>電話</th><th style="width:130px">操作</th></tr></thead>
+      <tbody>${trs}</tbody></table>
+    </div>`;
+  }).join("");
+}
+
+async function markVisited(code){ await Store.updateStatus(code, "VISITED"); afterMutate(); }
+async function cancelRes(code){ if(!confirm("この予約を取り消しますか？")) return; await Store.updateStatus(code, "CANCELLED"); afterMutate(); }
+async function resetDemo(){ await Store.resetDemo(); afterMutate(); }
+function afterMutate(){ prevCodes = currentCodes(); renderTab(curTab); }
+
+/* ---------------- 予約一覧（全日・全ステータス） ---------------- */
+let listFilter = "ALL";
+function setListFilter(f){ listFilter = f; renderList(); }
+function renderList(){
+  let all = Store.loadReservations().slice().sort((a,b)=> (b.date+b.time).localeCompare(a.date+a.time));
+  if(listFilter!=="ALL") all = all.filter(r=>r.status===listFilter);
+  const STATUS = { CONFIRMED:['予約確定','confirmed'], VISITED:['来院済','visited'], CANCELLED:['キャンセル','cancelled'], NO_SHOW:['不履行','no-show'] };
+  const chips = [['ALL','すべて'],['CONFIRMED','予約確定'],['VISITED','来院済'],['CANCELLED','キャンセル']]
+    .map(([v,l])=>`<span class="chip ${listFilter===v?'active':''}" onclick="setListFilter('${v}')">${l}</span>`).join("");
+  const rows = all.map(r=>{
+    const c=Store.clinicOfCs(r.csId), svc=Store.serviceOfCs(r.csId), menu=r.menuId?Store.menuById(r.menuId):null;
+    const st = STATUS[r.status]||[r.status,'confirmed'];
+    return `<tr style="${r.status==='CANCELLED'?'opacity:.55':''}">
+      <td style="white-space:nowrap">${Store.fmtJa(r.date)} ${r.time}</td>
+      <td>${esc(c.name)}／${esc(svc.name)}${menu?`<div class="muted" style="font-size:12px">${esc(menu.name)}</div>`:""}</td>
+      <td>${esc(r.name)} 様${r.visitType==="FIRST"?'<span class="badge first" style="margin-left:4px">初診</span>':""}<div class="muted" style="font-size:12px">${esc(r.phone)}</div></td>
+      <td>${r.channel==="WEB"?'<span class="badge web">Web</span>':'<span class="badge phone">電話</span>'}</td>
+      <td><span class="badge ${st[1]}">${st[0]}</span></td>
+      <td>${r.status==="CONFIRMED"?`<button class="small secondary" onclick="markVisited('${esc(r.code)}')">来院</button> <button class="small danger" onclick="cancelRes('${esc(r.code)}')">取消</button>`:'<span class="muted" style="font-size:12px">—</span>'}</td>
+    </tr>`;
+  }).join("");
+  document.getElementById("view-list").innerHTML = `
+    <h1>予約一覧</h1>
+    <div class="chips" style="margin-bottom:6px">${chips}</div>
+    <div class="card" style="padding:0;overflow:auto">
+      <table><thead><tr><th style="width:120px">日時</th><th>クリニック／区分</th><th>患者</th><th style="width:60px">経路</th><th style="width:96px">状態</th><th style="width:130px">操作</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="6" style="text-align:center;color:var(--sub);padding:24px">該当する予約はありません。</td></tr>'}</tbody></table>
+    </div>`;
+}
+
+/* ---------------- 電話予約の代理入力 ---------------- */
+let nf = { csId:null, date:Store.todayStr(), time:null };
+function csOptions(sel){
+  return Store.CLINICS.filter(c=>!c.openingNote).flatMap(c=>c.services.map(s=>
+    `<option value="${s.id}" ${s.id==sel?'selected':''}>${esc(c.name)}クリニック ／ ${esc(s.name)}</option>`)).join("");
+}
+function renderNew(){
+  if(nf.csId==null){ const first=Store.CLINICS.find(c=>!c.openingNote); nf.csId=first.services[0].id; }
+  document.getElementById("view-new").innerHTML = `
+    <h1>電話予約の代理入力</h1>
+    <p class="muted">電話でお受けした予約を受付が代理入力します。登録すると日別ボード・予約一覧へ即時反映されます。</p>
+    <div id="nfErr"></div>
+    <div class="card">
+      <div class="stack" style="max-width:560px">
+        <label class="field">クリニック／診療区分
+          <select id="nf_cs" onchange="nfChanged()">${csOptions(nf.csId)}</select>
+        </label>
+        <label class="field">希望日
+          <input type="date" id="nf_date" value="${nf.date}" min="${Store.todayStr()}" onchange="nfChanged()">
+        </label>
+        <div class="field">空き時間<span class="req">必須</span>
+          <div class="nf-times" id="nfTimes"></div>
+        </div>
+        <label class="field">お名前<span class="req">必須</span><input id="nf_name" placeholder="例）山田 花子"></label>
+        <label class="field">フリガナ<input id="nf_kana" placeholder="例）ヤマダ ハナコ"></label>
+        <label class="field">電話番号<span class="req">必須</span><input id="nf_phone" type="tel" placeholder="例）090-1234-5678"></label>
+        <label class="field">生年月日<input id="nf_birth" type="date"></label>
+        <div class="field">初診・再診<span class="req">必須</span>
+          <div class="radio-row">
+            <label><input type="radio" name="nfvt" value="FIRST">初めて（初診）</label>
+            <label><input type="radio" name="nfvt" value="REVISIT">2回目以降（再診）</label>
+          </div>
+        </div>
+      </div>
+      <div class="cta-bar"><button onclick="nfSubmit()">この内容で予約する</button></div>
+    </div>`;
+  nfRefreshTimes();
+}
+function nfChanged(){ nf.time=null; nf.csId=Number(document.getElementById('nf_cs').value); nf.date=document.getElementById('nf_date').value; nfRefreshTimes(); }
+function availTimes(csId, date){
+  const days=Store.getDays(csId, 90); const d=days.find(x=>x.date===date);
+  return d? d.slots.filter(s=>s.open && s.remaining>0) : [];
+}
+function nfRefreshTimes(){
+  const times = availTimes(nf.csId, nf.date);
+  const box=document.getElementById("nfTimes");
+  if(!box) return;
+  box.innerHTML = times.length ? times.map(s=>
+    `<button type="button" class="time-chip ${nf.time===s.time?'selected':''}" onclick="nfPick('${s.time}')">${s.time}${s.remaining<=1?'<span class="rem">残1</span>':''}</button>`
+  ).join("") : '<span class="muted">選択した日に空き枠がありません。別の日をお選びください。</span>';
+}
+function nfPick(t){ nf.time=t; nfRefreshTimes(); }
+async function nfSubmit(){
+  const err=(m)=>{ document.getElementById("nfErr").innerHTML=`<div class="alert">${esc(m)}</div>`; window.scrollTo(0,0); };
+  const name=document.getElementById('nf_name').value.trim();
+  const phone=document.getElementById('nf_phone').value.trim();
+  const vt=(document.querySelector('input[name="nfvt"]:checked')||{}).value||"";
+  if(!nf.time) return err("空き時間を選択してください。");
+  if(!name||!phone) return err("お名前・電話番号は必須です。");
+  if(!vt) return err("初診・再診を選択してください。");
+  const btn=document.querySelector('#view-new .cta-bar button'); if(btn){btn.disabled=true;btn.textContent="登録中…";}
+  const res=await Store.createReservation({
+    csId:nf.csId, date:nf.date, time:nf.time, name, kana:document.getElementById('nf_kana').value.trim(),
+    phone, birthDate:document.getElementById('nf_birth').value, visitType:vt, channel:"PHONE"
+  });
+  if(!res.ok){ if(btn){btn.disabled=false;btn.textContent="この内容で予約する";} return err(res.error); }
+  // 成功 → その日を日別ボードで表示
+  curDate=nf.date; nf.time=null;
+  document.getElementById("view-new").innerHTML=`<div class="success">予約を登録しました（予約番号 ${esc(res.reservation.code)}）。日別ボードに反映されています。</div>`;
+  setTimeout(()=>showAdminTab('board'), 900);
+}
+
+/* ---------------- 予約枠の確認（読み取り専用） ---------------- */
+let slotsCs = null;
+function renderSlots(){
+  if(slotsCs==null){ const first=Store.CLINICS.find(c=>!c.openingNote); slotsCs=first.services[0].id; }
+  const days=Store.getDays(slotsCs, 14);
+  const body=days.map(d=>{
+    if(!d.slots.length) return `<div class="slot-grid-day"><div class="d">${d.label}<span class="muted" style="font-weight:400;margin-left:8px">休診</span></div></div>`;
+    const chips=d.slots.map(s=>`<span class="slot-cap ${s.remaining===0?'full':''}">${s.time}<span class="rem">空き ${s.remaining}/${s.capacity}</span></span>`).join(" ");
+    return `<div class="slot-grid-day"><div class="d">${d.label}</div>${chips}</div>`;
+  }).join("");
+  document.getElementById("view-slots").innerHTML = `
+    <h1>予約枠の確認</h1>
+    <p class="muted">診療時間マスタから自動生成された枠の空き状況です（今後2週間）。<br>※プロトタイプでは閲覧のみ。枠の停止・定員変更・臨時休診の編集は今後実装予定です。</p>
+    <div class="card">
+      <label class="field" style="max-width:400px;margin-bottom:14px">クリニック／診療区分
+        <select onchange="slotsCs=Number(this.value);renderSlots()">${csOptions(slotsCs)}</select>
+      </label>
+      ${body}
+    </div>`;
+}
+
+/* ---------------- 準備中プレースホルダ ---------------- */
+const PLACE = {
+  menus: ['美容メニュー', '公式サイト（WordPress）から施術メニューを同期し、所要時間・料金・受付ON/OFFを管理する画面です。現在のプロトタイプではメニューは固定データで表示しています。'],
+  staff: ['スタッフ', '医師・看護師・スタッフを登録し、予約への担当割当（同時刻ダブルアサイン防止）を行う画面です。'],
+  import: ['CSV取り込み', '他システムや紙台帳からの予約・患者データをCSVで一括取り込みする画面です。'],
+};
+function renderPlaceholder(id){
+  const [title, desc] = PLACE[id];
+  document.getElementById("view-"+id).innerHTML = `
+    <h1>${esc(title)}</h1>
+    <div class="card placeholder-box">
+      <div class="pi">この画面は準備中です</div>
+      <div>${esc(desc)}</div>
+      <div class="avail">現在ご利用いただける画面：
+        <div class="avail-list">
+          <a onclick="showAdminTab('board')">日別ボード</a>
+          <a onclick="showAdminTab('list')">予約一覧</a>
+          <a onclick="showAdminTab('new')">電話予約の代理入力</a>
+          <a onclick="showAdminTab('slots')">予約枠の確認</a>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ---------------- 同期受信 ---------------- */
+Store.onSync((msg)=>{
+  const now = currentCodes();
+  const flash = new Set([...now].filter(c=>!prevCodes.has(c)));
+  prevCodes = now;
+  if(msg && msg.at && msg.type==="reservation"){
+    const ms = (msg.latency!=null) ? msg.latency : (Date.now() - msg.at);
+    const el=document.getElementById("latency"); if(el) el.innerHTML = `⚡ 最終同期 <b>${ms}ms</b>（サブ秒）`;
+  }
+  // 表示中タブを再描画（ボードはフラッシュ付き）
+  if(curTab==="board") renderBoard(flash);
+  else renderTab(curTab);
+});
+
+/* ---------------- 起動 ---------------- */
+renderBoard();
+Store.ready.then(()=>{
+  prevCodes = currentCodes();
+  const b = Store.getBackend();
+  const brand = document.querySelector(".admin-header .brand small");
+  if(brand) brand.textContent = b==="supabase" ? "Supabase リアルタイム同期" : "リアルタイム同期（ローカル）";
+  renderTab(curTab);
+});
+</script>
+</body>
+</html>

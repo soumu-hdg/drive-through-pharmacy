@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ドライブスルー診療 操作マニュアル</title>
+    <style>
+        :root {
+            --primary: #7c3aed;
+            --primary-light: #a78bfa;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+        }
+
+        /* ヘッダー */
+        .header {
+            background: linear-gradient(135deg, var(--primary), #6366f1);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: var(--success);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-top: 12px;
+        }
+
+        /* コンテナ */
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* 目次 */
+        .toc {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .toc h2 {
+            font-size: 18px;
+            margin-bottom: 16px;
+            color: var(--primary);
+        }
+
+        .toc-list {
+            list-style: none;
+        }
+
+        .toc-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toc-list li:last-child {
+            border-bottom: none;
+        }
+
+        .toc-list a {
+            color: var(--text);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: color 0.2s;
+        }
+
+        .toc-list a:hover {
+            color: var(--primary);
+        }
+
+        .toc-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        /* セクション */
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 32px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .step-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary), #6366f1);
+            color: white;
+            border-radius: 50%;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .section-title {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .section-subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        /* スクリーンショット */
+        .screenshot {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 24px 0;
+            text-align: center;
+        }
+
+        .screenshot img {
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .screenshot-placeholder {
+            background: linear-gradient(135deg, #374151, #4b5563);
+            border-radius: 8px;
+            padding: 60px 20px;
+            color: white;
+            font-size: 14px;
+        }
+
+        .screenshot-placeholder .icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .screenshot-caption {
+            margin-top: 12px;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        /* 手順リスト */
+        .steps {
+            margin: 24px 0;
+        }
+
+        .step-item {
+            display: flex;
+            gap: 16px;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .step-item:last-child {
+            border-bottom: none;
+        }
+
+        .step-number {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+            background: var(--primary-light);
+            color: white;
+            border-radius: 50%;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-content h4 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .step-content p {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        /* ポイント */
+        .point-box {
+            background: #fef3c7;
+            border-left: 4px solid var(--warning);
+            border-radius: 0 8px 8px 0;
+            padding: 16px 20px;
+            margin: 20px 0;
+        }
+
+        .point-box.info {
+            background: #dbeafe;
+            border-color: #3b82f6;
+        }
+
+        .point-box.success {
+            background: #dcfce7;
+            border-color: var(--success);
+        }
+
+        .point-box.danger {
+            background: #fee2e2;
+            border-color: var(--danger);
+        }
+
+        .point-box h4 {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .point-box p {
+            font-size: 14px;
+            margin: 0;
+        }
+
+        /* フローチャート */
+        .flow-chart {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 24px 0;
+            padding: 24px;
+            background: var(--bg);
+            border-radius: 12px;
+        }
+
+        .flow-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .flow-icon {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border: 2px solid var(--primary);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .flow-icon.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .flow-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .flow-arrow {
+            font-size: 24px;
+            color: var(--primary);
+        }
+
+        /* データ表 */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table th {
+            background: var(--bg);
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .data-table tr:hover {
+            background: #f8fafc;
+        }
+
+        /* フッター */
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* 印刷用 */
+        @media print {
+            /* ページ設定 */
+            @page {
+                size: A4;
+                margin: 15mm 10mm;
+            }
+
+            /* 基本設定 */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+
+            body {
+                background: white !important;
+                font-size: 11pt;
+                line-height: 1.5;
+            }
+
+            /* ヘッダー */
+            .header {
+                background: linear-gradient(135deg, #7c3aed, #6366f1) !important;
+                padding: 20px 15px;
+                margin: 0;
+                page-break-after: avoid;
+            }
+
+            .header h1 {
+                font-size: 22pt;
+            }
+
+            .header p {
+                font-size: 11pt;
+            }
+
+            /* コンテナ */
+            .container {
+                max-width: 100%;
+                padding: 10px 0;
+            }
+
+            /* 目次 */
+            .toc {
+                page-break-after: always;
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+
+            /* セクション */
+            .section {
+                page-break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid #e2e8f0;
+                margin-bottom: 20px;
+                padding: 20px;
+            }
+
+            .section-header {
+                page-break-after: avoid;
+            }
+
+            /* スクリーンショット */
+            .screenshot {
+                background: #1e293b !important;
+                padding: 10px;
+                margin: 15px 0;
+                page-break-inside: avoid;
+            }
+
+            .screenshot img {
+                max-width: 100%;
+                max-height: 280px;
+                object-fit: contain;
+            }
+
+            /* 2カラムのスクリーンショット（Before/After） */
+            .screenshot[style*="flex: 1"] {
+                min-width: auto !important;
+            }
+
+            .screenshot[style*="flex: 1"] img {
+                max-height: 220px;
+            }
+
+            /* ポイントボックス */
+            .point-box {
+                page-break-inside: avoid;
+                border-width: 3px;
+            }
+
+            .point-box.info {
+                background: #e8f4fd !important;
+            }
+
+            .point-box.success {
+                background: #e8f8ed !important;
+            }
+
+            .point-box.danger {
+                background: #fde8e8 !important;
+            }
+
+            /* フローチャート */
+            .flow-chart {
+                background: #f8fafc !important;
+                page-break-inside: avoid;
+            }
+
+            .flow-icon {
+                background: white !important;
+            }
+
+            .flow-icon.active {
+                background: #7c3aed !important;
+                color: white !important;
+            }
+
+            /* データ表 */
+            .data-table {
+                page-break-inside: avoid;
+            }
+
+            .data-table th {
+                background: #f1f5f9 !important;
+            }
+
+            /* ステップ */
+            .steps {
+                page-break-inside: avoid;
+            }
+
+            .step-badge {
+                background: linear-gradient(135deg, #7c3aed, #6366f1) !important;
+            }
+
+            .step-number {
+                background: #a78bfa !important;
+            }
+
+            /* リンクのURL表示 */
+            a[href^="http"]:after {
+                content: " (" attr(href) ")";
+                font-size: 9pt;
+                color: #666;
+                word-break: break-all;
+            }
+
+            /* フッター */
+            .footer {
+                page-break-before: avoid;
+                border-top: 1px solid #ddd;
+                padding-top: 15px;
+                margin-top: 20px;
+            }
+
+            /* 印刷時に非表示にする要素（なければ追加可能） */
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        /* 印刷ボタン用スタイル */
+        .print-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, var(--primary), #6366f1);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .print-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
+        }
+
+        @media print {
+            .print-button {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ドライブスルー診療 操作マニュアル</h1>
+        <p>西春内科・在宅クリニック 薬品在庫管理システム</p>
+        <div class="version-badge">v0.2 デモ版</div>
+    </div>
+
+    <div class="container">
+        <!-- 目次 -->
+        <div class="toc">
+            <h2>目次</h2>
+            <ul class="toc-list">
+                <li><a href="#overview"><span class="toc-number">0</span> システム概要</a></li>
+                <li><a href="#step1"><span class="toc-number">1</span> Step 1: 患者選択</a></li>
+                <li><a href="#step2"><span class="toc-number">2</span> Step 2: 処方入力</a></li>
+                <li><a href="#step3"><span class="toc-number">3</span> Step 3: 完了確認</a></li>
+                <li><a href="#stock"><span class="toc-number">4</span> 在庫確認（出庫反映）</a></li>
+                <li><a href="#history"><span class="toc-number">5</span> 履歴確認</a></li>
+                <li><a href="#patient-db"><span class="toc-number">6</span> 患者DB（ドライブスルー専用）</a></li>
+                <li><a href="#receipt"><span class="toc-number">7</span> 領収書・薬袋印刷</a></li>
+                <li><a href="#database"><span class="toc-number">8</span> スプレッドシート連携</a></li>
+            </ul>
+        </div>
+
+        <!-- 概要 -->
+        <section class="section" id="overview">
+            <div class="section-header">
+                <div class="step-badge">0</div>
+                <div>
+                    <div class="section-title">システム概要</div>
+                    <div class="section-subtitle">ドライブスルー診療の流れ</div>
+                </div>
+            </div>
+
+            <p>このシステムは、ドライブスルー診療での薬品処方を効率的に管理するためのものです。</p>
+
+            <div class="flow-chart">
+                <div class="flow-step">
+                    <div class="flow-icon">🚗</div>
+                    <div class="flow-label">患者来院</div>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step">
+                    <div class="flow-icon active">👤</div>
+                    <div class="flow-label">患者選択</div>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step">
+                    <div class="flow-icon active">💊</div>
+                    <div class="flow-label">処方入力</div>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step">
+                    <div class="flow-icon active">✅</div>
+                    <div class="flow-label">完了</div>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step">
+                    <div class="flow-icon">💰</div>
+                    <div class="flow-label">会計・お渡し</div>
+                </div>
+            </div>
+
+            <div class="point-box info">
+                <h4>💡 このシステムでできること</h4>
+                <p>
+                    ・患者情報の検索・選択（新規登録 or 既存患者検索）<br>
+                    ・処方薬品の選択（薬品カードをタップ）<br>
+                    ・数量の入力（＋／－ボタン）<br>
+                    ・診療ID / 処方ID の自動発行<br>
+                    ・<strong>在庫の自動減算（出庫）</strong><br>
+                    ・<strong>スプレッドシートへの自動記録</strong>
+                </p>
+            </div>
+        </section>
+
+        <!-- Step 1 -->
+        <section class="section" id="step1">
+            <div class="section-header">
+                <div class="step-badge">1</div>
+                <div>
+                    <div class="section-title">患者情報入力</div>
+                    <div class="section-subtitle">新規患者の登録、または既存患者の検索</div>
+                </div>
+            </div>
+
+            <div class="screenshot">
+                <img src="screenshots/step1_initial.png" alt="患者情報入力画面">
+                <div class="screenshot-caption">「新規患者で診療開始」ボタンがメイン</div>
+            </div>
+
+            <h3 style="margin: 24px 0 16px; color: var(--primary);">🆕 新規患者の場合（基本フロー）</h3>
+
+            <div class="screenshot">
+                <img src="screenshots/step1_modal.png" alt="新規患者入力モーダル">
+                <div class="screenshot-caption">新規患者入力モーダル（空の状態）</div>
+            </div>
+
+            <div class="screenshot">
+                <img src="screenshots/step1_modal_filled.png" alt="患者名入力後">
+                <div class="screenshot-caption">患者氏名を入力した状態</div>
+            </div>
+
+            <div class="steps">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h4>「新規患者で診療開始」ボタンをタップ</h4>
+                        <p>紫色の大きなボタンをタップすると、入力モーダルが表示されます。</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h4>患者氏名を入力（必須）</h4>
+                        <p>患者氏名を入力します。患者IDは空欄の場合、自動採番されます。</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h4>「この患者で診療開始」をタップ</h4>
+                        <p>診療IDが発行され、処方入力画面に進みます。</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin: 24px 0 16px; color: var(--text-muted);">🔍 既存患者の場合（検索）</h3>
+            <div class="steps">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h4>検索ボックスに入力</h4>
+                        <p>患者番号または氏名を入力し、「検索」ボタンをタップします。</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h4>検索結果から患者を選択</h4>
+                        <p>該当する患者カードをタップして選択します（緑色の「選択中」表示）。</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h4>「この患者で診療を開始」をタップ</h4>
+                        <p>診療IDが発行され、処方入力画面に進みます。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="point-box info">
+                <h4>💡 ポイント</h4>
+                <p>
+                    ドライブスルー診療では新規患者が多いため、「新規患者で診療開始」をメインフローとしています。<br>
+                    既存患者は検索機能で素早く選択できます。
+                </p>
+            </div>
+        </section>
+
+        <!-- Step 2 -->
+        <section class="section" id="step2">
+            <div class="section-header">
+                <div class="step-badge">2</div>
+                <div>
+                    <div class="section-title">処方入力</div>
+                    <div class="section-subtitle">処方する薬品を選択します</div>
+                </div>
+            </div>
+
+            <div class="screenshot">
+                <img src="screenshots/step2_empty.png" alt="処方入力画面（初期状態）">
+                <div class="screenshot-caption">診療セッション開始直後の画面</div>
+            </div>
+
+            <div class="screenshot">
+                <img src="screenshots/step2_prescription.png" alt="処方入力画面">
+                <div class="screenshot-caption">薬品カードをタップして処方リストに追加</div>
+            </div>
+
+            <div class="screenshot">
+                <img src="screenshots/step2_complete_btn.png" alt="処方確定ボタン">
+                <div class="screenshot-caption">処方内容を確認し「処方確定」ボタンで出庫実行</div>
+            </div>
+
+            <div class="steps">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h4>診療セッション情報を確認</h4>
+                        <p>画面上部の紫色のバーに、診療ID・患者名・開始時刻が表示されます。</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h4>薬品QRをタップして選択</h4>
+                        <p>処方する薬品のQRコードをタップします。選択されると緑色の枠が表示されます。</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h4>数量を調整</h4>
+                        <p>処方内容リストの「＋」「－」ボタンで数量を調整します。</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h4>複数の薬品を追加</h4>
+                        <p>必要に応じて複数の薬品をタップで追加できます。</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <h4>診療メモを入力（任意）</h4>
+                        <p>必要に応じてメモを入力します。</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">6</div>
+                    <div class="step-content">
+                        <h4>「処方確定」ボタンをタップ</h4>
+                        <p>処方内容を確認し、緑色のボタンをタップして確定します。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="point-box success">
+                <h4>✅ 処方確定時の動作</h4>
+                <p>
+                    ・処方ID（RXxxxxxxxx）が自動発行されます<br>
+                    ・在庫が自動的に減算されます<br>
+                    ・スプレッドシートに記録が保存されます
+                </p>
+            </div>
+
+            <div class="point-box danger">
+                <h4>❌ 間違えた場合</h4>
+                <p>
+                    薬品を選び間違えた場合は、処方リストの「×」ボタンで削除できます。<br>
+                    診療自体をキャンセルする場合は「キャンセル」ボタンをタップしてください。
+                </p>
+            </div>
+        </section>
+
+        <!-- Step 3 -->
+        <section class="section" id="step3">
+            <div class="section-header">
+                <div class="step-badge">3</div>
+                <div>
+                    <div class="section-title">完了確認</div>
+                    <div class="section-subtitle">処方が正常に記録されました</div>
+                </div>
+            </div>
+
+            <div class="screenshot">
+                <img src="screenshots/step3_complete.png" alt="処方完了画面">
+                <div class="screenshot-caption">処方完了と発行されたIDが表示されます</div>
+            </div>
+
+            <div class="steps">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h4>発行されたIDを確認</h4>
+                        <p>診療ID（MRxxxxxxxx）と処方ID（RXxxxxxxxx）が表示されます。</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h4>処方内容を確認</h4>
+                        <p>患者名と処方した薬品・数量のサマリーが表示されます。</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h4>次の患者へ進む</h4>
+                        <p>「次の患者へ」ボタンをタップすると、Step 1（患者選択）に戻ります。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="point-box info">
+                <h4>📋 スプレッドシートに記録される内容</h4>
+                <p>
+                    ・<strong>診療記録シート</strong>: 診療ID、患者情報、来院日時、メモ<br>
+                    ・<strong>処方履歴シート</strong>: 処方ID、診療ID、処方内容<br>
+                    ・<strong>出庫履歴シート</strong>: 各薬品の出庫記録<br>
+                    ・<strong>在庫サマリーシート</strong>: 在庫数が自動更新
+                </p>
+            </div>
+        </section>
+
+        <!-- 在庫確認 -->
+        <section class="section" id="stock">
+            <div class="section-header">
+                <div class="step-badge">4</div>
+                <div>
+                    <div class="section-title">在庫確認（出庫反映）</div>
+                    <div class="section-subtitle">処方完了時に在庫が自動減算されます</div>
+                </div>
+            </div>
+
+            <h3 style="margin: 0 0 16px; color: var(--primary);">📦 処方前後の在庫比較</h3>
+
+            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                <div class="screenshot" style="flex: 1; min-width: 280px;">
+                    <img src="screenshots/stock_before.png" alt="処方前の在庫">
+                    <div class="screenshot-caption">【処方前】クロピドグレル: 120錠</div>
+                </div>
+                <div class="screenshot" style="flex: 1; min-width: 280px;">
+                    <img src="screenshots/stock_after.png" alt="処方後の在庫">
+                    <div class="screenshot-caption">【処方後】クロピドグレル: 118錠（-2錠）</div>
+                </div>
+            </div>
+
+            <div class="point-box success">
+                <h4>📦 出庫の自動処理</h4>
+                <p>
+                    「処方確定」ボタンを押すと、以下の処理が自動で実行されます：<br>
+                    ・処方した薬品の在庫数を減算<br>
+                    ・出庫履歴シートに記録<br>
+                    ・在庫サマリーシートを更新<br>
+                    <strong>例: クロピドグレル2錠処方 → 在庫120→118錠に自動減算</strong>
+                </p>
+            </div>
+
+            <div class="steps">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h4>「在庫」タブをタップ</h4>
+                        <p>画面下部のナビゲーションから「在庫」をタップします。</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h4>在庫一覧を確認</h4>
+                        <p>各薬品の現在庫が表示されます。赤字は発注点以下の薬品です。</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h4>検索で絞り込み</h4>
+                        <p>検索ボックスに薬品名を入力すると絞り込みできます。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="point-box">
+                <h4>⚠️ 発注が必要な薬品</h4>
+                <p>在庫数が赤字で表示されている薬品は、発注点を下回っています。早めの発注をお願いします。</p>
+            </div>
+        </section>
+
+        <!-- 履歴確認 -->
+        <section class="section" id="history">
+            <div class="section-header">
+                <div class="step-badge">5</div>
+                <div>
+                    <div class="section-title">履歴確認</div>
+                    <div class="section-subtitle">本日の診療・処方履歴を確認します</div>
+                </div>
+            </div>
+
+            <div class="screenshot">
+                <img src="screenshots/tab_history.png" alt="履歴一覧画面">
+                <div class="screenshot-caption">本日の診療・処方履歴が時系列で表示されます</div>
+            </div>
+
+            <div class="steps">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h4>「履歴」タブをタップ</h4>
+                        <p>画面下部のナビゲーションから「履歴」をタップします。</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h4>履歴を確認</h4>
+                        <p>本日の診療・処方履歴が新しい順に表示されます。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="point-box info">
+                <h4>💡 詳細な履歴を見るには</h4>
+                <p>
+                    スプレッドシート「ドライブスルー診療用DB」を直接開くと、過去の全履歴を確認できます。<br>
+                    ・診療記録シート<br>
+                    ・処方履歴シート<br>
+                    ・出庫履歴シート
+                </p>
+            </div>
+        </section>
+
+        <!-- 患者DB連携（新規追加） -->
+        <section class="section" id="patient-db">
+            <div class="section-header">
+                <div class="step-badge">6</div>
+                <div>
+                    <div class="section-title">患者DB（ドライブスルー専用）</div>
+                    <div class="section-subtitle">新規患者は自動でスプレッドシートに登録されます</div>
+                </div>
+            </div>
+
+            <div class="point-box success">
+                <h4>✅ 自動登録機能</h4>
+                <p>
+                    「新規患者で診療開始」から登録した患者は、<strong>患者DBシート</strong>に自動で追加されます。<br>
+                    M3 DigiKarの患者マスタとは<strong>別管理</strong>です（ドライブスルー専用）。
+                </p>
+            </div>
+
+            <h3 style="margin: 24px 0 16px; color: var(--primary);">📊 患者DBシートの構成</h3>
+
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>カラム</th>
+                        <th>内容</th>
+                        <th>自動入力</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>患者ID</strong></td>
+                        <td>NEW + 6桁数字（自動採番）</td>
+                        <td>✅</td>
+                    </tr>
+                    <tr>
+                        <td><strong>患者氏名</strong></td>
+                        <td>入力した氏名</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><strong>フリガナ</strong></td>
+                        <td>カタカナ（任意）</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><strong>電話番号</strong></td>
+                        <td>連絡先（任意）</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><strong>登録日時</strong></td>
+                        <td>初回登録日時</td>
+                        <td>✅</td>
+                    </tr>
+                    <tr>
+                        <td><strong>登録元</strong></td>
+                        <td>「ドライブスルー登録」</td>
+                        <td>✅</td>
+                    </tr>
+                    <tr>
+                        <td><strong>最終来院日</strong></td>
+                        <td>最後に来院した日付</td>
+                        <td>✅</td>
+                    </tr>
+                    <tr>
+                        <td><strong>来院回数</strong></td>
+                        <td>累計来院回数</td>
+                        <td>✅</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="screenshot">
+                <img src="screenshots/db_patient_sheet.png" alt="患者DBシート">
+                <div class="screenshot-caption">患者DBシート - 新規患者が自動で登録されます</div>
+            </div>
+
+            <h3 style="margin: 24px 0 16px; color: var(--primary);">⚙️ 患者DBの管理メニュー</h3>
+
+            <p>スプレッドシートの「在庫管理」メニューから患者DB機能にアクセスできます。</p>
+
+            <div class="point-box" style="background: #f0f9ff; border-color: #0284c7;">
+                <h4>📋 メニュー操作手順</h4>
+                <p>
+                    スプレッドシートのメニューバー →「在庫管理」→「患者DB（ドライブスルー）」→「患者DBシートを初期化」<br>
+                    ※ メニューが表示されない場合は、ページを再読み込みしてください
+                </p>
+            </div>
+
+            <div class="steps">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h4>患者DBシートを初期化</h4>
+                        <p>シートを新規作成または初期化します。既存データはクリアされます。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="point-box info">
+                <h4>💡 M3患者マスタとの違い</h4>
+                <p>
+                    <strong>患者マスタ（M3連携）:</strong> DigiKarからCSVインポートした患者（通常診療用）<br>
+                    <strong>患者DB（ドライブスルー）:</strong> 現場で新規登録した患者（ドライブスルー専用）
+                </p>
+            </div>
+        </section>
+
+        <!-- 領収書・薬袋印刷（新規追加） -->
+        <section class="section" id="receipt">
+            <div class="section-header">
+                <div class="step-badge">7</div>
+                <div>
+                    <div class="section-title">領収書・薬袋印刷</div>
+                    <div class="section-subtitle">処方完了後に印刷用ページを開きます</div>
+                </div>
+            </div>
+
+            <div class="flow-chart">
+                <div class="flow-step">
+                    <div class="flow-icon active">✅</div>
+                    <div class="flow-label">処方完了</div>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step">
+                    <div class="flow-icon">🖨️</div>
+                    <div class="flow-label">印刷ボタン</div>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step">
+                    <div class="flow-icon">📄</div>
+                    <div class="flow-label">印刷ページ</div>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step">
+                    <div class="flow-icon">🖨️</div>
+                    <div class="flow-label">プリンター</div>
+                </div>
+            </div>
+
+            <div class="steps">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h4>処方完了画面で「領収書・薬袋印刷」をタップ</h4>
+                        <p>完了画面の黄色いボタンをタップします。</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h4>印刷用ページが新しいタブで開く</h4>
+                        <p>領収書と薬袋の情報が表示されます。</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h4>「領収書を印刷」または「薬袋を印刷」をクリック</h4>
+                        <p>それぞれのボタンで該当部分を印刷します。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="screenshot">
+                <img src="screenshots/step3_complete.png" alt="処方完了画面">
+                <div class="screenshot-caption">処方完了画面 - 下部の黄色い「領収書・薬袋印刷」ボタンをタップ</div>
+            </div>
+
+            <h3 style="margin: 24px 0 16px; color: var(--primary);">📄 印刷ページの内容</h3>
+
+            <div style="display: flex; gap: 16px; flex-wrap: wrap; margin: 20px 0;">
+                <div style="flex: 1; min-width: 200px; background: #fef3c7; border-radius: 8px; padding: 16px;">
+                    <h4 style="margin: 0 0 12px; color: #92400e;">📋 領収書</h4>
+                    <p style="font-size: 14px; margin: 0; color: #78350f;">
+                        ・患者氏名<br>
+                        ・診療日<br>
+                        ・処方薬品一覧<br>
+                        ・数量・単価・金額<br>
+                        ・合計金額
+                    </p>
+                </div>
+                <div style="flex: 1; min-width: 200px; background: #dbeafe; border-radius: 8px; padding: 16px;">
+                    <h4 style="margin: 0 0 12px; color: #1e40af;">💊 薬袋</h4>
+                    <p style="font-size: 14px; margin: 0; color: #1e3a8a;">
+                        ・患者氏名<br>
+                        ・薬品名<br>
+                        ・用法・用量<br>
+                        ・数量<br>
+                        ・注意事項
+                    </p>
+                </div>
+            </div>
+
+            <div class="point-box">
+                <h4>⚠️ 印刷の注意点</h4>
+                <p>
+                    ・ブラウザの印刷機能（Ctrl+P）で印刷します<br>
+                    ・領収書と薬袋は別々に印刷してください<br>
+                    ・プリンター設定で用紙サイズを確認してください
+                </p>
+            </div>
+        </section>
+
+        <!-- スプレッドシート連携 -->
+        <section class="section" id="database">
+            <div class="section-header">
+                <div class="step-badge">8</div>
+                <div>
+                    <div class="section-title">スプレッドシート連携</div>
+                    <div class="section-subtitle">データはGoogleスプレッドシートに自動保存されます</div>
+                </div>
+            </div>
+
+            <div class="flow-chart">
+                <div class="flow-step">
+                    <div class="flow-icon">📱</div>
+                    <div class="flow-label">Webアプリ</div>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step">
+                    <div class="flow-icon active">⚡</div>
+                    <div class="flow-label">GAS API</div>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step">
+                    <div class="flow-icon">📊</div>
+                    <div class="flow-label">スプレッドシート</div>
+                </div>
+            </div>
+
+            <h3 style="margin: 24px 0 16px; color: var(--primary);">📊 スプレッドシートのシート構成</h3>
+
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>シート名</th>
+                        <th>用途</th>
+                        <th>更新タイミング</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>薬品マスタ</strong></td>
+                        <td>薬品コード、名前、単位、単価など</td>
+                        <td>手動（初期設定時）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>在庫サマリー</strong></td>
+                        <td>現在の在庫数</td>
+                        <td>処方確定時に自動更新</td>
+                    </tr>
+                    <tr>
+                        <td><strong>出庫履歴</strong></td>
+                        <td>出庫（処方）の記録</td>
+                        <td>処方確定時に自動追加</td>
+                    </tr>
+                    <tr>
+                        <td><strong>入庫履歴</strong></td>
+                        <td>入荷の記録</td>
+                        <td>入庫操作時に自動追加</td>
+                    </tr>
+                    <tr>
+                        <td><strong>患者マスタ</strong></td>
+                        <td>患者情報（M3連携）</td>
+                        <td>CSVインポート</td>
+                    </tr>
+                    <tr>
+                        <td><strong>診療記録</strong></td>
+                        <td>診療ID、来院日時、患者情報</td>
+                        <td>診療開始時に自動追加</td>
+                    </tr>
+                    <tr>
+                        <td><strong>処方履歴</strong></td>
+                        <td>処方ID、処方内容</td>
+                        <td>処方確定時に自動追加</td>
+                    </tr>
+                    <tr>
+                        <td><strong>患者DB</strong></td>
+                        <td>ドライブスルー新規患者</td>
+                        <td>新規患者登録時に自動追加</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="point-box info">
+                <h4>🔗 スプレッドシートURL</h4>
+                <p>
+                    <a href="https://docs.google.com/spreadsheets/d/13AId0dOUOrrZLnFnZi_V4NcOo5OT9pkaFr1UJPIK02c/" target="_blank" style="color: #3b82f6;">
+                        ドライブスルー診療用DB_v0.2（クリックで開く）
+                    </a>
+                </p>
+            </div>
+
+            <div class="point-box success">
+                <h4>✅ データの流れ</h4>
+                <p>
+                    <strong>処方確定時:</strong><br>
+                    1. 診療記録シートに患者情報・診療IDを記録<br>
+                    2. 処方履歴シートに処方ID・処方内容を記録<br>
+                    3. 出庫履歴シートに各薬品の出庫を記録（診療ID/処方ID付き）<br>
+                    4. 在庫サマリーシートの在庫数を減算
+                </p>
+            </div>
+        </section>
+
+        <!-- 付録: ID形式 -->
+        <section class="section" id="appendix">
+            <div class="section-header">
+                <div class="step-badge">9</div>
+                <div>
+                    <div class="section-title">付録: ID形式について</div>
+                    <div class="section-subtitle">自動発行されるIDの命名規則</div>
+                </div>
+            </div>
+
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID種別</th>
+                        <th>形式</th>
+                        <th>例</th>
+                        <th>説明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>診療ID</strong></td>
+                        <td>MR + 日付 + 連番</td>
+                        <td>MR20260304001</td>
+                        <td>MR=Medical Record</td>
+                    </tr>
+                    <tr>
+                        <td><strong>処方ID</strong></td>
+                        <td>RX + 日付 + 連番</td>
+                        <td>RX20260304001</td>
+                        <td>RX=Prescription</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+    </div>
+
+    <div class="footer">
+        <p>ドライブスルー診療 薬品在庫管理システム v0.2</p>
+        <p>西春内科・在宅クリニック</p>
+        <p style="margin-top: 8px; font-size: 12px;">最終更新: 2026年3月4日（患者DB連携・領収書印刷対応版）</p>
+    </div>
+
+    <!-- 印刷ボタン -->
+    <button class="print-button" onclick="window.print()">
+        🖨️ PDF / 印刷
+    </button>
+
+    <script>
+        // キーボードショートカット: Ctrl+P で印刷
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'p') {
+                // デフォルトの印刷ダイアログを使用
+            }
+        });
+    </script>
+</body>
+</html>

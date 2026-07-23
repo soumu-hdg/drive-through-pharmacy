@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>夜間休日診療 KPI ダッシュボード v0.6</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<style>
+:root {
+  --bg: #0f172a;
+  --card: #1e293b;
+  --border: #334155;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --green: #4ade80;
+  --amber: #fbbf24;
+  --rose: #fb7185;
+  --purple: #a78bfa;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', 'Hiragino Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+.header { padding: 24px 32px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.header h1 { font-size: 20px; font-weight: 700; }
+.header .badge { background: var(--accent); color: #0f172a; padding: 2px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+.header .back { color: var(--muted); text-decoration: none; font-size: 13px; margin-left: auto; }
+.header .back:hover { color: var(--text); }
+.date-filter { display: flex; align-items: center; gap: 12px; padding: 16px 32px; background: var(--card); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.date-filter label { font-size: 13px; color: var(--muted); font-weight: 600; }
+.date-filter input[type="date"] {
+  background: var(--bg); color: var(--text); border: 1px solid var(--border);
+  padding: 6px 12px; border-radius: 6px; font-size: 13px; font-family: inherit;
+}
+.date-filter input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer; }
+.date-filter .filter-btn {
+  background: var(--accent); color: #0f172a; border: none; padding: 7px 18px;
+  border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.date-filter .filter-btn:hover { background: #7dd3fc; }
+.date-filter .reset-btn {
+  background: transparent; color: var(--muted); border: 1px solid var(--border);
+  padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer;
+}
+.date-filter .reset-btn:hover { color: var(--text); border-color: var(--text); }
+.date-filter .quick-btn {
+  background: transparent; color: var(--muted); border: 1px solid var(--border);
+  padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;
+}
+.date-filter .quick-btn:hover { color: var(--accent); border-color: var(--accent); }
+.date-filter .range-info { font-size: 12px; color: var(--accent); margin-left: 8px; }
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; padding: 24px 32px; }
+.stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+.stat-card .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.stat-card .value { font-size: 28px; font-weight: 800; }
+.stat-card .value.accent { color: var(--accent); }
+.stat-card .value.green { color: var(--green); }
+.stat-card .value.amber { color: var(--amber); }
+.stat-card .value.purple { color: var(--purple); }
+.stat-card .value.rose { color: var(--rose); }
+.stat-card .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; padding: 0 32px 24px; }
+.chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+.chart-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--muted); }
+.chart-card canvas { max-height: 300px; }
+.tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; padding: 0 32px 32px; }
+.table-section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+.table-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--muted); }
+table { width: 100%; border-collapse: collapse; }
+th { padding: 8px 12px; text-align: left; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+td { padding: 8px 12px; font-size: 13px; border-bottom: 1px solid rgba(51,65,85,0.5); }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.pill-blue { background: rgba(56,189,248,0.15); color: var(--accent); }
+.pill-green { background: rgba(74,222,128,0.15); color: var(--green); }
+.pill-amber { background: rgba(251,191,36,0.15); color: var(--amber); }
+.pill-purple { background: rgba(167,139,250,0.15); color: var(--purple); }
+.pill-rose { background: rgba(251,113,133,0.15); color: var(--rose); }
+.loading { text-align: center; padding: 80px; color: var(--muted); font-size: 16px; }
+.error { color: var(--rose); }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; padding: 0 32px 24px; }
+.kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+.kpi-card h3 { font-size: 13px; color: var(--muted); margin-bottom: 12px; font-weight: 600; }
+.kpi-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 13px; }
+.kpi-row + .kpi-row { border-top: 1px solid rgba(51,65,85,0.5); }
+.last-update { font-size: 11px; color: var(--muted); }
+@media (max-width: 800px) { .charts, .tables, .kpi-grid { grid-template-columns: 1fr; } .stats-row { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>夜間休日診療 KPI ダッシュボード</h1>
+  <span class="badge" id="sourceBadge">読込中...</span>
+  <span class="last-update" id="lastUpdate"></span>
+  <a class="back" href="index.html">&larr; カルテに戻る</a>
+</div>
+
+<div class="date-filter" id="dateFilter">
+  <label>集計期間:</label>
+  <input type="date" id="dateFrom">
+  <span style="color:var(--muted)">〜</span>
+  <input type="date" id="dateTo">
+  <button class="filter-btn" id="applyFilter">適用</button>
+  <button class="quick-btn" id="q30">直近30日</button>
+  <button class="quick-btn" id="qMonth">今月</button>
+  <button class="reset-btn" id="resetFilter">全期間</button>
+  <span class="range-info" id="rangeInfo"></span>
+</div>
+
+<div id="app" class="loading">夜間外来DBを読み込み中...</div>
+
+<script>
+Chart.register(ChartDataLabels);
+
+// ===== 単一データ源: 夜間休日外来DB (GAS Web App) =====
+// カルテ本体 (db_integration.js) と同じ共有トークンを付けて呼ぶ。
+// ※Supabaseは2026-07 RLS有効化でanon読み取り不可、かつ visits.revenue_points=0固定のため
+//   売上KPIの真実源として使えない。夜間外来DB(GAS)が唯一の完全な源。
+const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwWCL1aVy4RcCZsr2Wzrpy5JE8LU8pGWa2u_CY7qo7OGMgXrB0OZGir6rGJZiiV6hRd/exec';
+const GAS_TOKEN = 'dtp_f929bbd860e2e96224ded613cd06177e';
+const SHIFT_SHEET_ID = '12ylHWZhQO2ABfT6xhMM3z8jfD31kH7lRbaGY-Br4Y-k';
+
+// 時間帯の表示順（夜間休日クリニックの営業帯）
+const TIME_SLOTS = ['10:00～12:00','12:00～14:00','14:00～16:00','16:00～18:00','18:00～20:00','20:00～22:00','22:00～24:00'];
+
+let _allVisits = [], _allPatients = [], _allRx = [], _allShifts = [];
+let _charts = {};
+
+loadDashboard();
+
+// ---- ユーティリティ ----
+function norm(name) { return String(name || '').replace(/\s|　/g, ''); }
+
+function mdToIso(md) {
+  if (!md) return '';
+  const s = String(md).trim();
+  if (s.includes('-')) return s;                 // 既にISO
+  const parts = s.split('/');
+  if (parts.length !== 2) return '';
+  const m = parseInt(parts[0]), d = parseInt(parts[1]);
+  if (isNaN(m) || isNaN(d)) return '';
+  const now = new Date();
+  let year = now.getFullYear();
+  // 4月始まり年度の跨ぎ: 10-12月データを1-3月に見ている場合は前年
+  if (m >= 10 && (now.getMonth() + 1) <= 3) year -= 1;
+  return year + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+
+function parseAge(ageStr) {
+  const s = String(ageStr || '');
+  if (/^\d+$/.test(s)) return parseInt(s);
+  const range = s.match(/(\d+)\s*[~〜～\-]\s*(\d+)/);
+  if (range) return Math.round((parseInt(range[1]) + parseInt(range[2])) / 2);
+  const decade = s.match(/(\d+)\s*代/);
+  if (decade) return parseInt(decade[1]) + 5;
+  return 0;
+}
+
+function yen(n) { return '¥' + Math.round(n).toLocaleString(); }
+
+// ---- ロード ----
+async function loadDashboard() {
+  try {
+    const url = GAS_API_URL + '?action=all&token=' + encodeURIComponent(GAS_TOKEN);
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data || data.success === false) {
+      throw new Error(data && data.error ? data.error : 'GAS API エラー');
+    }
+
+    const rows = data.patients || [];   // 夜間外来DBの1行=1受診
+    const rxHist = data.prescriptions || [];
+
+    // 受診レコード（1行=1受診）
+    _allVisits = rows.map((p, i) => ({
+      id: 'v-' + i,
+      key: norm(p.name),
+      name: norm(p.name),
+      visit_date: mdToIso(p.date),
+      visit_time: String(p.time || '').trim(),
+      visit_type: String(p.type || '不明').trim(),
+      revenue_yen: Number(p.revenuePoints) || 0,   // ★診療報酬は「円(総額)」。旧版の×10は誤り
+      self_pay: Number(p.selfPay) || 0,
+      doctor: String(p.doctor || '不明').trim(),
+      route: String(p.route || '不明').trim(),
+      area: String(p.area || '不明').trim(),
+      insurance: String(p.insurance || '不明').trim(),
+      payment: String(p.payment || '無し').trim(),
+      sex: String(p.sex || '').replace(/性$/, '') || '不明',
+      age: parseAge(p.age),
+      covid: String(p.covid || '').trim(),         // '陽性' / '陰性' / ''
+      flu: String(p.flu || '').trim(),
+      strep: String(p.strep || '').trim(),
+    }));
+
+    // 患者マスタ（ユニーク名で集約）
+    const pm = {};
+    _allVisits.forEach(v => {
+      if (!pm[v.key]) pm[v.key] = { id: v.key, name: v.name, sex: v.sex, age: v.age, insurance: v.insurance, area: v.area };
+    });
+    _allPatients = Object.values(pm);
+
+    // 処方（名前で受診に紐付け）
+    _allRx = [];
+    rxHist.forEach((rec, ri) => {
+      if (!rec.rx || !rec.rx.length) return;
+      const key = norm(rec.name);
+      rec.rx.forEach((r, j) => {
+        const drug = typeof r === 'object' ? (r.drug || '') : String(r);
+        if (!drug) return;
+        _allRx.push({ id: 'rx-' + ri + '-' + j, key, drug_name: drug, qty: typeof r === 'object' ? (parseFloat(r.qty) || 0) : 0 });
+      });
+    });
+
+    // シフト（月別タブCSVを直接取得）— 取れなければ空でOK
+    _allShifts = await loadShifts().catch(() => []);
+
+    document.getElementById('lastUpdate').textContent =
+      '最終取得: ' + new Date().toLocaleString('ja-JP') + '（夜間外来DB Live / 受診' + _allVisits.length + '件）';
+    document.getElementById('sourceBadge').textContent = '夜間外来DB Live';
+
+    // 日付範囲初期値
+    const dates = _allVisits.map(v => v.visit_date).filter(Boolean).sort();
+    if (dates.length > 0) {
+      document.getElementById('dateFrom').value = dates[0];
+      document.getElementById('dateTo').value = new Date().toISOString().split('T')[0];
+    }
+
+    setupFilterEvents();
+    applyDateFilter();
+  } catch (e) {
+    document.getElementById('app').innerHTML =
+      '<span class="error">エラー: ' + e.message + '</span>' +
+      '<div style="color:var(--muted);font-size:12px;margin-top:12px;">夜間外来DB(GAS)の応答を確認してください。tokenの不一致だと unauthorized になります。</div>';
+  }
+}
+
+// 医師シフト: Google Sheetsの月別タブ(例「2026年7月」)を gviz CSV で取得
+async function loadShifts() {
+  const now = new Date();
+  const tabs = [];
+  for (let off = 0; off <= 2; off++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - off, 1);
+    tabs.push({ name: d.getFullYear() + '年' + (d.getMonth() + 1) + '月', year: d.getFullYear() });
+  }
+  const out = [];
+  for (const tab of tabs) {
+    try {
+      const csvUrl = 'https://docs.google.com/spreadsheets/d/' + SHIFT_SHEET_ID +
+        '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(tab.name);
+      const r = await fetch(csvUrl);
+      if (!r.ok) continue;
+      const text = await r.text();
+      const lines = text.split('\n').slice(1).filter(l => l.trim());
+      for (const line of lines) {
+        const cols = line.match(/("(?:[^"]|"")*"|[^,]*)(?=,|$)/g);
+        if (!cols || cols.length < 3) continue;
+        const clean = s => String(s || '').replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+        const dateStr = clean(cols[0]), dow = clean(cols[1]), doctor = clean(cols[2]), payStr = clean(cols[3] || '');
+        if (!dateStr || !doctor) continue;
+        const parts = dateStr.split('/');
+        if (parts.length !== 2) continue;
+        const m = parseInt(parts[0]), d = parseInt(parts[1]);
+        if (isNaN(m) || isNaN(d)) continue;
+        const iso = tab.year + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+        let dayType = '平日';
+        if (dow === '土') dayType = '土曜';
+        else if (dow === '日' || dow === '祝') dayType = '日祝';
+        const pay = parseInt(payStr.replace(/[¥￥,]/g, '')) || 0;
+        out.push({ shift_date: iso, doctor_name: doctor, day_type: dayType, daily_pay: pay });
+      }
+    } catch (e) { /* タブ無し等はスキップ */ }
+  }
+  // shift_date+doctor で重複排除
+  const seen = new Set(), uniq = [];
+  out.forEach(s => { const k = s.shift_date + '|' + s.doctor_name; if (!seen.has(k)) { seen.add(k); uniq.push(s); } });
+  return uniq;
+}
+
+// ---- フィルタ ----
+function setupFilterEvents() {
+  document.getElementById('applyFilter').addEventListener('click', applyDateFilter);
+  document.getElementById('resetFilter').addEventListener('click', () => {
+    const dates = _allVisits.map(v => v.visit_date).filter(Boolean).sort();
+    if (dates.length > 0) {
+      document.getElementById('dateFrom').value = dates[0];
+      document.getElementById('dateTo').value = new Date().toISOString().split('T')[0];
+    }
+    applyDateFilter();
+  });
+  document.getElementById('q30').addEventListener('click', () => {
+    const to = new Date();
+    const from = new Date(); from.setDate(from.getDate() - 29);
+    document.getElementById('dateFrom').value = from.toISOString().split('T')[0];
+    document.getElementById('dateTo').value = to.toISOString().split('T')[0];
+    applyDateFilter();
+  });
+  document.getElementById('qMonth').addEventListener('click', () => {
+    const now = new Date();
+    document.getElementById('dateFrom').value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    document.getElementById('dateTo').value = now.toISOString().split('T')[0];
+    applyDateFilter();
+  });
+}
+
+function applyDateFilter() {
+  const from = document.getElementById('dateFrom').value;
+  const to = document.getElementById('dateTo').value;
+
+  let visits = _allVisits;
+  if (from) visits = visits.filter(v => v.visit_date >= from);
+  if (to) visits = visits.filter(v => v.visit_date <= to);
+
+  const keys = new Set(visits.map(v => v.key));
+  const rx = _allRx.filter(r => keys.has(r.key));
+  const patients = _allPatients.filter(p => keys.has(p.id));
+
+  let shifts = _allShifts;
+  if (from) shifts = shifts.filter(s => s.shift_date >= from);
+  if (to) shifts = shifts.filter(s => s.shift_date <= to);
+
+  document.getElementById('rangeInfo').textContent =
+    `${from || '---'} 〜 ${to || '---'}（受診 ${visits.length}件 / 患者 ${patients.length}人）`;
+
+  Object.values(_charts).forEach(c => c.destroy());
+  _charts = {};
+  renderDashboard(patients, visits, rx, shifts);
+}
+
+// ---- datalabels ----
+const dlBar = { display: true, anchor: 'end', align: 'top', color: '#e2e8f0', font: { size: 11, weight: 'bold' }, formatter: v => v };
+const dlLine = { display: true, anchor: 'end', align: 'top', color: '#fbbf24', font: { size: 10, weight: 'bold' }, formatter: v => v.toLocaleString() };
+const dlDoughnut = {
+  display: true, color: '#fff', font: { size: 12, weight: 'bold' },
+  formatter: (v, ctx) => { const t = ctx.dataset.data.reduce((a, b) => a + b, 0); const p = t > 0 ? Math.round(v / t * 100) : 0; return v > 0 ? `${v} (${p}%)` : ''; }
+};
+
+function renderDashboard(patients, visits, prescriptions, shifts) {
+  shifts = shifts || [];
+  const totalPatients = patients.length;
+  const totalVisits = visits.length;
+  const totalRevenue = visits.reduce((s, v) => s + v.revenue_yen, 0);     // 円
+  const totalSelfPay = visits.reduce((s, v) => s + v.self_pay, 0);        // 円
+  const avgRevenue = totalVisits > 0 ? Math.round(totalRevenue / totalVisits) : 0;
+
+  // 性別
+  const sexCount = { '男': 0, '女': 0 };
+  patients.forEach(p => { if (p.sex === '男' || p.sex === '女') sexCount[p.sex]++; });
+
+  // 種別（実4値: 新規/リピーター/家族受診/縁故）
+  const typeCount = {};
+  visits.forEach(v => { const t = v.visit_type || '不明'; typeCount[t] = (typeCount[t] || 0) + 1; });
+  const newCount = typeCount['新規'] || 0;
+  const returningCount = totalVisits - newCount;   // 新規以外＝再来（リピーター+家族+縁故等）
+
+  // 保険種別
+  const insCount = {};
+  patients.forEach(p => { const k = p.insurance || '不明'; insCount[k] = (insCount[k] || 0) + 1; });
+
+  // 支払い方法
+  const payCount = {};
+  visits.forEach(v => { const k = v.payment || '無し'; payCount[k] = (payCount[k] || 0) + 1; });
+
+  // 月別（件数・収益）
+  const monthlyVisits = {}, monthlyRevenue = {};
+  visits.forEach(v => { if (!v.visit_date) return; const m = v.visit_date.substring(0, 7); monthlyVisits[m] = (monthlyVisits[m] || 0) + 1; monthlyRevenue[m] = (monthlyRevenue[m] || 0) + v.revenue_yen; });
+  const monthLabels = Object.keys(monthlyVisits).sort();
+  const monthData = monthLabels.map(m => monthlyVisits[m]);
+  const monthRevData = monthLabels.map(m => monthlyRevenue[m] || 0);
+
+  // 日別
+  const dailyVisits = {};
+  visits.forEach(v => { if (!v.visit_date) return; dailyVisits[v.visit_date] = (dailyVisits[v.visit_date] || 0) + 1; });
+  const dayLabels = Object.keys(dailyVisits).sort();
+  const dayData = dayLabels.map(d => dailyVisits[d]);
+
+  // 時間帯別（NEW）
+  const slotCount = {}; TIME_SLOTS.forEach(s => slotCount[s] = 0);
+  let slotOther = 0;
+  visits.forEach(v => { if (v.visit_time && slotCount.hasOwnProperty(v.visit_time)) slotCount[v.visit_time]++; else if (v.visit_time) slotOther++; });
+
+  // 医師別（件数・収益・平均単価）
+  const doctorCount = {}, doctorRevenue = {};
+  visits.forEach(v => { const d = v.doctor || '不明'; doctorCount[d] = (doctorCount[d] || 0) + 1; doctorRevenue[d] = (doctorRevenue[d] || 0) + v.revenue_yen; });
+  const topDoctors = Object.entries(doctorCount).sort((a, b) => b[1] - a[1]);
+
+  // 医師シフト
+  const doctorShiftStats = {};
+  shifts.forEach(s => {
+    const d = s.doctor_name || '不明';
+    if (!doctorShiftStats[d]) doctorShiftStats[d] = { total: 0, weekday: 0, saturday: 0, holiday: 0, pay: 0 };
+    const ds = doctorShiftStats[d];
+    ds.total++;
+    if (s.day_type === '平日') ds.weekday++;
+    else if (s.day_type === '土曜') ds.saturday++;
+    else if (s.day_type === '日祝') ds.holiday++;
+    ds.pay += (s.daily_pay || 0);
+  });
+
+  // エリア別
+  const areaCount = {};
+  patients.forEach(p => { const a = p.area || '不明'; areaCount[a] = (areaCount[a] || 0) + 1; });
+  const topAreas = Object.entries(areaCount).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  // 経路別（件数＋平均単価）（NEW: チャネル単価）
+  const routeCount = {}, routeRevenue = {};
+  visits.forEach(v => { const r = v.route || '不明'; routeCount[r] = (routeCount[r] || 0) + 1; routeRevenue[r] = (routeRevenue[r] || 0) + v.revenue_yen; });
+  const topRoutes = Object.entries(routeCount).sort((a, b) => b[1] - a[1]);
+
+  // 年齢層
+  const ageGroups = { '0-9': 0, '10-19': 0, '20-29': 0, '30-39': 0, '40-49': 0, '50-59': 0, '60-69': 0, '70-79': 0, '80+': 0 };
+  patients.forEach(p => {
+    const a = p.age || 0;
+    if (a < 10) ageGroups['0-9']++; else if (a < 20) ageGroups['10-19']++; else if (a < 30) ageGroups['20-29']++;
+    else if (a < 40) ageGroups['30-39']++; else if (a < 50) ageGroups['40-49']++; else if (a < 60) ageGroups['50-59']++;
+    else if (a < 70) ageGroups['60-69']++; else if (a < 80) ageGroups['70-79']++; else ageGroups['80+']++;
+  });
+
+  // 曜日別
+  const dowNames = ['日', '月', '火', '水', '木', '金', '土'];
+  const dowCount = [0, 0, 0, 0, 0, 0, 0];
+  visits.forEach(v => { if (!v.visit_date) return; dowCount[new Date(v.visit_date + 'T00:00:00').getDay()]++; });
+
+  // 検査（陽性/陰性/未実施 → 陽性率＝陽性/(陽性+陰性)）（NEW: 分母補正）
+  function testStat(field) {
+    let pos = 0, neg = 0;
+    visits.forEach(v => { if (v[field] === '陽性') pos++; else if (v[field] === '陰性') neg++; });
+    const tested = pos + neg;
+    return { pos, neg, tested, rate: tested > 0 ? Math.round(pos / tested * 1000) / 10 : 0 };
+  }
+  const covid = testStat('covid'), flu = testStat('flu'), strep = testStat('strep');
+  const totalTested = covid.tested + flu.tested + strep.tested;
+  const totalPos = covid.pos + flu.pos + strep.pos;
+
+  // リピーター分析（この期間の来院回数ベース）
+  const visitsPerPatient = {};
+  visits.forEach(v => { visitsPerPatient[v.key] = (visitsPerPatient[v.key] || 0) + 1; });
+  const repeaters = Object.values(visitsPerPatient).filter(c => c >= 2).length;
+  const singleVisitors = Object.values(visitsPerPatient).filter(c => c === 1).length;
+  const repeaterRate = totalPatients > 0 ? Math.round(repeaters / totalPatients * 100) : 0;
+  const topRepeater = Object.entries(visitsPerPatient).sort((a, b) => b[1] - a[1])[0];
+
+  // 処方薬ランキング
+  const drugCount = {};
+  prescriptions.forEach(rx => { drugCount[rx.drug_name] = (drugCount[rx.drug_name] || 0) + 1; });
+  const topDrugs = Object.entries(drugCount).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  const app = document.getElementById('app');
+  app.className = '';
+  app.innerHTML = `
+    <div class="stats-row">
+      <div class="stat-card"><div class="label">実患者数</div><div class="value accent">${totalPatients}</div><div class="sub">男 ${sexCount['男']} / 女 ${sexCount['女']}</div></div>
+      <div class="stat-card"><div class="label">受診件数</div><div class="value green">${totalVisits}</div><div class="sub">新規 ${newCount} / 再来 ${returningCount}</div></div>
+      <div class="stat-card"><div class="label">診療報酬 総額</div><div class="value amber">${yen(totalRevenue)}</div><div class="sub">${Math.round(totalRevenue / 10).toLocaleString()}点相当</div></div>
+      <div class="stat-card"><div class="label">平均単価 / 件</div><div class="value purple">${yen(avgRevenue)}</div><div class="sub">自己負担計 ${yen(totalSelfPay)}</div></div>
+      <div class="stat-card"><div class="label">検査 実施 / 陽性</div><div class="value rose">${totalTested} / ${totalPos}</div><div class="sub">陽性率 ${totalTested > 0 ? Math.round(totalPos / totalTested * 100) : 0}%</div></div>
+      <div class="stat-card"><div class="label">処方 件数</div><div class="value">${prescriptions.length}</div><div class="sub">${topDrugs.length > 0 ? '最多: ' + topDrugs[0][0].slice(0, 12) : 'データ蓄積中'}</div></div>
+    </div>
+
+    <div class="charts">
+      <div class="chart-card"><h3>月別 受診件数・収益</h3><canvas id="chartMonthly"></canvas></div>
+      <div class="chart-card"><h3>日別 受診件数</h3><canvas id="chartDaily"></canvas></div>
+      <div class="chart-card"><h3>時間帯別 受診件数</h3><canvas id="chartTime"></canvas></div>
+      <div class="chart-card"><h3>種別（新規 / リピーター / 家族 / 縁故）</h3><canvas id="chartType"></canvas></div>
+      <div class="chart-card"><h3>保険種別</h3><canvas id="chartInsurance"></canvas></div>
+      <div class="chart-card"><h3>支払い方法</h3><canvas id="chartPayment"></canvas></div>
+      <div class="chart-card"><h3>年齢層別 患者分布</h3><canvas id="chartAge"></canvas></div>
+      <div class="chart-card"><h3>曜日別 受診件数</h3><canvas id="chartDow"></canvas></div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <h3>医師別 受診・収益・平均単価・出勤</h3>
+        ${(() => {
+          const names = [...new Set([...topDoctors.map(d => d[0]), ...Object.keys(doctorShiftStats)])];
+          return names.map(name => {
+            const cnt = doctorCount[name] || 0;
+            const pct = totalVisits > 0 ? Math.round(cnt / totalVisits * 100) : 0;
+            const rev = doctorRevenue[name] || 0;
+            const avg = cnt > 0 ? Math.round(rev / cnt) : 0;
+            const ss = doctorShiftStats[name];
+            const shiftHtml = ss
+              ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">出勤 ${ss.total}日（平日${ss.weekday}/土${ss.saturday}/日祝${ss.holiday}）&ensp;給与 <span style="color:var(--green);">${yen(ss.pay)}</span></div>`
+              : '';
+            return `<div class="kpi-row" style="flex-direction:column;align-items:flex-start;gap:2px;">
+              <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
+                <span>${name}</span>
+                <span>${cnt > 0 ? `<span class="pill pill-blue">${cnt}件(${pct}%)</span> <span class="pill pill-amber">${yen(rev)}</span> <span class="pill pill-purple">${yen(avg)}/件</span>` : '<span style="color:var(--muted);font-size:11px;">受診データなし</span>'}</span>
+              </div>${shiftHtml}
+            </div>`;
+          }).join('');
+        })()}
+      </div>
+      <div class="kpi-card">
+        <h3>集患チャネル別 受診数・平均単価</h3>
+        ${topRoutes.map(([route, count]) => {
+          const pct = totalVisits > 0 ? Math.round(count / totalVisits * 100) : 0;
+          const avg = count > 0 ? Math.round((routeRevenue[route] || 0) / count) : 0;
+          return `<div class="kpi-row"><span>${route}</span><span><span class="pill pill-green">${count}件(${pct}%)</span> <span class="pill pill-purple">${yen(avg)}/件</span></span></div>`;
+        }).join('') || '<div style="color:var(--muted);font-size:12px;">データなし</div>'}
+      </div>
+      <div class="kpi-card">
+        <h3>時間帯別 受診数</h3>
+        ${TIME_SLOTS.map(slot => {
+          const c = slotCount[slot] || 0;
+          const pct = totalVisits > 0 ? Math.round(c / totalVisits * 100) : 0;
+          return `<div class="kpi-row"><span>${slot}</span><span><span class="pill pill-blue">${c}件(${pct}%)</span></span></div>`;
+        }).join('')}
+      </div>
+      <div class="kpi-card">
+        <h3>検査 実施数・陽性率</h3>
+        <div class="kpi-row"><span>COVID-19</span><span><span class="pill pill-blue">${covid.tested}件</span> <span class="pill pill-rose">陽性${covid.pos}（${covid.rate}%）</span></span></div>
+        <div class="kpi-row"><span>インフルエンザ</span><span><span class="pill pill-blue">${flu.tested}件</span> <span class="pill pill-rose">陽性${flu.pos}（${flu.rate}%）</span></span></div>
+        <div class="kpi-row"><span>溶連菌</span><span><span class="pill pill-blue">${strep.tested}件</span> <span class="pill pill-rose">陽性${strep.pos}（${strep.rate}%）</span></span></div>
+        <div class="kpi-row" style="border-top:2px solid var(--border);margin-top:4px;padding-top:8px;"><span>合計 検査/陽性</span><span><span class="pill pill-purple">${totalTested}件 / 陽性${totalPos}</span></span></div>
+      </div>
+      <div class="kpi-card">
+        <h3>月別サマリー</h3>
+        ${monthLabels.map(m => `<div class="kpi-row"><span>${m}</span><span><span class="pill pill-blue">${monthlyVisits[m]}件</span> <span class="pill pill-amber">${yen(monthlyRevenue[m] || 0)}</span></span></div>`).join('') || '<div style="color:var(--muted);font-size:12px;">データなし</div>'}
+      </div>
+      <div class="kpi-card">
+        <h3>エリア別 患者数 TOP10</h3>
+        ${topAreas.map(([area, count]) => {
+          const pct = totalPatients > 0 ? Math.round(count / totalPatients * 100) : 0;
+          return `<div class="kpi-row"><span>${area}</span><span><span class="pill pill-blue">${count}人(${pct}%)</span></span></div>`;
+        }).join('') || '<div style="color:var(--muted);font-size:12px;">データなし</div>'}
+      </div>
+      <div class="kpi-card">
+        <h3>支払い方法 内訳</h3>
+        ${Object.entries(payCount).sort((a, b) => b[1] - a[1]).map(([k, c]) => {
+          const pct = totalVisits > 0 ? Math.round(c / totalVisits * 100) : 0;
+          return `<div class="kpi-row"><span>${k}</span><span><span class="pill pill-green">${c}件(${pct}%)</span></span></div>`;
+        }).join('')}
+      </div>
+      <div class="kpi-card">
+        <h3>リピーター分析（期間内）</h3>
+        <div class="kpi-row"><span>1回のみ来院</span><span><span class="pill pill-blue">${singleVisitors}人</span></span></div>
+        <div class="kpi-row"><span>2回以上来院</span><span><span class="pill pill-green">${repeaters}人</span></span></div>
+        <div class="kpi-row"><span>リピーター率</span><span><span class="pill pill-purple">${repeaterRate}%</span></span></div>
+        ${topRepeater ? `<div class="kpi-row"><span>最多来院</span><span><span class="pill pill-amber">${topRepeater[1]}回</span></span></div>` : ''}
+      </div>
+    </div>
+
+    ${topDrugs.length > 0 ? `
+    <div class="tables">
+      <div class="table-section">
+        <h3>処方・検査キット ランキング TOP10</h3>
+        <table><tr><th>#</th><th>品目</th><th>回数</th></tr>
+        ${topDrugs.map((d, i) => `<tr><td>${i + 1}</td><td>${d[0]}</td><td><span class="pill pill-blue">${d[1]}</span></td></tr>`).join('')}
+        </table>
+      </div>
+      <div class="table-section">
+        <h3>性別比</h3><canvas id="chartSex" style="max-height:240px;"></canvas>
+      </div>
+    </div>` : ''}
+  `;
+
+  // ===== Charts =====
+  const gridColor = '#1e293b';
+
+  if (monthLabels.length > 0) {
+    _charts.monthly = new Chart(document.getElementById('chartMonthly'), {
+      type: 'bar',
+      data: {
+        labels: monthLabels,
+        datasets: [
+          { label: '受診件数', data: monthData, backgroundColor: 'rgba(56,189,248,0.6)', borderColor: '#38bdf8', borderWidth: 1, yAxisID: 'y', datalabels: dlBar },
+          { label: '収益(万円)', data: monthRevData.map(v => Math.round(v / 10000)), type: 'line', borderColor: '#fbbf24', backgroundColor: 'rgba(251,191,36,0.1)', fill: true, tension: 0.3, yAxisID: 'y1', pointRadius: 4, pointBackgroundColor: '#fbbf24', datalabels: dlLine }
+        ]
+      },
+      options: {
+        responsive: true, layout: { padding: { top: 24 } },
+        plugins: { legend: { labels: { color: '#94a3b8' } }, datalabels: {} },
+        scales: {
+          x: { ticks: { color: '#94a3b8' }, grid: { color: gridColor } },
+          y: { position: 'left', ticks: { color: '#38bdf8' }, grid: { color: gridColor }, title: { display: true, text: '件数', color: '#38bdf8' } },
+          y1: { position: 'right', ticks: { color: '#fbbf24' }, grid: { display: false }, title: { display: true, text: '万円', color: '#fbbf24' } }
+        }
+      }
+    });
+  }
+
+  if (dayLabels.length > 0) {
+    _charts.daily = new Chart(document.getElementById('chartDaily'), {
+      type: 'bar',
+      data: { labels: dayLabels.map(d => d.substring(5)), datasets: [{ label: '受診件数', data: dayData, backgroundColor: 'rgba(74,222,128,0.5)', borderColor: '#4ade80', borderWidth: 1, datalabels: { display: true, anchor: 'end', align: 'top', color: '#e2e8f0', font: { size: 10, weight: 'bold' }, formatter: v => v } }] },
+      options: { responsive: true, layout: { padding: { top: 20 } }, plugins: { legend: { display: false }, datalabels: {} }, scales: { x: { ticks: { color: '#94a3b8', maxRotation: 60, font: { size: 10 } }, grid: { color: gridColor } }, y: { ticks: { color: '#94a3b8' }, grid: { color: gridColor } } } }
+    });
+  }
+
+  // 時間帯別
+  _charts.time = new Chart(document.getElementById('chartTime'), {
+    type: 'bar',
+    data: { labels: TIME_SLOTS.map(s => s.replace('：', ':').slice(0, 5)), datasets: [{ label: '受診件数', data: TIME_SLOTS.map(s => slotCount[s] || 0), backgroundColor: 'rgba(56,189,248,0.55)', borderColor: '#38bdf8', borderWidth: 1, datalabels: dlBar }] },
+    options: { responsive: true, layout: { padding: { top: 20 } }, plugins: { legend: { display: false }, datalabels: {} }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: gridColor } }, y: { ticks: { color: '#94a3b8' }, grid: { color: gridColor } } } }
+  });
+
+  // 種別（4区分）
+  const typeLabels = Object.keys(typeCount);
+  _charts.type = new Chart(document.getElementById('chartType'), {
+    type: 'doughnut',
+    data: { labels: typeLabels, datasets: [{ data: typeLabels.map(k => typeCount[k]), backgroundColor: ['#38bdf8', '#a78bfa', '#4ade80', '#fbbf24', '#fb7185'], datalabels: dlDoughnut }] },
+    options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } }, datalabels: {} } }
+  });
+
+  // 保険種別
+  const insLabels = Object.keys(insCount);
+  _charts.insurance = new Chart(document.getElementById('chartInsurance'), {
+    type: 'doughnut',
+    data: { labels: insLabels, datasets: [{ data: insLabels.map(k => insCount[k]), backgroundColor: ['#38bdf8', '#4ade80', '#fbbf24', '#fb7185', '#a78bfa'], datalabels: dlDoughnut }] },
+    options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } }, datalabels: {} } }
+  });
+
+  // 支払い方法
+  const payLabels = Object.keys(payCount);
+  _charts.payment = new Chart(document.getElementById('chartPayment'), {
+    type: 'doughnut',
+    data: { labels: payLabels, datasets: [{ data: payLabels.map(k => payCount[k]), backgroundColor: ['#4ade80', '#38bdf8', '#94a3b8', '#fbbf24'], datalabels: dlDoughnut }] },
+    options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } }, datalabels: {} } }
+  });
+
+  // 年齢層
+  const ageLabels = Object.keys(ageGroups);
+  _charts.age = new Chart(document.getElementById('chartAge'), {
+    type: 'bar',
+    data: { labels: ageLabels, datasets: [{ label: '患者数', data: ageLabels.map(k => ageGroups[k]), backgroundColor: 'rgba(167,139,250,0.6)', borderColor: '#a78bfa', borderWidth: 1, datalabels: dlBar }] },
+    options: { responsive: true, layout: { padding: { top: 20 } }, plugins: { legend: { display: false }, datalabels: {} }, scales: { x: { ticks: { color: '#94a3b8' }, grid: { color: gridColor } }, y: { ticks: { color: '#94a3b8' }, grid: { color: gridColor } } } }
+  });
+
+  // 曜日別
+  const dowColors = ['#fb7185', '#38bdf8', '#38bdf8', '#38bdf8', '#38bdf8', '#38bdf8', '#fbbf24'];
+  _charts.dow = new Chart(document.getElementById('chartDow'), {
+    type: 'bar',
+    data: { labels: dowNames, datasets: [{ label: '受診件数', data: dowCount, backgroundColor: dowColors.map(c => c + '99'), borderColor: dowColors, borderWidth: 1, datalabels: dlBar }] },
+    options: { responsive: true, layout: { padding: { top: 20 } }, plugins: { legend: { display: false }, datalabels: {} }, scales: { x: { ticks: { color: '#94a3b8' }, grid: { color: gridColor } }, y: { ticks: { color: '#94a3b8' }, grid: { color: gridColor } } } }
+  });
+
+  // 性別比
+  const sexEl = document.getElementById('chartSex');
+  if (sexEl) {
+    _charts.sex = new Chart(sexEl, {
+      type: 'doughnut',
+      data: { labels: ['男性', '女性'], datasets: [{ data: [sexCount['男'], sexCount['女']], backgroundColor: ['#38bdf8', '#fb7185'], datalabels: dlDoughnut }] },
+      options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } }, datalabels: {} } }
+    });
+  }
+}
+</script>
+</body>
+</html>
