@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1024">
+<title>ドライブスルー診療 電子カルテ v0.9</title>
+<link rel="stylesheet" href="style.css?v=20260605_v08f">
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+</head>
+<body>
+
+<!-- ============================================================
+     LOGIN OVERLAY
+     ============================================================ -->
+<div id="loginOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#f0f4f8;align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:#fff;border:1px solid #d1d5db;border-radius:12px;padding:40px 36px;width:380px;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:28px;margin-bottom:8px;">&#127973;</div>
+      <h2 style="margin:0;font-size:18px;color:#1e293b;">電子カルテ ログイン</h2>
+      <p style="margin:6px 0 0;font-size:12px;color:#64748b;">認証が必要です</p>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">メールアドレス</label>
+      <input type="email" id="loginEmail" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;" placeholder="user@example.com">
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">パスワード</label>
+      <input type="password" id="loginPassword" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;" placeholder="********" onkeydown="if(event.key==='Enter')handleLogin()">
+    </div>
+    <button id="loginBtn" onclick="handleLogin()" style="width:100%;padding:12px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">ログイン</button>
+    <div style="margin:16px 0 8px;display:flex;align-items:center;gap:12px;">
+      <div style="flex:1;height:1px;background:#d1d5db;"></div>
+      <span style="font-size:11px;color:#94a3b8;">または</span>
+      <div style="flex:1;height:1px;background:#d1d5db;"></div>
+    </div>
+    <button id="googleLoginBtn" onclick="handleGoogleLogin()" style="width:100%;padding:10px;background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.0 24.0 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Googleでログイン
+    </button>
+    <div id="loginError" style="margin-top:12px;color:#dc2626;font-size:12px;text-align:center;min-height:18px;"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     APP CONTAINER (hidden until authenticated)
+     ============================================================ -->
+<div id="appContainer">
+
+<!-- ============================================================
+     SCREEN 1: Patient List (Top page)
+     ============================================================ -->
+<div class="screen active" id="screenList">
+  <div class="header">
+    <span class="logo">&#127973; 西春内科 ドライブスルー診療カルテ</span>
+    <span id="revisionBadge" style="display:none;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;margin-left:8px;"></span>
+    <div class="spacer"></div>
+    <span class="clock" id="clockList">00:00:00</span>
+    <span id="authUserBadge" style="display:none;background:#dbeafe;color:#1d4ed8;padding:3px 10px;border-radius:6px;font-size:11px;margin-left:8px;"></span>
+    <button onclick="window.open('receipt.html','_blank')" style="font-size:11px;padding:4px 10px;background:#3a6b35;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-left:4px;">&#128203; レセプト点検</button>
+    <button onclick="openUserManager()" style="font-size:11px;padding:4px 10px;background:#6366f1;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-left:4px;">ID管理</button>
+    <button onclick="handleLogout()" style="font-size:11px;padding:4px 10px;background:#ef4444;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-left:4px;">ログアウト</button>
+  </div>
+
+  <div class="list-toolbar">
+    <div class="date-nav">
+      <button onclick="changeDate(-1)">&#9664;</button>
+      <input type="date" class="date-input" id="listDate" onchange="onDateChange()">
+      <button onclick="changeDate(1)">&#9654;</button>
+      <button onclick="setToday()" style="font-size:12px;width:auto;padding:0 8px;">今日</button>
+    </div>
+    <div class="list-stats">
+      <div class="stat"><div class="stat-dot" style="background:var(--text-light)"></div><span class="stat-num" id="listWait">0</span> 待機</div>
+      <div class="stat"><div class="stat-dot" style="background:var(--success)"></div><span class="stat-num" id="listActive">0</span> 診察中</div>
+      <div class="stat"><div class="stat-dot" style="background:var(--primary)"></div><span class="stat-num" id="listDone">0</span> 完了</div>
+    </div>
+    <div class="spacer"></div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <input type="text" id="dbPatientSearch" placeholder="DB患者検索..." style="width:160px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;" oninput="onDbPatientSearch(this.value)">
+      <button class="new-patient-btn" style="font-size:11px;padding:4px 10px;background:var(--info,#2563eb);border:none;color:#fff;border-radius:6px;cursor:pointer;white-space:nowrap;" onclick="toggleDbPatientList()">DB患者一覧</button>
+    </div>
+    <div style="display:flex;gap:4px;align-items:center;">
+      <span style="font-size:11px;color:var(--text-muted);">並替:</span>
+      <button class="sort-btn" id="sortBtnName" onclick="sortPatientList('name')" title="名前順">名前</button>
+      <button class="sort-btn" id="sortBtnArrival" onclick="sortPatientList('arrival')" title="来院順">来院</button>
+      <button class="sort-btn" id="sortBtnStatus" onclick="sortPatientList('status')" title="状態順">状態</button>
+    </div>
+    <button class="new-patient-btn" onclick="openNewPatientModal()">+ 新規受付</button>
+    <span id="shiftBadge" style="display:none;background:#dbeafe;color:#1d4ed8;padding:4px 10px;border-radius:6px;font-size:11px;white-space:nowrap;"></span>
+  </div>
+
+  <div id="dbPatientResults" style="display:none;margin:0 0 8px;max-height:200px;overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:8px;font-size:12px;"></div>
+
+  <div class="list-container">
+    <table class="patient-table">
+      <thead>
+        <tr>
+          <th style="cursor:pointer;user-select:none;" onclick="sortPatientList('number')" title="番号順"># <span id="sortHeaderNum"></span></th>
+          <th>状態</th>
+          <th>患者名</th>
+          <th>年齢/性別</th>
+          <th>保険</th>
+          <th>アレルギー</th>
+          <th>レーン</th>
+          <th>問診票</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="patientListBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN 2: Karte Dashboard (v0.3 restructured)
+     ============================================================ -->
+<div class="screen" id="screenKarte">
+  <div class="header header-karte">
+    <button class="back-btn" onclick="goToList()">&#9664; 一覧に戻る</button>
+    <select id="patientSelect" onchange="switchPatient(this.value)"></select>
+    <span class="patient-name" id="hdrName">---</span>
+    <span class="patient-kana" id="hdrKana"></span>
+    <div class="patient-meta">
+      <span id="hdrId">ID: ---</span>
+      <span id="hdrAge">---</span>
+      <span id="hdrSex">---</span>
+      <span class="insurance-badge" id="hdrInsurance">---</span>
+      <span class="time-surcharge-badge" id="hdrSurcharge"></span>
+    </div>
+    <div class="spacer"></div>
+    <button class="exam-start-btn" id="examStartBtn" onclick="toggleExamStart()">診察開始</button>
+    <span class="clock" id="clockKarte">00:00:00</span>
+  </div>
+
+  <!-- 受診情報バー -->
+  <div class="visit-info-bar" id="visitInfoBar">
+    <div class="visit-info-item">
+      <span class="visit-info-label">受診日</span>
+      <span class="visit-info-value" id="visitDate">---</span>
+    </div>
+    <div class="visit-info-item">
+      <span class="visit-info-label">診療科</span>
+      <select id="visitDepartment" class="visit-info-select" onchange="onVisitInfoChange()">
+        <option value="内科">内科</option>
+        <option value="外科">外科</option>
+        <option value="小児科">小児科</option>
+        <option value="皮膚科">皮膚科</option>
+        <option value="整形外科">整形外科</option>
+        <option value="耳鼻咽喉科">耳鼻咽喉科</option>
+        <option value="眼科">眼科</option>
+        <option value="在宅">在宅</option>
+      </select>
+    </div>
+    <div class="visit-info-item">
+      <span class="visit-info-label">担当医</span>
+      <select id="visitDoctor" class="visit-info-select" onchange="onVisitInfoChange()">
+        <option value="">---</option>
+      </select>
+    </div>
+    <div class="visit-info-item">
+      <span class="visit-info-label">保険種別</span>
+      <span class="visit-info-value" id="visitInsuranceType">---</span>
+    </div>
+  </div>
+
+  <div class="main-grid" id="mainGrid">
+    <!-- Left: Patient Info (TABBED - Phase 3) -->
+    <div class="panel patient-info">
+      <div class="panel-title">
+        <span class="icon">&#128100;</span> 患者情報
+        <div class="panel-actions"><button class="panel-action-btn" onclick="openEditPatientModal()">編集</button></div>
+      </div>
+      <div class="patient-tabs-row" id="patientTabsRow1">
+        <div class="patient-tab active" data-tab="basic" onclick="switchPatientTab('basic')">基本</div>
+        <div class="patient-tab" data-tab="insurance" onclick="switchPatientTab('insurance')">保険</div>
+        <div class="patient-tab" data-tab="allergy" onclick="switchPatientTab('allergy')">副作用薬</div>
+        <div class="patient-tab" data-tab="vitals" onclick="switchPatientTab('vitals')">バイタル</div>
+      </div>
+      <div class="patient-tabs-row" id="patientTabsRow2">
+        <div class="patient-tab" data-tab="history" onclick="switchPatientTab('history')">診療履歴</div>
+        <div class="patient-tab" data-tab="rxhistory" onclick="switchPatientTab('rxhistory')">投薬履歴</div>
+        <div class="patient-tab" data-tab="diseases" onclick="switchPatientTab('diseases')">傷病名</div>
+        <div class="patient-tab" data-tab="exam" onclick="switchPatientTab('exam')">検査</div>
+      </div>
+      <div class="panel-body" id="patientInfoBody"></div>
+    </div>
+
+    <!-- Resize handle: Left | Center -->
+    <div class="col-resize-handle" id="resizeLeft" title="ドラッグで幅調整"></div>
+
+    <!-- Center: Karte (LEFT-RIGHT SPLIT - Phase 1+2) -->
+    <div class="panel karte-center-panel">
+      <!-- Top: Chief Complaint + Karte Split -->
+      <div class="panel-title"><span class="icon">&#128221;</span> カルテ記載</div>
+      <div class="panel-body karte-center-body">
+        <div class="form-group">
+          <label class="form-label">主訴</label>
+          <div class="chief-complaint-wrap">
+            <select id="chiefComplaintSelect" onchange="onChiefComplaintSelect(this.value)">
+              <option value="">選択...</option>
+              <option>発熱</option><option>咳嗽</option><option>咽頭痛</option><option>鼻汁</option>
+              <option>頭痛</option><option>腹痛</option><option>嘔吐・下痢</option><option>倦怠感</option>
+              <option>胸痛</option><option>呼吸困難</option><option>めまい</option><option>腰痛</option>
+              <option>関節痛</option><option>皮疹</option><option>排尿障害</option><option>定期処方</option>
+            </select>
+            <input type="text" class="form-input" id="chiefComplaint" placeholder="主訴を入力（自由記載）">
+          </div>
+        </div>
+
+        <!-- 音声文字起こしセクション -->
+        <div class="whisper-section" id="whisperSection">
+          <div class="whisper-header">
+            <span class="whisper-title">&#127908; 音声カルテ</span>
+            <div class="whisper-controls">
+              <select id="whisperMicSelect" class="whisper-mic-select">
+                <option value="">マイク選択...</option>
+              </select>
+              <button class="whisper-rec-btn" id="whisperRecBtn" onclick="whisperToggleRecord()" disabled>
+                <span class="rec-dot"></span> 録音
+              </button>
+              <span class="whisper-time" id="whisperTime">00:00</span>
+              <span class="whisper-separator">|</span>
+              <label class="whisper-upload-btn" id="whisperUploadLabel">
+                &#128193; ファイル読込
+                <input type="file" id="whisperFileInput" accept="audio/*,video/*,.m4a,.mp3,.wav,.webm,.ogg,.mp4" style="display:none" onchange="whisperUploadFile(this)">
+              </label>
+              <span id="whisperFileName" class="whisper-file-name"></span>
+              <select id="whisperPromptSelect" class="whisper-prompt-select">
+                <option value="karte">カルテ</option>
+              </select>
+              <button class="whisper-gen-btn" id="whisperGenBtn" onclick="whisperGenerate()" disabled>カルテ生成</button>
+              <button class="whisper-apply-btn" id="whisperApplyBtn" onclick="whisperApplyToFields()" disabled>反映</button>
+            </div>
+          </div>
+          <div class="whisper-body" id="whisperBody" style="display:none;">
+            <div class="whisper-transcript-area">
+              <div class="whisper-label">文字起こし <button class="whisper-copy-btn" onclick="whisperCopy('whisperTranscript')">コピー</button></div>
+              <textarea id="whisperTranscript" class="whisper-textarea" rows="3" placeholder="録音すると文字起こし結果が表示されます..."></textarea>
+            </div>
+            <div class="whisper-karte-area">
+              <div class="whisper-label">AI生成カルテ <button class="whisper-copy-btn" onclick="whisperCopy('whisperKarte')">コピー</button></div>
+              <textarea id="whisperKarte" class="whisper-textarea" rows="4" placeholder="「カルテ生成」を押すとAIが整形します..." readonly></textarea>
+            </div>
+            <div class="whisper-status" id="whisperStatus"></div>
+          </div>
+        </div>
+
+        <!-- Karte Left-Right Split -->
+        <div class="karte-split">
+          <!-- Left: Findings (Rich Text) -->
+          <div class="karte-split-col">
+            <div class="karte-split-title">主訴・所見</div>
+            <div class="richtext-toolbar">
+              <button class="rt-btn rt-color-black" onclick="rtExec('foreColor','#000000')" title="黒">A</button>
+              <button class="rt-btn rt-color-red" onclick="rtExec('foreColor','#dc2626')" title="赤">A</button>
+              <button class="rt-btn rt-color-blue" onclick="rtExec('foreColor','#2563eb')" title="青">A</button>
+              <span class="rt-sep"></span>
+              <button class="rt-btn" onclick="rtExec('fontSize','2')" title="小">小</button>
+              <button class="rt-btn" onclick="rtExec('fontSize','4')" title="大" style="font-weight:700;">大</button>
+              <span class="rt-sep"></span>
+              <button class="rt-btn" onclick="rtExec('bold')" title="太字" style="font-weight:700;">B</button>
+            </div>
+            <div class="richtext-editor" id="findingsEditor" contenteditable="true" data-placeholder="[現病歴]&#10;&#10;[身体所見]&#10;&#10;[A&P]"></div>
+          </div>
+          <!-- Resize handle: Findings | Actions -->
+          <div class="split-resize-handle" id="resizeSplit" title="ドラッグで幅調整"></div>
+          <!-- Right: Actions & Billing -->
+          <div class="karte-split-col">
+            <div class="karte-split-title">処置・行為</div>
+            <div class="actions-body" id="actionsBody">
+              <div id="billingBody">
+                <div class="billing-row"><span class="label">初再診料</span><span class="value" id="billShoshin">---</span></div>
+                <div class="billing-row"><span class="label">外来管理加算</span><span class="value" id="billGairai">---</span></div>
+                <div class="billing-row" id="billSurchargeRow" style="display:none"><span class="label">時間外加算</span><span class="value surcharge" id="billSurcharge">---</span></div>
+                <div class="billing-row"><span class="label">処方料</span><span class="value" id="billShohou">---</span></div>
+                <div class="billing-row"><span class="label">調剤料</span><span class="value" id="billChouzai">---</span></div>
+                <div class="billing-row"><span class="label">薬剤料</span><span class="value" id="billYakuzai">---</span></div>
+                <div class="billing-row" id="billExamRow" style="display:none"><span class="label">検査料</span><span class="value" id="billExam">---</span></div>
+                <div class="billing-divider"></div>
+                <div class="billing-total"><span>合計点数</span><span id="billTotal">---</span></div>
+                <div class="billing-burden"><span>患者負担額</span><span id="billBurden">---</span></div>
+              </div>
+              <div class="billing-actions">
+                <button class="btn btn-outline" onclick="saveKarteDraft()">一時保存</button>
+                <button class="btn btn-primary" onclick="confirmBilling()">確定</button>
+                <button class="btn btn-outline" onclick="printBilling()">印刷</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vitals -->
+        <div class="form-group" style="margin-top:6px;">
+          <label class="form-label">バイタルサイン</label>
+          <div class="vital-grid">
+            <div class="vital-item"><label>T</label><input type="text" id="vitalT" placeholder="36.5"><span class="unit">&deg;C</span></div>
+            <div class="vital-item"><label>BP</label><div class="bp-group"><input type="text" id="vitalBPS" placeholder="120"><span class="slash">/</span><input type="text" id="vitalBPD" placeholder="80"></div><span class="unit">mmHg</span></div>
+            <div class="vital-item"><label>SpO2</label><input type="text" id="vitalSpO2" placeholder="98"><span class="unit">%</span></div>
+            <div class="vital-item"><label>P</label><input type="text" id="vitalP" placeholder="72"><span class="unit">/min</span></div>
+          </div>
+        </div>
+
+        <!-- Disease -->
+        <div class="form-group">
+          <label class="form-label">傷病名</label>
+          <div class="disease-search-wrap">
+            <input type="text" class="form-input" id="diseaseSearch" placeholder="病名を検索..." oninput="searchDisease(this.value)" onfocus="searchDisease(this.value)">
+            <div class="disease-results" id="diseaseResults"></div>
+          </div>
+          <div class="disease-quick-btns" id="diseaseQuickBtns"></div>
+          <div class="selected-diseases" id="selectedDiseases"></div>
+        </div>
+
+        <!-- Prescription -->
+        <div class="form-group">
+          <label class="form-label">処方入力
+            <label class="rx-mode-toggle" style="margin-left:12px;font-weight:400;font-size:11px;cursor:pointer;">
+              <input type="checkbox" id="rxModeExternal" onchange="toggleRxMode(this.checked)"> 院外処方
+            </label>
+          </label>
+          <div class="set-order-btns" id="setOrderBtns"></div>
+          <div class="drug-search-wrap">
+            <input type="text" class="form-input" id="drugSearch" placeholder="薬品名で検索..." oninput="searchDrug(this.value)" onfocus="searchDrug(this.value)">
+            <div class="drug-results" id="drugResults"></div>
+          </div>
+          <ul class="rx-list" id="rxList"></ul>
+          <div class="rx-days-row">
+            <label>一括日数</label>
+            <input type="number" id="rxDays" value="7" min="1" max="90" onchange="applyBulkDays(this.value)">
+            <span class="unit">日分</span>
+            <span style="font-size:10px;color:var(--text-muted);margin-left:4px;">※個別設定は各薬右側</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resize handle: Center | Right -->
+    <div class="col-resize-handle" id="resizeRight" title="ドラッグで幅調整"></div>
+
+    <!-- Right: Billing Menu (TABBED - Phase 4) + Waiting -->
+    <div class="panel right-panel">
+      <div class="right-panel-sections">
+        <!-- 算定メニュー -->
+        <div class="right-section">
+          <div class="right-section-title"><span class="icon">&#128176;</span> 算定メニュー</div>
+          <div class="right-section-body">
+            <input type="text" class="form-input billing-menu-search" id="billingMenuSearch" placeholder="キーワード検索..." oninput="filterBillingMenu(this.value)">
+            <div class="billing-menu-tabs" id="billingMenuTabs">
+              <div class="bm-tab bm-tab-mylist" data-cat="mylist" onclick="switchBillingTab('mylist')">&#9733; マイリスト</div>
+              <div class="bm-tab active" data-cat="initial" onclick="switchBillingTab('initial')">初再診</div>
+              <div class="bm-tab" data-cat="management" onclick="switchBillingTab('management')">管理</div>
+              <div class="bm-tab" data-cat="procedure" onclick="switchBillingTab('procedure')">処置</div>
+              <div class="bm-tab" data-cat="labtest" onclick="switchBillingTab('labtest')">検査</div>
+              <div class="bm-tab" data-cat="injection" onclick="switchBillingTab('injection')">注射</div>
+              <div class="bm-tab" data-cat="imaging" onclick="switchBillingTab('imaging')">画像</div>
+            </div>
+            <div class="billing-menu-items" id="billingMenuItems"></div>
+            <div id="addedBillingList" class="added-billing-list" style="display:none;">
+              <div style="font-size:11px;font-weight:600;color:var(--primary);margin:8px 0 4px;border-top:1px solid var(--border);padding-top:6px;">追加済み算定</div>
+              <div id="addedBillingItems"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 検査・文書（機能8: 折りたたみ対応） -->
+        <div class="right-section">
+          <div class="right-section-title collapsible" onclick="toggleExamSection()" style="cursor:pointer;">
+            <span class="icon">&#128300;</span> 検査・文書
+            <span id="examCollapseIcon" style="float:right;font-size:10px;color:var(--text-muted);">&#9660;</span>
+          </div>
+          <div class="right-section-body" id="examSectionBody">
+            <div class="info-section">
+              <div class="info-section-title">検査登録</div>
+              <ul class="exam-check-list" id="examCheckList"></ul>
+            </div>
+            <div class="info-section">
+              <div class="info-section-title">文書作成</div>
+              <div class="doc-btns">
+                <button class="doc-btn" onclick="openDocModal('referral')">&#128196; 診療情報提供書（紹介状）</button>
+                <button class="doc-btn" onclick="openDocModal('diagnosis')">&#128196; 診断書</button>
+                <button class="doc-btn" onclick="openDocModal('prescription')">&#128196; 院外処方箋</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 待機患者 -->
+        <div class="right-section">
+          <div class="right-section-title"><span class="icon">&#128663;</span> 待機患者</div>
+          <div class="right-section-body">
+            <div class="waiting-stats">
+              <div class="waiting-stat"><div class="num" id="waitCount">0</div><div class="lbl">待機中</div></div>
+              <div class="waiting-stat"><div class="num" id="doneCount">0</div><div class="lbl">診察済</div></div>
+            </div>
+            <div id="waitingList"></div>
+            <div class="nav-btns">
+              <button class="nav-btn prev-patient-btn" id="prevPatientBtn" onclick="callPrevPatient()" disabled>&#9664; 前の患者</button>
+              <button class="nav-btn next-patient-btn" onclick="callNextPatient()">次の患者 &#9654;</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Patient Edit Modal -->
+<div class="modal-overlay" id="editPatientModal">
+  <div class="modal">
+    <h3>患者情報の編集 <button class="modal-close" onclick="closeModal('editPatientModal')">&times;</button></h3>
+    <div class="edit-form-row"><label>氏名</label><input type="text" id="editName"></div>
+    <div class="edit-form-row"><label>フリガナ</label><input type="text" id="editNameKana" placeholder="タナカタロウ"></div>
+    <div class="edit-form-row"><label>生年月日</label><input type="date" id="editDob"></div>
+    <div class="edit-form-row"><label>性別</label><select id="editSex"><option value="男">男</option><option value="女">女</option></select></div>
+    <div class="edit-form-row"><label>住所</label><input type="text" id="editAddress"></div>
+    <div class="edit-form-row"><label>電話番号</label><input type="text" id="editPhone"></div>
+    <div class="edit-form-row"><label>保険種別</label>
+      <select id="editInsurance">
+        <option value="社保3割">社保3割</option><option value="国保3割">国保3割</option>
+        <option value="後期高齢者1割">後期高齢者1割</option><option value="後期高齢者2割">後期高齢者2割</option><option value="後期高齢者3割">後期高齢者3割</option>
+        <option value="公費">公費</option><option value="自費">自費</option>
+      </select>
+    </div>
+    <div class="edit-form-row"><label>アレルギー</label><input type="text" id="editAllergies" placeholder="カンマ区切り"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('editPatientModal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="savePatientEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Patient Modal (Phase 5 - enhanced) -->
+<div class="modal-overlay" id="newPatientModal">
+  <div class="modal" style="min-width:500px;">
+    <h3>新規患者登録 <button class="modal-close" onclick="closeModal('newPatientModal')">&times;</button></h3>
+
+    <!-- 保険証読取セクション -->
+    <div class="ocr-section">
+      <div class="ocr-header">
+        <span class="ocr-icon">&#128247;</span>
+        <span>保険証読取</span>
+        <button class="btn btn-sm btn-outline" onclick="document.getElementById('ocrFileInput').click()">ファイル選択</button>
+        <button class="btn btn-sm btn-primary" onclick="startOcrCamera()">カメラ起動</button>
+        <input type="file" id="ocrFileInput" accept="image/*" style="display:none" onchange="onOcrFileSelected(this)">
+      </div>
+      <!-- カメラプレビュー -->
+      <div id="ocrCameraWrap" style="display:none;">
+        <video id="ocrVideo" autoplay playsinline style="width:100%;max-height:240px;border-radius:6px;background:#000;"></video>
+        <div style="text-align:center;margin-top:6px;">
+          <button class="btn btn-sm btn-primary" onclick="captureOcrPhoto()">撮影</button>
+          <button class="btn btn-sm btn-outline" onclick="stopOcrCamera()">閉じる</button>
+        </div>
+      </div>
+      <!-- 読取結果プレビュー -->
+      <div id="ocrPreviewWrap" style="display:none;">
+        <div class="ocr-preview-row">
+          <img id="ocrPreviewImg" style="max-height:160px;border-radius:6px;border:1px solid var(--border);">
+          <div id="ocrResultPanel" class="ocr-result-panel">
+            <div id="ocrProgressArea" style="display:none;">
+              <div class="ocr-progress-bar"><div id="ocrProgressFill" class="ocr-progress-fill"></div></div>
+              <span id="ocrProgressText" style="font-size:11px;color:var(--text-muted);">準備中...</span>
+            </div>
+            <div id="ocrResultArea" style="display:none;"></div>
+          </div>
+        </div>
+        <div style="text-align:right;margin-top:6px;">
+          <button class="btn btn-sm btn-outline" onclick="clearOcrPreview()">クリア</button>
+          <button class="btn btn-sm btn-success" id="ocrApplyBtn" style="display:none;" onclick="applyOcrResults()">読取結果を反映</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="edit-form-row">
+      <label>患者番号<span class="req">*</span></label>
+      <input type="text" id="newPatientNo" class="auto-field" readonly>
+      <span style="font-size:10px;color:var(--text-muted);">自動採番</span>
+    </div>
+    <div class="edit-form-row"><label>漢字氏名<span class="req">*</span></label><input type="text" id="newName" placeholder="山田 太郎"><span id="newNameGuess" class="ocr-guess-hint" style="display:none;"></span></div>
+    <div class="edit-form-row"><label>カナ氏名<span class="req">*</span></label><input type="text" id="newNameKana" placeholder="ヤマダ タロウ（全角カナ）"></div>
+    <div class="edit-form-row">
+      <label>性別<span class="req">*</span></label>
+      <div class="radio-group">
+        <label class="radio-label"><input type="radio" name="newSex" value="男" checked> 男性</label>
+        <label class="radio-label"><input type="radio" name="newSex" value="女"> 女性</label>
+      </div>
+    </div>
+    <div class="edit-form-row"><label>生年月日<span class="req">*</span></label><input type="date" id="newDob"></div>
+    <div class="edit-form-row" style="align-items:flex-start;">
+      <label style="margin-top:8px;">住所</label>
+      <div class="addr-grid">
+        <div class="addr-zip-row">
+          <input type="text" id="newZip" placeholder="460-0001" style="width:120px;" oninput="autoFillAddress(this.value)">
+          <span style="font-size:10px;color:var(--primary);">郵便番号で自動入力</span>
+        </div>
+        <div class="addr-detail-row">
+          <input type="text" id="newPref" placeholder="都道府県" style="width:48%;">
+          <input type="text" id="newCity" placeholder="市区町村" style="width:48%;">
+        </div>
+        <input type="text" id="newStreet" placeholder="番地" style="width:100%;">
+        <input type="text" id="newBuilding" placeholder="建物名・号室" style="width:100%;">
+      </div>
+    </div>
+    <div class="edit-form-row"><label>電話番号1</label><input type="text" id="newPhone" placeholder="090-1234-5678"></div>
+    <div class="edit-form-row"><label>電話番号2</label><input type="text" id="newPhone2" placeholder="0568-12-3456（自宅等）"></div>
+    <div class="edit-form-row"><label>施設</label><input type="text" id="newFacility" placeholder="（在宅患者の所属施設名）"></div>
+    <div class="edit-form-row"><label>保険者番号</label>
+      <div style="display:flex;gap:6px;">
+        <input type="text" id="newInsurerNumber" placeholder="6桁(国保) or 8桁(社保等)" style="flex:1;" oninput="onNewInsurerNumberInput(this.value)">
+        <span id="newInsurerStatus" style="font-size:11px;align-self:center;white-space:nowrap;"></span>
+      </div>
+    </div>
+    <div class="edit-form-row"><label>保険種別</label>
+      <select id="newInsurance">
+        <option value="社保3割">社保3割</option><option value="国保3割">国保3割</option>
+        <option value="後期高齢者1割">後期高齢者1割</option><option value="後期高齢者2割">後期高齢者2割</option><option value="後期高齢者3割">後期高齢者3割</option>
+        <option value="公費">公費</option><option value="自費">自費</option>
+      </select>
+    </div>
+    <div class="edit-form-row"><label>車両番号</label><input type="text" id="newPlate" placeholder="名古屋 500 あ 12-34"></div>
+    <div class="edit-form-row"><label>レーン</label><input type="number" id="newLane" value="1" min="1" max="10"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('newPatientModal')">キャンセル</button>
+      <button class="btn btn-outline" onclick="addNewPatient(false)">登録のみ</button>
+      <button class="btn btn-success" onclick="addNewPatient(true)">登録して受付</button>
+    </div>
+  </div>
+</div>
+
+<!-- Document Modal -->
+<div class="modal-overlay" id="docModal">
+  <div class="modal">
+    <h3 id="docModalTitle">文書作成 <button class="modal-close" onclick="closeModal('docModal')">&times;</button></h3>
+    <div id="docModalBody"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('docModal')">キャンセル</button>
+      <button class="btn btn-outline" onclick="showToast('印刷します（モック）')">印刷</button>
+      <button class="btn btn-primary" onclick="saveDocument()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Insurance Photo Modal (v0.8: OCR/QR + 削除 + 受給者番号) -->
+<div class="modal-overlay" id="insurancePhotoModal">
+  <div class="modal" style="max-width:560px;">
+    <h3>保険証情報 <button class="modal-close" onclick="closeModal('insurancePhotoModal')">&times;</button></h3>
+
+    <!-- OCR/QR読取セクション（機能10: 既存患者にもOCR/QR追加） -->
+    <div class="ocr-section" style="margin-bottom:10px;">
+      <div class="ocr-header">
+        <span class="ocr-icon">&#128247;</span>
+        <span>保険証読取</span>
+        <button class="btn btn-sm btn-outline" onclick="document.getElementById('insuranceOcrFileInput').click()">ファイル選択</button>
+        <button class="btn btn-sm btn-primary" onclick="startInsuranceOcrCamera()">カメラ起動</button>
+        <input type="file" id="insuranceOcrFileInput" accept="image/*" style="display:none" onchange="onInsuranceOcrFileSelected(this)">
+      </div>
+      <div id="insuranceOcrCameraWrap" style="display:none;">
+        <video id="insuranceOcrVideo" autoplay playsinline style="width:100%;max-height:200px;border-radius:6px;background:#000;"></video>
+        <div style="text-align:center;margin-top:6px;">
+          <button class="btn btn-sm btn-primary" onclick="captureInsuranceOcrPhoto()">撮影</button>
+          <button class="btn btn-sm btn-outline" onclick="stopInsuranceOcrCamera()">閉じる</button>
+        </div>
+      </div>
+      <div id="insuranceOcrPreviewWrap" style="display:none;">
+        <div class="ocr-preview-row">
+          <img id="insuranceOcrPreviewImg" style="max-height:140px;border-radius:6px;border:1px solid var(--border);">
+          <div id="insuranceOcrResultPanel" class="ocr-result-panel">
+            <div id="insuranceOcrProgressArea" style="display:none;">
+              <div class="ocr-progress-bar"><div id="insuranceOcrProgressFill" class="ocr-progress-fill"></div></div>
+              <span id="insuranceOcrProgressText" style="font-size:11px;color:var(--text-muted);">準備中...</span>
+            </div>
+            <div id="insuranceOcrResultArea" style="display:none;"></div>
+          </div>
+        </div>
+        <div style="text-align:right;margin-top:6px;">
+          <button class="btn btn-sm btn-outline" onclick="clearInsuranceOcrPreview()">クリア</button>
+          <button class="btn btn-sm btn-outline" id="insuranceOcrApplyQrOnlyBtn" style="display:none;color:#28a745;border-color:#28a745;" onclick="applyInsuranceOcrResults(true)">QRのみ反映</button>
+          <button class="btn btn-sm btn-success" id="insuranceOcrApplyBtn" style="display:none;" onclick="applyInsuranceOcrResults(false)">全て反映</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 写真エリア（機能4: 削除ボタン追加） -->
+    <div style="text-align:center;margin-bottom:12px;">
+      <div class="insurance-photo-area" style="min-height:100px;" onclick="document.getElementById('insuranceFileInput2').click()">
+        <img id="insurancePhotoPreview" style="display:none;">
+        <span id="insuranceUploadText2">クリックして保険証写真をアップロード</span>
+      </div>
+      <input type="file" id="insuranceFileInput2" accept="image/*" capture="environment" style="display:none" onchange="handleInsurancePhoto(this,true)">
+      <button class="btn btn-sm btn-outline" id="insurancePhotoDeleteBtn" style="display:none;margin-top:4px;color:#dc2626;border-color:#dc2626;" onclick="deleteInsurancePhoto()">写真を削除</button>
+    </div>
+
+    <!-- 保険者番号（自動判定の入力源） -->
+    <fieldset style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+      <legend style="font-size:12px;font-weight:600;color:var(--primary,#2563eb);padding:0 6px;">自動判定</legend>
+      <div class="edit-form-row"><label>保険者番号</label>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="insurerNumberInput" placeholder="6桁(国保) or 8桁(社保等)" style="flex:1;" oninput="onInsurerNumberInput(this.value)">
+          <button class="btn btn-primary" style="font-size:11px;padding:4px 10px;white-space:nowrap;" onclick="runInsuranceCalc()">判定</button>
+        </div>
+      </div>
+      <div class="edit-form-row"><label>記号・番号</label><input type="text" id="insuranceNumber" placeholder="記号-番号"></div>
+      <div class="edit-form-row"><label>受給者番号</label><input type="text" id="recipientNumber" placeholder="受給者番号（公費等）"></div>
+      <div class="edit-form-row" style="display:flex;gap:8px;">
+        <div style="flex:1;"><label>公費番号</label><input type="text" id="kouhiNumberInput" placeholder="公費負担者番号（任意）"></div>
+        <div style="flex:1;"><label>所得区分</label>
+          <select id="incomeLevelSelect">
+            <option value="ippan">一般</option>
+            <option value="itteijoh">一定以上所得</option>
+            <option value="genzai1">現役並みI</option>
+            <option value="genzai2">現役並みII</option>
+            <option value="genzai3">現役並みIII</option>
+            <option value="tei1">低所得I</option>
+            <option value="tei2">低所得II</option>
+          </select>
+        </div>
+      </div>
+      <!-- 判定結果表示エリア -->
+      <div id="insuranceCalcResult" style="margin-top:8px;display:none;"></div>
+    </fieldset>
+
+    <!-- 医療証セクション -->
+    <fieldset style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+      <legend style="font-size:12px;font-weight:600;color:#7c3aed;padding:0 6px;">医療証（公費受給者証等）</legend>
+      <div style="text-align:center;margin-bottom:8px;">
+        <div class="insurance-photo-area" style="min-height:60px;border:1px dashed var(--border);cursor:pointer;" onclick="document.getElementById('iryoFileInput').click()">
+          <img id="iryoPhotoPreview" style="display:none;max-height:120px;">
+          <span id="iryoUploadText" style="font-size:11px;color:var(--text-muted);">医療証写真をアップロード（任意）</span>
+        </div>
+        <input type="file" id="iryoFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleIryoPhoto(this)">
+        <button class="btn btn-sm btn-outline" id="iryoPhotoDeleteBtn" style="display:none;margin-top:4px;color:#dc2626;border-color:#dc2626;" onclick="deleteIryoPhoto()">医療証写真を削除</button>
+      </div>
+      <div class="edit-form-row"><label>医療証種別</label>
+        <select id="iryoType">
+          <option value="">なし</option>
+          <option value="乳幼児医療">乳幼児医療</option>
+          <option value="子ども医療">子ども医療</option>
+          <option value="障害者医療">障害者医療</option>
+          <option value="ひとり親医療">ひとり親医療</option>
+          <option value="精神通院">精神通院（自立支援）</option>
+          <option value="特定医療費">特定医療費（指定難病）</option>
+          <option value="被爆者">被爆者健康手帳</option>
+          <option value="その他">その他</option>
+        </select>
+      </div>
+      <div class="edit-form-row"><label>受給者番号</label><input type="text" id="iryoRecipientNumber" placeholder="受給者番号"></div>
+      <div class="edit-form-row"><label>有効期間</label>
+        <div style="display:flex;gap:4px;align-items:center;">
+          <input type="date" id="iryoValidFrom" style="flex:1;">
+          <span>〜</span>
+          <input type="date" id="iryoValidTo" style="flex:1;">
+        </div>
+      </div>
+      <div class="edit-form-row"><label>備考</label><textarea id="iryoMemo" rows="2" style="width:100%;font-size:12px;border:1px solid var(--border);border-radius:4px;padding:6px;resize:vertical;" placeholder="自己負担上限額、適用条件等"></textarea></div>
+    </fieldset>
+
+    <!-- 手動設定（従来互換） -->
+    <fieldset style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+      <legend style="font-size:12px;font-weight:600;color:var(--text-muted,#666);padding:0 6px;">手動設定</legend>
+      <div class="edit-form-row"><label>保険者名</label><input type="text" id="insurerName"></div>
+      <div class="edit-form-row"><label>有効期限</label><input type="date" id="insuranceExpiry"></div>
+      <div class="edit-form-row" style="display:flex;gap:8px;">
+        <div style="flex:1;"><label>区分</label><select id="insuranceType"><option value="社保">社保</option><option value="国保">国保</option><option value="後期高齢者">後期高齢者</option><option value="公費">公費</option></select></div>
+        <div style="flex:1;"><label>負担割合</label><select id="insuranceRatio"><option value="0.3">3割</option><option value="0.2">2割</option><option value="0.1">1割</option><option value="0">公費（0割）</option></select></div>
+      </div>
+    </fieldset>
+
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('insurancePhotoModal')">キャンセル</button>
+      <button class="btn btn-outline" onclick="openInsuranceRuleRef()" style="font-size:11px;">ルール参照</button>
+      <button class="btn btn-primary" onclick="saveInsuranceInfo()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Insurance Rules Reference Modal (v0.4) -->
+<div class="modal-overlay" id="insuranceRuleModal">
+  <div class="modal" style="max-width:720px;max-height:80vh;overflow-y:auto;">
+    <h3>負担割合ルール一覧 <button class="modal-close" onclick="closeModal('insuranceRuleModal')">&times;</button></h3>
+
+    <div style="font-size:12px;margin-bottom:12px;">
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <button class="btn btn-outline" style="font-size:11px;padding:3px 8px;" onclick="showRuleTab('age')">年齢別ルール</button>
+        <button class="btn btn-outline" style="font-size:11px;padding:3px 8px;" onclick="showRuleTab('houbetsu')">法別番号一覧</button>
+        <button class="btn btn-outline" style="font-size:11px;padding:3px 8px;" onclick="showRuleTab('kouhi')">公費負担一覧</button>
+        <button class="btn btn-outline" style="font-size:11px;padding:3px 8px;" onclick="showRuleTab('local')">地方単独事業</button>
+      </div>
+      <div id="ruleTabContent"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('insuranceRuleModal')">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- Questionnaire Modal -->
+<div class="modal-overlay" id="questionnaireModal">
+  <div class="modal">
+    <h3>問診票データ <button class="modal-close" onclick="closeModal('questionnaireModal')">&times;</button></h3>
+    <div id="questionnaireBody"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('questionnaireModal')">閉��る</button>
+      <button class="btn btn-primary" onclick="applyQuestionnaire()">カルテに反映</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /appContainer -->
+
+<!-- ============================================================
+     USER MANAGER MODAL
+     ============================================================ -->
+<div id="userManagerModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:24px 28px;width:620px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.15);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;font-size:16px;color:#1e293b;">ユーザー管理（ID/PW管理）</h3>
+      <button onclick="closeUserManager()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#64748b;">&times;</button>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;">
+      <thead>
+        <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
+          <th style="text-align:left;padding:8px 6px;">メール</th>
+          <th style="text-align:left;padding:8px 6px;">表示名</th>
+          <th style="text-align:left;padding:8px 6px;">権限</th>
+          <th style="text-align:left;padding:8px 6px;">状態</th>
+          <th style="padding:8px 6px;"></th>
+        </tr>
+      </thead>
+      <tbody id="userListBody">
+        <tr><td colspan="5" style="text-align:center;color:#64748b;padding:16px;">読み込み中...</td></tr>
+      </tbody>
+    </table>
+
+    <div style="border-top:1px solid #e2e8f0;padding-top:16px;">
+      <h4 style="margin:0 0 12px;font-size:14px;color:#374151;">新規ユーザー追加</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <input type="email" id="newUserEmail" placeholder="メールアドレス" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+        <input type="text" id="newUserName" placeholder="表示名" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <input type="password" id="newUserPassword" placeholder="パスワード（6文字以上）" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+        <select id="newUserRole" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+          <option value="staff">staff（一般）</option>
+          <option value="doctor">doctor（医師）</option>
+          <option value="admin">admin（管理者）</option>
+          <option value="readonly">readonly（閲覧のみ）</option>
+        </select>
+      </div>
+      <button onclick="addNewUser()" style="padding:8px 20px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">追加</button>
+      <span id="addUserError" style="margin-left:12px;font-size:12px;color:#dc2626;"></span>
+    </div>
+  </div>
+</div>
+
+<script src="insurance_calc.js"></script>
+<script src="name_dict.js"></script>
+<script src="ocr_engine.js"></script>
+<script src="qr_decoder.js?v=20260507b"></script>
+<script src="db_integration.js?v=20260605_v08f"></script>
+<script src="supabase_client.js"></script>
+<script src="resizer.js"></script>
+<script src="whisper_client.js?v=20260603_v08"></script>
+<script src="billing_revision_2026.js?v=20260602"></script>
+<script src="auth.js?v=20260609"></script>
+<script src="app.js?v=20260609_v09"></script>
+</body>
+</html>

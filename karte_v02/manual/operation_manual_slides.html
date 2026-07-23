@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ドライブスルー診療 電子カルテ v0.2 操作マニュアル（スライド版）</title>
+<style>
+:root {
+  --primary: #2563eb;
+  --primary-light: #dbeafe;
+  --primary-dark: #1d4ed8;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --bg: #0f172a;
+  --card: #ffffff;
+  --slide-w: 1200px;
+  --slide-h: 675px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+}
+
+/* Slide container */
+.deck {
+  position: relative;
+  width: var(--slide-w);
+  height: var(--slide-h);
+}
+.slide {
+  position: absolute;
+  inset: 0;
+  width: var(--slide-w);
+  height: var(--slide-h);
+  background: var(--card);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  padding: 40px 48px 48px;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+.slide.active { display: flex; }
+
+/* Title slide */
+.slide.title-slide {
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%);
+  color: #fff;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.slide.title-slide h1 {
+  font-size: 38px;
+  font-weight: 800;
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+.slide.title-slide .subtitle {
+  font-size: 18px;
+  opacity: 0.85;
+  margin-bottom: 24px;
+}
+.slide.title-slide .meta {
+  font-size: 14px;
+  opacity: 0.65;
+}
+
+/* End slide */
+.slide.end-slide {
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%);
+  color: #fff;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.slide.end-slide h2 {
+  font-size: 36px;
+  border: none;
+  padding: 0;
+  margin: 0 0 16px;
+  color: #fff;
+}
+.slide.end-slide p { font-size: 16px; opacity: 0.7; }
+
+/* Headings */
+.slide h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 3px solid var(--primary);
+  flex-shrink: 0;
+}
+.slide h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 10px 0 6px;
+  color: var(--text);
+}
+.slide h4 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 6px 0 4px;
+  color: var(--text-muted);
+}
+
+/* Content area */
+.slide-body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.slide-body p { margin-bottom: 4px; }
+.slide-body ul, .slide-body ol { padding-left: 20px; margin-bottom: 4px; }
+.slide-body li { margin-bottom: 2px; font-size: 13px; }
+
+/* Two column layout */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+}
+.two-col-img {
+  display: grid;
+  grid-template-columns: 55% 1fr;
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+}
+.two-col-img-r {
+  display: grid;
+  grid-template-columns: 1fr 55%;
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+}
+.col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Screenshot */
+.screenshot {
+  text-align: center;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.screenshot img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.screenshot .caption {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  font-style: italic;
+  flex-shrink: 0;
+}
+.screenshot-full {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.screenshot-full img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+table th {
+  background: var(--primary);
+  color: #fff;
+  padding: 5px 8px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 11px;
+}
+table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+table tr:nth-child(even) td { background: #f8fafc; }
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge-blue { background: var(--primary-light); color: var(--primary); }
+.badge-green { background: #dcfce7; color: #16a34a; }
+.badge-red { background: #fef2f2; color: #dc2626; }
+.badge-yellow { background: #fef9c3; color: #92400e; }
+.badge-purple { background: #f3e8ff; color: #7c3aed; }
+
+/* Info box */
+.info-box {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.info-box.warning {
+  background: #fef9c3;
+  border-color: #fde68a;
+}
+.info-box .label {
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+/* Steps */
+.step {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+  align-items: flex-start;
+}
+.step-num {
+  background: var(--primary);
+  color: #fff;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.step-text { flex: 1; font-size: 13px; }
+
+/* Grid boxes */
+.feature-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.feature-box {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.feature-box strong { color: var(--primary); font-size: 13px; }
+.feature-box p { font-size: 12px; margin: 2px 0 0; color: var(--text-muted); }
+
+/* Page indicator */
+.page-indicator {
+  position: fixed;
+  bottom: 16px;
+  right: 24px;
+  color: rgba(255,255,255,0.5);
+  font-size: 14px;
+  font-family: monospace;
+  z-index: 100;
+}
+
+/* Nav hint */
+.nav-hint {
+  position: fixed;
+  bottom: 16px;
+  left: 24px;
+  color: rgba(255,255,255,0.35);
+  font-size: 12px;
+  z-index: 100;
+}
+
+/* Slide number badge */
+.slide-num {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Footer bar */
+.slide-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--primary);
+  border-radius: 0 0 8px 8px;
+}
+
+/* Compact list */
+.compact-list { font-size: 13px; line-height: 1.5; }
+.compact-list li { margin-bottom: 1px; }
+
+/* Three column */
+.three-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  flex: 1;
+}
+
+/* Print / screenshot */
+@media print {
+  body { background: white; }
+  .slide { box-shadow: none; border: 1px solid #ccc; }
+  .page-indicator, .nav-hint { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+<!-- ===== Slide 1: Title ===== -->
+<div class="slide title-slide active" data-slide="1">
+  <h1>ドライブスルー診療<br>電子カルテ v0.2<br>操作マニュアル</h1>
+  <div class="subtitle">西春内科・在宅クリニック</div>
+  <div class="meta">2026-03-18 | バージョン v0.2</div>
+</div>
+
+<!-- ===== Slide 2: 目次 ===== -->
+<div class="slide" data-slide="2">
+  <div class="slide-num">2</div>
+  <h2>目次</h2>
+  <div class="slide-body">
+    <div class="two-col">
+      <div class="col">
+        <ol style="font-size:14px; line-height:2;">
+          <li>システム概要</li>
+          <li>画面1: 患者一覧</li>
+          <li>新規受付の登録</li>
+          <li>画面2: カルテダッシュボード</li>
+          <li>左パネル: 患者情報</li>
+          <li>カルテ記載（SOAP）</li>
+          <li>処方入力</li>
+        </ol>
+      </div>
+      <div class="col">
+        <ol start="8" style="font-size:14px; line-height:2;">
+          <li>算定・会計</li>
+          <li>検査・文書</li>
+          <li>待機患者リスト</li>
+          <li>各種モーダル</li>
+          <li>診察ワークフロー</li>
+          <li>データベース構造</li>
+          <li>デプロイ情報</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer"></div>
+</div>
+
+<!-- ===== Slide 3: システム概要 ===== -->
+<div class="slide" data-slide="3">
+  <div class="slide-num">3</div>
+  <h2>1. システム概要</h2>
+  <div class="slide-body">
+    <p>M3 DigiKarに代わる独立型ブラウザベース電子カルテ。Google スプレッドシート + GAS バックエンド。</p>
+    <div class="feature-grid" style="margin-top:8px;">
+      <div class="feature-box">
+        <strong>ブラウザのみで動作</strong>
+        <p>タブレット / PC 対応。インストール不要。</p>
+      </div>
+      <div class="feature-box">
+        <strong>ダッシュボード一画面型</strong>
+        <p>4カラムGrid。患者情報〜会計まで1画面。</p>
+      </div>
+      <div class="feature-box">
+        <strong>薬の算定自動計算</strong>
+        <p>五捨五超入、初再診料、処方料、調剤料、薬剤料。</p>
+      </div>
+      <div class="feature-box">
+        <strong>時間外加算の自動判定</strong>
+        <p>時間外(85点)・休日(250点)・深夜(480点)を自動判定。</p>
+      </div>
+    </div>
+    <h3 style="margin-top:12px;">画面構成（2画面）</h3>
+    <div class="feature-grid">
+      <div class="feature-box">
+        <span class="badge badge-blue">画面1</span> <strong>患者一覧</strong>
+        <p>当日の受付患者を一覧表示。日付切替、新規受付、呼出。</p>
+      </div>
+      <div class="feature-box">
+        <span class="badge badge-green">画面2</span> <strong>カルテダッシュボード</strong>
+        <p>4カラムGrid。患者情報・カルテ・処方・算定・検査・待機。</p>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer"></div>
+</div>
+
+<!-- ===== Slide 4: 患者一覧画面 ===== -->
+<div class="slide" data-slide="4">
+  <div class="slide-num">4</div>
+  <h2>2. 画面1: 患者一覧（トップページ）</h2>
+  <div class="slide-body">
+    <div class="two-col-img">
+      <div class="screenshot">
+        <img src="screenshots/01_patient_list.png" alt="患者一覧画面">
+        <div class="caption">患者一覧画面</div>
+      </div>
+      <div class="col">
+        <table>
+          <tr><th>要素</th><th>説明</th></tr>
+          <tr><td>ヘッダー</td><td>クリニック名、リアルタイム時計</td></tr>
+          <tr><td>日付ナビ</td><td>◀/▶ 日付切替、ピッカー、「今日」</td></tr>
+          <tr><td>統計バー</td><td>待機・診察中・完了の人数</td></tr>
+          <tr><td>+ 新規受付</td><td>登録モーダルを開く</td></tr>
+          <tr><td>患者テーブル</td><td>状態、患者名、年齢/性別、保険、アレルギー等</td></tr>
+        </table>
+        <h3 style="margin-top:10px;">状態バッジ</h3>
+        <ul class="compact-list">
+          <li><span class="badge badge-yellow">待機</span> 来院済み、診察前</li>
+          <li><span class="badge badge-green">診察中</span> 緑パルスアニメ</li>
+          <li><span class="badge badge-blue">完了</span> 確定済み（半透明）</li>
+        </ul>
+        <h3>操作ボタン</h3>
+        <ul class="compact-list">
+          <li><strong>カルテ</strong>: ダッシュボードを開く</li>
+          <li><strong>呼出</strong>: 待機→診察中に変更</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer"></div>
+</div>
+
+<!-- ===== Slide 5: 新規受付 ===== -->
+<div class="slide" data-slide="5">
+  <div class="slide-num">5</div>
+  <h2>3. 新規受付の登録</h2>
+  <div class="slide-body">
+    <div class="two-col-img">
+      <div class="screenshot">
+        <img src="screenshots/03_new_patient_filled.png" alt="新規受付モーダル">
+        <div class="caption">新規受付モーダル（入力例）</div>
+      </div>
+      <div class="col">
+        <table>
+          <tr><th>項目</th><th>必須</th><th>説明</th></tr>
+          <tr><td>氏名</td><td>必須</td><td>漢字</td></tr>
+          <tr><td>フリガナ</td><td>任意</td><td>カタカナ</td></tr>
+          <tr><td>生年月日</td><td>任意</td><td>年齢自動計算</td></tr>
+          <tr><td>性別</td><td>必須</td><td>男 / 女</td></tr>
+          <tr><td>住所・電話</td><td>任意</td><td>連絡先</td></tr>
+          <tr><td>保険種別</td><td>必須</td><td>社保/国保/後期/公費/自費</td></tr>
+          <tr><td>車両番号</td><td>任意</td><td>ナンバープレート</td></tr>
+          <tr><td>レーン</td><td>必須</td><td>自動連番</td></tr>
+        </table>
+        <h3 style="margin-top:8px;">操作手順</h3>
+        <div class="step"><div class="step-num">1</div><div class="step-text">「+ 新規受付」をクリック</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">各項目を入力（氏名は必須）</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">「受付登録」をクリック</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">一覧に追加、DBにも保存</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer"></div>
+</div>
+
+<!-- ===== Slide 6: カルテダッシュボード全体 ===== -->
+<div class="slide" data-slide="6">
+  <div class="slide-num">6</div>
+  <h2>4. カルテダッシュボード（全体）</h2>
+  <div class="slide-body">
+    <div class="screenshot-full" style="margin-bottom:8px;">
+      <img src="screenshots/05_karte_dashboard.png" alt="カルテダッシュボード">
+    </div>
+    <table style="flex-shrink:0;">
+      <tr><th>位置</th><th>パネル</th><th>内容</th></tr>
+      <tr><td>左列（260px）</td><td>患者情報</td><td>基本情報・保険証・問診票・アレルギー・既往歴・前回処方・メモ・車両</td></tr>
+      <tr><td>中央上</td><td>カルテ記載</td><td>主訴（プルダウン＋自由記載）、SOAP 4タブ、バイタル、傷病名</td></tr>
+      <tr><td>中央下</td><td>処方入力</td><td>セット処方、薬品検索、処方日数</td></tr>
+      <tr><td>右上</td><td>算定・会計</td><td>初再診料、加算、処方料、調剤料、薬剤料、検査料、合計</td></tr>
+      <tr><td>右中</td><td>検査・文書</td><td>検査チェックリスト、文書作成ボタン</td></tr>
+      <tr><td>右端（220px）</td><td>待機患者</td><td>待機リスト、前/次ボタン</td></tr>
+    </table>
+  </div>
+  <div class="slide-footer"></div>
+</div>
+
+<!-- ===== Slide 7: 患者情報パネル ===== -->
+<div class="slide" data-slide="7">
+  <div class="slide-num">7</div>
+  <h2>5. 左パネル: 患者情報</h2>
+  <div class="slide-body">
+    <p>患者の全情報を縦スクロールで表示。上部「編集」ボタンで患者情報を修正可能。</p>
+    <div class="two-col" style="flex:1;">
+      <div class="col">
+        <table>
+          <tr><th>セクション</th><th>内容</th></tr>
+          <tr><td>基本情報</td><td>氏名・年齢・生年月日・住所・電話・保険</td></tr>
+          <tr><td>保険証</td><td>写真アップロード、記号・番号、「詳細」ボタン</td></tr>
+          <tr><td>問診票</td><td>受信状態バッジ、症状・体温、「カルテに反映」</td></tr>
+          <tr><td>アレルギー</td><td>赤色タグ表示（例: ペニシリン系）</td></tr>
+          <tr><td>既往歴</td><td>疾患名一覧</td></tr>
+        </table>
+      </div>
+      <div class="col">
+        <table>
+          <tr><th>セクション</th><th>内容</th></tr>
+          <tr><td>前回診療</td><td>前回受診日、「前回カルテにジャンプ」</td></tr>
+          <tr><td>前回処方</td><td>薬品名・用量一覧、<strong>「Do処方」ボタン</strong></td></tr>
+          <tr><td>患者メモ</td><td>自由記載テキスト（自動保存）</td></tr>
+          <tr><td>車両情報</td><td>ナンバープレート、レーン番号</td></tr>
+        </table>
+        <div class="info-box" style="margin-top:12px;">
+          <span class="label">Do処方:</span>
+          前回処方を一括コピー。定期処方患者の最速ワークフロー。
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer"></div>
+</div>
+
+<!-- ===== Slide 8: カルテ記載 SOAP ===== -->
+<div class="slide" data-slide="8">
+  <div class="slide-num">8</div>
+  <h2>6. カルテ記載（主訴・SOAP・バイタル・傷病名）</h2>
+  <div class="slide-body">
+    <div class="two-col-img">
+      <div class="screenshot">
+        <img src="screenshots/07_karte_filled.png" alt="カルテ入力済み">
+        <div class="caption">主訴・SOAP・バイタル入力済みの状態</div>
+      </div>
+      <div class="col">
+        <h3>主訴入力</h3>
+        <p style="font-size:12px;">プルダウン（16種定型）+ 自由記載テキスト併用</p>
+        <h3>所見（SOAP 4タブ）</h3>
+        <table>
+          <tr><th>タブ</th><th>内容</th></tr>
+          <tr><td>現病歴</td><td>発症経過、受診動機</td></tr>
+          <tr><td>身体所見</td><td>視診・聴診・触診</td></tr>
+          <tr><td>検査所見</td><td>血液検査等の結果</td></tr>
+          <tr><td>A&P</td><td>診断とプラン</td></tr>
+        </table>
+        <h3>バイタルサイン</h3>
+        <p style="font-size:12px;">T, BP, SpO2, P を 2x2 グリッドで入力</p>
+        <h3>傷病名</h3>
+        <ul class="compact-list">
+          <li>病名/ICD-10コードで検索</li>
+          <li>クイックボタン（よく使う6傷病名）</li>
+          <li>確定/疑い切替トグル</li>
+          <li>前回傷病引継ボタン（緑色）</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer"></div>
+</div>
+
+<!-- ===== Slide 9: 処方入力 ===== -->
+<div class="slide" data-slide="9">
+  <div class="slide-num">9</div>
+  <h2>7. 処方入力</h2>
+  <div class="slide-body">
+    <h3>セット処方（4種）</h3>
+    <table>
+      <tr><th>セット名</th><th>内容</th><th>日数</th></tr>
+      <tr><td>風邪セット</td><td>アセトアミノフェン200mg 3T + カルボシステイン500mg 3T + トラネキサム酸250mg 3T + レバミピド100mg 3T</td><td>5日</td></tr>
+      <tr><td>胃腸炎セット</td><td>ドンペリドン10mg 3T + レバミピド100mg 3T + ロペラミド1mg 1T</td><td>5日</td></tr>
+      <tr><td>高血圧セット</td><td>アムロジピン5mg 1T</td><td>28日</td></tr>
+      <tr><td>花粉症セット</td><td>フェキソフェナジン60mg 2T + モンテルカスト10mg 1T</td><td>14日</td></tr>
+    </table>
+    <div class="two-col" style="margin-top:12px;">
+      <div class="col">
+        <h3>個別薬品検索</h3>
+        <p style="font-size:13px;">薬品名またはカテゴリ名（降圧、糖尿病、鎮痛など）で検索。薬品マスタ20品目登録済み。</p>
+        <h3>Do処方</h3>
+        <p style="font-size:13px;">左パネルの「Do処方（前回と同じ）」ボタンで前回処方を一括コピー。日数も自動設定。</p>
+      </div>
+      <div class="col">
+        <h3>処方日数</h3>
+        <p style="font-size:13px;">1〜90日で設定可能。</p>
+        <p style="font-size:13px;">薬剤料 = 薬価 × 用量 × 日数 で自動計算。</p>
+        <div class="info-box" style="margin-top:8px;">
+          <span class="label">ショートカット:</span>
+          定期処方の患者は「Do処方」→「確定」の2ステップで完了。
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer"></div>
+</div>
+
+<!-- ===== Slide 10: 算定・会計 ===== -->
+<div class="slide" data-slide="10">
+  <div class="slide-num">10</div>
+  <h2>8. 算定・会計</h2>
+  <div class="slide-body">
+    <div class="two-col-img">
+      <div class="col">
+        <h3>自動計算される項目</h3>
+        <table>
+          <tr><th>項目</th><th>点数</th><th>条件</th></tr>
+          <tr><td>初診料</td><td>291点</td><td>初診時</td></tr>
+          <tr><td>再診料</td><td>75点</td><td>再診時</td></tr>
+          <tr><td>外来管理加算</td><td>52点</td><td>再診時のみ</td></tr>
+          <tr><td>処方料</td><td>42/29点</td><td>7種未満/以上</td></tr>
+          <tr><td>調剤料</td><td>11〜33点</td><td>日数により段階的</td></tr>
+          <tr><td>薬剤料</td><td>自動</td><td>五捨五超入</td></tr>
+          <tr><td>時間外</td><td>85点</td><td>平日18時〜/土12時〜</td></tr>
+          <tr><td>休日</td><td>250点</td><td>日曜・祝日</td></tr>
+          <tr><td>深夜</td><td>480点</td><td>22時〜6時</td></tr>
+        </table>
+        <p style="font-size:12px; margin-top:6px;"><strong>患者負担額:</strong> 合計点数 × 10円 × 負担割合（1〜3割）</p>
+      </div>
+      <div class="screenshot">
+        <img src="screenshots/08_karte_with_exam.png" alt="算定パネル">
+        <div class="caption">検査チェック後の算定表示（354点/354円）</div>
+      </div>
+    </div>
+    <div class="info-box warning" style="flex-shrink:0; margin-top:4px;">
+      <span class="label">操作:</span>
+      「一時保存」→ GASに保存 / 「確定」→ サマリー確認 → 全データ保存・ステータス完了 / 「印刷」→ 印刷プレビュー
+    </div>
+  </div>
+  <div class="slide-footer"></div>
+</div>
+
+<!-- ===== Slide 11: 検査・文書 ===== -->
+<div class="slide" data-slide="11">
+  <div class="slide-num">11</div>
+  <h2>9. 検査・文書</h2>
+  <div class="slide-body">
+    <div class="two-col">
+      <div class="col">
+        <h3>検査チェックリスト</h3>
+        <table>
+          <tr><th>検査名</th><th>点数</th></tr>
+          <tr><td>血液一般</td><td>21点</td></tr>
+          <tr><td>生化学検査</td><td>11点</td></tr>
+          <tr><td>CRP</td><td>16点</td></tr>
+          <tr><td>HbA1c</td><td>49点</td></tr>
+          <tr><td>尿一般</td><td>26点</td></tr>
+          <tr><td>心電図</td><td>130点</td></tr>
+          <tr><td>胸部X線</td><td>210点</td></tr>
+          <tr><td>コロナ抗原</td><td>150点</td></tr>
+          <tr><td>インフル抗原</td><td>150点</td></tr>
+          <tr><td>SpO2モニタ</td><td>30点</td></tr>
+        </table>
+        <p style="font-size:12px;">チェック → 算定パネルに自動反映</p>
+      </div>
+      <div class="col">
+        <h3>文書作成</h3>
+        <div class="feature-box" style="margin-bottom:6px;">
+          <strong>診療情報提供書（紹介状）</strong>
+          <p>紹介先・診療科・傷病名・経過を記載。傷病名・現病歴は自動転記。</p>
+        </div>
+        <div class="feature-box" style="margin-bottom:6px;">
+          <strong>診断書</strong>
+          <p>患者氏名・傷病名・所見を記載。</p>
+        </div>
+        <div class="feature-box" style="margin-bottom:6px;">
+          <strong>院外処方箋</strong>
+          <p>患者情報・処方内容が自動表示。</p>
+        </div>
+        <div class="screenshot" style="flex:1; min-height:0; margin-top:8px;">
+          <img src="screenshots/11_referral_modal.png" alt="紹介状モーダル">
+          <div class="caption">紹介状作成モーダル</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer"></div>
+</div>
+
+<!-- ===== Slide 12: 待機患者 ===== -->
+<div class="slide" data-slide="12">
+  <div class="slide-num">12</div>
+  <h2>10. 待機患者リスト</h2>
+  <div class="slide-body">
+    <div class="two-col">
+      <div class="col">
+        <p>全患者のステータスをリアルタイム表示するサイドパネル。</p>
+        <h3>表示要素</h3>
+        <ul class="compact-list">
+          <li>待機中 / 診察済の人数カウンター</li>
+          <li>患者リスト（ステータスドット付き）</li>
+          <li style="margin-left:16px;"><span style="color:#9ca3af;">●</span> 灰 = 待機</li>
+          <li style="margin-left:16px;"><span style="color:#22c55e;">●</span> 緑 = 診察中</li>
+          <li style="margin-left:16px;"><span style="color:#3b82f6;">●</span> 青 = 完了</li>
+          <li>現在の患者は青背景でハイライト</li>
+          <li>クリックで患者を切替</li>
+        </ul>
+        <h3 style="margin-top:12px;">ナビゲーションボタン</h3>
+        <div class="feature-box" style="margin-bottom:6px;">
+          <strong>◀ 前の患者</strong>
+          <p>直前に診察した患者に戻る（履歴ベース）</p>
+        </div>
+        <div class="feature-box">
+          <strong>次の患者 ▶</strong>
+          <p>次の待機患者を呼出（現在の患者は自動で「完了」に）</p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="screenshot" style="flex:1;">
+          <img src="screenshots/05_karte_dashboard.png" alt="カルテダッシュボード" style="object-position: right;">
+          <div class="caption">右端に待機患者パネルが表示される</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer"></div>
+</div>
+
+<!-- ===== Slide 13: モーダル ===== -->
+<div class="slide" data-slide="13">
+  <div class="slide-num">13</div>
+  <h2>11. 各種モーダル</h2>
+  <div class="slide-body">
+    <div class="three-col">
+      <div class="col">
+        <div class="screenshot" style="margin-bottom:6px;">
+          <img src="screenshots/09_edit_patient_modal.png" alt="患者編集">
+          <div class="caption">患者情報編集</div>
+        </div>
+        <p style="font-size:11px;">左パネル「編集」ボタンから。氏名・フリガナ・生年月日・性別・住所・電話・保険・アレルギーを編集。</p>
+      </div>
+      <div class="col">
+        <div class="screenshot" style="margin-bottom:6px;">
+          <img src="screenshots/10_insurance_modal.png" alt="保険証">
+          <div class="caption">保険証モーダル</div>
+        </div>
+        <p style="font-size:11px;">保険証写真アップロード（カメラ対応）、記号・番号、保険者名、有効期限、区分、負担割合を設定。</p>
+      </div>
+      <div class="col">
+        <div class="screenshot" style="margin-bottom:6px;">
+          <img src="screenshots/12_questionnaire_modal.png" alt="問診票">
+          <div class="caption">問診票モーダル</div>
+        </div>
+        <p style="font-size:11px;">デジスマ問診票の受信データ表示。「カルテに反映」で主訴・現病歴・体温をカルテに自動転記。</p>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer"></div>
+</div>
+
+<!-- ===== Slide 14: ワークフロー ===== -->
+<div class="slide" data-slide="14">
+  <div class="slide-num">14</div>
+  <h2>12. 診察ワークフロー（一連の流れ）</h2>
+  <div class="slide-body">
+    <div class="two-col">
+      <div class="col">
+        <div class="step"><div class="step-num">1</div><div class="step-text"><strong>受付:</strong> 「+ 新規受付」→ 情報入力 → 「受付登録」</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text"><strong>呼出:</strong> 「呼出」or 「次の患者 ▶」</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text"><strong>診察開始:</strong> 「診察開始」→ 時間外加算自動判定</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text"><strong>問診票反映:</strong> 「カルテに反映」で主訴・体温を自動転記</div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-text"><strong>カルテ記載:</strong> 主訴 → SOAP → バイタル入力</div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-text"><strong>傷病名:</strong> 検索/クイックボタンで追加、確定/疑い設定</div></div>
+      </div>
+      <div class="col">
+        <div class="step"><div class="step-num">7</div><div class="step-text"><strong>処方:</strong> Do処方 / セット処方 / 個別検索 → 日数設定</div></div>
+        <div class="step"><div class="step-num">8</div><div class="step-text"><strong>検査:</strong> チェックリストにチェック（点数自動加算）</div></div>
+        <div class="step"><div class="step-num">9</div><div class="step-text"><strong>確認:</strong> 算定パネルで合計点数・負担額を確認</div></div>
+        <div class="step"><div class="step-num">10</div><div class="step-text"><strong>確定:</strong> 「確定」→ サマリー確認 → OK で全データ保存</div></div>
+        <div class="step"><div class="step-num">11</div><div class="step-text"><strong>次の患者:</strong> 「次の患者 ▶」で自動的に次へ</div></div>
+        <div class="info-box" style="margin-top:12px;">
+          <span class="label">Do処方ショートカット:</span>
+          定期処方患者は「Do処方」→「確定」の2ステップで完了。
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer"></div>
+</div>
+
+<!-- ===== Slide 15: DB構造 ===== -->
+<div class="slide" data-slide="15">
+  <div class="slide-num">15</div>
+  <h2>13. データベース構造（Google スプレッドシート 11シート）</h2>
+  <div class="slide-body">
+    <div class="two-col-img-r">
+      <div class="col">
+        <table>
+          <tr><th>シート名</th><th>用途</th></tr>
+          <tr><td>患者マスタ</td><td>患者基本情報（ID, 氏名, 年齢, 性別, アレルギー等）</td></tr>
+          <tr><td>保険証</td><td>保険区分, 保険者番号, 記号, 番号, 負担割合</td></tr>
+          <tr><td>カルテ</td><td>診察記録（SOAP, バイタル, ステータス等）</td></tr>
+          <tr><td>処方</td><td>薬品名, 用量, 用法, 日数, 薬価</td></tr>
+          <tr><td>傷病名</td><td>傷病名, ICD10, 確定/疑い</td></tr>
+          <tr><td>検査</td><td>検査名, コード, 結果</td></tr>
+          <tr><td>算定</td><td>項目名, 点数, 合計, 負担額</td></tr>
+          <tr><td>問診票</td><td>質問, 回答, 入力元</td></tr>
+          <tr><td>薬品マスタ</td><td>薬品名, 薬価, カテゴリ, 禁忌</td></tr>
+          <tr><td>傷病名マスタ</td><td>傷病名, ICD10, カテゴリ</td></tr>
+          <tr><td>文書</td><td>文書種別, タイトル, 内容JSON</td></tr>
+        </table>
+      </div>
+      <div class="screenshot">
+        <img src="screenshots/15_db_patient_master.png" alt="DB患者マスタ">
+        <div class="caption">患者マスタシート</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer"></div>
+</div>
+
+<!-- ===== Slide 16: API & デプロイ ===== -->
+<div class="slide" data-slide="16">
+  <div class="slide-num">16</div>
+  <h2>14. API構成 & デプロイ情報</h2>
+  <div class="slide-body">
+    <div class="two-col">
+      <div class="col">
+        <h3>API（GAS Web App）</h3>
+        <table>
+          <tr><th>メソッド</th><th>アクション</th><th>説明</th></tr>
+          <tr><td>GET</td><td>getPatients</td><td>全患者一覧</td></tr>
+          <tr><td>GET</td><td>getPatient</td><td>患者1件取得</td></tr>
+          <tr><td>GET</td><td>getKarteList</td><td>カルテ一覧</td></tr>
+          <tr><td>GET</td><td>getKarte</td><td>カルテ詳細</td></tr>
+          <tr><td>GET</td><td>getDrugMaster</td><td>薬品マスタ</td></tr>
+          <tr><td>GET</td><td>getDiseaseMaster</td><td>傷病名マスタ</td></tr>
+          <tr><td>POST</td><td>savePatient</td><td>患者保存</td></tr>
+          <tr><td>POST</td><td>saveKarte</td><td>カルテ保存</td></tr>
+          <tr><td>POST</td><td>savePrescription</td><td>処方保存</td></tr>
+          <tr><td>POST</td><td>saveBilling</td><td>算定保存</td></tr>
+        </table>
+      </div>
+      <div class="col">
+        <h3>ファイル構成</h3>
+        <table>
+          <tr><th>ファイル</th><th>行数</th><th>内容</th></tr>
+          <tr><td>index.html</td><td>323行</td><td>HTML（2画面 + モーダル5種）</td></tr>
+          <tr><td>style.css</td><td>614行</td><td>全CSS</td></tr>
+          <tr><td>app.js</td><td>1,006行</td><td>全JavaScript</td></tr>
+          <tr><td>gas_setup.js</td><td>601行</td><td>GASバックエンド</td></tr>
+        </table>
+        <h3 style="margin-top:12px;">リソースID</h3>
+        <table>
+          <tr><th>リソース</th><th>ID</th></tr>
+          <tr><td>GASプロジェクト</td><td style="font-size:9px; word-break:break-all;">1YQ7vfPtWAi6Vy6iQIS9fVj6J6ZR6CaGJpW8bgh9i0g-...</td></tr>
+          <tr><td>スプレッドシート</td><td style="font-size:9px; word-break:break-all;">1FYpePnWd33udmESL1zNnoinSMsrioRrvXtrJDguRWbw</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer"></div>
+</div>
+
+<!-- ===== Slide 17: End ===== -->
+<div class="slide end-slide" data-slide="17">
+  <h2>ドライブスルー診療 電子カルテ v0.2</h2>
+  <p>西春内科・在宅クリニック | 2026-03-18</p>
+</div>
+
+</div><!-- /deck -->
+
+<div class="page-indicator" id="pageIndicator">1 / 17</div>
+<div class="nav-hint">← → キーでページ切替 | クリックでも移動可</div>
+
+<script>
+(function() {
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+
+  function showSlide(n) {
+    if (n < 0 || n >= total) return;
+    slides[current].classList.remove('active');
+    current = n;
+    slides[current].classList.add('active');
+    document.getElementById('pageIndicator').textContent = (current + 1) + ' / ' + total;
+  }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ' || e.key === 'PageDown') {
+      e.preventDefault();
+      showSlide(current + 1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
+      e.preventDefault();
+      showSlide(current - 1);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      showSlide(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      showSlide(total - 1);
+    }
+  });
+
+  // Click navigation (left half = prev, right half = next)
+  document.querySelector('.deck').addEventListener('click', function(e) {
+    const rect = this.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    if (x < rect.width / 2) {
+      showSlide(current - 1);
+    } else {
+      showSlide(current + 1);
+    }
+  });
+
+  // Touch swipe
+  let touchStartX = 0;
+  document.addEventListener('touchstart', function(e) {
+    touchStartX = e.touches[0].clientX;
+  });
+  document.addEventListener('touchend', function(e) {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) {
+      if (dx < 0) showSlide(current + 1);
+      else showSlide(current - 1);
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

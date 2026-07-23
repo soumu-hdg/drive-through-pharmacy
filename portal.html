@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ハンドレッドドクター 佐川制作プログラムポータル</title>
+<style>
+:root {
+  --primary: #2563eb;
+  --primary-light: #dbeafe;
+  --primary-dark: #1d4ed8;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --bg: #f8fafc;
+  --card: #ffffff;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+.header {
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%);
+  color: #fff;
+  padding: 40px 24px 32px;
+  text-align: center;
+}
+.header h1 {
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.header p {
+  font-size: 14px;
+  opacity: 0.8;
+}
+.container {
+  max-width: 960px;
+  margin: -24px auto 40px;
+  padding: 0 16px;
+}
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 32px 0 12px;
+  padding-left: 12px;
+  border-left: 4px solid var(--primary);
+}
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transition: transform 0.15s, box-shadow 0.15s;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+}
+.card .badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  align-self: flex-start;
+}
+.badge-emr { background: #dcfce7; color: #16a34a; }
+.badge-pharmacy { background: var(--primary-light); color: var(--primary); }
+.badge-tool { background: #fef9c3; color: #92400e; }
+.badge-doc { background: #f3e8ff; color: #7c3aed; }
+.card h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.card p {
+  font-size: 13px;
+  color: var(--text-muted);
+  flex: 1;
+  margin-bottom: 8px;
+}
+.card .url {
+  font-size: 11px;
+  color: var(--primary);
+  word-break: break-all;
+  font-family: monospace;
+}
+.full-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 13px;
+  background: var(--card);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.full-table th {
+  background: var(--primary);
+  color: #fff;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+}
+.full-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.full-table tr:last-child td { border-bottom: none; }
+.full-table a {
+  color: var(--primary);
+  text-decoration: none;
+}
+.full-table a:hover { text-decoration: underline; }
+.footer {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 24px;
+}
+@media (max-width: 600px) {
+  .card-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>ハンドレッドドクター<br>佐川制作プログラムポータル</h1>
+  <p>GitHub Pages 公開一覧</p>
+</div>
+
+<div class="container">
+
+<h2 class="section-title">プロジェクト一覧（最新版）</h2>
+<div class="card-grid">
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/reservation_v2/demo.html" target="_blank" style="border:2px solid #2563eb;">
+    <span class="badge" style="background:#dbeafe; color:#2563eb;">予約システム</span>
+    <h3>クリニック予約システム（新規）</h3>
+    <p>複数院（西春・横浜・千葉・中川）を統括する自前の予約システム。患者が予約すると受付ライブボードへ<strong>リアルタイム反映</strong>（Supabase接続時は実DB同期、未接続時はローカル同期に自動フォールバック）。空き枠＝「診療時間マスタ−予約」で算出しダブルブッキングを構造排除。この同期デモの上部メニューから、お客様向け予約サイト・受付ボードにも切り替えられます。</p>
+    <span class="url">reservation_v2/demo.html</span>
+  </a>
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v18/index.html" target="_blank" style="border:2px solid #22c55e;">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>電子カルテ v0.18（最新・起動高速化＋Supabase同期）</h3>
+    <p>起動時の患者データ読み込みを高速化。従来は約45秒間、全画面ロードで操作できませんでしたが、起動直後から操作できます。患者一覧は軽量取得（約3.5秒）、薬品・処方は背景読み込み。2回目以降はキャッシュ／Supabaseミラー（認証限定・患者情報保護）で即時表示。v0.17の適応症突合・診察料加算点検を継承。</p>
+    <span class="url">karte_v18/index.html</span>
+  </a>
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v17/index.html" target="_blank" style="border:2px solid #22c55e;">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>電子カルテ v0.17（適応症突合＋診察料加算点検）</h3>
+    <p>カルテ本体から利用します。ヘッダーの「レセプト点検」ボタンでレセプト点検ビューアを開けます。医師記入の「薬と病名の対応表」を取込み、院内処方の薬に対応する適応病名がカルテに無い場合に「適応確認」を表示（差し戻し予防）。あわせて当院標準の初診/再診の加算スタックと官報（令和8年度）点数を取込み、時間外・休日・深夜等の併算定不可や当院標準加算の算定もれを点検。実UKE140件で誤検知ゼロを検証。</p>
+    <span class="url">karte_v17/index.html</span>
+  </a>
+
+
+
+  <a class="card" href="https://karte.hdg-holdings.com/" target="_blank" style="border-left: 4px solid #16a34a;">
+    <span class="badge badge-emr" style="background:#16a34a; color:#fff;">本番ドメイン</span>
+    <h3>電子カルテ v0.12（本番 — karte.hdg-holdings.com）</h3>
+    <p>独自ドメイン版。Vercelホスティング＋SSL。レセプト出力全17種（社保/国保総括表・光ディスク送付書・公費請求書等）・SSKマスター60,315件・処方セット・院外処方・医療証・QR+OCR保険証。</p>
+    <span class="url">https://karte.hdg-holdings.com/</span>
+  </a>
+
+
+
+
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v05/analytics.html" target="_blank">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>夜間休日診療KPI v0.6</h3>
+    <p>夜間外来DB（GAS）をリアルタイム集計。患者数・受診数・診療報酬（円）・時間帯別・支払い方法・検査陽性率・集患チャネル別平均単価・医師別収益/出勤をグラフ表示。日付範囲フィルタ対応。</p>
+    <span class="url">karte_v05/analytics.html</span>
+  </a>
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/v0_6/index.html" target="_blank">
+    <span class="badge badge-pharmacy">薬品在庫</span>
+    <h3>薬品在庫管理 v0.6（最新）</h3>
+    <p>v0.5ベース。入庫時の数量入力をinput field形式に変更、履歴チェックボックス削除機能（在庫自動調整＋処方履歴連動削除）、スキャン手動選択モーダルを在庫タブと同じチェック式レイアウトに統一。</p>
+    <span class="url">v0_6/index.html</span>
+  </a>
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/v0_5/manual_v2/index.html" target="_blank">
+    <span class="badge badge-doc">マニュアル</span>
+    <h3>薬品在庫 はじめてガイド</h3>
+    <p>初心者向けステップ式マニュアル。実画面のスクショ8枚付きで、画面通りに進めば完了。困ったとき集も収録。</p>
+    <span class="url">v0_5/manual_v2/index.html</span>
+  </a>
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/qr_generator.html" target="_blank">
+    <span class="badge badge-tool">ツール</span>
+    <h3>QRコード生成・印刷</h3>
+    <p>薬品ラベル用QRコードを一括生成。印刷レイアウト対応。</p>
+    <span class="url">qr_generator.html</span>
+  </a>
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/v0_5/qr_list/index.html" target="_blank">
+    <span class="badge badge-pharmacy">薬品在庫</span>
+    <h3>薬品QRコード一覧</h3>
+    <p>全207品目のQRコード付き一覧表。A4印刷対応レイアウト。欠番表示あり。薬品マスタから自動生成。</p>
+    <span class="url">v0_5/qr_list/index.html</span>
+  </a>
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/task_board/index.html" target="_blank">
+    <span class="badge badge-tool">業務管理</span>
+    <h3>タスクボード</h3>
+    <p>HUNDRED DOCTOR向けシンプル業務管理ツール。コルクボード風UI、付箋でタスク表示。GAS + スプレッドシート同期。</p>
+    <span class="url">task_board/index.html</span>
+  </a>
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/kpi_dashboard/index.html" target="_blank">
+    <span class="badge badge-tool">ツール</span>
+    <h3>EC売上KPIダッシュボード（Supabase版・最新）</h3>
+    <p>Supabase DB連携の最新KPIダッシュボード。9タブ構成（売上・チャート・商品・GA4・レポート・利益・KPI・在庫・SNS分析）。SNS3プラットフォーム（IG/TT/LINE）の詳細分析・補間チャート対応。GASで1時間毎に自動同期。</p>
+    <span class="url">kpi_dashboard/index.html</span>
+  </a>
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/rececom_demo/index.html" target="_blank" style="border-left: 4px solid #8b5cf6;">
+    <span class="badge" style="background:#ede9fe; color:#7c3aed;">レセコン連携</span>
+    <h3>WebORCA レセコン連携デモ</h3>
+    <p>WebORCA（日医標準レセコン）API連携デモ。患者一覧・診療行為・傷病名検索・レセプト概要をAPIパネルから操作可能。ダミー患者5名搭載。ローカルプロキシで実API接続対応。</p>
+    <span class="url">rececom_demo/index.html</span>
+  </a>
+
+</div>
+
+<h2 class="section-title">過去バージョン</h2>
+<div class="card-grid">
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v16/receipt.html" target="_blank" style="opacity:0.7;">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>電子カルテ v0.16（別表Ⅰ摘要チェック統合）</h3>
+    <p>厚労省告示「別表Ⅰ（摘要欄記載事項一覧・医科）」を取込み、レセプトの摘要（コメント）を公式表示文言でエンリッチ表示。請求された各診療行為に対し別表Ⅰの記載事項を✓記録済／未記録で照合（区分番号ブリッジで精密突合）。v0.15までの検算・返戻理由・整合チェックを継承。カルテ本体は <code style="font-size:11px;background:#f1f5f9;padding:1px 4px;border-radius:3px;">karte_v16/index.html</code>。</p>
+    <span class="url">karte_v16/receipt.html</span>
+  </a>
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v15/receipt.html" target="_blank" style="opacity:0.7;">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>電子カルテ v0.15（レセプト検算＋返戻理由表示）</h3>
+    <p>レセプト電子データ(UKE)を読取・検算・点検。点数検算（明細×回数＝請求合計、実データ社保100%一致）、返戻レセプトのHR返戻理由を自動表示（例:算定要件不備）、実日数整合、査定に効く警告のみ表示。カルテ本体は <code style="font-size:11px;background:#f1f5f9;padding:1px 4px;border-radius:3px;">karte_v15/index.html</code>。</p>
+    <span class="url">karte_v15/receipt.html</span>
+  </a>
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v12/index.html" target="_blank" style="opacity:0.7;">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>電子カルテ v0.12（レセプトデータ出力）</h3>
+    <p>レセプト出力全17種実装（CSV・公式帳票印刷・UKEダウンロード・返戻処理結果TXT）。社保総括表（様式第一）・国保総括表（保険者別）・光ディスク等送付書・公費医療費請求書・操作マニュアル付き。</p>
+    <span class="url">karte_v12/index.html</span>
+  </a>
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v11/index.html" target="_blank" style="opacity:0.7;">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>電子カルテ v0.11（保険証フィールド分離）</h3>
+    <p>保険証の記号・番号・枝番を個別フィールドに分離。医療証種別→法別番号自動入力。旧形式からの自動マイグレーション対応。</p>
+    <span class="url">karte_v11/index.html</span>
+  </a>
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v10/index.html" target="_blank" style="opacity:0.7;">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>電子カルテ v0.10（SSKマスター統合版）</h3>
+    <p>SSK公式マスター60,315件統合。傷病名27,684件・医薬品18,495件のフル検索対応。レセプト点検12種チェック（背反/包括/算定回数）。v0.9セキュリティ継承。</p>
+    <span class="url">karte_v10/index.html</span>
+  </a>
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v06/index.html" target="_blank" style="opacity:0.7;">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>電子カルテ v0.6（音声カルテ）</h3>
+    <p>v0.5ベース + faster-whisper音声文字起こし統合。マイク録音→AI文字起こし→カルテ自動生成→フィールド反映。12種の医療テンプレート対応。GPU高速処理（0.1秒）。</p>
+    <span class="url">karte_v06/index.html</span>
+  </a>
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v09/index.html" target="_blank" style="opacity:0.7;">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>電子カルテ v0.9（セキュリティ強化版）</h3>
+    <p>Supabase Auth認証（ログイン必須化）・全23テーブルRLS有効化・医療データanon完全ブロック・KPI DELETE禁止。v0.8全機能継承。</p>
+    <span class="url">karte_v09/index.html</span>
+  </a>
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v08/index.html" target="_blank" style="opacity:0.7;">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>電子カルテ v0.8（GitHub Pages版）</h3>
+    <p>処方セットCRUD・薬剤ごと個別日数・院外処方モード・医療証対応・QR+OCR保険証読取。令8年改定対応。</p>
+    <span class="url">karte_v08/index.html</span>
+  </a>
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v07/index.html" target="_blank" style="opacity:0.7;">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>電子カルテ v0.7（令8年改定対応）</h3>
+    <p>2026年6月施行の診療報酬改定に対応。診察日で新旧点数を自動切替。音声カルテ・Supabase連携・OCR/QR読取を継承。</p>
+    <span class="url">karte_v07/index.html</span>
+  </a>
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v05/index.html" target="_blank" style="opacity:0.7;">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>電子カルテ v0.5（Supabase統合）</h3>
+    <p>v0.4ベース + Supabase(PostgreSQL)二重書き込み統合。スプシ運用を維持しつつ、型付き正規化DBにリアルタイム同期。RLS(行レベルセキュリティ)で保護。</p>
+    <span class="url">karte_v05/index.html</span>
+  </a>
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/v0_5/index.html" target="_blank" style="opacity:0.7;">
+    <span class="badge badge-pharmacy">薬品在庫</span>
+    <h3>薬品在庫管理 v0.5</h3>
+    <p>M001〜M183統一コードへ完全リファクタリング。QRスキャン時にハイライトフォーカス、在庫あり＞在庫0＞外用の表示順、複数薬品の連続登録、担当者選択対応。GAS + スプレッドシート連携（183件M-code）。</p>
+    <span class="url">v0_5/index.html</span>
+  </a>
+
+  <a class="card" href="https://soumu-lgtm.github.io/drive-through-pharmacy/ec_dashboard/index.html" target="_blank" style="opacity:0.7;">
+    <span class="badge badge-tool">ツール</span>
+    <h3>EC売上ダッシュボード（GAS版）</h3>
+    <p>Shopify・Amazon・Qoo10・社割・卸売の5チャネル統合売上ダッシュボード。GA4連携・在庫管理・利益比較・KPIレポート。GAS Web App からリアルタイムデータ取得。</p>
+    <span class="url">ec_dashboard/index.html</span>
+  </a>
+
+</div>
+
+<h2 class="section-title">URL一覧表</h2>
+<table class="full-table">
+  <tr>
+    <th>プロジェクト</th>
+    <th>種別</th>
+    <th>URL</th>
+  </tr>
+  <tr>
+    <td><strong>ポータル（この画面）</strong></td>
+    <td>ポータル</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/portal.html">portal.html</a></td>
+  </tr>
+  <tr style="background:#dbeafe;">
+    <td><strong>クリニック予約システム プロトタイプ2（同期デモ）</strong></td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/reservation_v2/demo.html">reservation_v2/demo.html</a></td>
+  </tr>
+  <tr>
+    <td>　└ 患者用 予約サイト</td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/reservation_v2/index.html">reservation_v2/index.html</a></td>
+  </tr>
+  <tr>
+    <td>　└ 受付ライブボード</td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/reservation_v2/board.html">reservation_v2/board.html</a></td>
+  </tr>
+    <tr style="background:#dcfce7;">
+    <td><strong>電子カルテ v0.12（本番ドメイン）</strong></td>
+    <td>本番</td>
+    <td><a target="_blank" href="https://karte.hdg-holdings.com/">https://karte.hdg-holdings.com/</a></td>
+  </tr>
+  <tr>
+    <td><strong>電子カルテ v0.16（別表Ⅰ摘要チェック）</strong></td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v16/index.html">karte_v16/index.html</a></td>
+  </tr>
+  <tr style="background:#dcfce7;">
+    <td><strong>電子カルテ v0.18（最新・起動高速化＋Supabase同期）</strong></td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v18/index.html">karte_v18/index.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>電子カルテ v0.17（適応症突合＋診察料加算点検）</strong></td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v17/index.html">karte_v17/index.html</a></td>
+  </tr>
+  <tr>
+    <td>└ レセプト点検ビューア（カルテのヘッダーから起動）</td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v17/receipt.html">karte_v17/receipt.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>電子カルテ v0.16 レセプト点検ビューア</strong></td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v16/receipt.html">karte_v16/receipt.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>電子カルテ v0.15（レセプト検算＋返戻理由）</strong></td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v15/index.html">karte_v15/index.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>電子カルテ v0.15 レセプト点検ビューア</strong></td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v15/receipt.html">karte_v15/receipt.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>電子カルテ v0.12（レセプトデータ出力）</strong></td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v12/index.html">karte_v12/index.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>電子カルテ v0.12 レセプト出力マニュアル</strong></td>
+    <td>マニュアル</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v12/receipt_manual.html">karte_v12/receipt_manual.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>電子カルテ v0.11（保険証フィールド分離）</strong></td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v11/index.html">karte_v11/index.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>電子カルテ v0.10（SSKマスター統合版）</strong></td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v10/index.html">karte_v10/index.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>電子カルテ v0.6（音声カルテ）</strong></td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v06/index.html">karte_v06/index.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>夜間休日診療KPI</strong></td>
+    <td>分析</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v05/analytics.html">karte_v05/analytics.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>薬品在庫管理 v0.6（最新）</strong></td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/v0_6/index.html">v0_6/index.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>薬品在庫 はじめてガイド</strong></td>
+    <td>マニュアル</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/v0_5/manual_v2/index.html">v0_5/manual_v2/index.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>QRコード生成ツール</strong></td>
+    <td>ツール</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/qr_generator.html">qr_generator.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>薬品QRコード一覧</strong></td>
+    <td>一覧表</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/v0_5/qr_list/index.html">v0_5/qr_list/index.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>タスクボード</strong></td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/task_board/index.html">task_board/index.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>EC売上KPIダッシュボード（Supabase版・最新）</strong></td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/kpi_dashboard/index.html">kpi_dashboard/index.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>WebORCA レセコン連携デモ</strong></td>
+    <td>デモ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/rececom_demo/index.html">rececom_demo/index.html</a></td>
+  </tr>
+  <tr style="background:#f8fafc;"><td colspan="3" style="padding:6px 12px; font-size:12px; color:var(--text-muted); font-weight:600;">過去バージョン</td></tr>
+  <tr>
+    <td style="color:var(--text-muted);">電子カルテ v0.9（セキュリティ強化版）</td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v09/index.html">karte_v09/index.html</a></td>
+  </tr>
+  <tr>
+    <td style="color:var(--text-muted);">電子カルテ v0.8（GitHub Pages版）</td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v08/index.html">karte_v08/index.html</a></td>
+  </tr>
+  <tr>
+    <td style="color:var(--text-muted);">電子カルテ v0.7（令8年改定対応）</td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v07/index.html">karte_v07/index.html</a></td>
+  </tr>
+  <tr>
+    <td style="color:var(--text-muted);">電子カルテ v0.5（Supabase統合）</td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/karte_v05/index.html">karte_v05/index.html</a></td>
+  </tr>
+  <tr>
+    <td style="color:var(--text-muted);">薬品在庫管理 v0.5</td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/v0_5/index.html">v0_5/index.html</a></td>
+  </tr>
+  <tr>
+    <td style="color:var(--text-muted);">EC売上ダッシュボード（GAS版）</td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-lgtm.github.io/drive-through-pharmacy/ec_dashboard/index.html">ec_dashboard/index.html</a></td>
+  </tr>
+</table>
+
+</div>
+
+<div style="max-width:960px; margin:24px auto 0; padding:0 16px;">
+  <p style="font-size:12px; color:var(--text-muted); background:#f1f5f9; border-radius:8px; padding:12px 16px;">
+    ※ さらに古いバージョン（電子カルテ v0.2〜v0.4、カルテ操作マニュアル）はサーバー上に保管されていますが、現在は非表示にしています。
+  </p>
+</div>
+
+<div class="footer">
+  ハンドレッドドクター 佐川制作プログラムポータル | 最終更新: 2026-07-21
+</div>
+
+</body>
+</html>

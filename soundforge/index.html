@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SoundForge</title>
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/wavesurfer.js@7"></script>
+</head>
+<body>
+
+<!-- ── 背景 ── -->
+<div class="p3r-bg">
+  <div class="p3r-bg-grad"></div>
+  <div class="p3r-bg-light"></div>
+  <div class="p3r-bg-light p3r-bg-light2"></div>
+  <div class="p3r-bg-light p3r-bg-light3"></div>
+  <div class="p3r-bg-caustic"></div>
+  <div class="p3r-bg-float"></div>
+  <div class="p3r-bg-float p3r-bg-float2"></div>
+</div>
+
+<!-- ── トランジション ── -->
+<div class="trans" id="trans">
+  <div class="trans-b trans-b1"></div>
+  <div class="trans-b trans-b2"></div>
+  <div class="trans-b trans-b3"></div>
+</div>
+
+<!-- ══════════ SCENE: メニュー（トップ） ══════════ -->
+<section class="sc sc-menu active" id="sc-menu">
+  <div class="deco-text deco-text-menu">サウンド<br>フォージ</div>
+
+  <div class="menu-columns">
+    <!-- シーンから探す（横断・主軸） -->
+    <div class="menu-col menu-col-scene">
+      <span class="menu-cat">シーンから探す</span>
+      <button class="menu-item mi-active mi-scene" data-scene="normal_battle"><span class="mi-icon">⚔</span><span class="mi-text">戦闘</span></button>
+      <button class="menu-item mi-scene" data-scene="tension"><span class="mi-icon">⚡</span><span class="mi-text">緊迫・ハプニング</span></button>
+      <button class="menu-item mi-scene" data-scene="explore"><span class="mi-icon">◎</span><span class="mi-text">探索・不穏</span></button>
+      <button class="menu-item mi-scene" data-scene="daily"><span class="mi-icon">☀</span><span class="mi-text">日常</span></button>
+      <button class="menu-item mi-scene" data-scene="chill"><span class="mi-icon">～</span><span class="mi-text">まったり</span></button>
+      <button class="menu-item mi-scene" data-scene="emotional"><span class="mi-icon">❦</span><span class="mi-text">感傷・シリアス</span></button>
+      <div class="menu-col-sep"></div>
+      <button class="menu-item mi-strong" data-scene="all"><span class="mi-text">すべての楽曲を見る</span></button>
+    </div>
+
+    <!-- テーマから探す（世界観別・副） -->
+    <div class="menu-col menu-col-theme">
+      <span class="menu-cat">テーマから探す</span>
+      <a class="menu-item mi-sub" href="trpg.html"><span class="mi-text">ファンタジー / 異能</span></a>
+      <a class="menu-item mi-sub" href="rpg-battle.html"><span class="mi-text">RPGバトル</span></a>
+      <a class="menu-item mi-sub" href="city-rpg.html"><span class="mi-text">都市RPG・現代</span></a>
+      <a class="menu-item mi-sub" href="horror.html"><span class="mi-text">ホラー</span></a>
+      <a class="menu-item mi-sub" href="cyberpunk.html"><span class="mi-text">サイバーパンク・SF</span></a>
+      <a class="menu-item mi-sub" href="streaming.html"><span class="mi-text">配信・実況BGM</span></a>
+      <a class="menu-item mi-sub" href="vlog-cafe.html"><span class="mi-text">Vlog・くつろぎ</span></a>
+      <div class="menu-col-sep"></div>
+      <button class="menu-item mi-ghost" data-target="sc-about"><span class="mi-text">利用について</span></button>
+    </div>
+  </div>
+
+  <div class="guide">
+    <span class="guide-jp">フリーBGM素材サイト</span>
+    <span class="guide-en">商用利用OK &mdash; クレジット不要 &mdash; 登録不要</span>
+  </div>
+
+  <div class="info-box">
+    <span class="info-num" id="heroCount">--</span>
+    <span class="info-label">曲 / 無料ダウンロード</span>
+  </div>
+</section>
+
+<!-- ══════════ SCENE: 楽曲一覧（シーン別横断ブラウズ） ══════════ -->
+<section class="sc sc-browse" id="sc-browse">
+  <div class="deco-text deco-text-browse">楽<br>曲</div>
+
+  <div class="browse-head">
+    <span class="bh-title">楽曲をシーンで探す</span>
+
+    <!-- シーン別タグ（主軸） -->
+    <div class="filter-row" id="sceneFilter">
+      <button class="sf-tab sf-active" data-scene="all">すべて</button>
+      <span class="sf-group">
+        <span class="sf-group-label">戦闘</span>
+        <button class="sf-tab sf-battle" data-scene="normal_battle">通常</button>
+        <button class="sf-tab sf-battle" data-scene="boss_battle">ボス</button>
+        <button class="sf-tab sf-battle" data-scene="climax">決戦</button>
+      </span>
+      <button class="sf-tab" data-scene="tension">緊迫・ハプニング</button>
+      <button class="sf-tab" data-scene="explore">探索・不穏</button>
+      <button class="sf-tab" data-scene="daily">日常</button>
+      <button class="sf-tab" data-scene="chill">まったり</button>
+      <button class="sf-tab" data-scene="emotional">感傷</button>
+      <button class="sf-tab" data-scene="comical">軽快</button>
+    </div>
+
+    <!-- 雰囲気タグ（補助） -->
+    <div class="filter-row filter-row-mood" id="moodFilter">
+      <span class="mf-label">雰囲気</span>
+      <button class="mf-tab mf-active" data-mood="all">指定なし</button>
+      <button class="mf-tab" data-mood="modern">現代・都市</button>
+      <button class="mf-tab" data-mood="fantasy">ファンタジー</button>
+      <button class="mf-tab" data-mood="wafu">和風</button>
+      <button class="mf-tab" data-mood="scifi">SF・サイバー</button>
+      <button class="mf-tab" data-mood="horror">ホラー</button>
+      <button class="mf-tab" data-mood="lofi">Lo-Fi・アコースティック</button>
+    </div>
+  </div>
+
+  <div class="browse-main">
+    <div class="bar-list" id="barList"></div>
+    <div class="detail-area" id="detailArea">
+      <div class="detail-empty" id="detailEmpty">
+        <p>トラックを選択してください</p>
+      </div>
+      <div class="detail-filled" id="detailFilled" style="display:none">
+        <div class="df-image" id="dfImage" style="display:none"><img id="dfImg" src="" alt=""></div>
+        <div class="df-num" id="dfNum">#01</div>
+        <h2 class="df-title" id="dfTitle">--</h2>
+        <p class="df-desc" id="dfDesc">--</p>
+        <div class="df-specs">
+          <div class="df-spec"><span class="dfs-k">シーン</span><span class="dfs-v" id="dfScene">--</span></div>
+          <div class="df-spec"><span class="dfs-k">雰囲気</span><span class="dfs-v" id="dfMood">--</span></div>
+          <div class="df-spec"><span class="dfs-k">再生時間</span><span class="dfs-v" id="dfTime">--</span></div>
+        </div>
+        <div class="df-tags" id="dfTags"></div>
+        <div class="df-wave" id="dfWave"></div>
+        <div class="df-actions">
+          <button class="df-play" id="dfPlay">
+            <svg viewBox="0 0 24 24" fill="currentColor" class="icon-play"><path d="M8 5v14l11-7z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor" class="icon-pause" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            <span id="dfPlayLabel">再生</span>
+          </button>
+          <a class="df-dl" id="dfDl" href="#" download>ダウンロード</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sc-nav">
+    <button class="nav-link" data-nav="menu">トップ</button>
+    <span class="nav-sep">/</span>
+    <button class="nav-link nav-current">楽曲</button>
+    <span class="nav-sep">/</span>
+    <button class="nav-link" data-nav="about">案内</button>
+  </div>
+  <div class="guide">
+    <span class="guide-jp" id="browseCount">--</span>
+    <span class="guide-en">Enter 再生 / Esc 戻る</span>
+  </div>
+</section>
+
+<!-- ══════════ SCENE: 案内 ══════════ -->
+<section class="sc sc-about" id="sc-about">
+  <div class="deco-text deco-text-about">案<br>内</div>
+
+  <div class="about-bars">
+    <div class="a-bar a-bar-head">
+      <span class="ab-label-tag">情報</span>
+      <span class="ab-name">このサイトについて</span>
+    </div>
+    <div class="a-bar">
+      <span class="ab-label-tag ab-ok">&#10003;</span>
+      <span class="ab-name">商用利用OK</span>
+    </div>
+    <div class="a-bar">
+      <span class="ab-label-tag ab-ok">&#10003;</span>
+      <span class="ab-name">クレジット表記不要</span>
+    </div>
+    <div class="a-bar">
+      <span class="ab-label-tag ab-ok">&#10003;</span>
+      <span class="ab-name">加工・編集自由</span>
+    </div>
+    <div class="a-bar">
+      <span class="ab-label-tag ab-ng">&#10007;</span>
+      <span class="ab-name">素材自体の再配布禁止</span>
+    </div>
+    <div class="a-bar a-bar-info">
+      <span class="ab-label-tag">形式</span>
+      <span class="ab-name">MP3 / WAV / OGG</span>
+    </div>
+  </div>
+
+  <div class="about-body-text">
+    高品質なBGM・効果音を無料で提供するサイトです。<br>
+    ゲーム開発、動画制作、配信待機画面、<br>
+    ファンタジー演出・セッションなどにご利用いただけます。
+  </div>
+
+  <div class="sc-nav">
+    <button class="nav-link" data-nav="menu">トップ</button>
+    <span class="nav-sep">/</span>
+    <button class="nav-link" data-nav="browse">楽曲</button>
+    <span class="nav-sep">/</span>
+    <button class="nav-link nav-current">案内</button>
+  </div>
+  <div class="guide">
+    <span class="guide-jp">SoundForge</span>
+    <span class="guide-en">Esc 戻る</span>
+  </div>
+</section>
+
+<!-- ══════════ ミニプレイヤー ══════════ -->
+<div class="mp" id="mp">
+  <div class="mp-prog" id="mpProg"></div>
+  <div class="mp-inner">
+    <button class="mp-btn" id="mpPrev"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+    <button class="mp-btn mp-main" id="mpPlay">
+      <svg viewBox="0 0 24 24" fill="currentColor" class="icon-play"><path d="M8 5v14l11-7z"/></svg>
+      <svg viewBox="0 0 24 24" fill="currentColor" class="icon-pause" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+    </button>
+    <button class="mp-btn" id="mpNext"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+    <span class="mp-title" id="mpTitle">--</span>
+    <span class="mp-time"><span id="mpCur">0:00</span>/<span id="mpDur">0:00</span></span>
+    <div class="mp-wave" id="mpWave"></div>
+  </div>
+</div>
+
+<script src="assets/js/collections.js"></script>
+<script src="assets/js/taxonomy.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

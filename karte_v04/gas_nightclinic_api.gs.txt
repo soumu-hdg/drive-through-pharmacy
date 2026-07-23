@@ -1,0 +1,357 @@
+// ====================================================
+// 夜間休日外来DB API（電子カルテ v0.3 連携用）
+// スプレッドシートID: 12ylHWZhQO2ABfT6xhMM3z8jfD31kH7lRbaGY-Br4Y-k
+// ====================================================
+// デプロイ手順:
+// 1. 上記スプレッドシートを開く → 拡張機能 → Apps Script
+// 2. このコードを貼り付け
+// 3. デプロイ → 新しいデプロイ → ウェブアプリ → 全員アクセス可
+// 4. 生成されたURLを karte_v03/app.js の DB_API_URL に設定
+// ====================================================
+
+function doGet(e) {
+  var action = (e && e.parameter && e.parameter.action) || 'all';
+  var result = {};
+
+  try {
+    var ss = SpreadsheetApp.openById('12ylHWZhQO2ABfT6xhMM3z8jfD31kH7lRbaGY-Br4Y-k');
+
+    if (action === 'drugs' || action === 'all') {
+      result.drugs = getDrugMaster(ss);
+    }
+    if (action === 'stock' || action === 'all') {
+      result.stock = getStockData(ss);
+    }
+    if (action === 'patients' || action === 'all') {
+      result.patients = getPatientData(ss);
+    }
+    if (action === 'shift' || action === 'all') {
+      result.shift = getShiftData(ss);
+    }
+    if (action === 'references' || action === 'all') {
+      result.references = getReferenceData(ss);
+    }
+    if (action === 'prescriptions' || action === 'all') {
+      result.prescriptions = getPrescriptionHistory(ss);
+    }
+
+    result.success = true;
+    result.timestamp = new Date().toISOString();
+  } catch (err) {
+    result.success = false;
+    result.error = err.message;
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// --- 薬品マスタ ---
+function getDrugMaster(ss) {
+  var sheet = ss.getSheetByName('薬品マスタ');
+  if (!sheet) sheet = findSheetByHeader(ss, '薬品名', true);
+  if (!sheet) return [];
+
+  var data = sheet.getDataRange().getValues();
+  var drugs = [];
+  for (var i = 1; i < data.length; i++) {
+    var name = String(data[i][0] || '').trim();
+    if (!name) continue;
+    drugs.push({
+      id: 'db_' + i,
+      name: name,
+      category: categorize(name)
+    });
+  }
+  return drugs;
+}
+
+// --- 在庫管理 ---
+function getStockData(ss) {
+  var sheet = ss.getSheetByName('在庫管理');
+  if (!sheet) sheet = findSheetByHeader(ss, '在庫数');
+  if (!sheet) return [];
+
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var nameCol = 0;
+  var stockCol = 1;
+  for (var c = 0; c < headers.length; c++) {
+    var h = String(headers[c]).trim();
+    if (h === '薬品名') nameCol = c;
+    if (h === '在庫数') stockCol = c;
+  }
+
+  var stock = [];
+  for (var i = 1; i < data.length; i++) {
+    var name = String(data[i][nameCol] || '').trim();
+    var qty = Number(data[i][stockCol]) || 0;
+    if (!name) continue;
+    stock.push({ name: name, qty: qty });
+  }
+  return stock;
+}
+
+// --- 患者データ（当月分） ---
+function getPatientData(ss) {
+  // メインの患者記録シート（1枚目）
+  var sheet = ss.getSheets()[0];
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+
+  // ヘッダーマッピング
+  var colMap = {};
+  for (var c = 0; c < headers.length; c++) {
+    colMap[String(headers[c]).trim()] = c;
+  }
+
+  var patients = [];
+  for (var i = 1; i < data.length; i++) {
+    var name = String(data[i][colMap['患者名']] || '').trim();
+    if (!name) continue;
+    patients.push({
+      name: name,
+      date: formatDate(data[i][colMap['日付']]),
+      time: String(data[i][colMap['時間']] || ''),
+      route: String(data[i][colMap['経路']] || ''),
+      area: String(data[i][colMap['エリア']] || ''),
+      selfPay: Number(String(data[i][colMap['自己負担代']] || '0').replace(/[¥,]/g, '')) || 0,
+      revenuePoints: Number(String(data[i][colMap['診療報酬']] || '0').replace(/[¥,]/g, '')) || 0,
+      doctor: String(data[i][colMap['担当医']] || ''),
+      age: String(data[i][colMap['年齢']] || ''),
+      sex: String(data[i][colMap['性別']] || ''),
+      type: String(data[i][colMap['種別']] || ''),
+      insurance: String(data[i][colMap['保険種別']] || ''),
+      payment: String(data[i][colMap['支払い']] || ''),
+      covid: String(data[i][colMap['コロナ']] || ''),
+      flu: String(data[i][colMap['インフル']] || ''),
+      strep: String(data[i][colMap['溶連菌']] || '')
+    });
+  }
+  return patients;
+}
+
+// --- シフトデータ（当月+翌月） ---
+function getShiftData(ss) {
+  var sheets = ss.getSheets();
+  var shiftData = [];
+
+  for (var s = 0; s < sheets.length; s++) {
+    var sheet = sheets[s];
+    var sheetName = sheet.getName();
+    // シフト管理シートを検出（「日時」「医師名」ヘッダーがある）
+    var data = sheet.getDataRange().getValues();
+    if (data.length < 2) continue;
+    var headers = data[0];
+    var hasDate = false, hasDoctor = false;
+    for (var c = 0; c < headers.length; c++) {
+      var h = String(headers[c]).trim();
+      if (h === '日時') hasDate = true;
+      if (h === '医師名') hasDoctor = true;
+    }
+    if (!hasDate || !hasDoctor) continue;
+
+    // ヘッダーインデックス
+    var dateCol = -1, dayCol = -1, doctorCol = -1, assistCols = [];
+    for (var c = 0; c < headers.length; c++) {
+      var h = String(headers[c]).trim();
+      if (h === '日時') dateCol = c;
+      if (h === '曜日') dayCol = c;
+      if (h === '医師名' && doctorCol === -1) doctorCol = c;
+      if (h === '医療補助') assistCols.push(c);
+    }
+
+    for (var i = 1; i < data.length; i++) {
+      var dateStr = String(data[i][dateCol] || '').trim();
+      if (!dateStr) continue;
+      var doctor = String(data[i][doctorCol] || '').trim();
+      if (!doctor) continue;
+
+      var assistants = [];
+      for (var a = 0; a < assistCols.length; a++) {
+        var ast = String(data[i][assistCols[a]] || '').trim();
+        if (ast) assistants.push(ast);
+      }
+
+      shiftData.push({
+        date: dateStr,
+        dayOfWeek: String(data[i][dayCol] || ''),
+        doctor: doctor,
+        assistants: assistants,
+        sheetName: sheetName
+      });
+    }
+  }
+  return shiftData;
+}
+
+// --- 参照マスタ ---
+function getReferenceData(ss) {
+  var sheet = null;
+  var sheets = ss.getSheets();
+  for (var s = 0; s < sheets.length; s++) {
+    var data = sheets[s].getDataRange().getValues();
+    if (data.length > 0 && String(data[0][0]).trim() === '流入') {
+      sheet = sheets[s];
+      break;
+    }
+  }
+  if (!sheet) return {};
+
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+
+  var refs = {
+    routes: [],
+    ageGroups: [],
+    areas: [],
+    insuranceTypes: [],
+    medCerts: [],
+    ratios: [],
+    doctors: []
+  };
+
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0]) refs.routes.push(String(data[i][0]).trim());
+    if (data[i][1]) refs.ageGroups.push(String(data[i][1]).trim());
+    if (data[i][2]) refs.areas.push(String(data[i][2]).trim());
+    if (data[i][3]) refs.insuranceTypes.push(String(data[i][3]).trim());
+    if (data[i][4]) refs.medCerts.push(String(data[i][4]).trim());
+    if (data[i][5]) refs.ratios.push(String(data[i][5]).trim());
+    if (data[i][6]) refs.doctors.push(String(data[i][6]).trim());
+  }
+
+  return refs;
+}
+
+// --- 処方履歴 ---
+function getPrescriptionHistory(ss) {
+  var sheet = ss.getSheetByName('処方履歴');
+  if (!sheet) return [];
+
+  var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return [];
+  var headers = data[0];
+
+  // ヘッダーマッピング
+  var colMap = {};
+  var rxCols = [];    // 処方薬列
+  var qtyCols = [];   // 数量列
+  for (var c = 0; c < headers.length; c++) {
+    var h = String(headers[c]).trim();
+    colMap[h] = c;
+    // 処方薬列を検出
+    if (h.indexOf('処方薬') >= 0 || (h.indexOf('処方') >= 0 && h !== '処方管理入力日')) {
+      rxCols.push({ col: c, header: h });
+    }
+    // 数量列を検出
+    if (h === '数量' || h.indexOf('数量') >= 0 || h === 'Qty' || h === '個数') {
+      qtyCols.push({ col: c, header: h });
+    }
+  }
+
+  // 処方薬列が見つからない場合、自己負担代・診療報酬列より後ろの列を処方薬とみなす
+  if (rxCols.length === 0) {
+    var startCol = Math.max(
+      (colMap['診療報酬'] || 0) + 1,
+      (colMap['自己負担代'] || 0) + 1
+    );
+    for (var c = startCol; c < headers.length; c++) {
+      var h = String(headers[c]).trim();
+      if (h) {
+        // 数量列はスキップ
+        if (h === '数量' || h.indexOf('数量') >= 0 || h === 'Qty' || h === '個数') {
+          qtyCols.push({ col: c, header: h });
+        } else {
+          rxCols.push({ col: c, header: h });
+        }
+      }
+    }
+  }
+
+  // 処方薬列と数量列のペアリング: 処方薬列の直後にある数量列を紐付ける
+  var rxQtyPairs = [];
+  for (var r = 0; r < rxCols.length; r++) {
+    var rxCol = rxCols[r].col;
+    var qtyCol = -1;
+    // 直後の列が数量列かチェック
+    for (var q = 0; q < qtyCols.length; q++) {
+      if (qtyCols[q].col === rxCol + 1) {
+        qtyCol = qtyCols[q].col;
+        break;
+      }
+    }
+    rxQtyPairs.push({ rxCol: rxCol, qtyCol: qtyCol, header: rxCols[r].header });
+  }
+
+  var records = [];
+  for (var i = 1; i < data.length; i++) {
+    var name = String(data[i][colMap['患者名']] || '').trim();
+    if (!name) continue;
+
+    var rxItems = [];
+    for (var r = 0; r < rxQtyPairs.length; r++) {
+      var drugName = String(data[i][rxQtyPairs[r].rxCol] || '').trim();
+      if (!drugName) continue;
+      var qty = '';
+      if (rxQtyPairs[r].qtyCol >= 0) {
+        qty = String(data[i][rxQtyPairs[r].qtyCol] || '').trim();
+      }
+      rxItems.push({ drug: drugName, qty: qty });
+    }
+
+    records.push({
+      name: name,
+      date: formatDate(data[i][colMap['診療日']]),
+      doctor: String(data[i][colMap['入力担当者']] || '').trim(),
+      rxDate: formatDate(data[i][colMap['処方管理入力日']]),
+      selfPay: Number(String(data[i][colMap['自己負担代']] || '0').replace(/[¥,]/g, '')) || 0,
+      revenuePoints: Number(String(data[i][colMap['診療報酬']] || '0').replace(/[¥,]/g, '')) || 0,
+      rx: rxItems
+    });
+  }
+  return records;
+}
+
+// --- ユーティリティ ---
+function categorize(name) {
+  if (/カロナール|アセトアミノフェン|ロキソプロフェン|アンヒバ/.test(name)) return '解熱鎮痛';
+  if (/アスベリン|レスプレン|カルボシステイン|トラネキサム/.test(name)) return '咳・痰';
+  if (/ビオフェルミン|ミヤBM|ドンペリドン|タケキャブ|プリンペラン/.test(name)) return '胃腸';
+  if (/フェキソフェナジン|アレジオン/.test(name)) return 'アレルギー';
+  if (/セファクロル|ワイドシリン|クラリスロマイシン|サワシリン|ケフレックス|レボフロキサシン/.test(name)) return '抗菌';
+  if (/オセルタミビル|イナビル|麻黄湯/.test(name)) return '抗ウイルス';
+  if (/ゲンタシン|ロコイド|リンデロン|ヒルドイド/.test(name)) return '外用';
+  if (/ツロブテロール|メプチン/.test(name)) return '気管支';
+  if (/レボフロキサシン点眼|アレジオン点眼/.test(name)) return '点眼';
+  if (/坐剤|ダイアップ/.test(name)) return '坐剤';
+  if (/アドレナリン/.test(name)) return '救急';
+  if (/アドテスト|クイックナビ/.test(name)) return '検査キット';
+  if (/メリスロン/.test(name)) return 'めまい';
+  return '内服';
+}
+
+function findSheetByHeader(ss, headerName, exactMatch) {
+  var sheets = ss.getSheets();
+  for (var s = 0; s < sheets.length; s++) {
+    var data = sheets[s].getDataRange().getValues();
+    if (data.length > 0) {
+      for (var c = 0; c < data[0].length; c++) {
+        var h = String(data[0][c]).trim();
+        if (exactMatch ? h === headerName : h.indexOf(headerName) >= 0) {
+          return sheets[s];
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function formatDate(val) {
+  if (!val) return '';
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, 'Asia/Tokyo', 'M/d');
+  }
+  return String(val);
+}

@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>クリニックご予約サイト</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <span class="brand">クリニックご予約サイト</span>
+  <span class="sync-badge"><span class="sync-dot"></span>リアルタイム同期</span>
+  <nav>
+    <a data-nav="home">予約する</a>
+    <a data-nav="lookup">予約の確認・キャンセル</a>
+  </nav>
+</header>
+<main id="app"></main>
+
+<!-- Supabase接続（利用可能なら実DB＋Realtime同期。不達時はローカル同期に自動フォールバック） -->
+<script>window.__RSV_SUPABASE__ = true;</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="store.js"></script>
+<script>
+/* =========================================================
+   患者向けSPA
+   クリニック選択→施術/枠→2ステップ入力→完了。
+   store.js の同期ストアに接続し、予約は即座に受付ボードへ反映される。
+   ========================================================= */
+const app = document.getElementById("app");
+
+// 画面状態
+let state = { view: "home", csId: null, menuId: null, concern: null, date: null, slotId: null, time: null };
+
+const SVG = {
+  外来: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M12 8v6M9 11h6"/></svg>',
+  在宅: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
+  美容: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M18 16l.9 2.1L21 19l-2.1.9L18 22l-.9-2.1L15 19l2.1-.9z"/></svg>',
+  夜間休日: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13.5A8.5 8.5 0 0 1 10.5 4 7 7 0 1 0 20 13.5z"/></svg>',
+};
+const AREA_COLOR = { "愛知":"#b45309", "神奈川":"#0369a1", "千葉":"#be185d" };
+function esc(s){ return String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function tint(hex){ return hex+"22"; }
+
+// 入力保持（確認→戻るで消えないように）
+let form = null;
+
+/* ---------------- ルーター ---------------- */
+function go(patch){ state = Object.assign({}, state, patch); render(); window.scrollTo(0,0); }
+document.querySelectorAll("[data-nav]").forEach(a=>{
+  a.onclick = ()=> go({ view: a.dataset.nav, csId:null, menuId:null, date:null, slotId:null });
+});
+
+function render(){
+  switch(state.view){
+    case "home":    return renderHome();
+    case "service": return renderServicePick();   // 施術一覧 or 枠一覧
+    case "form":    return renderForm();
+    case "done":    return renderDone();
+    case "lookup":  return renderLookup();
+  }
+}
+
+/* ---------------- 1. トップ：クリニック選択 ---------------- */
+function renderHome(){
+  const cards = Store.CLINICS.map(c=>{
+    const area = c.area || "その他";
+    const col = AREA_COLOR[area] || "#475569";
+    const names = c.services.map(s=>s.name);
+    const primary = names.includes("美容") ? "美容" : names.includes("外来") ? "外来" : names.includes("在宅") ? "在宅" : names[0];
+    const btns = [...c.services]
+      .sort((a,b)=> Number(b.name===primary) - Number(a.name===primary))
+      .map(s=>{
+        const isPrimary = s.name===primary;
+        const label = s.name==="美容" ? "美容施術を探す" : `${s.name}を予約する`;
+        if(c.openingNote) return `<button class="svc-btn disabled">${SVG[s.name]||""}${label}（準備中）</button>`;
+        return `<button class="svc-btn ${isPrimary?"":"secondary"}" onclick="go({view:'service',csId:${s.id},menuId:null,concern:null,date:null})">${SVG[s.name]||""}${label}</button>`;
+      }).join("");
+    return `<section class="clinic-card">
+      <div class="clinic-card-head">
+        <span class="area-label" style="background:${tint(col)};color:${col}">${esc(area)}</span>
+        ${c.openingNote?`<span class="badge-opening">${esc(c.openingNote)}</span>`:""}
+      </div>
+      <div class="clinic-card-name">${esc(c.name)}クリニック</div>
+      <div class="clinic-card-addr">${esc(c.address)}</div>
+      <div class="clinic-card-svcline">${esc(names.join("・"))}</div>
+      <div class="clinic-card-btns">${btns}</div>
+    </section>`;
+  }).join("");
+
+  app.innerHTML = `
+    <h1>ご予約はこちら</h1>
+    <p class="muted">診療を希望するクリニックをお選びください。予約内容によって各予約ページへ移動します。</p>
+    <div class="clinic-cards">${cards}</div>
+    <p class="muted" style="margin-top:20px">ご予約済みの方は <a class="back" onclick="go({view:'lookup'})">予約の確認・キャンセル</a> へ。お電話でのご予約も承っています。</p>`;
+}
+
+/* ---------------- 2. 施術一覧 / 枠選択 ---------------- */
+function renderServicePick(){
+  const svc = Store.serviceOfCs(state.csId);
+  const clinic = Store.clinicOfCs(state.csId);
+  const menus = Store.menusOfCs(state.csId);
+
+  // 美容でメニュー未選択 → 施術一覧
+  if(menus.length && !state.menuId){
+    return renderMenuList(clinic, menus);
+  }
+  // 美容でメニュー選択済 → 週間ストリップ
+  if(state.menuId){
+    return renderWeekPicker(clinic, svc, Store.menuById(state.menuId));
+  }
+  // 外来/在宅/夜間休日 → 枠一覧
+  return renderSlotList(clinic, svc);
+}
+
+function renderMenuList(clinic, menus){
+  const filters = [
+    {label:"すべて", kw:null},
+    {label:"毛穴・ニキビ跡", kw:["毛穴","ニキビ"]},
+    {label:"シミ・そばかす", kw:["シミ","そばかす","赤み"]},
+    {label:"たるみ", kw:["たるみ","フェイスライン"]},
+    {label:"小じわ・ハリ", kw:["小じわ","ハリ"]},
+  ].filter(f=> !f.kw || menus.some(m=>f.kw.some(k=>(m.concerns||"").includes(k))));
+  const active = state.concern || "すべて";
+  const shown = active==="すべて" ? menus
+    : menus.filter(m=> (filters.find(f=>f.label===active)?.kw||[]).some(k=>(m.concerns||"").includes(k)));
+  const sorted = [...shown].sort((a,b)=> Number(b.popular)-Number(a.popular));
+
+  const chips = filters.map(f=>`<span class="chip ${active===f.label?"active":""}" onclick="go({concern:'${f.label}'})">${f.label}</span>`).join("");
+  const cards = sorted.map(m=>{
+    const priceHtml = m.firstVisitPrice!=null
+      ? `<span class="hp-price-label">初回</span><span class="hp-price-num">¥${m.firstVisitPrice.toLocaleString()}</span><span class="hp-price-tax">(税込)</span>${m.price?`<div class="hp-price-note">通常 ¥${m.price.toLocaleString()}〜</div>`:""}`
+      : m.price==null ? `<span class="hp-price-ask">要問合せ</span>`
+      : `<span class="hp-price-num">¥${m.price.toLocaleString()}〜</span><span class="hp-price-tax">(税込)</span>`;
+    const tags = (m.concerns||"").split(/[・、,]/).filter(Boolean).map(t=>`<span class="hp-tag">${esc(t)}</span>`).join("");
+    return `<div class="hp-card">
+      <div class="hp-img">
+        <div class="hp-noimg">${esc(m.name.slice(0,1))}</div>
+        <div class="hp-badges">${m.popular?'<span class="hp-badge pop">人気</span>':""}${m.firstVisitPrice!=null?'<span class="hp-badge first">初回価格</span>':""}</div>
+      </div>
+      <div class="hp-body">
+        <div class="hp-name" onclick="go({menuId:${m.id}})">${esc(m.name)}</div>
+        <div class="hp-catch">${esc(m.catch||"")}</div>
+        <div class="hp-tags">${tags}</div>
+        ${m.downtime?`<div class="hp-meta">ダウンタイム: ${esc(m.downtime)}</div>`:""}
+        ${m.staffType?`<div class="hp-meta">施術担当: ${esc(m.staffType)}</div>`:""}
+      </div>
+      <div class="hp-side">
+        <div>${priceHtml}</div>
+        <div class="hp-dur">所要 約${m.durationMin}分</div>
+        <button class="btn" style="margin-top:auto" onclick="go({menuId:${m.id}})">空き状況を確認する</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  app.innerHTML = `
+    <a class="back" onclick="go({view:'home',csId:null})">← クリニック選択に戻る</a>
+    <h1>${esc(clinic.name)} 美容皮膚科 — 施術を探す</h1>
+    <p class="muted">お悩みに合わせて施術をお選びください。</p>
+    <div class="chips">${chips}</div>
+    <div class="hp-list">${cards || '<div class="card">該当する施術がありません。</div>'}</div>`;
+}
+
+let weekOffset = 0;
+function renderWeekPicker(clinic, svc, menu){
+  const days = Store.getDays(state.csId, 28);
+  const perWeek = 7;
+  const totalWeeks = Math.ceil(days.length/perWeek);
+  weekOffset = Math.max(0, Math.min(weekOffset, totalWeeks-1));
+  const week = days.slice(weekOffset*perWeek, weekOffset*perWeek+perWeek);
+
+  // 選択日（未選択なら最初に空きがある日）
+  let selDate = state.date;
+  if(!selDate || !week.find(d=>d.date===selDate)){
+    const firstOpen = week.find(d=>d.slots.some(s=>s.open && s.remaining>0));
+    selDate = (firstOpen||week[0]).date;
+  }
+  const selDay = days.find(d=>d.date===selDate);
+
+  const cells = week.map(d=>{
+    const openSlots = d.slots.filter(s=>s.open);
+    const rem = openSlots.reduce((a,s)=>a+s.remaining,0);
+    let mark = "×", cls="mark-full";
+    if(d.slots.length===0){ mark="休"; cls="mark-closed"; }
+    else if(rem===0){ mark="×"; cls="mark-full"; }
+    else if(rem<=2){ mark="△"; cls="mark-few"; }
+    else { mark="○"; cls="mark-ok"; }
+    const wd = Store.weekday(d.date);
+    const disabled = d.slots.length===0 || rem===0;
+    return `<div class="day-cell ${state.date===d.date?"selected":selDate===d.date?"selected":""} ${disabled?"disabled":""}" ${disabled?"":`onclick="go({date:'${d.date}',slotId:null})"`}>
+      <span class="day-wd ${wd===6?"sat":wd===0?"sun":""}">${d.label.match(/\((.)\)/)[1]}</span>
+      <span class="day-date">${d.label.replace(/\(.*/,"")}</span>
+      <span class="day-mark ${cls}">${mark}</span>
+    </div>`;
+  }).join("");
+
+  const times = (selDay?selDay.slots:[]).map(s=>{
+    const disabled = !s.open || s.remaining===0;
+    return `<button class="time-chip ${state.slotId===s.id?"selected":""}" ${disabled?"disabled":`onclick="go({slotId:'${s.id}',time:'${s.time}',date:'${selDate}'})"`}>
+      ${s.time}<span class="rem">${!s.open?"休":s.remaining===0?"満":s.remaining<=1?"残1":"空"}</span></button>`;
+  }).join("") || '<p class="muted">この日の枠はありません。</p>';
+
+  const canNext = !!state.slotId;
+  app.innerHTML = `
+    <a class="back" onclick="go({menuId:null,date:null,slotId:null})">← 施術一覧に戻る</a>
+    <h1>${esc(clinic.name)} 美容皮膚科 — 日時を選択</h1>
+    <div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <div class="hp-noimg" style="width:64px;height:48px;min-height:0;font-size:20px;border-radius:8px">${esc(menu.name.slice(0,1))}</div>
+      <div><strong>${esc(menu.name)}</strong><div class="muted">所要 約${menu.durationMin}分 ・ ${menu.firstVisitPrice!=null?`初回 ¥${menu.firstVisitPrice.toLocaleString()}`:menu.price?`¥${menu.price.toLocaleString()}〜`:"要問合せ"}</div></div>
+    </div>
+    <div class="week-nav">
+      <button class="secondary" ${weekOffset===0?"disabled":""} onclick="weekPrev()">‹ 前の週</button>
+      <span class="muted">${week[0].label.replace(/\(.*/,"")} 〜 ${week[week.length-1].label.replace(/\(.*/,"")}</span>
+      <button class="secondary" ${weekOffset>=totalWeeks-1?"disabled":""} onclick="weekNext()">次の週 ›</button>
+    </div>
+    <div class="week-strip">${cells}</div>
+    <h2>${selDay?selDay.label:""} の時間</h2>
+    <div class="time-grid">${times}</div>
+    <div class="cta-bar">
+      <button ${canNext?"":"disabled"} onclick="startForm()">この日時で予約へ進む</button>
+    </div>`;
+}
+
+function renderSlotList(clinic, svc){
+  const days = Store.getDays(state.csId, 14).filter(d=>d.slots.length);
+  const today = Store.todayStr();
+  const now = new Date();
+  const nowT = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+
+  // 最短予約可能
+  let earliest = null;
+  for(const d of days){ for(const s of d.slots){ if(s.open && s.remaining>0 && !(d.date===today&&s.time<=nowT)){ earliest={date:d.date,time:s.time,id:s.id}; break; } } if(earliest) break; }
+
+  const blocks = days.map(d=>{
+    const chips = d.slots.map(s=>{
+      const past = d.date===today && s.time<=nowT;
+      if(!s.open) return `<span class="slot-x">${s.time} 休</span>`;
+      if(past) return `<span class="slot-x">${s.time} 終了</span>`;
+      if(s.remaining===0) return `<span class="slot-x">${s.time} 満</span>`;
+      return `<span class="slot" onclick="go({date:'${d.date}',slotId:'${s.id}',time:'${s.time}'});startForm()">${s.time}${s.capacity>1&&s.remaining===1?" 残1":""}</span>`;
+    }).join("");
+    return `<div class="slot-day card"><div class="date">${d.label}</div><div class="slot-list">${chips}</div></div>`;
+  }).join("");
+
+  app.innerHTML = `
+    <a class="back" onclick="go({view:'home',csId:null})">← クリニック選択に戻る</a>
+    <h1>${esc(clinic.name)} ${esc(svc.name)} の空き状況</h1>
+    ${earliest?`<div class="earliest-line"><span class="muted">最短で予約できる日時</span><strong>${Store.fmtJa(earliest.date)} ${earliest.time}</strong><button class="btn" style="padding:6px 14px" onclick="go({date:'${earliest.date}',slotId:'${earliest.id}',time:'${earliest.time}'});startForm()">この日時を選択</button></div>`:""}
+    <p class="muted">ご希望の日時を選択してください（今後2週間分を表示）。</p>
+    ${blocks || '<div class="card">現在予約可能な枠がありません。</div>'}`;
+}
+
+/* ---------------- 3. 予約フォーム（入力→確認） ---------------- */
+function startForm(){
+  form = form || { name:"", kana:"", birthDate:"", phone:"", email:"", visitType:"", note:"", agree:false, consent:false };
+  go({ view:"form" }); formStep="input"; renderForm();
+}
+let formStep = "input";
+let consentOpen = false;
+
+function renderForm(){
+  const clinic = Store.clinicOfCs(state.csId);
+  const svc = Store.serviceOfCs(state.csId);
+  const menu = state.menuId ? Store.menuById(state.menuId) : null;
+  const dateLabel = `${Store.fmtJa(state.date)} ${state.time}`;
+
+  if(formStep==="input"){
+    app.innerHTML = `
+      <a class="back" onclick="go({view:'service'})">← 日時の選択に戻る</a>
+      <div class="card">
+        <h2>ご予約情報の入力</h2>
+        <div id="formErr"></div>
+        <div class="stack">
+          <label class="field">お名前<span class="req">必須</span><input id="f_name" value="${esc(form.name)}" placeholder="例）山田 花子"></label>
+          <label class="field">フリガナ<span class="req">必須</span><input id="f_kana" value="${esc(form.kana)}" placeholder="例）ヤマダ ハナコ"></label>
+          <label class="field">生年月日<input id="f_birth" type="date" value="${esc(form.birthDate)}"></label>
+          <label class="field">電話番号<span class="req">必須</span><input id="f_phone" type="tel" value="${esc(form.phone)}" placeholder="例）090-1234-5678"><span class="muted">予約の確認・キャンセル時に使用します</span></label>
+          <label class="field">メールアドレス<input id="f_email" type="email" value="${esc(form.email)}" placeholder="例）hanako@example.com"></label>
+          <div class="field">当院のご利用<span class="req">必須</span>
+            <div class="radio-row">
+              <label><input type="radio" name="vt" value="FIRST" ${form.visitType==="FIRST"?"checked":""}>初めて（初診）</label>
+              <label><input type="radio" name="vt" value="REVISIT" ${form.visitType==="REVISIT"?"checked":""}>2回目以降（再診）</label>
+            </div>
+          </div>
+          <label class="field">ご相談内容・気になること（任意）<textarea id="f_note" rows="3">${esc(form.note)}</textarea></label>
+          <div class="policy-box">
+            <strong style="font-size:14px">同意書のご確認<span class="req">必須</span></strong>
+            <p style="font-size:13px;margin:6px 0">施術・診療に関する同意書を必ずご確認ください。</p>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <button type="button" class="secondary" onclick="openConsent()">同意書を確認する</button>
+              ${form.consent?'<span class="rel-added">✓ 同意済み</span>':""}
+            </div>
+          </div>
+          <div class="policy-box">
+            <strong style="font-size:14px">ご予約にあたっての注意事項</strong>
+            <p style="font-size:13px;margin:6px 0">ご予約の変更・キャンセルは前日までにお願いいたします。当日・無断キャンセルが続いた場合、以降のご予約をお受けできないことがあります。</p>
+            <label style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600"><input type="checkbox" id="f_agree" ${form.agree?"checked":""}>注意事項に同意します</label>
+          </div>
+        </div>
+        <div class="cta-bar"><button onclick="goConfirm()">入力内容を確認する</button></div>
+      </div>
+      ${consentOpen?consentModal():""}`;
+  } else {
+    app.innerHTML = `
+      <div class="card">
+        <h2>ご予約内容の確認</h2>
+        <div id="formErr"></div>
+        <table class="confirm"><tbody>
+          <tr><th>クリニック</th><td>${esc(clinic.name)}（${esc(svc.name)}）</td></tr>
+          ${menu?`<tr><th>メニュー</th><td>${esc(menu.name)}<div class="muted">${menu.firstVisitPrice!=null?`初回 ¥${menu.firstVisitPrice.toLocaleString()}`:menu.price?`¥${menu.price.toLocaleString()}〜`:"要問合せ"}</div></td></tr>`:""}
+          <tr><th>日時</th><td>${dateLabel}</td></tr>
+          <tr><th>お名前</th><td>${esc(form.name)}（${esc(form.kana)}）</td></tr>
+          ${form.birthDate?`<tr><th>生年月日</th><td>${esc(form.birthDate)}</td></tr>`:""}
+          <tr><th>電話番号</th><td>${esc(form.phone)}</td></tr>
+          ${form.email?`<tr><th>メール</th><td>${esc(form.email)}</td></tr>`:""}
+          <tr><th>初診・再診</th><td>${form.visitType==="FIRST"?"初めて（初診）":"2回目以降（再診）"}</td></tr>
+          <tr><th>同意書</th><td>✓ 確認・同意済み</td></tr>
+          ${form.note?`<tr><th>ご相談内容</th><td>${esc(form.note)}</td></tr>`:""}
+        </tbody></table>
+        <div class="cta-bar">
+          <button onclick="submitReservation()">この内容で予約を確定する</button>
+          <button class="secondary" onclick="editInput()">入力内容を修正する</button>
+        </div>
+      </div>`;
+  }
+}
+
+function consentModal(){
+  return `<div class="modal-overlay" onclick="if(event.target===this)closeConsent()">
+    <div class="modal-box">
+      <h2 style="margin-top:0">施術・診療に関する同意書</h2>
+      <div class="modal-body">
+        <h4>1. 診療・施術について</h4><p>当院の診療・施術は医師の診察に基づき実施されます。効果には個人差があります。</p>
+        <h4>2. リスク・副作用について</h4><p>赤み・腫れ・内出血・乾燥などが生じる場合があります。気になる症状が続く場合は速やかにご連絡ください。</p>
+        <h4>3. 施術をお受けいただけない場合</h4><p>妊娠中・授乳中の方、特定の疾患・服薬状況のある方は施術をお受けいただけない場合があります。</p>
+        <h4>4. 個人情報の取り扱い</h4><p>ご入力いただいた個人情報は診療・予約管理・ご連絡の目的にのみ使用します。</p>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+        <button onclick="confirmConsent()">内容を確認し、同意します</button>
+        <button class="secondary" onclick="closeConsent()">閉じる</button>
+      </div>
+    </div></div>`;
+}
+
+function readForm(){
+  form.name = (document.getElementById("f_name")||{}).value ?? form.name;
+  form.kana = (document.getElementById("f_kana")||{}).value ?? form.kana;
+  form.birthDate = (document.getElementById("f_birth")||{}).value ?? form.birthDate;
+  form.phone = (document.getElementById("f_phone")||{}).value ?? form.phone;
+  form.email = (document.getElementById("f_email")||{}).value ?? form.email;
+  form.note = (document.getElementById("f_note")||{}).value ?? form.note;
+  // ラジオ（初診/再診）・チェック（注意事項同意）はDOMから読む（インラインで変数へ代入しない）
+  const vt = document.querySelector('input[name="vt"]:checked');
+  if (vt) form.visitType = vt.value;
+  const ag = document.getElementById("f_agree");
+  if (ag) form.agree = ag.checked;
+}
+// 同意書モーダル・週送りの状態操作（インラインハンドラから変数へ直接代入すると
+// input要素の form プロパティ等に化けて壊れるため、必ずグローバル関数経由にする）
+function openConsent(){ readForm(); consentOpen = true; renderForm(); }
+function closeConsent(){ consentOpen = false; renderForm(); }
+function confirmConsent(){ form.consent = true; consentOpen = false; renderForm(); }
+function weekPrev(){ if(weekOffset>0){ weekOffset--; render(); } }
+function weekNext(){ weekOffset++; render(); }
+function editInput(){ formStep = "input"; renderForm(); }
+function err(msg){ document.getElementById("formErr").innerHTML = `<div class="alert">${esc(msg)}</div>`; }
+
+function goConfirm(){
+  readForm();
+  if(!form.name.trim()||!form.kana.trim()||!form.phone.trim()) return err("お名前・フリガナ・電話番号は必須です。");
+  if(!form.visitType) return err("初診・再診を選択してください。");
+  if(!form.consent) return err("同意書をご確認のうえ、「内容を確認し、同意します」を押してください。");
+  if(!form.agree) return err("注意事項に同意してください。");
+  formStep="confirm"; renderForm(); window.scrollTo(0,0);
+}
+
+async function submitReservation(){
+  const btn = document.querySelector('.cta-bar button');
+  if(btn){ btn.disabled = true; btn.textContent = "予約処理中…"; }
+  const res = await Store.createReservation({
+    csId: state.csId, date: state.date, time: state.time,
+    name: form.name.trim(), kana: form.kana.trim(), birthDate: form.birthDate,
+    phone: form.phone.trim(), email: form.email.trim(), visitType: form.visitType,
+    menuId: state.menuId, note: form.note.trim(), channel: "WEB",
+  });
+  if(!res.ok){ formStep="confirm"; renderForm(); err(res.error); return; }
+  state.doneCode = res.reservation.code;
+  form = null;
+  go({ view:"done" });
+}
+
+/* ---------------- 4. 完了 ---------------- */
+function renderDone(){
+  const r = Store.findReservation(state.doneCode, Store.loadReservations().find(x=>x.code===state.doneCode)?.phone||"");
+  const list = Store.loadReservations();
+  const rr = list.find(x=>x.code===state.doneCode);
+  const clinic = Store.clinicOfCs(rr.csId);
+  const svc = Store.serviceOfCs(rr.csId);
+  const menu = rr.menuId ? Store.menuById(rr.menuId) : null;
+  app.innerHTML = `
+    <h1>ご予約が完了しました</h1>
+    <div class="card">
+      <p>予約番号（確認・キャンセルの際に必要です）:</p>
+      <div class="code-display">${esc(rr.code)}</div>
+      <table><tbody>
+        <tr><th>クリニック</th><td>${esc(clinic.name)}（${esc(svc.name)}）</td></tr>
+        ${menu?`<tr><th>メニュー</th><td>${esc(menu.name)}</td></tr>`:""}
+        <tr><th>日時</th><td>${Store.fmtJa(rr.date)} ${rr.time}</td></tr>
+        <tr><th>お名前</th><td>${esc(rr.name)} 様</td></tr>
+        <tr><th>初診・再診</th><td>${rr.visitType==="FIRST"?"初めて（初診）":"2回目以降（再診）"}</td></tr>
+      </tbody></table>
+      <p class="muted" style="margin-top:12px">※確認メール（第2弾でLINE通知）をお送りします。予約番号は大切に保管してください。</p>
+      <p class="success" style="margin-top:12px">✓ この予約は<strong>受付ボードへリアルタイムで反映</strong>されました。</p>
+    </div>
+    <div class="card">
+      <h2>ご来院について</h2>
+      <table><tbody>
+        <tr><th>住所</th><td>${esc(clinic.address)}</td></tr>
+        <tr><th>電話</th><td>${esc(clinic.phone)}</td></tr>
+      </tbody></table>
+      <p class="muted" style="margin-top:10px">ご予約時間の5〜10分前を目安にお越しください。保険証（初診の方）・お薬手帳をご持参ください。</p>
+    </div>
+    <button class="secondary" onclick="go({view:'home',csId:null,menuId:null,date:null,slotId:null})">トップに戻る</button>`;
+}
+
+/* ---------------- 5. 予約の確認・キャンセル ---------------- */
+function renderLookup(){
+  app.innerHTML = `
+    <h1>予約の確認・キャンセル</h1>
+    <div class="card">
+      <div id="lookErr"></div>
+      <div class="stack">
+        <label class="field">予約番号<span class="req">必須</span><input id="l_code" placeholder="例）ABCD2345" style="text-transform:uppercase"></label>
+        <label class="field">電話番号<span class="req">必須</span><input id="l_phone" type="tel" placeholder="予約時の電話番号"></label>
+      </div>
+      <div class="cta-bar"><button onclick="doLookup()">予約を照会する</button></div>
+    </div>
+    <div id="lookResult"></div>`;
+}
+function doLookup(){
+  const code = document.getElementById("l_code").value;
+  const phone = document.getElementById("l_phone").value;
+  const r = Store.findReservation(code, phone);
+  if(!r){ document.getElementById("lookErr").innerHTML = `<div class="alert">予約が見つかりません。予約番号と電話番号をご確認ください。</div>`; document.getElementById("lookResult").innerHTML=""; return; }
+  document.getElementById("lookErr").innerHTML = "";
+  const clinic = Store.clinicOfCs(r.csId), svc = Store.serviceOfCs(r.csId);
+  const cancelled = r.status==="CANCELLED";
+  document.getElementById("lookResult").innerHTML = `
+    <div class="card">
+      <h2>ご予約内容 ${cancelled?'<span class="badge cancelled">キャンセル済み</span>':'<span class="badge confirmed">予約確定</span>'}</h2>
+      <table><tbody>
+        <tr><th>予約番号</th><td>${esc(r.code)}</td></tr>
+        <tr><th>クリニック</th><td>${esc(clinic.name)}（${esc(svc.name)}）</td></tr>
+        <tr><th>日時</th><td>${Store.fmtJa(r.date)} ${r.time}</td></tr>
+        <tr><th>お名前</th><td>${esc(r.name)} 様</td></tr>
+      </tbody></table>
+      ${cancelled?"":`<div class="cta-bar"><button class="danger" onclick="doCancel('${esc(r.code)}','${esc(r.phone)}')">この予約をキャンセルする</button></div>`}
+    </div>`;
+}
+async function doCancel(code, phone){
+  if(!confirm("この予約をキャンセルします。よろしいですか？")) return;
+  const res = await Store.cancelReservation(code, phone);
+  if(res.ok){ document.getElementById("lookResult").innerHTML = `<div class="success">予約をキャンセルしました。受付ボードにも即時反映されます。</div>`; }
+  else alert(res.error);
+}
+
+/* ---------------- 他タブ（受付側）からの変更を受信して再描画 ---------------- */
+Store.onSync(()=>{ if(["service","home"].includes(state.view)) render(); });
+
+// バックエンド確定後にバッジ更新＋初期描画（Supabaseの既存予約を反映してから描く）
+render();
+Store.ready.then(()=>{
+  const b = Store.getBackend();
+  const badge = document.querySelector(".sync-badge");
+  if(badge) badge.innerHTML = `<span class="sync-dot"></span>${b==="supabase"?"Supabase リアルタイム同期":"リアルタイム同期（ローカル）"}`;
+  render();
+});
+</script>
+</body>
+</html>

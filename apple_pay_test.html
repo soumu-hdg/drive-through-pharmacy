@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apple Pay 診断 v3 (2026-06-29 18:20)</title>
+<style>
+body { font-family: -apple-system, sans-serif; max-width: 600px; margin: 20px auto; padding: 0 16px; background: #f5f5f5; }
+h1 { font-size: 18px; text-align: center; margin-bottom: 4px; }
+.ts { text-align: center; font-size: 11px; color: #999; margin-bottom: 16px; }
+.card { background: #fff; border-radius: 8px; padding: 16px; margin: 12px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.card h2 { font-size: 15px; margin: 0 0 8px 0; }
+.ok { color: #16a34a; font-weight: bold; }
+.ng { color: #dc2626; font-weight: bold; }
+.warn { color: #d97706; font-weight: bold; }
+.info { color: #2563eb; }
+.result { font-size: 13px; line-height: 1.7; }
+pre { background: #f0f0f0; padding: 8px; border-radius: 4px; font-size: 10px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+.btn { display:block;text-align:center;padding:14px;color:#fff;border-radius:8px;text-decoration:none;margin:8px 0;font-weight:bold;font-size:15px; }
+.btn-black { background:#000; }
+.btn-blue { background:#2563eb; }
+.note { font-size: 11px; color: #666; margin: 4px 0; }
+</style>
+</head>
+<body>
+<h1>Apple Pay 診断 v3</h1>
+<p class="ts">2026-06-29 18:20 更新</p>
+
+<div class="card">
+<h2>1. デバイス・ブラウザ</h2>
+<div class="result" id="basicInfo">チェック中...</div>
+</div>
+
+<div class="card">
+<h2>2. Apple Pay Session</h2>
+<div class="result" id="sessionInfo">チェック中...</div>
+</div>
+
+<div class="card">
+<h2>3. canMakePayments</h2>
+<div class="result" id="canMakeInfo">チェック中...</div>
+</div>
+
+<div class="card">
+<h2>4. Merchant ID (Shopify)</h2>
+<div class="result" id="merchantInfo">チェック中...</div>
+</div>
+
+<div class="card" style="background:#fffbeb;">
+<h2>5. チェックアウトテスト（最重要）</h2>
+<div class="result">
+<p class="note">Apple Payボタンはチェックアウト画面のみに表示されます。<br>下のボタンからトライアルセットをカートに追加し、チェックアウトに進んでください。</p>
+<a class="btn btn-black" href="https://shop.hundred-doctor.com/cart/47608100356234:1" target="_blank">チェックアウトへ進む</a>
+<p class="note">※チェックアウト画面の上部に「Apple Pay」または「今すぐ購入」ボタンが表示されれば成功</p>
+<p class="note">※購入完了しなくてOK。表示の確認だけです。</p>
+</div>
+</div>
+
+<div class="card">
+<h2>6. 診断サマリー</h2>
+<div class="result" id="summary">チェック中...</div>
+</div>
+
+<script>
+(function() {
+  var ua = navigator.userAgent;
+  var isSafari = /Safari/.test(ua) && !/Chrome/.test(ua) && !/CriOS/.test(ua);
+  var isIPhone = /iPhone/.test(ua);
+  var isMac = /Macintosh/.test(ua);
+  var isAppleDevice = isIPhone || isMac;
+  var hasSession = typeof window.ApplePaySession !== 'undefined';
+  var supportsV3 = false;
+  if (hasSession) { try { supportsV3 = ApplePaySession.supportsVersion(3); } catch(e) {} }
+
+  // 1. Basic
+  var basicEl = document.getElementById('basicInfo');
+  basicEl.innerHTML =
+    '<b>Safari:</b> ' + (isSafari ? '<span class="ok">YES</span>' : '<span class="ng">NO</span>') +
+    ' | <b>iPhone:</b> ' + (isIPhone ? '<span class="ok">YES</span>' : (isMac ? '<span class="info">Mac</span>' : '<span class="ng">NO</span>')) +
+    '<br><b>UA:</b> <span style="font-size:10px;color:#999;">' + ua.substring(0, 120) + '</span>';
+
+  // 2. Session
+  var sessionEl = document.getElementById('sessionInfo');
+  if (hasSession) {
+    sessionEl.innerHTML = '<span class="ok">ApplePaySession 利用可能</span>' +
+      '<br>Version 3: ' + (supportsV3 ? '<span class="ok">対応</span>' : '<span class="warn">非対応</span>');
+  } else {
+    if (isAppleDevice && isSafari) {
+      sessionEl.innerHTML = '<span class="ng">ApplePaySession が見つかりません</span><br>' +
+        '<span class="note">Appleデバイス+Safariなのに利用不可 → ウォレットにカード未登録の可能性</span>';
+    } else {
+      sessionEl.innerHTML = '<span class="warn">ApplePaySession 非対応</span><br>' +
+        '<span class="note">このブラウザ/デバイスではApple Payは利用できません（正常）</span>';
+    }
+  }
+
+  // 3. canMakePayments
+  var canMakeEl = document.getElementById('canMakeInfo');
+  if (hasSession) {
+    try {
+      var canMake = ApplePaySession.canMakePayments();
+      canMakeEl.innerHTML = canMake
+        ? '<span class="ok">TRUE — Apple Pay利用可能（ウォレットにカード登録済み）</span>'
+        : '<span class="ng">FALSE — ウォレットにカードが未登録</span><br><span class="note">設定 → ウォレットとApple Pay でカードを追加してください</span>';
+    } catch(e) {
+      canMakeEl.innerHTML = '<span class="ng">エラー: ' + e.message + '</span>';
+    }
+  } else {
+    canMakeEl.innerHTML = '<span class="warn">ApplePaySession非対応のためスキップ</span>';
+  }
+
+  // 4. Merchant ID
+  var merchantEl = document.getElementById('merchantInfo');
+  if (hasSession) {
+    var merchantIds = [
+      'merchant.com.shopify',
+      'merchant.com.shopify.pay',
+      'merchant.com.shopify.shop'
+    ];
+    var merchantResults = {};
+    var completed = 0;
+    merchantIds.forEach(function(mid) {
+      ApplePaySession.canMakePaymentsWithActiveCard(mid).then(function(result) {
+        merchantResults[mid] = result;
+        completed++;
+        if (completed === merchantIds.length) showMerchantResults();
+      }).catch(function(e) {
+        merchantResults[mid] = 'ERROR: ' + e.message;
+        completed++;
+        if (completed === merchantIds.length) showMerchantResults();
+      });
+    });
+
+    function showMerchantResults() {
+      var html = '';
+      var anyTrue = false;
+      for (var mid in merchantResults) {
+        var val = merchantResults[mid];
+        var cls = val === true ? 'ok' : 'ng';
+        if (val === true) anyTrue = true;
+        html += '<b>' + mid + ':</b> <span class="' + cls + '">' + String(val) + '</span><br>';
+      }
+      merchantEl.innerHTML = html;
+      updateSummary(hasSession, true, anyTrue);
+    }
+  } else {
+    merchantEl.innerHTML = '<span class="warn">ApplePaySession非対応のためスキップ</span>';
+    updateSummary(false, false, false);
+  }
+
+  // Summary
+  function updateSummary(hasSession, canMake, merchantOk) {
+    var summaryEl = document.getElementById('summary');
+    var html = '';
+    if (!isAppleDevice) {
+      html = '<span class="info">Appleデバイスではありません。</span><br>';
+      html += 'Apple PayはiPhone Safari / Mac Safariでのみ動作します。<br>';
+      html += '<b>このテストページをiPhoneのSafariで開いてください。</b>';
+    } else if (!isSafari) {
+      html = '<span class="warn">Safariではありません。</span><br>';
+      html += 'Apple PayはSafariでのみ動作します。Safariで開き直してください。';
+    } else if (!hasSession) {
+      html = '<span class="ng">ApplePaySession非対応</span><br>';
+      html += '設定 → ウォレットとApple Pay でカードを追加してから再テストしてください。';
+    } else if (!canMake) {
+      html = '<span class="ng">Apple Payにカードが未登録</span><br>';
+      html += '設定 → ウォレットとApple Pay でクレジットカードを追加してください。';
+    } else {
+      html = '<span class="ok">Apple Pay基本チェック OK</span><br><br>';
+      html += '<b>上の「チェックアウトへ進む」ボタンをタップして、</b><br>';
+      html += '<b>チェックアウト画面にApple Payボタンが表示されるか確認してください。</b>';
+    }
+    summaryEl.innerHTML = html;
+  }
+
+  if (!hasSession) updateSummary(false, false, false);
+})();
+</script>
+</body>
+</html>

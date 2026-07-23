@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1024">
+<title>レセプト点検ビューア</title>
+<link rel="stylesheet" href="receipt_style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="receipt_codes.js"></script>
+</head>
+<body>
+
+<!-- ============================================================
+     LOGIN OVERLAY
+     ============================================================ -->
+<div id="receiptLoginOverlay">
+  <div class="login-box">
+    <div style="text-align:center;font-size:24px;margin-bottom:8px;">&#128203;</div>
+    <h2>レセプト点検ビューア ログイン</h2>
+    <input type="email" id="rcLoginEmail" placeholder="メールアドレス">
+    <input type="password" id="rcLoginPassword" placeholder="パスワード"
+           onkeydown="if(event.key==='Enter')handleReceiptLogin()">
+    <button onclick="handleReceiptLogin()">ログイン</button>
+    <div id="rcLoginError" class="error"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MAIN APP
+     ============================================================ -->
+<div id="receiptApp" style="display:none;">
+
+  <!-- Header -->
+  <div class="rc-header">
+    <h1>&#128203; レセプト点検ビューア</h1>
+    <span class="clinic-name" id="clinicName">西春内科・在宅クリニック</span>
+    <span class="spacer"></span>
+    <span id="loadStatus" style="font-size:11px;opacity:0.8;"></span>
+    <button class="rc-header-btn" onclick="showSummaryView()">総括表</button>
+    <button class="rc-header-btn" onclick="showChecklist()">要確認一覧</button>
+    <button class="rc-header-btn" onclick="triggerFileInput()">UKEファイル読込</button>
+    <input type="file" id="fileInput" accept=".UKE,.uke,.csv,.txt" multiple
+           style="display:none;" onchange="onFileInputChange(event)">
+  </div>
+
+  <!-- Toolbar -->
+  <div class="rc-toolbar">
+    <label>診療月:</label>
+    <span class="rc-toolbar-value" id="toolbarMonth">-</span>
+    <label style="margin-left:12px;">医療機関:</label>
+    <span class="rc-toolbar-value" id="toolbarInst">-</span>
+  </div>
+
+  <!-- Tabs -->
+  <div class="rc-tabs">
+    <div class="rc-tab active" data-tab="shaho" onclick="switchTab('shaho')">
+      社保 <span class="tab-count">(0)</span><span class="tab-warn" style="display:none;">0</span>
+    </div>
+    <div class="rc-tab" data-tab="kokuho" onclick="switchTab('kokuho')">
+      国保 <span class="tab-count">(0)</span><span class="tab-warn" style="display:none;">0</span>
+    </div>
+    <div class="rc-tab" data-tab="shahoHenrei" onclick="switchTab('shahoHenrei')">
+      社保返戻 <span class="tab-count">(0)</span><span class="tab-warn" style="display:none;">0</span>
+    </div>
+    <div class="rc-tab" data-tab="kokuhoHenrei" onclick="switchTab('kokuhoHenrei')">
+      国保返戻 <span class="tab-count">(0)</span><span class="tab-warn" style="display:none;">0</span>
+    </div>
+    <div class="rc-tab-spacer"></div>
+    <div class="rc-filter-group">
+      フィルタ:
+      <button class="rc-filter-btn active" data-filter="all" onclick="setFilter('all')">全件</button>
+      <button class="rc-filter-btn" data-filter="warn" onclick="setFilter('warn')">警告のみ</button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       LIST VIEW
+       ============================================================ -->
+  <div class="rc-list-view">
+    <!-- Drop Zone (shown when no data) -->
+    <div id="dropZone" class="rc-drop-zone">
+      <div class="icon">&#128194;</div>
+      <div>RECEIPTC.UKE ファイルをここにドラッグ&ドロップ</div>
+      <div class="sub">または <a onclick="triggerFileInput()">ファイルを選択</a>（複数選択可）</div>
+      <div class="sub">社保・国保・返戻のUKEファイルを一度にまとめて読み込めます</div>
+    </div>
+
+    <!-- Table -->
+    <div class="rc-table-wrap">
+      <table class="rc-table">
+        <thead>
+          <tr>
+            <th class="sortable" style="width:40px;" onclick="sortBy('seq')">#</th>
+            <th class="sortable" style="width:75px;" onclick="sortBy('karte')">カルテ番号</th>
+            <th class="sortable" onclick="sortBy('name')">氏名</th>
+            <th style="width:85px;">保険種別</th>
+            <th style="width:55px;">実日数</th>
+            <th class="sortable" style="width:80px;" onclick="sortBy('points')">合計点数</th>
+            <th class="sortable" style="width:45px;" onclick="sortBy('warn')">警告</th>
+            <th style="width:55px;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="receiptTableBody">
+          <tr><td colspan="8" style="text-align:center;padding:20px;color:#888;">UKEファイルを読み込んでください</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Summary -->
+    <div class="rc-summary" id="summaryBar">
+      <span>データなし</span>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       DETAIL VIEW
+       ============================================================ -->
+  <div id="detailView" class="rc-detail">
+    <div class="rc-toolbar">
+      <button class="rc-btn" onclick="backToList()">&larr; 一覧に戻る</button>
+      <button class="rc-btn" onclick="prevDetail()" style="margin-left:4px;">&laquo; 前</button>
+      <button class="rc-btn" onclick="nextDetail()">次 &raquo;</button>
+      <span style="font-weight:600;font-size:15px;margin-left:12px;" id="detailName"></span>
+      <span style="font-size:12px;color:#666;margin-left:4px;" id="detailKarte"></span>
+      <span class="rc-tag rc-tag-blue" style="margin-left:8px;" id="detailInsType"></span>
+      <span id="detailWarnBadge" style="margin-left:8px;"></span>
+      <span class="spacer"></span>
+      <span style="font-size:12px;" id="detailMonth"></span>
+    </div>
+
+    <!-- Insurance info -->
+    <div class="rc-detail-section">
+      <div class="rc-detail-head">保険情報</div>
+      <div class="rc-detail-body">
+        <div class="rc-detail-info" id="detailInsInfo"></div>
+      </div>
+    </div>
+
+    <!-- Diseases -->
+    <div class="rc-detail-section">
+      <div class="rc-detail-head">傷病名</div>
+      <div class="rc-detail-body" style="padding:0;">
+        <table class="rc-detail-table">
+          <thead><tr><th>#</th><th>傷病名</th><th>コード</th><th>開始日</th><th>修飾語</th></tr></thead>
+          <tbody id="detailDiseases"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Procedures -->
+    <div class="rc-detail-section">
+      <div class="rc-detail-head">診療内容</div>
+      <div class="rc-detail-body" style="padding:0;">
+        <table class="rc-detail-table">
+          <thead><tr><th>区分</th><th>診療行為名</th><th>コード</th><th style="width:60px;">点数</th><th style="width:40px;">数量</th><th style="width:60px;">小計</th></tr></thead>
+          <tbody id="detailProcedures"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Total -->
+    <div class="rc-total-bar" id="detailTotal"></div>
+
+    <!-- Check results -->
+    <div class="rc-detail-section" id="detailCheckSection">
+      <div class="rc-detail-head">チェック結果</div>
+      <div class="rc-detail-body" id="detailChecks"></div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       CHECKLIST VIEW
+       ============================================================ -->
+  <div id="checklistView" class="rc-detail">
+    <div class="rc-toolbar" style="background:var(--rc-amber-light);">
+      <button class="rc-btn" onclick="backToList()">&larr; 一覧に戻る</button>
+      <span style="font-weight:600;font-size:14px;margin-left:12px;color:var(--rc-amber);">&#9888; 要確認レセプト チェック結果</span>
+    </div>
+    <div class="rc-table-wrap">
+      <table class="rc-table">
+        <thead>
+          <tr>
+            <th style="width:30px;">#</th>
+            <th style="width:75px;">カルテ番号</th>
+            <th style="width:110px;">氏名</th>
+            <th style="width:70px;">保険種別</th>
+            <th style="width:55px;">深刻度</th>
+            <th>チェック内容</th>
+          </tr>
+        </thead>
+        <tbody id="checklistBody"></tbody>
+      </table>
+    </div>
+    <div class="rc-summary" id="checklistSummary">
+      <span>データなし</span>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SUMMARY MODAL
+       ============================================================ -->
+  <div id="summaryModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.4);align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:6px;padding:24px 28px;width:640px;max-height:80vh;overflow:auto;">
+      <div style="display:flex;align-items:center;margin-bottom:16px;">
+        <span style="font-weight:600;font-size:16px;">総括表サマリー</span>
+        <span style="flex:1;"></span>
+        <button class="rc-btn" onclick="closeSummaryModal()">&times; 閉じる</button>
+      </div>
+      <div id="summaryContent"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================================================
+     SCRIPTS
+     ============================================================ -->
+<script src="supabase_client.js"></script>
+<script src="receipt_viewer.js"></script>
+
+</body>
+</html>

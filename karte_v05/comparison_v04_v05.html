@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>電子カルテ v0.4 → v0.5 比較資料</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Noto Sans JP', 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; }
+
+.header {
+  background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+  color: #fff; padding: 40px 32px; text-align: center;
+}
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+.header p { font-size: 14px; opacity: 0.85; }
+.header .date { margin-top: 8px; font-size: 12px; opacity: 0.6; }
+
+.container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+.summary-box {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+  padding: 24px; margin-bottom: 32px;
+}
+.summary-box h2 { font-size: 18px; color: #1e3a5f; border-bottom: 2px solid #2563eb; padding-bottom: 8px; margin-bottom: 16px; }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.summary-item {
+  background: #f1f5f9; border-radius: 6px; padding: 12px 16px;
+  border-left: 3px solid #2563eb;
+}
+.summary-item .label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+.summary-item .value { font-size: 15px; font-weight: 600; color: #1e293b; margin-top: 2px; }
+.summary-item.new { border-left-color: #16a34a; }
+.summary-item.new .label { color: #16a34a; }
+
+.section { margin-bottom: 40px; }
+.section h2 {
+  font-size: 20px; font-weight: 700; color: #1e3a5f;
+  padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px;
+}
+
+.comparison {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;
+}
+.comparison .panel {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+}
+.comparison .panel-header {
+  padding: 10px 16px; font-weight: 600; font-size: 13px;
+}
+.comparison .panel.before .panel-header { background: #fef2f2; color: #dc2626; }
+.comparison .panel.after .panel-header { background: #f0fdf4; color: #16a34a; }
+.comparison .panel img {
+  width: 100%; display: block; border-top: 1px solid #e2e8f0;
+}
+
+.feature-list { list-style: none; padding: 0; }
+.feature-list li {
+  padding: 10px 16px; border-bottom: 1px solid #f1f5f9;
+  display: flex; align-items: flex-start; gap: 10px; font-size: 13px;
+}
+.feature-list li:last-child { border-bottom: none; }
+.feature-list .icon { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+.feature-list .icon.new { background: #dcfce7; color: #16a34a; }
+.feature-list .icon.improved { background: #dbeafe; color: #2563eb; }
+
+.detail-table {
+  width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px;
+}
+.detail-table th {
+  background: #f1f5f9; padding: 8px 12px; text-align: left;
+  border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #475569;
+}
+.detail-table td {
+  padding: 8px 12px; border-bottom: 1px solid #f1f5f9;
+}
+.detail-table tr:hover { background: #f8fafc; }
+
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 3px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
+}
+.badge.new { background: #dcfce7; color: #16a34a; }
+.badge.improved { background: #dbeafe; color: #2563eb; }
+.badge.critical { background: #fef2f2; color: #dc2626; }
+
+.note {
+  background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px;
+  padding: 12px 16px; font-size: 12px; color: #92400e; margin-top: 16px;
+}
+
+.footer {
+  text-align: center; padding: 24px; color: #94a3b8; font-size: 11px;
+  border-top: 1px solid #e2e8f0; margin-top: 40px;
+}
+
+@media (max-width: 800px) {
+  .comparison { grid-template-columns: 1fr; }
+  .summary-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>電子カルテ v0.4 → v0.5 比較資料</h1>
+  <p>西春内科・在宅クリニック ドライブスルー診療システム</p>
+  <div class="date">作成日: 2026-05-11</div>
+</div>
+
+<div class="container">
+
+  <!-- Summary -->
+  <div class="summary-box">
+    <h2>アップデート概要</h2>
+    <div class="summary-grid">
+      <div class="summary-item new">
+        <div class="label">新機能</div>
+        <div class="value">SOAP形式記録</div>
+      </div>
+      <div class="summary-item new">
+        <div class="label">新機能</div>
+        <div class="value">支払基金マスタ連携 (57,178件)</div>
+      </div>
+      <div class="summary-item new">
+        <div class="label">新機能</div>
+        <div class="value">プロブレムリスト</div>
+      </div>
+      <div class="summary-item new">
+        <div class="label">新機能</div>
+        <div class="value">禁忌・安全チェック</div>
+      </div>
+      <div class="summary-item new">
+        <div class="label">新機能</div>
+        <div class="value">監査証跡 (Audit Trail)</div>
+      </div>
+      <div class="summary-item new">
+        <div class="label">新機能</div>
+        <div class="value">検査結果記録 (基準値判定付)</div>
+      </div>
+      <div class="summary-item new">
+        <div class="label">新機能</div>
+        <div class="value">説明・同意記録</div>
+      </div>
+      <div class="summary-item">
+        <div class="label">傷病名強化</div>
+        <div class="value">ICD-10 / レセ電算コード対応</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 1: Patient List -->
+  <div class="section">
+    <h2>1. 患者一覧画面</h2>
+    <div class="comparison">
+      <div class="panel before">
+        <div class="panel-header">v0.4 Before</div>
+        <img src="ss/v04_list.png" alt="v0.4 patient list">
+      </div>
+      <div class="panel after">
+        <div class="panel-header">v0.5 After</div>
+        <img src="ss/v05_list.png" alt="v0.5 patient list">
+      </div>
+    </div>
+    <ul class="feature-list">
+      <li><span class="icon new">+</span><strong>マスタ管理ボタン</strong> — ヘッダー右上に追加。支払基金マスタ（薬剤19,337件 / 傷病名27,649件 / 診療行為10,192件）をIndexedDBにインポート・検索可能</li>
+      <li><span class="icon improved">&uarr;</span><strong>マスタ件数表示</strong> — 「マスタ 57,178」とリアルタイム表示。インポート状態が一目で分かる</li>
+    </ul>
+  </div>
+
+  <!-- Section 2: Karte Screen - SOAP -->
+  <div class="section">
+    <h2>2. カルテ記録画面 — SOAP形式</h2>
+    <div class="comparison">
+      <div class="panel before">
+        <div class="panel-header">v0.4 Before — 自由記載テキスト</div>
+        <img src="ss/v04_karte.png" alt="v0.4 karte">
+      </div>
+      <div class="panel after">
+        <div class="panel-header">v0.5 After — SOAP 4セクション</div>
+        <img src="ss/v05_karte.png" alt="v0.5 karte with SOAP">
+      </div>
+    </div>
+    <ul class="feature-list">
+      <li><span class="icon new">+</span><strong>SOAP形式記録</strong> — S(主観的情報) / O(客観的情報) / A(評価) / P(計画) の4セクションに色分け。医学的に標準化された記録形式</li>
+      <li><span class="icon new">+</span><strong>テンプレート自動入力</strong> — バイタル・主訴から O/S セクションを自動生成</li>
+      <li><span class="icon improved">&uarr;</span><strong>傷病名検索</strong> — マスタ連携により、レセ電算コード・ICD-10コード付きで検索・登録可能</li>
+    </ul>
+  </div>
+
+  <!-- Section 3: Disease & Problem List -->
+  <div class="section">
+    <h2>3. 傷病名管理 &amp; プロブレムリスト</h2>
+    <div class="summary-box" style="margin-bottom:16px;">
+      <table class="detail-table">
+        <thead>
+          <tr><th>項目</th><th>v0.4</th><th>v0.5</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>傷病名登録</td>
+            <td>固定リストから選択（約20件）</td>
+            <td><span class="badge new">NEW</span> 支払基金マスタ27,649件から検索 + 固定リスト</td>
+          </tr>
+          <tr>
+            <td>コード体系</td>
+            <td>なし</td>
+            <td><span class="badge new">NEW</span> レセ電算コード + ICD-10 自動付与</td>
+          </tr>
+          <tr>
+            <td>主病フラグ</td>
+            <td>なし</td>
+            <td><span class="badge new">NEW</span> 主病名の指定が可能</td>
+          </tr>
+          <tr>
+            <td>転帰管理</td>
+            <td>なし</td>
+            <td><span class="badge new">NEW</span> 治癒/中止/転医/死亡 の転帰記録</td>
+          </tr>
+          <tr>
+            <td>プロブレムリスト</td>
+            <td>なし</td>
+            <td><span class="badge new">NEW</span> Active/Inactive/Resolved のステータス管理</td>
+          </tr>
+          <tr>
+            <td>開始日・終了日</td>
+            <td>なし</td>
+            <td><span class="badge new">NEW</span> 傷病名ごとに日付管理</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Section 4: Safety -->
+  <div class="section">
+    <h2>4. 医療安全 — 禁忌チェック &amp; 監査証跡</h2>
+    <div class="summary-box" style="margin-bottom:16px;">
+      <table class="detail-table">
+        <thead>
+          <tr><th>機能</th><th>v0.4</th><th>v0.5</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>アレルギー×処方チェック</td>
+            <td>表示のみ（アレルギー欄に赤字表示）</td>
+            <td><span class="badge critical">SAFETY</span> 処方追加時に自動チェック。禁忌該当で確認ダイアログ表示</td>
+          </tr>
+          <tr>
+            <td>重複処方チェック</td>
+            <td>なし</td>
+            <td><span class="badge critical">SAFETY</span> 同一薬剤の重複追加を警告</td>
+          </tr>
+          <tr>
+            <td>監査証跡</td>
+            <td>なし</td>
+            <td><span class="badge new">NEW</span> 全操作を日時・操作者・内容で記録。一覧表示可能</td>
+          </tr>
+          <tr>
+            <td>記録対象</td>
+            <td>—</td>
+            <td>処方追加/削除、セット適用、Do処方、一時保存、確定、禁忌警告確認</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      監査証跡は厚生労働省「医療情報システムの安全管理ガイドライン」で求められる要件です。v0.5では操作の「誰が・いつ・何を」を自動記録します。
+    </div>
+  </div>
+
+  <!-- Section 5: Exam Results & Consent -->
+  <div class="section">
+    <h2>5. 検査結果記録 &amp; 説明・同意</h2>
+    <div class="comparison">
+      <div class="panel before">
+        <div class="panel-header">v0.4 Before — 検査はチェックボックスのみ</div>
+        <img src="ss/v04_karte.png" alt="v0.4 exam section">
+      </div>
+      <div class="panel after">
+        <div class="panel-header">v0.5 After — 検査結果+基準値判定+説明同意</div>
+        <img src="ss/v05_exam.png" alt="v0.5 exam results and consent">
+      </div>
+    </div>
+    <ul class="feature-list">
+      <li><span class="icon new">+</span><strong>検査結果記録</strong> — 20種類の検査項目（WBC, CRP, HbA1c, 肝機能, 腎機能, 脂質等）の数値を記録</li>
+      <li><span class="icon new">+</span><strong>基準値自動判定</strong> — H(高値)/L(低値)フラグを自動表示。異常値が一目で分かる</li>
+      <li><span class="icon new">+</span><strong>検査解釈コメント</strong> — 医師が検査結果の総合的な解釈を記載できる欄</li>
+      <li><span class="icon new">+</span><strong>説明・同意記録</strong> — 病状説明/治療方針/薬剤説明/検査説明/リスク説明をワンクリックで記録。時刻・医師名を自動記録</li>
+      <li><span class="icon new">+</span><strong>詳細メモ</strong> — 各説明記録に説明内容の詳細を追記可能</li>
+    </ul>
+  </div>
+
+  <!-- Section 6: ORCA/Receipt -->
+  <div class="section">
+    <h2>6. ORCA連携 &amp; レセプトデータ管理</h2>
+    <div class="comparison">
+      <div class="panel before">
+        <div class="panel-header">v0.5 — レセプト一覧（ORCA設定モーダル内）</div>
+        <img src="ss/v05_receipt_list.png" alt="v0.5 receipt list">
+      </div>
+      <div class="panel after">
+        <div class="panel-header">v0.5 — レセプト詳細（項目別点数表示）</div>
+        <img src="ss/v05_receipt_detail.png" alt="v0.5 receipt detail">
+      </div>
+    </div>
+    <ul class="feature-list">
+      <li><span class="icon new">+</span><strong>ORCA連携モジュール</strong> — 日医標準レセプトソフトAPI対応（患者/受付/診療行為/傷病名/請求シミュレーション）。未導入時は自前計算モードで動作</li>
+      <li><span class="icon new">+</span><strong>レセプト自動生成</strong> — 診察確定時にレセプトデータを自動作成。初再診料・時間外加算・処方料・調剤料・薬剤料・検査判断料を自動算定</li>
+      <li><span class="icon new">+</span><strong>点数マスタ</strong> — 80+項目の主要点数コード（初再診/投薬/検査/画像/処置/在宅/注射）を内蔵</li>
+      <li><span class="icon new">+</span><strong>レセプト詳細表示</strong> — 来院日ごとの診療行為を区分別に一覧表示。確定/下書き戻し/削除が可能</li>
+      <li><span class="icon new">+</span><strong>UKE形式出力</strong> — レセプト電算処理システム用の標準形式（IR/RE/HO/SY/SI/IY/GO レコード）でエクスポート</li>
+      <li><span class="icon new">+</span><strong>IndexedDB永続化</strong> — レセプトデータをブラウザ内に永続保存。月単位・患者単位での検索が可能</li>
+    </ul>
+    <div class="note">
+      ORCA未導入でもレセプトデータの自動生成・管理が可能です。ORCA導入後はAPIで連携し、データの突合・提出まで自動化できます。
+    </div>
+  </div>
+
+  <!-- Section 7: Full Feature Comparison Table -->
+  <div class="section">
+    <h2>7. 全機能比較表</h2>
+    <div class="summary-box">
+      <table class="detail-table">
+        <thead>
+          <tr><th style="width:30%;">機能カテゴリ</th><th style="width:35%;">v0.4</th><th style="width:35%;">v0.5</th></tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="3" style="background:#f1f5f9;font-weight:700;">診療録本文</td></tr>
+          <tr><td>記録形式</td><td>自由記載（リッチテキスト）</td><td>SOAP 4セクション + 自由記載（後方互換）</td></tr>
+          <tr><td>テンプレート</td><td>なし</td><td>バイタル・主訴から自動生成</td></tr>
+
+          <tr><td colspan="3" style="background:#f1f5f9;font-weight:700;">傷病名管理</td></tr>
+          <tr><td>検索ソース</td><td>固定リスト（約20件）</td><td>支払基金マスタ 27,649件 + 固定リスト</td></tr>
+          <tr><td>コード</td><td>なし</td><td>レセ電算コード + ICD-10</td></tr>
+          <tr><td>主病/転帰</td><td>なし</td><td>主病フラグ + 転帰（治癒/中止/転医/死亡）</td></tr>
+          <tr><td>プロブレムリスト</td><td>なし</td><td>Active/Inactive/Resolved 管理</td></tr>
+
+          <tr><td colspan="3" style="background:#f1f5f9;font-weight:700;">処方</td></tr>
+          <tr><td>薬剤検索</td><td>固定リスト（約20件）</td><td>固定リスト + マスタ 19,337件</td></tr>
+          <tr><td>安全チェック</td><td>なし</td><td>禁忌チェック + 重複チェック</td></tr>
+
+          <tr><td colspan="3" style="background:#f1f5f9;font-weight:700;">検査</td></tr>
+          <tr><td>検査登録</td><td>チェックボックスのみ</td><td>チェックボックス + 結果値入力</td></tr>
+          <tr><td>結果記録</td><td>なし</td><td>20項目、基準値H/L判定付き</td></tr>
+          <tr><td>解釈コメント</td><td>なし</td><td>自由記載欄</td></tr>
+
+          <tr><td colspan="3" style="background:#f1f5f9;font-weight:700;">説明・同意</td></tr>
+          <tr><td>記録</td><td>なし</td><td>5種類のクイック記録 + 詳細メモ</td></tr>
+
+          <tr><td colspan="3" style="background:#f1f5f9;font-weight:700;">監査・法的要件</td></tr>
+          <tr><td>監査証跡</td><td>なし</td><td>全操作を日時・操作者で自動記録</td></tr>
+          <tr><td>修正履歴</td><td>なし</td><td>監査ログで追跡可能</td></tr>
+
+          <tr><td colspan="3" style="background:#f1f5f9;font-weight:700;">ORCA連携・レセプト</td></tr>
+          <tr><td>レセプト管理</td><td>なし</td><td>自動生成+IndexedDB永続化</td></tr>
+          <tr><td>ORCA API</td><td>なし</td><td>患者/受付/診療行為/傷病名/請求</td></tr>
+          <tr><td>UKE出力</td><td>なし</td><td>レセプト電算形式エクスポート</td></tr>
+          <tr><td>点数自動算定</td><td>画面上の概算のみ</td><td>80+項目の正式点数コード</td></tr>
+
+          <tr><td colspan="3" style="background:#f1f5f9;font-weight:700;">マスタデータ</td></tr>
+          <tr><td>データソース</td><td>ハードコード</td><td>支払基金CSVマスタ（IndexedDB）</td></tr>
+          <tr><td>総件数</td><td>約60件</td><td>57,178件</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Clinical Feedback Mapping -->
+  <div class="section">
+    <h2>8. 臨床フィードバック対応状況</h2>
+    <div class="summary-box">
+      <p style="font-size:12px;color:#64748b;margin-bottom:12px;">専門家から指摘された電子カルテ10要件に対する対応状況</p>
+      <table class="detail-table">
+        <thead>
+          <tr><th>要件</th><th>v0.4</th><th>v0.5</th><th>状態</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1. 診療録本文（SOAP）</td><td>自由記載のみ</td><td>SOAP 4セクション</td><td><span class="badge new">対応済</span></td></tr>
+          <tr><td>2. 医学的判断の記録</td><td>なし</td><td>A(Assessment)セクション</td><td><span class="badge new">対応済</span></td></tr>
+          <tr><td>3. 経過記録</td><td>過去カルテ参照のみ</td><td>SOAP + プロブレムリスト</td><td><span class="badge new">対応済</span></td></tr>
+          <tr><td>4. プロブレム管理</td><td>なし</td><td>プロブレムリスト実装</td><td><span class="badge new">対応済</span></td></tr>
+          <tr><td>5. 検査結果の解釈</td><td>なし</td><td>結果値+基準値判定+解釈欄</td><td><span class="badge new">対応済</span></td></tr>
+          <tr><td>6. 説明・同意記録</td><td>なし</td><td>5種類のクイック記録</td><td><span class="badge new">対応済</span></td></tr>
+          <tr><td>7. 文書管理</td><td>紹介状/診断書/処方箋</td><td>同左（変更なし）</td><td><span class="badge improved">維持</span></td></tr>
+          <tr><td>8. 監査証跡</td><td>なし</td><td>全操作の自動記録</td><td><span class="badge new">対応済</span></td></tr>
+          <tr><td>9. 法的な診療録要件</td><td>日付・医師名のみ</td><td>+監査証跡+修正履歴</td><td><span class="badge new">対応済</span></td></tr>
+          <tr><td>10. 医療安全</td><td>アレルギー表示のみ</td><td>禁忌チェック+重複チェック+アラート</td><td><span class="badge new">対応済</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  電子カルテ v0.4 → v0.5 比較資料 | 西春内科・在宅クリニック | 2026-05-11 作成
+</div>
+
+</body>
+</html>

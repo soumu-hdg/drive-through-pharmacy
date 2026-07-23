@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ゆっくり解説 BGM＆背景セット | SoundForge</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
+      --border: #30363d; --text: #e6edf3; --text-dim: #8b949e;
+      --accent: #58a6ff; --accent-hover: #79c0ff;
+      --green: #3fb950; --orange: #d29922; --card-radius: 12px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans JP', sans-serif;
+            background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+    .header { background: linear-gradient(135deg, #1a1f2e 0%, #0d1117 100%);
+               border-bottom: 1px solid var(--border); padding: 2rem 1.5rem 1.5rem; text-align: center; }
+    .header h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.3rem; }
+    .header h1 span { color: var(--accent); }
+    .header .subtitle { color: var(--text-dim); font-size: 0.9rem; }
+    .header .badge { display: inline-block; margin-top: 0.6rem; padding: 0.3rem 0.8rem;
+                      background: var(--surface2); border-radius: 999px; font-size: 0.75rem; color: var(--text-dim); }
+    .header .back { display: inline-block; margin-top: 0.8rem; color: var(--accent); text-decoration: none;
+                     font-size: 0.85rem; }
+    .header .back:hover { color: var(--accent-hover); }
+    .stats-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0.8rem 1.5rem;
+                  display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; font-size: 0.85rem; }
+    .stat { color: var(--text-dim); } .stat strong { color: var(--text); margin: 0 0.2rem; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+    .category-section { margin-bottom: 2.5rem; }
+    .category-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; padding-left: 0.6rem;
+                       border-left: 4px solid var(--accent); color: var(--accent-hover); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--card-radius);
+             overflow: hidden; transition: transform 0.2s, border-color 0.2s; display: flex; flex-direction: column; }
+    .card:hover { transform: translateY(-2px); border-color: var(--accent); }
+    .card-thumb { position: relative; width: 100%; padding-bottom: 56.25%; background: var(--surface2); cursor: pointer; }
+    .card-thumb img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+    .placeholder { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 3rem; opacity: 0.3; }
+    .scene-name { position: absolute; bottom: 0; left: 0; right: 0; padding: 0.5rem 0.8rem;
+                   background: linear-gradient(transparent, rgba(0,0,0,0.85)); color: white; font-weight: 600; font-size: 0.95rem; }
+    .scene-name small { display: block; font-weight: 400; opacity: 0.7; font-size: 0.7rem; }
+    .card-body { padding: 0.9rem; flex: 1; display: flex; flex-direction: column; gap: 0.7rem; }
+    .card-desc { font-size: 0.8rem; color: var(--text-dim); flex: 1; }
+    .card-bgm-style { font-size: 0.7rem; color: var(--accent); padding: 0.3rem 0.6rem;
+                       background: rgba(88,166,255,0.1); border-radius: 4px; }
+    .audio-player { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem;
+                     background: var(--bg); border-radius: 6px; border: 1px solid var(--border); }
+    .play-btn { width: 32px; height: 32px; border-radius: 50%; background: var(--accent);
+                 border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .play-btn svg { width: 14px; height: 14px; fill: white; }
+    .progress-bar { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; cursor: pointer; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.1s linear; }
+    .time-display { font-size: 0.7rem; color: var(--text-dim); font-variant-numeric: tabular-nums; min-width: 30px; }
+    .audio-pending { padding: 0.6rem; text-align: center; font-size: 0.75rem; color: var(--text-dim);
+                      background: var(--bg); border-radius: 6px; border: 1px dashed var(--border); }
+    .download-row { display: flex; gap: 0.5rem; }
+    .dl-btn { flex: 1; padding: 0.5rem; background: var(--surface2); border: 1px solid var(--border);
+               border-radius: 6px; color: var(--text); text-decoration: none; font-size: 0.7rem;
+               text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem;
+               transition: background 0.15s; cursor: pointer; }
+    .dl-btn:hover:not(.disabled) { background: var(--accent); border-color: var(--accent); color: white; }
+    .dl-btn svg { width: 12px; height: 12px; fill: currentColor; }
+    .dl-btn.disabled { opacity: 0.4; cursor: not-allowed; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 100;
+                      display: none; align-items: center; justify-content: center; padding: 2rem; }
+    .modal-overlay.active { display: flex; }
+    .modal-overlay img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .modal-close { position: absolute; top: 1rem; right: 1.5rem; background: none; border: none;
+                    color: white; font-size: 2rem; cursor: pointer; }
+    .footer { text-align: center; padding: 2rem 1rem; color: var(--text-dim);
+               font-size: 0.75rem; border-top: 1px solid var(--border); margin-top: 2rem; }
+    .footer a { color: var(--accent); }
+    @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1><span>ゆっくり解説</span> BGM＆背景セット</h1>
+    <div class="subtitle">雑学・歴史・ミステリー・ランキング動画向け素材集</div>
+    <div class="badge">シーン数: <strong id="scene-count">0</strong> | 完成済み: <strong id="ready-count">0</strong></div>
+    <br><a class="back" href="index.html">← トップへ</a>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat">背景画像: <strong id="img-count">0</strong>枚</div>
+    <div class="stat">BGM: <strong id="bgm-count">0</strong>曲</div>
+    <div class="stat">形式: PNG / MP3</div>
+    <div class="stat">ライセンス: 個人・非商用利用可</div>
+  </div>
+
+  <div class="container" id="container"></div>
+
+  <div class="modal-overlay" id="imageModal">
+    <button class="modal-close" id="modalClose">&times;</button>
+    <img id="modalImage" src="" alt="">
+  </div>
+
+  <div class="footer">
+    SoundForge &mdash; Free BGM &amp; Backgrounds<br>
+    商用利用OK / クレジット不要
+  </div>
+
+  <script src="assets/js/collections.js"></script>
+  <script>
+    const ICON_PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+    const ICON_PAUSE = '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+    const ICON_DL = '<svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>';
+    const ICON_IMG = '<svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
+
+    let currentAudio = null, currentBtn = null;
+    const collection = COLLECTIONS["story"];
+    const container = document.getElementById("container");
+    let imgCount = 0, bgmCount = 0, readyCount = 0;
+
+    // カテゴリでグループ化
+    const grouped = {};
+    collection.scenes.forEach(s => {
+      const cat = s.category || "その他";
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(s);
+    });
+
+    Object.entries(grouped).forEach(([cat, scenes]) => {
+      const section = document.createElement("div");
+      section.className = "category-section";
+      section.innerHTML = `<div class="category-title">${cat}</div><div class="grid"></div>`;
+      const grid = section.querySelector(".grid");
+
+      scenes.forEach(scene => {
+        const hasImage = !!scene.image;
+        const hasAudio = !!scene.audio;
+        if (hasImage) imgCount++;
+        if (hasAudio) bgmCount++;
+        if (hasImage && hasAudio) readyCount++;
+
+        const imageSubdir = scene.image_subdir || collection.image_subdir;
+        const audioFolder = scene.audio_folder;
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="card-thumb" ${hasImage ? `onclick="openModal('assets/images/${imageSubdir}/${scene.image}')"` : ''}>
+            ${hasImage
+              ? `<img src="assets/images/${imageSubdir}/${scene.image}" alt="${scene.name}" loading="lazy">`
+              : `<div class="placeholder">🎨</div>`}
+            <div class="scene-name">${scene.name}<small>${scene.nameEn}</small></div>
+          </div>
+          <div class="card-body">
+            <div class="card-desc">${scene.desc}</div>
+            <div class="card-bgm-style">♪ ${scene.bgmStyle}</div>
+            ${hasAudio
+              ? `<div class="audio-player">
+                  <button class="play-btn" data-audio="assets/audio/${audioFolder}/${scene.audio}" data-id="${scene.id}">${ICON_PLAY}</button>
+                  <div class="progress-bar" data-id="${scene.id}"><div class="progress-fill" id="progress-${scene.id}"></div></div>
+                  <span class="time-display" id="time-${scene.id}">0:00</span>
+                </div>`
+              : `<div class="audio-pending">♪ BGM 準備中</div>`}
+            <div class="download-row">
+              ${hasImage
+                ? `<a class="dl-btn image-dl" href="assets/images/${imageSubdir}/${scene.image}" download="${scene.id}.png">${ICON_IMG} 背景DL</a>`
+                : `<span class="dl-btn image-dl disabled">${ICON_IMG} 背景DL</span>`}
+              ${hasAudio
+                ? `<a class="dl-btn audio-dl" href="assets/audio/${audioFolder}/${scene.audio}" download="${scene.id}.mp3">${ICON_DL} BGM DL</a>`
+                : `<span class="dl-btn audio-dl disabled">${ICON_DL} BGM DL</span>`}
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+      container.appendChild(section);
+    });
+
+    document.getElementById("scene-count").textContent = collection.scenes.length;
+    document.getElementById("ready-count").textContent = readyCount;
+    document.getElementById("img-count").textContent = imgCount;
+    document.getElementById("bgm-count").textContent = bgmCount;
+
+    document.querySelectorAll(".play-btn[data-audio]").forEach(btn => btn.addEventListener("click", () => togglePlay(btn)));
+    document.querySelectorAll(".progress-bar[data-id]").forEach(bar => {
+      bar.addEventListener("click", e => {
+        if (!currentAudio) return;
+        if (currentBtn && currentBtn.dataset.id === bar.dataset.id) {
+          const rect = bar.getBoundingClientRect();
+          currentAudio.currentTime = ((e.clientX - rect.left) / rect.width) * currentAudio.duration;
+        }
+      });
+    });
+
+    function togglePlay(btn) {
+      const src = btn.dataset.audio, id = btn.dataset.id;
+      if (currentBtn && currentBtn !== btn) { currentAudio.pause(); currentBtn.innerHTML = ICON_PLAY; }
+      if (currentBtn === btn && !currentAudio.paused) { currentAudio.pause(); btn.innerHTML = ICON_PLAY; return; }
+      if (currentBtn !== btn) {
+        currentAudio = new Audio(src);
+        currentBtn = btn;
+        currentAudio.addEventListener("timeupdate", () => {
+          const fill = document.getElementById("progress-" + id);
+          const time = document.getElementById("time-" + id);
+          if (fill && currentAudio.duration) fill.style.width = (currentAudio.currentTime / currentAudio.duration * 100) + "%";
+          if (time) {
+            const t = currentAudio.currentTime;
+            time.textContent = Math.floor(t/60) + ":" + String(Math.floor(t%60)).padStart(2,"0");
+          }
+        });
+        currentAudio.addEventListener("ended", () => { btn.innerHTML = ICON_PLAY; });
+      }
+      currentAudio.play();
+      btn.innerHTML = ICON_PAUSE;
+    }
+
+    function openModal(src) {
+      document.getElementById("modalImage").src = src;
+      document.getElementById("imageModal").classList.add("active");
+    }
+    document.getElementById("modalClose").addEventListener("click", () => document.getElementById("imageModal").classList.remove("active"));
+    document.getElementById("imageModal").addEventListener("click", e => {
+      if (e.target.id === "imageModal") document.getElementById("imageModal").classList.remove("active");
+    });
+  </script>
+</body>
+</html>

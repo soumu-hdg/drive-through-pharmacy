@@ -1,0 +1,1006 @@
+// ===== Config =====
+const API_URL = 'https://script.google.com/macros/s/AKfycbwFzGLG20GaSLxfdRDAg1ATqQu_s5MWYF045Rlc3OH01duvrL2rqlP9VSQxCEodiePX/exec';
+
+// ===== Data =====
+const patients = [
+  { id:'P001', name:'田中太郎', age:75, sex:'男', insurance:'後期高齢者1割', ratio:0.1, dob:'1951-03-15', address:'愛知県北名古屋市西之保犬井190', phone:'0568-22-XXXX', nameKana:'タナカタロウ', allergies:['ペニシリン系'], history:['高血圧症','2型糖尿病'], prevRx:[{drugId:'amlodipine5',qty:1,unit:'T'},{drugId:'metformin500',qty:2,unit:'T'}], prevDays:28, prevVisitDate:'2026-02-18', vehicle:{plate:'名古屋 500 あ 12-34',lane:1}, status:'active', memo:'定期処方。血圧コントロール良好。', insurancePhoto:null, insuranceNumber:'記号12345-番号678', questionnaire:null, arrivedAt:'09:00', visitDate:'2026-03-18' },
+  { id:'P002', name:'鈴木花子', age:45, sex:'女', insurance:'社保3割', ratio:0.3, dob:'1981-07-22', address:'愛知県名古屋市中区栄3-1-1', phone:'052-XXX-XXXX', nameKana:'スズキハナコ', allergies:[], history:['花粉症'], prevRx:[{drugId:'montelukast10',qty:1,unit:'T'}], prevDays:14, prevVisitDate:'2026-03-04', vehicle:{plate:'名古屋 300 い 56-78',lane:2}, status:'waiting', memo:'', insurancePhoto:null, insuranceNumber:'', questionnaire:{receivedAt:'2026-03-18 09:30',symptoms:'鼻水、くしゃみ',duration:'3日前から',temperature:'36.4',otherComplaints:'目のかゆみ'}, arrivedAt:'09:15', visitDate:'2026-03-18' },
+  { id:'P003', name:'佐藤一郎', age:62, sex:'男', insurance:'国保3割', ratio:0.3, dob:'1964-11-05', address:'愛知県北名古屋市久地野牧野55', phone:'0568-XX-XXXX', nameKana:'サトウイチロウ', allergies:['セフェム系'], history:['脂質異常症'], prevRx:[{drugId:'atorvastatin10',qty:1,unit:'T'}], prevDays:28, prevVisitDate:'2026-02-18', vehicle:{plate:'名古屋 500 う 90-12',lane:3}, status:'waiting', memo:'LDLコレステロール要フォロー', insurancePhoto:null, insuranceNumber:'', questionnaire:null, arrivedAt:'09:22', visitDate:'2026-03-18' },
+  { id:'P004', name:'山田美咲', age:38, sex:'女', insurance:'社保3割', ratio:0.3, dob:'1988-04-10', address:'愛知県清須市清洲2272', phone:'052-XXX-XXXX', nameKana:'ヤマダミサキ', allergies:[], history:['片頭痛'], prevRx:[{drugId:'loxoprofen60',qty:3,unit:'T'},{drugId:'rebamipide100',qty:3,unit:'T'}], prevDays:7, prevVisitDate:'2026-03-11', vehicle:{plate:'名古屋 300 え 34-56',lane:4}, status:'waiting', memo:'', insurancePhoto:null, insuranceNumber:'', questionnaire:{receivedAt:'2026-03-18 09:45',symptoms:'頭痛',duration:'昨日から',temperature:'36.8',otherComplaints:'吐き気あり'}, arrivedAt:'09:35', visitDate:'2026-03-18' },
+  { id:'P005', name:'高橋健二', age:82, sex:'男', insurance:'後期高齢者1割', ratio:0.1, dob:'1944-01-20', address:'愛知県北名古屋市西春駅前1-1', phone:'0568-XX-XXXX', nameKana:'タカハシケンジ', allergies:['ロキソプロフェン'], history:['2型糖尿病','高血圧症'], prevRx:[{drugId:'amlodipine5',qty:1,unit:'T'},{drugId:'metformin500',qty:2,unit:'T'},{drugId:'atorvastatin10',qty:1,unit:'T'}], prevDays:28, prevVisitDate:'2026-02-18', vehicle:{plate:'名古屋 500 お 78-90',lane:5}, status:'waiting', memo:'HbA1c 7.2%。次回採血予定。', insurancePhoto:null, insuranceNumber:'', questionnaire:null, arrivedAt:'09:50', visitDate:'2026-03-18' }
+];
+
+const drugs = [
+  { id:'amlodipine5', name:'アムロジピン錠5mg', price:10.1, unit:'T', category:'降圧' },
+  { id:'amlodipine2.5', name:'アムロジピン錠2.5mg', price:10.1, unit:'T', category:'降圧' },
+  { id:'metformin500', name:'メトホルミン錠500mg', price:10.1, unit:'T', category:'糖尿病' },
+  { id:'metformin250', name:'メトホルミン錠250mg', price:10.1, unit:'T', category:'糖尿病' },
+  { id:'atorvastatin10', name:'アトルバスタチン錠10mg', price:14.5, unit:'T', category:'脂質' },
+  { id:'atorvastatin5', name:'アトルバスタチン錠5mg', price:11.8, unit:'T', category:'脂質' },
+  { id:'montelukast10', name:'モンテルカスト錠10mg', price:14.5, unit:'T', category:'アレルギー' },
+  { id:'fexofenadine60', name:'フェキソフェナジン錠60mg', price:10.1, unit:'T', category:'アレルギー' },
+  { id:'loxoprofen60', name:'ロキソプロフェン錠60mg', price:5.7, unit:'T', category:'鎮痛' },
+  { id:'acetaminophen200', name:'アセトアミノフェン錠200mg', price:5.7, unit:'T', category:'鎮痛' },
+  { id:'acetaminophen500', name:'アセトアミノフェン錠500mg', price:7.0, unit:'T', category:'鎮痛' },
+  { id:'rebamipide100', name:'レバミピド錠100mg', price:10.1, unit:'T', category:'胃腸' },
+  { id:'lansoprazole15', name:'ランソプラゾールOD錠15mg', price:10.4, unit:'T', category:'胃腸' },
+  { id:'domperidone10', name:'ドンペリドン錠10mg', price:5.7, unit:'T', category:'胃腸' },
+  { id:'loperamide1', name:'ロペラミド錠1mg', price:5.7, unit:'T', category:'胃腸' },
+  { id:'carbocisteine500', name:'カルボシステイン錠500mg', price:7.0, unit:'T', category:'咳・痰' },
+  { id:'dextromethorphan15', name:'デキストロメトルファン錠15mg', price:5.7, unit:'T', category:'咳・痰' },
+  { id:'tranexamic250', name:'トラネキサム酸錠250mg', price:10.1, unit:'T', category:'咳・痰' },
+  { id:'prednisolone5', name:'プレドニゾロン錠5mg', price:5.7, unit:'T', category:'ステロイド' },
+  { id:'losartan50', name:'ロサルタンカリウム錠50mg', price:10.1, unit:'T', category:'降圧' }
+];
+
+const setOrders = [
+  { name:'風邪セット', items:[{drugId:'acetaminophen200',qty:3},{drugId:'carbocisteine500',qty:3},{drugId:'tranexamic250',qty:3},{drugId:'rebamipide100',qty:3}], days:5 },
+  { name:'胃腸炎セット', items:[{drugId:'domperidone10',qty:3},{drugId:'rebamipide100',qty:3},{drugId:'loperamide1',qty:1}], days:5 },
+  { name:'高血圧セット', items:[{drugId:'amlodipine5',qty:1}], days:28 },
+  { name:'花粉症セット', items:[{drugId:'fexofenadine60',qty:2},{drugId:'montelukast10',qty:1}], days:14 }
+];
+
+const diseases = [
+  {code:'J069',name:'急性上気道感染症'},{code:'J00',name:'急性鼻咽頭炎（かぜ）'},{code:'J039',name:'急性扁桃炎'},
+  {code:'J209',name:'急性気管支炎'},{code:'J304',name:'アレルギー性鼻炎'},{code:'J459',name:'喘息'},
+  {code:'K529',name:'急性胃腸炎'},{code:'K21',name:'胃食道逆流症'},{code:'K2900',name:'急性胃炎'},
+  {code:'I10',name:'高血圧症'},{code:'E119',name:'2型糖尿病'},{code:'E785',name:'脂質異常症'},
+  {code:'G439',name:'片頭痛'},{code:'M545',name:'腰痛症'},{code:'R509',name:'発熱'},
+  {code:'N390',name:'膀胱炎'},{code:'L300',name:'湿疹'},{code:'B349',name:'ウイルス感染症'},
+  {code:'R05',name:'咳嗽'},{code:'U071',name:'COVID-19'}
+];
+const quickDiseases = ['急性上気道感染症','アレルギー性鼻炎','高血圧症','2型糖尿病','急性胃腸炎','片頭痛'];
+
+const examItems = [
+  {id:'blood_general',name:'血液一般',points:21},{id:'blood_biochem',name:'生化学検査',points:11},
+  {id:'crp',name:'CRP',points:16},{id:'hba1c',name:'HbA1c',points:49},
+  {id:'urinalysis',name:'尿一般',points:26},{id:'ecg',name:'心電図',points:130},
+  {id:'xray_chest',name:'胸部X線',points:210},{id:'covid_antigen',name:'コロナ抗原',points:150},
+  {id:'flu_antigen',name:'インフル抗原',points:150},{id:'spo2_monitor',name:'SpO2モニタ',points:30}
+];
+
+// ===== State =====
+let currentScreen = 'list';
+let currentPatientId = null;
+let patientHistory = [];
+let karteData = {};
+let examStartTime = null;
+let selectedDate = new Date().toISOString().split('T')[0];
+
+function initKarteData() {
+  patients.forEach(p => {
+    karteData[p.id] = {
+      chiefComplaint:'', chiefComplaintSelect:'',
+      findingsHpi:'', findingsPe:'', findingsLab:'', findingsAp:'',
+      vitals:{t:'',bps:'',bpd:'',spo2:'',pulse:''},
+      selectedDiseases:[], prescriptions:[], rxDays:7,
+      isFirstVisit: !p.prevVisitDate,
+      selectedExams:[]
+    };
+  });
+}
+initKarteData();
+
+// ===== Clock =====
+function updateClock() {
+  const d = new Date();
+  const t = d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+':'+d.getSeconds().toString().padStart(2,'0');
+  const c1 = document.getElementById('clockList');
+  const c2 = document.getElementById('clockKarte');
+  if (c1) c1.textContent = t;
+  if (c2) c2.textContent = t;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ===== Screen Switching =====
+function showScreen(name) {
+  currentScreen = name;
+  document.getElementById('screenList').classList.toggle('active', name === 'list');
+  document.getElementById('screenKarte').classList.toggle('active', name === 'karte');
+}
+
+function goToList() {
+  if (currentPatientId) {
+    saveCurrentKarte();
+    // Check if any data was entered — warn if unsaved
+    const k = karteData[currentPatientId];
+    const hasData = k.chiefComplaint || k.findingsHpi || k.findingsPe || k.findingsLab || k.findingsAp || k.prescriptions.length > 0 || k.selectedDiseases.length > 0;
+    if (hasData && !confirm('一覧に戻ります。\n入力中のデータは一時保存しますか？\n\nOK = 一時保存して戻る\nキャンセル = 保存せず戻る')) {
+      // User chose not to save, just go back
+    } else if (hasData) {
+      saveKarteDraft();
+    }
+  }
+  showScreen('list');
+  renderPatientList();
+}
+
+function openKarte(patientId) {
+  currentPatientId = patientId;
+  patientHistory = [];
+  examStartTime = null;
+  document.getElementById('examStartBtn').textContent = '診察開始';
+  document.getElementById('examStartBtn').classList.remove('active');
+  showScreen('karte');
+  populatePatientSelect();
+  renderAllKarte();
+}
+
+// ===== SCREEN 1: Patient List =====
+function getPatientsForDate(date) {
+  return patients.filter(p => p.visitDate === date);
+}
+
+function renderPatientList() {
+  const tbody = document.getElementById('patientListBody');
+  const filtered = getPatientsForDate(selectedDate);
+  let waitC = 0, activeC = 0, doneC = 0;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted);font-size:14px;">この日の受付患者はいません</td></tr>';
+    document.getElementById('listWait').textContent = 0;
+    document.getElementById('listActive').textContent = 0;
+    document.getElementById('listDone').textContent = 0;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((p, i) => {
+    if (p.status === 'waiting') waitC++;
+    else if (p.status === 'active') activeC++;
+    else if (p.status === 'done') doneC++;
+
+    const statusBadge = p.status === 'active' ? '<span class="status-badge active">診察中</span>' :
+                        p.status === 'done' ? '<span class="status-badge done">完了</span>' :
+                        '<span class="status-badge waiting">待機</span>';
+    const allergyStr = p.allergies.length > 0 ? p.allergies.join(', ') : '-';
+    const qBadge = p.questionnaire ? '<span class="q-badge received">受信済</span>' : '<span class="q-badge none">-</span>';
+    const rowClass = p.status === 'done' ? ' class="status-done-row"' : '';
+
+    return '<tr' + rowClass + ' onclick="openKarte(\'' + p.id + '\')" style="cursor:pointer;">' +
+      '<td>' + (i + 1) + '</td>' +
+      '<td class="td-status">' + statusBadge + '</td>' +
+      '<td class="td-name">' + p.name + '<div class="sub">' + (p.nameKana || '') + ' / ' + p.id + ' / ' + (p.arrivedAt || '') + '</div></td>' +
+      '<td>' + p.age + '歳 ' + p.sex + '</td>' +
+      '<td>' + p.insurance + '</td>' +
+      '<td class="td-allergy">' + allergyStr + '</td>' +
+      '<td class="td-lane">L' + p.vehicle.lane + '</td>' +
+      '<td class="td-questionnaire">' + qBadge + '</td>' +
+      '<td class="td-actions">' +
+        '<button class="action-btn karte-btn" onclick="event.stopPropagation();openKarte(\'' + p.id + '\')">カルテ</button>' +
+        (p.status === 'waiting' ? '<button class="action-btn call-btn" onclick="event.stopPropagation();callPatientFromList(\'' + p.id + '\')">呼出</button>' : '') +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  document.getElementById('listWait').textContent = waitC;
+  document.getElementById('listActive').textContent = activeC;
+  document.getElementById('listDone').textContent = doneC;
+}
+
+function callPatientFromList(id) {
+  const current = patients.find(p => p.status === 'active');
+  if (current) current.status = 'done';
+  const p = patients.find(x => x.id === id);
+  p.status = 'active';
+  renderPatientList();
+  showToast(p.name + 'さんを呼び出しました（レーン' + p.vehicle.lane + '）');
+}
+
+function changeDate(delta) {
+  const d = new Date(selectedDate);
+  d.setDate(d.getDate() + delta);
+  selectedDate = d.toISOString().split('T')[0];
+  document.getElementById('listDate').value = selectedDate;
+  renderPatientList();
+}
+
+function setToday() {
+  selectedDate = new Date().toISOString().split('T')[0];
+  document.getElementById('listDate').value = selectedDate;
+  renderPatientList();
+}
+
+function onDateChange() {
+  selectedDate = document.getElementById('listDate').value;
+  renderPatientList();
+}
+
+// ===== New Patient =====
+function openNewPatientModal() {
+  ['newName','newNameKana','newAddress','newPhone','newPlate'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('newDob').value = '';
+  document.getElementById('newLane').value = patients.length + 1;
+  document.getElementById('newPatientModal').classList.add('show');
+}
+
+function addNewPatient() {
+  const name = document.getElementById('newName').value.trim();
+  if (!name) { showToast('氏名を入力してください'); return; }
+  const dob = document.getElementById('newDob').value;
+  let age = 0;
+  if (dob) {
+    const today = new Date(); const b = new Date(dob);
+    age = today.getFullYear() - b.getFullYear();
+    const m = today.getMonth() - b.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
+  }
+  const ins = document.getElementById('newInsurance').value;
+  let ratio = 0.3;
+  if (ins.includes('1割')) ratio = 0.1;
+  else if (ins.includes('2割')) ratio = 0.2;
+  else if (ins === '公費') ratio = 0;
+
+  const now = new Date();
+  const newP = {
+    id: 'P' + (Date.now() % 100000),
+    name: name,
+    nameKana: document.getElementById('newNameKana').value,
+    age: age,
+    sex: document.getElementById('newSex').value,
+    insurance: ins,
+    ratio: ratio,
+    dob: dob,
+    address: document.getElementById('newAddress').value,
+    phone: document.getElementById('newPhone').value,
+    allergies: [],
+    history: [],
+    prevRx: [],
+    prevDays: 0,
+    prevVisitDate: '',
+    vehicle: {
+      plate: document.getElementById('newPlate').value || '---',
+      lane: parseInt(document.getElementById('newLane').value) || 1
+    },
+    status: 'waiting',
+    memo: '',
+    insurancePhoto: null,
+    insuranceNumber: '',
+    questionnaire: null,
+    arrivedAt: now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0'),
+    visitDate: selectedDate
+  };
+  patients.push(newP);
+  karteData[newP.id] = {
+    chiefComplaint:'', chiefComplaintSelect:'',
+    findingsHpi:'', findingsPe:'', findingsLab:'', findingsAp:'',
+    vitals:{t:'',bps:'',bpd:'',spo2:'',pulse:''},
+    selectedDiseases:[], prescriptions:[], rxDays:7,
+    isFirstVisit: true, selectedExams:[]
+  };
+  // GASに患者データを保存
+  postToApi('savePatient', {
+    '患者ID': newP.id,
+    '氏名': newP.name,
+    'フリガナ': newP.nameKana,
+    '生年月日': newP.dob,
+    '年齢': newP.age,
+    '性別': newP.sex,
+    '住所': newP.address,
+    '電話番号': newP.phone,
+    'アレルギー': '',
+    '既往歴': '',
+    'メモ': ''
+  });
+  closeModal('newPatientModal');
+  renderPatientList();
+  showToast(name + 'さんを受付登録しました');
+}
+
+// ===== SCREEN 2: Karte Dashboard =====
+function populatePatientSelect() {
+  const sel = document.getElementById('patientSelect');
+  sel.innerHTML = '';
+  patients.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name + ' (' + p.id + ')';
+    sel.appendChild(opt);
+  });
+  if (currentPatientId) sel.value = currentPatientId;
+}
+
+function switchPatient(id, addToHistory) {
+  saveCurrentKarte();
+  if (addToHistory !== false && currentPatientId && currentPatientId !== id) patientHistory.push(currentPatientId);
+  currentPatientId = id;
+  document.getElementById('patientSelect').value = id;
+  examStartTime = null;
+  document.getElementById('examStartBtn').textContent = '診察開始';
+  document.getElementById('examStartBtn').classList.remove('active');
+  renderAllKarte();
+}
+
+function saveCurrentKarte() {
+  if (!currentPatientId) return;
+  const k = karteData[currentPatientId];
+  if (!k) return;
+  k.chiefComplaint = document.getElementById('chiefComplaint').value;
+  k.chiefComplaintSelect = document.getElementById('chiefComplaintSelect').value;
+  k.findingsHpi = document.getElementById('findingsHpi').value;
+  k.findingsPe = document.getElementById('findingsPe').value;
+  k.findingsLab = document.getElementById('findingsLab').value;
+  k.findingsAp = document.getElementById('findingsAp').value;
+  k.vitals.t = document.getElementById('vitalT').value;
+  k.vitals.bps = document.getElementById('vitalBPS').value;
+  k.vitals.bpd = document.getElementById('vitalBPD').value;
+  k.vitals.spo2 = document.getElementById('vitalSpO2').value;
+  k.vitals.pulse = document.getElementById('vitalP').value;
+  k.rxDays = parseInt(document.getElementById('rxDays').value) || 7;
+  const memoEl = document.getElementById('patientMemo');
+  if (memoEl) { const p = patients.find(x => x.id === currentPatientId); if (p) p.memo = memoEl.value; }
+}
+
+function loadCurrentKarte() {
+  const k = karteData[currentPatientId];
+  document.getElementById('chiefComplaint').value = k.chiefComplaint;
+  document.getElementById('chiefComplaintSelect').value = k.chiefComplaintSelect || '';
+  document.getElementById('findingsHpi').value = k.findingsHpi;
+  document.getElementById('findingsPe').value = k.findingsPe;
+  document.getElementById('findingsLab').value = k.findingsLab;
+  document.getElementById('findingsAp').value = k.findingsAp;
+  document.getElementById('vitalT').value = k.vitals.t;
+  document.getElementById('vitalBPS').value = k.vitals.bps;
+  document.getElementById('vitalBPD').value = k.vitals.bpd;
+  document.getElementById('vitalSpO2').value = k.vitals.spo2;
+  document.getElementById('vitalP').value = k.vitals.pulse;
+  document.getElementById('rxDays').value = k.rxDays;
+  switchSoapTab('hpi');
+}
+
+function renderAllKarte() {
+  const p = patients.find(x => x.id === currentPatientId);
+  if (!p) return;
+  renderHeader(p);
+  renderPatientInfo(p);
+  loadCurrentKarte();
+  renderDiseaseQuickBtns();
+  renderSelectedDiseases();
+  renderRxList();
+  renderExamCheckList();
+  recalcBilling();
+  renderWaitingList();
+  updateSurchargeBadge();
+  updatePrevButton();
+}
+
+function renderHeader(p) {
+  document.getElementById('hdrName').textContent = p.name;
+  document.getElementById('hdrId').textContent = 'ID: ' + p.id;
+  document.getElementById('hdrAge').textContent = p.age + '歳';
+  document.getElementById('hdrSex').textContent = p.sex;
+  document.getElementById('hdrInsurance').textContent = p.insurance;
+}
+
+function renderPatientInfo(p) {
+  const body = document.getElementById('patientInfoBody');
+  let h = '';
+  h += '<div class="info-section"><div class="info-section-title">基本情報</div>';
+  h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;"><div class="patient-thumb">' + p.name.charAt(0) + '</div><div><div style="font-weight:700;font-size:13px;">' + p.name + '</div><div style="font-size:10px;color:var(--text-muted);">' + (p.nameKana||'') + '</div></div></div>';
+  h += '<div class="info-row"><span class="label">年齢</span><span class="value">' + p.age + '歳 (' + p.sex + ')</span></div>';
+  if (p.dob) h += '<div class="info-row"><span class="label">生年月日</span><span class="value">' + p.dob + '</span></div>';
+  if (p.address) h += '<div class="info-row"><span class="label">住所</span><span class="value" style="font-size:10px;">' + p.address + '</span></div>';
+  if (p.phone) h += '<div class="info-row"><span class="label">電話</span><span class="value">' + p.phone + '</span></div>';
+  h += '<div class="info-row"><span class="label">保険</span><span class="value">' + p.insurance + '</span></div></div>';
+
+  h += '<div class="info-section"><div class="info-section-title">保険証 <button class="edit-btn" onclick="openInsuranceModal()">詳細</button></div>';
+  h += '<div class="insurance-photo-area" onclick="document.getElementById(\'insuranceFileInput\').click()">';
+  h += p.insurancePhoto ? '<img src="' + p.insurancePhoto + '">' : '<span style="font-size:18px;">&#128247;</span><span style="font-size:10px;color:var(--text-muted);">タップして撮影</span>';
+  h += '</div><input type="file" id="insuranceFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleInsurancePhoto(this,false)">';
+  if (p.insuranceNumber) h += '<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">No: ' + p.insuranceNumber + '</div>';
+  h += '</div>';
+
+  h += '<div class="info-section"><div class="info-section-title">問診票';
+  h += p.questionnaire ? ' <span class="questionnaire-badge received">受信済</span>' : ' <span class="questionnaire-badge pending">未受信</span>';
+  h += '</div>';
+  if (p.questionnaire) {
+    h += '<div class="questionnaire-data"><div class="q-row"><span class="q-label">症状</span><span>' + p.questionnaire.symptoms + '</span></div><div class="q-row"><span class="q-label">期間</span><span>' + p.questionnaire.duration + '</span></div><div class="q-row"><span class="q-label">体温</span><span>' + p.questionnaire.temperature + '℃</span></div></div>';
+    h += '<button class="edit-btn" style="margin-top:3px;width:100%;text-align:center;" onclick="openQuestionnaireModal()">カルテに反映</button>';
+  } else {
+    h += '<div style="font-size:11px;color:var(--text-muted);">デジスマ問診票の受信待ち</div>';
+  }
+  h += '</div>';
+
+  h += '<div class="info-section"><div class="info-section-title">アレルギー</div>';
+  h += p.allergies.length > 0 ? p.allergies.map(a => '<span class="allergy-tag">' + a + '</span>').join('') : '<span style="font-size:11px;color:var(--text-muted);">なし</span>';
+  h += '</div>';
+
+  h += '<div class="info-section"><div class="info-section-title">既往歴</div>';
+  p.history.forEach(x => { h += '<div class="history-item">' + x + '</div>'; });
+  h += '</div>';
+
+  h += '<div class="info-section"><div class="info-section-title">前回診療</div>';
+  if (p.prevVisitDate) {
+    h += '<div class="info-row"><span class="label">日付</span><span class="value">' + p.prevVisitDate + '</span></div>';
+    h += '<span class="prev-visit-link" onclick="showToast(\'前回カルテを表示（未実装）\')">前回カルテにジャンプ</span>';
+  } else { h += '<div style="font-size:11px;color:var(--text-muted);">初診</div>'; }
+  h += '</div>';
+
+  h += '<div class="info-section"><div class="info-section-title">前回処方（' + p.prevDays + '日分）</div>';
+  p.prevRx.forEach(rx => { const d = drugs.find(x => x.id === rx.drugId); if (d) h += '<div class="prev-rx-item"><span>' + d.name + '</span><span>' + rx.qty + rx.unit + '</span></div>'; });
+  if (p.prevRx.length > 0) h += '<button class="do-rx-btn" onclick="doRx()">Do処方（前回と同じ）</button>';
+  h += '</div>';
+
+  h += '<div class="info-section"><div class="info-section-title">患者メモ</div><textarea class="patient-memo" id="patientMemo" placeholder="メモを入力...">' + (p.memo||'') + '</textarea></div>';
+
+  h += '<div class="info-section"><div class="info-section-title">車両情報</div><div class="vehicle-info"><div class="plate">' + p.vehicle.plate + '</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px;">レーン ' + p.vehicle.lane + '</div></div></div>';
+
+  body.innerHTML = h;
+}
+
+// ===== SOAP / Chief Complaint =====
+function switchSoapTab(tab) {
+  document.querySelectorAll('.soap-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.soap-section').forEach(s => s.classList.remove('active'));
+  const map = {hpi:'soapHpi',pe:'soapPe',lab:'soapLab',ap:'soapAp'};
+  document.getElementById(map[tab]).classList.add('active');
+  document.querySelectorAll('.soap-tab')[{hpi:0,pe:1,lab:2,ap:3}[tab]].classList.add('active');
+}
+function onChiefComplaintSelect(val) {
+  if (val) { const inp = document.getElementById('chiefComplaint'); inp.value = inp.value ? inp.value + '、' + val : val; }
+}
+
+// ===== Disease =====
+function renderDiseaseQuickBtns() {
+  const p = patients.find(x => x.id === currentPatientId);
+  let btns = '';
+  // 前回傷病引き継ぎボタン（既往歴がある場合）
+  if (p && p.history && p.history.length > 0) {
+    btns += '<button class="disease-quick-btn" style="background:var(--success-light);border-color:var(--success);color:var(--success);" onclick="copyPrevDiseases()">&#8635; 前回傷病引継</button>';
+  }
+  btns += quickDiseases.map(d => '<button class="disease-quick-btn" onclick="addDisease(\'' + d + '\')">' + d + '</button>').join('');
+  document.getElementById('diseaseQuickBtns').innerHTML = btns;
+}
+function copyPrevDiseases() {
+  const p = patients.find(x => x.id === currentPatientId);
+  if (!p || !p.history) return;
+  p.history.forEach(h => {
+    const info = diseases.find(d => d.name === h);
+    addDisease(h);
+  });
+  showToast('前回傷病名を引き継ぎました');
+}
+function searchDisease(q) {
+  const r = document.getElementById('diseaseResults');
+  if (!q) { r.classList.remove('show'); return; }
+  const f = diseases.filter(d => d.name.includes(q) || d.code.includes(q));
+  if (!f.length) { r.classList.remove('show'); return; }
+  r.innerHTML = f.map(d => '<div class="disease-result-item" onclick="addDisease(\'' + d.name + '\')">' + d.name + ' <span style="color:var(--text-muted);font-size:10px;">' + d.code + '</span></div>').join('');
+  r.classList.add('show');
+}
+function addDisease(name) {
+  const k = karteData[currentPatientId];
+  if (!k.selectedDiseases.find(d => d.name === name)) {
+    const info = diseases.find(d => d.name === name);
+    k.selectedDiseases.push({ name, code: info ? info.code : '', status: 'confirmed' });
+  }
+  document.getElementById('diseaseSearch').value = '';
+  document.getElementById('diseaseResults').classList.remove('show');
+  renderSelectedDiseases();
+}
+function removeDisease(i) { karteData[currentPatientId].selectedDiseases.splice(i, 1); renderSelectedDiseases(); }
+function toggleDiseaseStatus(i) {
+  const d = karteData[currentPatientId].selectedDiseases[i];
+  d.status = d.status === 'confirmed' ? 'suspected' : 'confirmed';
+  renderSelectedDiseases();
+}
+function renderSelectedDiseases() {
+  const k = karteData[currentPatientId];
+  document.getElementById('selectedDiseases').innerHTML = k.selectedDiseases.map((d, i) => {
+    const cls = d.status === 'suspected' ? 'disease-tag suspected' : 'disease-tag';
+    const lbl = d.status === 'suspected' ? '疑' : '確';
+    return '<span class="' + cls + '"><span class="status-toggle" onclick="toggleDiseaseStatus(' + i + ')">[' + lbl + ']</span> ' + d.name + (d.code ? ' <span style="font-size:9px;opacity:0.7;">' + d.code + '</span>' : '') + ' <span class="remove" onclick="removeDisease(' + i + ')">&times;</span></span>';
+  }).join('');
+}
+
+// ===== Prescription =====
+function renderSetOrders() {
+  document.getElementById('setOrderBtns').innerHTML = setOrders.map((s, i) => '<button class="set-order-btn" onclick="applySetOrder(' + i + ')">' + s.name + '</button>').join('');
+}
+function applySetOrder(i) {
+  const s = setOrders[i]; const k = karteData[currentPatientId]; k.prescriptions = [];
+  s.items.forEach(item => { const d = drugs.find(x => x.id === item.drugId); if (d) k.prescriptions.push({drug:d,qty:item.qty}); });
+  k.rxDays = s.days; document.getElementById('rxDays').value = s.days;
+  renderRxList(); recalcBilling(); showToast(s.name + 'を適用');
+}
+function doRx() {
+  const p = patients.find(x => x.id === currentPatientId); const k = karteData[currentPatientId]; k.prescriptions = [];
+  p.prevRx.forEach(rx => { const d = drugs.find(x => x.id === rx.drugId); if (d) k.prescriptions.push({drug:d,qty:rx.qty}); });
+  k.rxDays = p.prevDays; document.getElementById('rxDays').value = p.prevDays;
+  renderRxList(); recalcBilling(); showToast('Do処方を適用');
+}
+function searchDrug(q) {
+  const r = document.getElementById('drugResults');
+  if (!q) { r.classList.remove('show'); return; }
+  const f = drugs.filter(d => d.name.includes(q) || d.category.includes(q));
+  if (!f.length) { r.classList.remove('show'); return; }
+  r.innerHTML = f.map(d => '<div class="drug-result-item" onclick="addDrug(\'' + d.id + '\')"><span>' + d.name + '</span><span class="price">' + d.price.toFixed(1) + '円</span></div>').join('');
+  r.classList.add('show');
+}
+function addDrug(id) {
+  const d = drugs.find(x => x.id === id); if (!d) return;
+  const k = karteData[currentPatientId]; const ex = k.prescriptions.find(rx => rx.drug.id === id);
+  if (ex) ex.qty += 1; else k.prescriptions.push({drug:d,qty:1});
+  document.getElementById('drugSearch').value = ''; document.getElementById('drugResults').classList.remove('show');
+  renderRxList(); recalcBilling();
+}
+function removeDrug(i) { karteData[currentPatientId].prescriptions.splice(i,1); renderRxList(); recalcBilling(); }
+function updateDrugQty(i,v) { karteData[currentPatientId].prescriptions[i].qty = Math.max(0.5, parseFloat(v)||1); recalcBilling(); }
+function renderRxList() {
+  const k = karteData[currentPatientId]; const list = document.getElementById('rxList');
+  if (!k.prescriptions.length) { list.innerHTML = '<li style="color:var(--text-muted);font-size:12px;padding:8px 0;text-align:center;">処方なし</li>'; return; }
+  list.innerHTML = k.prescriptions.map((rx, i) => '<li class="rx-item"><span class="name">' + rx.drug.name + '</span><input type="number" value="' + rx.qty + '" min="0.5" step="0.5" onchange="updateDrugQty(' + i + ',this.value)"><span class="unit">' + rx.drug.unit + '</span><span class="remove-drug" onclick="removeDrug(' + i + ')">&times;</span></li>').join('');
+}
+
+// ===== Exam =====
+function renderExamCheckList() {
+  const k = karteData[currentPatientId];
+  document.getElementById('examCheckList').innerHTML = examItems.map(ex => {
+    const chk = k.selectedExams.includes(ex.id) ? 'checked' : '';
+    return '<li class="exam-check-item"><input type="checkbox" id="exam_' + ex.id + '" ' + chk + ' onchange="toggleExam(\'' + ex.id + '\')"><label for="exam_' + ex.id + '">' + ex.name + '</label><span class="exam-points">' + ex.points + '点</span></li>';
+  }).join('');
+}
+function toggleExam(id) {
+  const k = karteData[currentPatientId]; const i = k.selectedExams.indexOf(id);
+  if (i >= 0) k.selectedExams.splice(i, 1); else k.selectedExams.push(id);
+  recalcBilling();
+}
+
+// ===== Billing =====
+function recalcBilling() {
+  const p = patients.find(x => x.id === currentPatientId);
+  const k = karteData[currentPatientId];
+  const days = parseInt(document.getElementById('rxDays').value) || 7;
+  const shoshinTen = k.isFirstVisit ? 291 : 75;
+  const gairaiTen = k.isFirstVisit ? 0 : 52;
+  const surcharge = getTimeSurcharge(examStartTime);
+  const surchargeTen = surcharge ? surcharge.points : 0;
+  const sr = document.getElementById('billSurchargeRow');
+  if (surchargeTen > 0) { sr.style.display = ''; document.getElementById('billSurcharge').textContent = surcharge.type + ' ' + surchargeTen + '点'; }
+  else { sr.style.display = 'none'; }
+  const numDrugs = k.prescriptions.length;
+  const shohouTen = numDrugs > 0 ? (numDrugs >= 7 ? 29 : 42) : 0;
+  const chouzaiTen = numDrugs > 0 ? (days<=7?11:days<=14?19:days<=21?25:days<=28?30:33) : 0;
+  let yakuzaiTotal = 0;
+  k.prescriptions.forEach(rx => { yakuzaiTotal += rx.drug.price * rx.qty * days; });
+  const yakuzaiTen = goshagochoNyuu(yakuzaiTotal / 10);
+  let examTen = 0;
+  k.selectedExams.forEach(id => { const ex = examItems.find(e => e.id === id); if (ex) examTen += ex.points; });
+  const er = document.getElementById('billExamRow');
+  if (examTen > 0) { er.style.display = ''; document.getElementById('billExam').textContent = examTen + '点'; }
+  else { er.style.display = 'none'; }
+  const totalTen = shoshinTen + gairaiTen + surchargeTen + shohouTen + chouzaiTen + yakuzaiTen + examTen;
+  const burden = Math.round(totalTen * 10 * p.ratio);
+  document.getElementById('billShoshin').textContent = (k.isFirstVisit ? '初診料 ' : '再診料 ') + shoshinTen + '点';
+  document.getElementById('billGairai').textContent = gairaiTen > 0 ? gairaiTen + '点' : '---';
+  document.getElementById('billShohou').textContent = shohouTen > 0 ? shohouTen + '点' + (numDrugs >= 7 ? ' (逓減)' : '') : '---';
+  document.getElementById('billChouzai').textContent = chouzaiTen > 0 ? chouzaiTen + '点' : '---';
+  document.getElementById('billYakuzai').textContent = yakuzaiTen > 0 ? yakuzaiTen + '点' : '---';
+  document.getElementById('billTotal').textContent = totalTen + '点';
+  document.getElementById('billBurden').textContent = burden.toLocaleString() + '円';
+}
+function goshagochoNyuu(val) { const f = Math.floor(val); return (val - f) > 0.5 ? f + 1 : f; }
+
+// ===== Time surcharge =====
+function getTimeSurcharge(dt) {
+  if (!dt) dt = new Date();
+  const h = dt.getHours(), day = dt.getDay();
+  if (day === 0) return {type:'休日',points:250};
+  if (h >= 22 || h < 6) return {type:'深夜',points:480};
+  if (day === 6) { if ((h >= 6 && h < 8) || h >= 12) return {type:'時間外',points:85}; }
+  else { if ((h >= 6 && h < 8) || h >= 18) return {type:'時間外',points:85}; }
+  return null;
+}
+function updateSurchargeBadge() {
+  const badge = document.getElementById('hdrSurcharge');
+  const s = getTimeSurcharge(examStartTime || new Date());
+  if (s) { badge.textContent = s.type + '加算 +' + s.points + '点'; badge.classList.add('show'); }
+  else { badge.classList.remove('show'); }
+}
+function toggleExamStart() {
+  const btn = document.getElementById('examStartBtn');
+  if (!examStartTime) {
+    examStartTime = new Date();
+    btn.textContent = '診察中 ' + examStartTime.getHours().toString().padStart(2,'0') + ':' + examStartTime.getMinutes().toString().padStart(2,'0');
+    btn.classList.add('active');
+    showToast('診察開始: ' + examStartTime.toLocaleTimeString('ja-JP'));
+  } else { examStartTime = null; btn.textContent = '診察開始'; btn.classList.remove('active'); }
+  updateSurchargeBadge(); recalcBilling();
+}
+
+// ===== Waiting List =====
+function renderWaitingList() {
+  const list = document.getElementById('waitingList');
+  let wc = 0, dc = 0;
+  list.innerHTML = patients.map(p => {
+    let sc = 'status-waiting';
+    if (p.status === 'active') sc = 'status-active';
+    if (p.status === 'done') { sc = 'status-done'; dc++; }
+    if (p.status === 'waiting') wc++;
+    return '<div class="waiting-item' + (p.id === currentPatientId ? ' active' : '') + '" onclick="switchPatient(\'' + p.id + '\')"><div class="status-dot ' + sc + '"></div><div class="w-info"><div class="w-name">' + p.name + '</div><div class="w-detail">' + p.age + '歳 ' + p.sex + '</div></div><div class="w-lane">L' + p.vehicle.lane + '</div></div>';
+  }).join('');
+  document.getElementById('waitCount').textContent = wc;
+  document.getElementById('doneCount').textContent = dc;
+}
+function callNextPatient() {
+  const nw = patients.find(p => p.status === 'waiting');
+  if (!nw) { showToast('待機患者がいません'); return; }
+  const cur = patients.find(p => p.status === 'active');
+  if (cur) cur.status = 'done';
+  nw.status = 'active';
+  switchPatient(nw.id);
+  showToast(nw.name + 'さんを呼び出し（L' + nw.vehicle.lane + '）');
+}
+function callPrevPatient() {
+  if (!patientHistory.length) return;
+  switchPatient(patientHistory.pop(), false);
+  showToast('前の患者に戻りました');
+}
+function updatePrevButton() { document.getElementById('prevPatientBtn').disabled = !patientHistory.length; }
+
+// ===== Save / Confirm =====
+function saveKarteDraft() {
+  saveCurrentKarte();
+  const p = patients.find(x => x.id === currentPatientId);
+  const k = karteData[currentPatientId];
+  const karteId = 'K-' + currentPatientId + '-' + selectedDate;
+
+  // 時間区分を getTimeSurcharge から取得
+  const surchargeInfo = getTimeSurcharge(examStartTime);
+  const timeSlotLabel = surchargeInfo ? surchargeInfo.type : '通常';
+
+  postToApi('saveKarte', {
+    'カルテID': karteId,
+    '患者ID': currentPatientId,
+    '受診日': selectedDate,
+    '診察開始時刻': examStartTime ? examStartTime.toLocaleTimeString('ja-JP') : '',
+    '主訴': k.chiefComplaint,
+    '現病歴': k.findingsHpi,
+    '身体所見': k.findingsPe,
+    '検査所見': k.findingsLab,
+    'アセスメントプラン': k.findingsAp,
+    '体温': k.vitals ? k.vitals.t : '',
+    '収縮期血圧': k.vitals ? k.vitals.bps : '',
+    '拡張期血圧': k.vitals ? k.vitals.bpd : '',
+    'SpO2': k.vitals ? k.vitals.spo2 : '',
+    '脈拍': k.vitals ? k.vitals.pulse : '',
+    '初診フラグ': k.isFirstVisit ? 'TRUE' : 'FALSE',
+    '時間区分': timeSlotLabel,
+    'ステータス': '一時保存'
+  });
+  // 処方データを個別に保存
+  if (k.prescriptions && k.prescriptions.length > 0) {
+    k.prescriptions.forEach(rx => {
+      postToApi('savePrescription', {
+        'カルテID': karteId,
+        '患者ID': currentPatientId,
+        '薬品名': rx.drug.name,
+        '薬品コード': rx.drug.id,
+        '用量': rx.qty,
+        '単位': rx.drug.unit || '錠',
+        '用法': rx.drug.usage || '',
+        '日数': k.rxDays,
+        '薬価': rx.drug.price || 0
+      });
+    });
+  }
+  // 傷病名データを個別に保存
+  if (k.selectedDiseases && k.selectedDiseases.length > 0) {
+    k.selectedDiseases.forEach(d => {
+      postToApi('saveDiagnosis', {
+        'カルテID': karteId,
+        '患者ID': currentPatientId,
+        '傷病名': d.name,
+        'ICD10コード': d.code || '',
+        '確定区分': d.status === 'suspected' ? '疑い' : '確定'
+      });
+    });
+  }
+  // 検査データを個別に保存
+  if (k.selectedExams && k.selectedExams.length > 0) {
+    k.selectedExams.forEach(exId => {
+      const exInfo = examItems.find(e => e.id === exId);
+      if (exInfo) {
+        postToApi('saveExam', {
+          'カルテID': karteId,
+          '患者ID': currentPatientId,
+          '検査名': exInfo.name,
+          '検査コード': exId
+        });
+      }
+    });
+  }
+  showToast('カルテを一時保存しました');
+}
+
+function confirmBilling() {
+  saveCurrentKarte();
+  const p = patients.find(x => x.id === currentPatientId);
+  const k = karteData[currentPatientId];
+
+  // 確定前の確認ダイアログ
+  const totalEl = document.getElementById('billTotal');
+  const burdenEl = document.getElementById('billBurden');
+  const rxSummary = k.prescriptions.map(rx => rx.drug.name + ' ' + rx.qty + rx.drug.unit).join('\n  ');
+  const diseaseSummary = k.selectedDiseases.map(d => d.name + (d.status === 'suspected' ? '(疑い)' : '')).join(', ');
+  const confirmMsg = '【確定確認】\n' +
+    '患者: ' + p.name + '（' + p.insurance + '）\n' +
+    '主訴: ' + (k.chiefComplaint || '未入力') + '\n' +
+    '傷病名: ' + (diseaseSummary || 'なし') + '\n' +
+    '処方:\n  ' + (rxSummary || 'なし') + '\n' +
+    '合計: ' + totalEl.textContent + '\n' +
+    '患者負担: ' + burdenEl.textContent + '\n\n' +
+    'この内容で確定しますか？';
+  if (!confirm(confirmMsg)) return;
+
+  const karteId = 'K-' + currentPatientId + '-' + selectedDate;
+
+  // 時間区分を getTimeSurcharge から取得
+  const surchargeInfo = getTimeSurcharge(examStartTime);
+  const timeSlotLabel = surchargeInfo ? surchargeInfo.type : '通常';
+
+  postToApi('saveKarte', {
+    'カルテID': karteId,
+    '患者ID': currentPatientId,
+    '受診日': selectedDate,
+    '診察開始時刻': examStartTime ? examStartTime.toLocaleTimeString('ja-JP') : '',
+    '診察終了時刻': new Date().toLocaleTimeString('ja-JP'),
+    '主訴': k.chiefComplaint,
+    '現病歴': k.findingsHpi,
+    '身体所見': k.findingsPe,
+    '検査所見': k.findingsLab,
+    'アセスメントプラン': k.findingsAp,
+    '体温': k.vitals ? k.vitals.t : '',
+    '収縮期血圧': k.vitals ? k.vitals.bps : '',
+    '拡張期血圧': k.vitals ? k.vitals.bpd : '',
+    'SpO2': k.vitals ? k.vitals.spo2 : '',
+    '脈拍': k.vitals ? k.vitals.pulse : '',
+    '初診フラグ': k.isFirstVisit ? 'TRUE' : 'FALSE',
+    '時間区分': timeSlotLabel,
+    'ステータス': '確定'
+  });
+  // 処方・傷病名・検査も保存
+  if (k.prescriptions && k.prescriptions.length > 0) {
+    k.prescriptions.forEach(rx => {
+      postToApi('savePrescription', {
+        'カルテID': karteId,
+        '患者ID': currentPatientId,
+        '薬品名': rx.drug.name,
+        '薬品コード': rx.drug.id,
+        '用量': rx.qty,
+        '単位': rx.drug.unit || '錠',
+        '用法': rx.drug.usage || '',
+        '日数': k.rxDays,
+        '薬価': rx.drug.price || 0
+      });
+    });
+  }
+  if (k.selectedDiseases && k.selectedDiseases.length > 0) {
+    k.selectedDiseases.forEach(d => {
+      postToApi('saveDiagnosis', {
+        'カルテID': karteId,
+        '患者ID': currentPatientId,
+        '傷病名': d.name,
+        'ICD10コード': d.code || '',
+        '確定区分': d.status === 'suspected' ? '疑い' : '確定'
+      });
+    });
+  }
+  if (k.selectedExams && k.selectedExams.length > 0) {
+    k.selectedExams.forEach(exId => {
+      const exInfo = examItems.find(e => e.id === exId);
+      if (exInfo) {
+        postToApi('saveExam', {
+          'カルテID': karteId,
+          '患者ID': currentPatientId,
+          '検査名': exInfo.name,
+          '検査コード': exId
+        });
+      }
+    });
+  }
+  // 算定データを保存
+  const totalText = document.getElementById('billTotal').textContent;
+  const burdenText = document.getElementById('billBurden').textContent;
+  const totalPoints = parseInt(totalText) || 0;
+  const burdenAmount = parseInt(burdenText.replace(/[^0-9]/g, '')) || 0;
+  const billingItems = [];
+  if (k.isFirstVisit) billingItems.push('初診料 291点'); else billingItems.push('再診料 75点');
+  if (!k.isFirstVisit) billingItems.push('外来管理加算 52点');
+  if (surchargeInfo) billingItems.push(surchargeInfo.type + '加算 ' + surchargeInfo.points + '点');
+  if (k.prescriptions.length > 0) billingItems.push('処方料・調剤料・薬剤料');
+  postToApi('saveBilling', {
+    'カルテID': karteId,
+    '患者ID': currentPatientId,
+    '項目名': billingItems.join(', '),
+    '点数': billingItems.join(', '),
+    '合計点数': totalPoints,
+    '負担額': burdenAmount,
+    '負担割合': p.ratio
+  });
+
+  p.status = 'done';
+  examStartTime = null;
+  document.getElementById('examStartBtn').textContent = '診察開始';
+  document.getElementById('examStartBtn').classList.remove('active');
+  renderWaitingList();
+  showToast(p.name + 'さんの診察を確定しました');
+}
+
+function postToApi(action, data) {
+  try {
+    fetch(API_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action, data })
+    });
+  } catch (e) { console.warn('API error:', e); }
+}
+
+function printBilling() { showToast('印刷プレビュー（モック）'); }
+
+// ===== Modals =====
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function openEditPatientModal() {
+  const p = patients.find(x => x.id === currentPatientId);
+  document.getElementById('editName').value = p.name;
+  document.getElementById('editNameKana').value = p.nameKana || '';
+  document.getElementById('editDob').value = p.dob || '';
+  document.getElementById('editSex').value = p.sex;
+  document.getElementById('editAddress').value = p.address || '';
+  document.getElementById('editPhone').value = p.phone || '';
+  document.getElementById('editAllergies').value = p.allergies.join(', ');
+  document.getElementById('editInsurance').value = p.insurance;
+  document.getElementById('editPatientModal').classList.add('show');
+}
+function savePatientEdit() {
+  const p = patients.find(x => x.id === currentPatientId);
+  p.name = document.getElementById('editName').value;
+  p.nameKana = document.getElementById('editNameKana').value;
+  p.dob = document.getElementById('editDob').value;
+  p.sex = document.getElementById('editSex').value;
+  p.address = document.getElementById('editAddress').value;
+  p.phone = document.getElementById('editPhone').value;
+  const ins = document.getElementById('editInsurance').value;
+  p.insurance = ins;
+  p.ratio = ins.includes('1割') ? 0.1 : ins.includes('2割') ? 0.2 : ins === '公費' ? 0 : 0.3;
+  const a = document.getElementById('editAllergies').value;
+  p.allergies = a ? a.split(/[,、]/).map(s => s.trim()).filter(Boolean) : [];
+  if (p.dob) { const t = new Date(), b = new Date(p.dob); let age = t.getFullYear()-b.getFullYear(); if (t.getMonth()<b.getMonth()||(t.getMonth()===b.getMonth()&&t.getDate()<b.getDate())) age--; p.age = age; }
+  // GASに患者データを更新
+  postToApi('savePatient', {
+    '患者ID': p.id,
+    '氏名': p.name,
+    'フリガナ': p.nameKana,
+    '生年月日': p.dob,
+    '年齢': p.age,
+    '性別': p.sex,
+    '住所': p.address,
+    '電話番号': p.phone,
+    'アレルギー': p.allergies.join(','),
+    'メモ': p.memo || ''
+  });
+  closeModal('editPatientModal'); renderAllKarte(); showToast('患者情報を更新');
+}
+
+function handleInsurancePhoto(input, isModal) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const p = patients.find(x => x.id === currentPatientId);
+    p.insurancePhoto = e.target.result;
+    if (isModal) { document.getElementById('insurancePhotoPreview').src = e.target.result; document.getElementById('insurancePhotoPreview').style.display = 'block'; document.getElementById('insuranceUploadText2').style.display = 'none'; }
+    renderPatientInfo(p); showToast('保険証写真を保存');
+  };
+  reader.readAsDataURL(file);
+}
+function openInsuranceModal() {
+  const p = patients.find(x => x.id === currentPatientId);
+  if (p.insurancePhoto) { document.getElementById('insurancePhotoPreview').src = p.insurancePhoto; document.getElementById('insurancePhotoPreview').style.display = 'block'; document.getElementById('insuranceUploadText2').style.display = 'none'; }
+  else { document.getElementById('insurancePhotoPreview').style.display = 'none'; document.getElementById('insuranceUploadText2').style.display = ''; }
+  document.getElementById('insuranceNumber').value = p.insuranceNumber || '';
+  document.getElementById('insuranceRatio').value = String(p.ratio);
+  if (p.insurance.includes('社保')) document.getElementById('insuranceType').value = '社保';
+  else if (p.insurance.includes('国保')) document.getElementById('insuranceType').value = '国保';
+  else if (p.insurance.includes('後期')) document.getElementById('insuranceType').value = '後期高齢者';
+  document.getElementById('insurancePhotoModal').classList.add('show');
+}
+function saveInsuranceInfo() {
+  const p = patients.find(x => x.id === currentPatientId);
+  p.insuranceNumber = document.getElementById('insuranceNumber').value;
+  const type = document.getElementById('insuranceType').value;
+  const ratio = parseFloat(document.getElementById('insuranceRatio').value);
+  p.ratio = ratio;
+  const rl = ratio===0.1?'1割':ratio===0.2?'2割':ratio===0.3?'3割':'0割';
+  p.insurance = type === '後期高齢者' ? '後期高齢者' + rl : type === '公費' ? '公費' : type + rl;
+  // GASに保険証データを保存
+  postToApi('saveInsurance', {
+    '患者ID': p.id,
+    '保険区分': type,
+    '番号': p.insuranceNumber,
+    '負担割合': ratio
+  });
+  closeModal('insurancePhotoModal'); renderAllKarte(); showToast('保険証情報を更新');
+}
+
+function openQuestionnaireModal() {
+  const p = patients.find(x => x.id === currentPatientId);
+  if (!p.questionnaire) return;
+  const q = p.questionnaire;
+  document.getElementById('questionnaireBody').innerHTML = '<div class="questionnaire-data" style="font-size:13px;"><div class="q-row" style="padding:4px 0;"><span class="q-label" style="min-width:80px;">受信時刻</span><span>' + q.receivedAt + '</span></div><div class="q-row" style="padding:4px 0;"><span class="q-label" style="min-width:80px;">主な症状</span><span>' + q.symptoms + '</span></div><div class="q-row" style="padding:4px 0;"><span class="q-label" style="min-width:80px;">発症期間</span><span>' + q.duration + '</span></div><div class="q-row" style="padding:4px 0;"><span class="q-label" style="min-width:80px;">体温</span><span>' + q.temperature + '℃</span></div>' + (q.otherComplaints ? '<div class="q-row" style="padding:4px 0;"><span class="q-label" style="min-width:80px;">その他</span><span>' + q.otherComplaints + '</span></div>' : '') + '</div>';
+  document.getElementById('questionnaireModal').classList.add('show');
+}
+function applyQuestionnaire() {
+  const p = patients.find(x => x.id === currentPatientId);
+  const k = karteData[currentPatientId]; const q = p.questionnaire; if (!q) return;
+  if (q.symptoms && !k.chiefComplaint) { k.chiefComplaint = q.symptoms; document.getElementById('chiefComplaint').value = q.symptoms; }
+  let hpi = k.findingsHpi;
+  if (q.duration) hpi += (hpi?'\n':'') + q.duration + '発症。';
+  if (q.otherComplaints) hpi += (hpi?'\n':'') + q.otherComplaints;
+  k.findingsHpi = hpi; document.getElementById('findingsHpi').value = hpi;
+  if (q.temperature && !k.vitals.t) { k.vitals.t = q.temperature; document.getElementById('vitalT').value = q.temperature; }
+  closeModal('questionnaireModal'); showToast('問診票をカルテに反映');
+}
+
+function openDocModal(type) {
+  currentDocType = type;
+  const p = patients.find(x => x.id === currentPatientId);
+  const k = karteData[currentPatientId];
+  let title = '', html = '';
+  if (type === 'referral') {
+    title = '診療情報提供書（紹介状）';
+    html = '<div class="form-group"><label class="form-label">紹介先医療機関</label><input type="text" class="form-input" placeholder="○○病院"></div>';
+    html += '<div class="form-group"><label class="form-label">紹介先診療科</label><input type="text" class="form-input" placeholder="内科"></div>';
+    html += '<div class="form-group"><label class="form-label">傷病名</label><input type="text" class="form-input" value="' + k.selectedDiseases.map(d=>d.name).join(', ') + '"></div>';
+    html += '<div class="form-group"><label class="form-label">紹介目的・経過</label><textarea class="form-textarea" rows="5">上記患者様を紹介申し上げます。\n現病歴: ' + (k.findingsHpi||'') + '\nご高診のほどよろしくお願い申し上げます。</textarea></div>';
+  } else if (type === 'diagnosis') {
+    title = '診断書';
+    html = '<div class="form-group"><label class="form-label">患者氏名</label><input type="text" class="form-input" value="' + p.name + '" readonly></div>';
+    html += '<div class="form-group"><label class="form-label">傷病名</label><input type="text" class="form-input" value="' + k.selectedDiseases.map(d=>d.name).join(', ') + '"></div>';
+    html += '<div class="form-group"><label class="form-label">所見</label><textarea class="form-textarea" rows="4" placeholder="所見・経過を記載"></textarea></div>';
+  } else if (type === 'prescription') {
+    title = '院外処方箋';
+    html = '<div class="form-group"><label class="form-label">患者 / 保険</label><input type="text" class="form-input" value="' + p.name + ' / ' + p.insurance + '" readonly></div>';
+    html += '<div class="form-group"><label class="form-label">処方内容</label><div style="background:var(--bg);padding:8px;border-radius:var(--radius-sm);font-size:12px;">';
+    if (!k.prescriptions.length) html += '<div style="color:var(--text-muted);">処方なし</div>';
+    else k.prescriptions.forEach(rx => { html += '<div style="padding:2px 0;">' + rx.drug.name + ' ' + rx.qty + rx.drug.unit + ' x ' + k.rxDays + '日分</div>'; });
+    html += '</div></div>';
+  }
+  document.getElementById('docModalTitle').innerHTML = title + ' <button class="modal-close" onclick="closeModal(\'docModal\')">&times;</button>';
+  document.getElementById('docModalBody').innerHTML = html;
+  document.getElementById('docModal').classList.add('show');
+}
+
+// ===== Document Save =====
+let currentDocType = '';
+function saveDocument() {
+  const p = patients.find(x => x.id === currentPatientId);
+  const karteId = 'K-' + currentPatientId + '-' + selectedDate;
+  const typeMap = { referral: '診療情報提供書', diagnosis: '診断書', prescription: '院外処方箋' };
+  const docType = typeMap[currentDocType] || '文書';
+  postToApi('saveDocument', {
+    'カルテID': karteId,
+    '患者ID': currentPatientId,
+    '文書種別': docType,
+    'タイトル': docType + ' - ' + p.name,
+    '内容JSON': JSON.stringify({ date: selectedDate, patient: p.name })
+  });
+  closeModal('docModal');
+  showToast(docType + 'を保存しました');
+}
+
+// ===== Toast =====
+function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
+
+// ===== Close dropdowns =====
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.disease-search-wrap')) document.getElementById('diseaseResults')?.classList.remove('show');
+  if (!e.target.closest('.drug-search-wrap')) document.getElementById('drugResults')?.classList.remove('show');
+});
+
+// ===== Init =====
+document.getElementById('listDate').value = selectedDate;
+renderSetOrders();
+renderDiseaseQuickBtns();
+renderPatientList();

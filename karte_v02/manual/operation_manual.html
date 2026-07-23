@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ドライブスルー診療 電子カルテ v0.2 操作マニュアル</title>
+<style>
+:root {
+  --primary: #2563eb;
+  --primary-light: #dbeafe;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --bg: #f8fafc;
+  --card: #ffffff;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--text);
+  background: var(--bg);
+}
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+h1 {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 8px;
+  border-bottom: 3px solid var(--primary);
+  padding-bottom: 12px;
+}
+.subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 32px;
+}
+h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 40px 0 16px;
+  padding-left: 12px;
+  border-left: 4px solid var(--primary);
+}
+h3 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 24px 0 8px;
+  color: var(--text);
+}
+h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 16px 0 6px;
+  color: var(--text-muted);
+}
+p { margin-bottom: 12px; }
+.section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.screenshot {
+  margin: 16px 0;
+  text-align: center;
+}
+.screenshot img {
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.screenshot .caption {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-style: italic;
+}
+.step {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+  align-items: flex-start;
+}
+.step-num {
+  background: var(--primary);
+  color: #fff;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.step-text { flex: 1; }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge-blue { background: var(--primary-light); color: var(--primary); }
+.badge-green { background: #dcfce7; color: #16a34a; }
+.badge-red { background: #fef2f2; color: #dc2626; }
+.badge-yellow { background: #fef9c3; color: #92400e; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+table th {
+  background: var(--primary);
+  color: #fff;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+}
+table td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+}
+table tr:hover td { background: var(--primary-light); }
+
+.toc {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 32px;
+}
+.toc h3 { margin-top: 0; }
+.toc ol { padding-left: 20px; }
+.toc li { margin-bottom: 4px; }
+.toc a { color: var(--primary); text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
+
+.info-box {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.info-box.warning {
+  background: #fef9c3;
+  border-color: #fde68a;
+}
+.info-box .label {
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 700px) {
+  .grid-2 { grid-template-columns: 1fr; }
+}
+@media print {
+  body { font-size: 12px; }
+  .section { break-inside: avoid; }
+  .screenshot img { max-height: 300px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>ドライブスルー診療 電子カルテ v0.2<br>操作マニュアル</h1>
+<p class="subtitle">西春内科・在宅クリニック | 作成日: 2026-03-18 | バージョン: v0.2</p>
+
+<div class="toc">
+  <h3>目次</h3>
+  <ol>
+    <li><a href="#overview">システム概要</a></li>
+    <li><a href="#screen1">画面1: 患者一覧（トップページ）</a></li>
+    <li><a href="#new-patient">新規受付の登録</a></li>
+    <li><a href="#screen2">画面2: カルテダッシュボード</a></li>
+    <li><a href="#panel-patient">左パネル: 患者情報</a></li>
+    <li><a href="#panel-karte">中央上: カルテ記載（主訴・SOAP・バイタル・傷病名）</a></li>
+    <li><a href="#panel-rx">中央下: 処方入力</a></li>
+    <li><a href="#panel-billing">右上: 算定・会計</a></li>
+    <li><a href="#panel-exam">右中: 検査・文書</a></li>
+    <li><a href="#panel-waiting">右端: 待機患者</a></li>
+    <li><a href="#modals">各種モーダル（編集・保険証・問診票・文書）</a></li>
+    <li><a href="#workflow">診察ワークフロー（一連の流れ）</a></li>
+    <li><a href="#database">データベース構造</a></li>
+    <li><a href="#deploy">デプロイ情報</a></li>
+  </ol>
+</div>
+
+<!-- ========== 1. システム概要 ========== -->
+<h2 id="overview">1. システム概要</h2>
+<div class="section">
+  <p>本システムは、西春内科・在宅クリニックのドライブスルー診療向けに開発されたブラウザベースの電子カルテです。M3 DigiKarに代わる独立システムとして設計されています。</p>
+  <h3>主な特徴</h3>
+  <ul>
+    <li>ブラウザのみで動作（タブレット/PC対応）</li>
+    <li>ダッシュボード一画面型（C案ベース）</li>
+    <li>Google スプレッドシートをデータベースとして使用</li>
+    <li>GAS（Google Apps Script）によるWeb API バックエンド</li>
+    <li>薬の算定自動計算（五捨五超入、初再診料、処方料、調剤料、薬剤料）</li>
+    <li>時間外・休日・深夜加算の自動判定</li>
+  </ul>
+  <h3>画面構成</h3>
+  <div class="grid-2">
+    <div>
+      <span class="badge badge-blue">画面1</span> <strong>患者一覧</strong><br>
+      当日の受付患者を一覧表示。日付切替、新規受付、呼出ボタン。
+    </div>
+    <div>
+      <span class="badge badge-green">画面2</span> <strong>カルテダッシュボード</strong><br>
+      4カラムGrid。患者情報・カルテ記載・処方・算定・検査・待機リスト。
+    </div>
+  </div>
+</div>
+
+<!-- ========== 2. 患者一覧 ========== -->
+<h2 id="screen1">2. 画面1: 患者一覧（トップページ）</h2>
+<div class="section">
+  <div class="screenshot">
+    <img src="screenshots/01_patient_list.png" alt="患者一覧画面">
+    <div class="caption">図1: 患者一覧画面（トップページ）</div>
+  </div>
+
+  <h3>画面構成</h3>
+  <table>
+    <tr><th>要素</th><th>説明</th></tr>
+    <tr><td>ヘッダー</td><td>クリニック名、リアルタイム時計</td></tr>
+    <tr><td>日付ナビ</td><td>◀ / ▶ で日付切替、日付ピッカー、「今日」ボタン</td></tr>
+    <tr><td>統計バー</td><td>待機・診察中・完了の患者数をリアルタイム表示</td></tr>
+    <tr><td>「+ 新規受付」ボタン</td><td>新規患者登録モーダルを開く</td></tr>
+    <tr><td>患者テーブル</td><td>#、状態、患者名（フリガナ・ID・到着時刻）、年齢/性別、保険、アレルギー、レーン、問診票、操作ボタン</td></tr>
+  </table>
+
+  <h3>状態バッジ</h3>
+  <ul>
+    <li><span class="badge badge-yellow">待機</span> … 来院済み、診察前</li>
+    <li><span class="badge badge-green">診察中</span> … 現在診察中（緑パルスアニメーション）</li>
+    <li><span class="badge badge-blue">完了</span> … 診察確定済み（行が半透明）</li>
+  </ul>
+
+  <h3>操作ボタン</h3>
+  <ul>
+    <li><strong>カルテ</strong>: カルテダッシュボード（画面2）を開く</li>
+    <li><strong>呼出</strong>: 待機→診察中に変更（前の診察中患者は自動で「完了」に）</li>
+  </ul>
+</div>
+
+<!-- ========== 3. 新規受付 ========== -->
+<h2 id="new-patient">3. 新規受付の登録</h2>
+<div class="section">
+  <div class="screenshot">
+    <img src="screenshots/03_new_patient_filled.png" alt="新規受付モーダル">
+    <div class="caption">図2: 新規受付モーダル（入力例）</div>
+  </div>
+
+  <h3>入力項目</h3>
+  <table>
+    <tr><th>項目</th><th>必須</th><th>説明</th></tr>
+    <tr><td>氏名</td><td>必須</td><td>患者氏名（漢字）</td></tr>
+    <tr><td>フリガナ</td><td>任意</td><td>カタカナ表記</td></tr>
+    <tr><td>生年月日</td><td>任意</td><td>年齢が自動計算される</td></tr>
+    <tr><td>性別</td><td>必須</td><td>男 / 女</td></tr>
+    <tr><td>住所</td><td>任意</td><td>患者住所</td></tr>
+    <tr><td>電話番号</td><td>任意</td><td>連絡先</td></tr>
+    <tr><td>保険種別</td><td>必須</td><td>社保3割 / 国保3割 / 後期高齢者1-3割 / 公費 / 自費</td></tr>
+    <tr><td>車両番号</td><td>任意</td><td>ドライブスルー用、ナンバープレート</td></tr>
+    <tr><td>レーン</td><td>必須</td><td>駐車レーン番号（自動連番）</td></tr>
+  </table>
+
+  <h3>操作手順</h3>
+  <div class="step"><div class="step-num">1</div><div class="step-text">患者一覧画面で「+ 新規受付」ボタンをクリック</div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-text">各項目を入力（氏名は必須）</div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-text">「受付登録」ボタンをクリック</div></div>
+  <div class="step"><div class="step-num">4</div><div class="step-text">一覧に追加され、GASバックエンドのDBにも保存される</div></div>
+
+  <div class="screenshot">
+    <img src="screenshots/04_patient_list_after_add.png" alt="登録後一覧">
+    <div class="caption">図3: 新規患者（伊藤美穂さん L6）が追加された状態</div>
+  </div>
+</div>
+
+<!-- ========== 4. カルテダッシュボード ========== -->
+<h2 id="screen2">4. 画面2: カルテダッシュボード</h2>
+<div class="section">
+  <div class="screenshot">
+    <img src="screenshots/05_karte_dashboard.png" alt="カルテダッシュボード">
+    <div class="caption">図4: カルテダッシュボード全体（4カラム Grid レイアウト）</div>
+  </div>
+
+  <h3>レイアウト構成（4カラム）</h3>
+  <table>
+    <tr><th>位置</th><th>パネル</th><th>内容</th></tr>
+    <tr><td>左列（260px）</td><td>患者情報</td><td>基本情報・保険証・問診票・アレルギー・既往歴・前回処方・メモ・車両情報</td></tr>
+    <tr><td>中央上</td><td>カルテ記載</td><td>主訴（プルダウン＋自由記載）、SOAP 4タブ、バイタル、傷病名検索</td></tr>
+    <tr><td>中央下</td><td>処方入力</td><td>セット処方、薬品検索、処方日数</td></tr>
+    <tr><td>右上</td><td>算定・会計</td><td>初再診料、外来管理加算、時間外加算、処方料、調剤料、薬剤料、検査料、合計、患者負担</td></tr>
+    <tr><td>右中</td><td>検査・文書</td><td>検査チェックリスト、文書作成ボタン</td></tr>
+    <tr><td>右端（220px）</td><td>待機患者</td><td>待機リスト、前の患者/次の患者ボタン</td></tr>
+  </table>
+
+  <h3>ヘッダー要素</h3>
+  <ul>
+    <li>「◀ 一覧に戻る」: 画面1に戻る（未保存データがあれば確認ダイアログ）</li>
+    <li>患者セレクタ: ドロップダウンで患者を切替</li>
+    <li>患者名・ID・年齢・性別・保険バッジ</li>
+    <li>時間外加算バッジ: 時間外/休日/深夜加算が自動表示（赤色）</li>
+    <li>「診察開始」ボタン: 開始時刻記録、赤色に変化</li>
+  </ul>
+</div>
+
+<!-- ========== 5. 患者情報パネル ========== -->
+<h2 id="panel-patient">5. 左パネル: 患者情報</h2>
+<div class="section">
+  <p>左パネルは患者の全情報を縦スクロールで表示します。上部に「編集」ボタンがあり、患者情報を修正できます。</p>
+
+  <h3>表示セクション</h3>
+  <table>
+    <tr><th>セクション</th><th>内容</th></tr>
+    <tr><td>基本情報</td><td>氏名・フリガナ・年齢・生年月日・住所・電話・保険種別（サムネイルは名前の頭文字）</td></tr>
+    <tr><td>保険証</td><td>写真アップロードエリア（タップで撮影）、記号・番号表示、「詳細」ボタンで保険証モーダルを開く</td></tr>
+    <tr><td>問診票</td><td>デジスマ問診票の受信状態バッジ（受信済/未受信）、症状・期間・体温の表示、「カルテに反映」ボタン</td></tr>
+    <tr><td>アレルギー</td><td>赤色タグで表示（例: ペニシリン系）</td></tr>
+    <tr><td>既往歴</td><td>疾患名一覧</td></tr>
+    <tr><td>前回診療</td><td>前回受診日、「前回カルテにジャンプ」リンク</td></tr>
+    <tr><td>前回処方</td><td>薬品名と用量の一覧、「Do処方（前回と同じ）」ボタン</td></tr>
+    <tr><td>患者メモ</td><td>自由記載テキストエリア（自動保存）</td></tr>
+    <tr><td>車両情報</td><td>ナンバープレート、レーン番号（黄色背景）</td></tr>
+  </table>
+</div>
+
+<!-- ========== 6. カルテ記載 ========== -->
+<h2 id="panel-karte">6. 中央上: カルテ記載</h2>
+<div class="section">
+  <div class="screenshot">
+    <img src="screenshots/07_karte_filled.png" alt="カルテ入力済み">
+    <div class="caption">図5: 主訴・SOAP・バイタル・傷病名・Do処方が入力された状態</div>
+  </div>
+
+  <h3>主訴入力</h3>
+  <p>プルダウン（16種類の定型主訴）と自由記載テキストの併用。プルダウンで選択するとテキスト欄に自動追記されます。</p>
+  <p><strong>定型主訴:</strong> 発熱、咳嗽、咽頭痛、鼻汁、頭痛、腹痛、嘔吐・下痢、倦怠感、胸痛、呼吸困難、めまい、腰痛、関節痛、皮疹、排尿障害、定期処方</p>
+
+  <h3>所見（SOAP 4タブ）</h3>
+  <div class="screenshot">
+    <img src="screenshots/13_soap_pe_tab.png" alt="SOAPタブ">
+    <div class="caption">図6: SOAPタブ切替（身体所見タブ表示中）</div>
+  </div>
+  <table>
+    <tr><th>タブ</th><th>内容</th></tr>
+    <tr><td>現病歴</td><td>発症経過、受診動機など</td></tr>
+    <tr><td>身体所見</td><td>視診・聴診・触診の所見</td></tr>
+    <tr><td>検査所見</td><td>血液検査等の結果</td></tr>
+    <tr><td>A&P</td><td>アセスメント（診断）とプラン（治療方針）</td></tr>
+  </table>
+
+  <h3>バイタルサイン</h3>
+  <p>体温(T)、血圧(BP)、SpO2、脈拍(P) を 2x2 グリッドで入力。単位は自動表示。</p>
+
+  <h3>傷病名</h3>
+  <ul>
+    <li><strong>検索入力:</strong> 病名またはICD-10コードで検索（20件のマスタ）</li>
+    <li><strong>クイックボタン:</strong> よく使う6傷病名をワンタップ追加</li>
+    <li><strong>前回傷病引継ボタン:</strong> 既往歴がある患者で表示（緑色）、前回の傷病名を自動追加</li>
+    <li><strong>確定/疑い切替:</strong> 各傷病名タグの [確/疑] をクリックでトグル</li>
+    <li><strong>削除:</strong> × ボタンで削除</li>
+  </ul>
+  <div class="info-box">
+    <span class="label">表示例:</span>
+    確定 → 紫色タグ「高血圧症 I10」/ 疑い → 黄色破線タグ「急性気管支炎(疑) J209」
+  </div>
+</div>
+
+<!-- ========== 7. 処方入力 ========== -->
+<h2 id="panel-rx">7. 中央下: 処方入力</h2>
+<div class="section">
+  <h3>セット処方（4種）</h3>
+  <table>
+    <tr><th>セット名</th><th>内容</th><th>日数</th></tr>
+    <tr><td>風邪セット</td><td>アセトアミノフェン200mg 3T + カルボシステイン500mg 3T + トラネキサム酸250mg 3T + レバミピド100mg 3T</td><td>5日</td></tr>
+    <tr><td>胃腸炎セット</td><td>ドンペリドン10mg 3T + レバミピド100mg 3T + ロペラミド1mg 1T</td><td>5日</td></tr>
+    <tr><td>高血圧セット</td><td>アムロジピン5mg 1T</td><td>28日</td></tr>
+    <tr><td>花粉症セット</td><td>フェキソフェナジン60mg 2T + モンテルカスト10mg 1T</td><td>14日</td></tr>
+  </table>
+
+  <h3>個別薬品検索</h3>
+  <p>薬品名またはカテゴリ名（降圧、糖尿病、鎮痛など）で検索。薬品マスタは20品目登録済み。</p>
+
+  <h3>Do処方</h3>
+  <p>左パネルの「Do処方（前回と同じ）」ボタンで前回処方を一括コピー。日数も自動設定。</p>
+
+  <h3>処方日数</h3>
+  <p>1〜90日で設定可能。薬剤料は「薬価 × 用量 × 日数」で自動計算されます。</p>
+</div>
+
+<!-- ========== 8. 算定・会計 ========== -->
+<h2 id="panel-billing">8. 右上: 算定・会計</h2>
+<div class="section">
+  <div class="screenshot">
+    <img src="screenshots/08_karte_with_exam.png" alt="算定パネル">
+    <div class="caption">図7: 検査チェック後の算定表示（354点 / 354円）</div>
+  </div>
+
+  <h3>自動計算される項目</h3>
+  <table>
+    <tr><th>項目</th><th>点数</th><th>条件</th></tr>
+    <tr><td>初診料</td><td>291点</td><td>初診時</td></tr>
+    <tr><td>再診料</td><td>75点</td><td>再診時</td></tr>
+    <tr><td>外来管理加算</td><td>52点</td><td>再診時のみ自動加算</td></tr>
+    <tr><td>処方料</td><td>42点 / 29点</td><td>7種未満: 42点 / 7種以上: 29点（逓減）</td></tr>
+    <tr><td>調剤料</td><td>11〜33点</td><td>日数により段階的（7日以下:11 / 14日以下:19 / 21日以下:25 / 28日以下:30 / 29日以上:33）</td></tr>
+    <tr><td>薬剤料</td><td>自動計算</td><td>五捨五超入（0.5以下切捨・0.5超切上）で点数化</td></tr>
+    <tr><td>検査料</td><td>各検査の点数合計</td><td>チェックした検査のみ</td></tr>
+    <tr><td>時間外加算</td><td>85点</td><td>平日18時以降 or 土曜12時以降</td></tr>
+    <tr><td>休日加算</td><td>250点</td><td>日曜・祝日</td></tr>
+    <tr><td>深夜加算</td><td>480点</td><td>22時〜6時</td></tr>
+  </table>
+
+  <h3>患者負担額</h3>
+  <p>合計点数 × 10円 × 負担割合（1割/2割/3割）で計算。青色背景で大きく表示。</p>
+
+  <h3>操作ボタン</h3>
+  <ul>
+    <li><strong>一時保存:</strong> 現在の入力内容をGASバックエンドに保存（ステータス「一時保存」）</li>
+    <li><strong>確定:</strong> 確認ダイアログ → 全データ保存 → 患者ステータスを「完了」に</li>
+    <li><strong>印刷:</strong> 印刷プレビュー（モック）</li>
+  </ul>
+
+  <div class="info-box warning">
+    <span class="label">確定時の確認ダイアログ:</span>
+    患者名・保険・主訴・傷病名・処方内容・合計点数・負担額のサマリーが表示されます。「OK」で確定、「キャンセル」で取消。
+  </div>
+</div>
+
+<!-- ========== 9. 検査・文書 ========== -->
+<h2 id="panel-exam">9. 右中: 検査・文書</h2>
+<div class="section">
+  <h3>検査チェックリスト</h3>
+  <table>
+    <tr><th>検査名</th><th>点数</th></tr>
+    <tr><td>血液一般</td><td>21点</td></tr>
+    <tr><td>生化学検査</td><td>11点</td></tr>
+    <tr><td>CRP</td><td>16点</td></tr>
+    <tr><td>HbA1c</td><td>49点</td></tr>
+    <tr><td>尿一般</td><td>26点</td></tr>
+    <tr><td>心電図</td><td>130点</td></tr>
+    <tr><td>胸部X線</td><td>210点</td></tr>
+    <tr><td>コロナ抗原</td><td>150点</td></tr>
+    <tr><td>インフル抗原</td><td>150点</td></tr>
+    <tr><td>SpO2モニタ</td><td>30点</td></tr>
+  </table>
+  <p>チェックを入れると算定パネルの検査料に自動反映されます。</p>
+
+  <h3>文書作成</h3>
+  <ul>
+    <li><strong>診療情報提供書（紹介状）:</strong> 紹介先・診療科・傷病名・経過を記載。傷病名と現病歴は自動転記。</li>
+    <li><strong>診断書:</strong> 患者氏名・傷病名・所見を記載。</li>
+    <li><strong>院外処方箋:</strong> 患者情報・処方内容が自動表示。</li>
+  </ul>
+
+  <div class="screenshot">
+    <img src="screenshots/11_referral_modal.png" alt="紹介状モーダル">
+    <div class="caption">図8: 診療情報提供書（紹介状）作成モーダル</div>
+  </div>
+</div>
+
+<!-- ========== 10. 待機患者 ========== -->
+<h2 id="panel-waiting">10. 右端: 待機患者</h2>
+<div class="section">
+  <p>全患者のステータスをリアルタイム表示するサイドパネルです。</p>
+
+  <h3>表示要素</h3>
+  <ul>
+    <li>待機中 / 診察済の人数カウンター</li>
+    <li>患者リスト（ステータスドット付き: 灰=待機 / 緑=診察中 / 青=完了）</li>
+    <li>現在の患者は青背景でハイライト</li>
+    <li>クリックで患者を切替</li>
+  </ul>
+
+  <h3>ナビゲーションボタン</h3>
+  <ul>
+    <li><strong>◀ 前の患者:</strong> 直前に診察していた患者に戻る（履歴ベース）</li>
+    <li><strong>次の患者 ▶:</strong> 次の待機患者を呼出（現在の患者は自動で「完了」に）</li>
+  </ul>
+</div>
+
+<!-- ========== 11. モーダル ========== -->
+<h2 id="modals">11. 各種モーダル</h2>
+<div class="section">
+  <h3>患者情報編集モーダル</h3>
+  <div class="screenshot">
+    <img src="screenshots/09_edit_patient_modal.png" alt="患者編集">
+    <div class="caption">図9: 患者情報編集モーダル</div>
+  </div>
+  <p>左パネル上部の「編集」ボタンから開きます。氏名・フリガナ・生年月日・性別・住所・電話番号・保険種別・アレルギーを編集可能。保存するとGASバックエンドにも反映されます。</p>
+
+  <h3>保険証モーダル</h3>
+  <div class="screenshot">
+    <img src="screenshots/10_insurance_modal.png" alt="保険証">
+    <div class="caption">図10: 保険証モーダル（写真アップロード＋詳細入力）</div>
+  </div>
+  <p>左パネルの保険証セクション「詳細」ボタンから開きます。保険証写真のアップロード（カメラ撮影対応）、記号・番号、保険者名、有効期限、区分（社保/国保/後期高齢者/公費）、負担割合（1割/2割/3割/0割）を設定できます。</p>
+
+  <h3>問診票モーダル</h3>
+  <div class="screenshot">
+    <img src="screenshots/12_questionnaire_modal.png" alt="問診票">
+    <div class="caption">図11: 問診票データ表示＋カルテ反映モーダル</div>
+  </div>
+  <p>デジスマ問診票の受信データを表示します。「カルテに反映」ボタンで主訴・現病歴・体温をカルテに自動転記します。</p>
+</div>
+
+<!-- ========== 12. ワークフロー ========== -->
+<h2 id="workflow">12. 診察ワークフロー（一連の流れ）</h2>
+<div class="section">
+  <div class="step"><div class="step-num">1</div><div class="step-text"><strong>受付:</strong> 患者一覧画面で「+ 新規受付」→ 患者情報入力 → 「受付登録」</div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-text"><strong>呼出:</strong> 「呼出」ボタンまたは待機パネルの「次の患者 ▶」で患者を呼び出し</div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-text"><strong>診察開始:</strong> カルテ画面で「診察開始」ボタン → 時間外加算が自動判定</div></div>
+  <div class="step"><div class="step-num">4</div><div class="step-text"><strong>問診票反映:</strong> 問診票データがあれば「カルテに反映」で主訴・体温を自動転記</div></div>
+  <div class="step"><div class="step-num">5</div><div class="step-text"><strong>カルテ記載:</strong> 主訴入力 → SOAP記載 → バイタル入力</div></div>
+  <div class="step"><div class="step-num">6</div><div class="step-text"><strong>傷病名:</strong> 検索またはクイックボタンで追加、確定/疑いを設定</div></div>
+  <div class="step"><div class="step-num">7</div><div class="step-text"><strong>処方:</strong> Do処方 / セット処方 / 個別検索で薬品追加、日数設定</div></div>
+  <div class="step"><div class="step-num">8</div><div class="step-text"><strong>検査:</strong> 検査チェックリストにチェック（自動で点数加算）</div></div>
+  <div class="step"><div class="step-num">9</div><div class="step-text"><strong>確認:</strong> 算定パネルで合計点数・負担額を確認</div></div>
+  <div class="step"><div class="step-num">10</div><div class="step-text"><strong>確定:</strong> 「確定」ボタン → サマリー確認ダイアログ → OK でGASに全データ保存</div></div>
+  <div class="step"><div class="step-num">11</div><div class="step-text"><strong>次の患者:</strong> 「次の患者 ▶」で自動的に次の待機患者へ</div></div>
+
+  <div class="info-box">
+    <span class="label">Do処方ショートカット:</span>
+    定期処方の患者は、カルテ画面を開いた直後に「Do処方」→「確定」の2ステップで完了できます。
+  </div>
+</div>
+
+<!-- ========== 13. データベース構造 ========== -->
+<h2 id="database">13. データベース構造</h2>
+<div class="section">
+  <div class="screenshot">
+    <img src="screenshots/15_db_patient_master.png" alt="DBスクショ">
+    <div class="caption">図12: Google スプレッドシート「新カルテ用DB」- 患者マスタシート</div>
+  </div>
+
+  <p>データベースはGoogle スプレッドシート上に11シートで構成されています。全カラム名は日本語です。</p>
+
+  <h3>シート一覧</h3>
+  <table>
+    <tr><th>シート名</th><th>用途</th><th>主要カラム</th></tr>
+    <tr><td>患者マスタ</td><td>患者基本情報</td><td>患者ID, 氏名, フリガナ, 生年月日, 年齢, 性別, 住所, 電話番号, アレルギー, 既往歴, メモ, 写真URL</td></tr>
+    <tr><td>保険証</td><td>保険証情報</td><td>保険証ID, 患者ID, 保険区分, 保険者番号, 記号, 番号, 負担割合, 公費, 写真URL, 有効開始日, 有効終了日</td></tr>
+    <tr><td>カルテ</td><td>診察記録</td><td>カルテID, 患者ID, 受診日, 診察開始/終了時刻, 主訴, 現病歴, 身体所見, 検査所見, A&P, バイタル(体温/BP/SpO2/脈拍), 初診フラグ, 時間区分, ステータス, 車両情報</td></tr>
+    <tr><td>処方</td><td>処方データ</td><td>処方ID, カルテID, 患者ID, 薬品名, 薬品コード, 用量, 単位, 用法, 日数, 薬価</td></tr>
+    <tr><td>傷病名</td><td>傷病名記録</td><td>傷病名ID, カルテID, 患者ID, 傷病名, ICD10コード, 確定区分(確定/疑い), 発症日</td></tr>
+    <tr><td>検査</td><td>検査記録</td><td>検査ID, カルテID, 患者ID, 検査名, 検査コード, 結果, 備考</td></tr>
+    <tr><td>算定</td><td>算定データ</td><td>算定ID, カルテID, 患者ID, 項目名, 点数, 合計点数, 負担額, 負担割合</td></tr>
+    <tr><td>問診票</td><td>問診票データ</td><td>問診票ID, 患者ID, カルテID, 質問, 回答, 入力元</td></tr>
+    <tr><td>薬品マスタ</td><td>薬品マスタ</td><td>薬品ID, 薬品名, 薬品コード, 薬価, 単位, カテゴリ, 禁忌</td></tr>
+    <tr><td>傷病名マスタ</td><td>傷病名マスタ</td><td>傷病名ID, 傷病名, ICD10コード, カテゴリ</td></tr>
+    <tr><td>文書</td><td>文書データ</td><td>文書ID, カルテID, 患者ID, 文書種別, タイトル, 内容JSON</td></tr>
+  </table>
+
+  <h3>API構成</h3>
+  <p>GAS（Google Apps Script）でWeb APIを構築。スタンドアロン型（SpreadsheetApp.openById）。</p>
+  <table>
+    <tr><th>メソッド</th><th>アクション</th><th>説明</th></tr>
+    <tr><td>GET</td><td>getPatients</td><td>全患者一覧取得</td></tr>
+    <tr><td>GET</td><td>getPatient</td><td>患者ID指定で1件取得</td></tr>
+    <tr><td>GET</td><td>getKarteList</td><td>カルテ一覧（患者ID/日付フィルタ）</td></tr>
+    <tr><td>GET</td><td>getKarte</td><td>カルテ詳細（処方・傷病名・検査・算定含む）</td></tr>
+    <tr><td>GET</td><td>getDrugMaster</td><td>薬品マスタ検索</td></tr>
+    <tr><td>GET</td><td>getDiseaseMaster</td><td>傷病名マスタ検索</td></tr>
+    <tr><td>POST</td><td>savePatient</td><td>患者登録/更新</td></tr>
+    <tr><td>POST</td><td>saveKarte</td><td>カルテ保存/更新</td></tr>
+    <tr><td>POST</td><td>savePrescription</td><td>処方保存</td></tr>
+    <tr><td>POST</td><td>saveDiagnosis</td><td>傷病名保存</td></tr>
+    <tr><td>POST</td><td>saveExam</td><td>検査保存</td></tr>
+    <tr><td>POST</td><td>saveBilling</td><td>算定保存</td></tr>
+    <tr><td>POST</td><td>saveInsurance</td><td>保険証保存</td></tr>
+    <tr><td>POST</td><td>saveDocument</td><td>文書保存</td></tr>
+  </table>
+</div>
+
+<!-- ========== 14. デプロイ情報 ========== -->
+<h2 id="deploy">14. デプロイ情報</h2>
+<div class="section">
+  <table>
+    <tr><th>リソース</th><th>ID / URL</th></tr>
+    <tr><td>GASプロジェクト</td><td><code>1YQ7vfPtWAi6Vy6iQIS9fVj6J6ZR6CaGJpW8bgh9i0g-gnaGtsP-CVoYp</code></td></tr>
+    <tr><td>Web App URL</td><td><code>https://script.google.com/macros/s/AKfycbwFzGLG20GaSLxfdRDAg1ATqQu_s5MWYF045Rlc3OH01duvrL2rqlP9VSQxCEodiePX/exec</code></td></tr>
+    <tr><td>スプレッドシート</td><td><code>1FYpePnWd33udmESL1zNnoinSMsrioRrvXtrJDguRWbw</code></td></tr>
+  </table>
+
+  <h3>ファイル構成</h3>
+  <table>
+    <tr><th>ファイル</th><th>行数</th><th>内容</th></tr>
+    <tr><td>index.html</td><td>323行</td><td>HTML構造（2画面 + モーダル5種）</td></tr>
+    <tr><td>style.css</td><td>614行</td><td>全CSS（CSS変数、Grid、パネル、モーダル）</td></tr>
+    <tr><td>app.js</td><td>1,006行</td><td>全JavaScript（データ・状態管理・UI・API連携）</td></tr>
+    <tr><td>gas_setup.js</td><td>601行</td><td>GASバックエンド（セットアップ + Web API）</td></tr>
+  </table>
+</div>
+
+<p style="text-align:center;color:var(--text-muted);margin-top:48px;font-size:13px;">
+  ドライブスルー診療 電子カルテ v0.2 操作マニュアル | 西春内科・在宅クリニック | 2026-03-18
+</p>
+
+</div>
+</body>
+</html>

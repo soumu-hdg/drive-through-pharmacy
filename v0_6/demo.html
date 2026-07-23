@@ -1,0 +1,2098 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>薬品在庫管理 - デモ版（QRクリック選択）</title>
+    <!-- QRコード生成ライブラリ -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+
+        /* ヘッダー */
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 16px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .header-sub {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+
+        .demo-badge {
+            display: inline-block;
+            background: var(--warning);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        /* メインコンテンツ */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        /* カード */
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* モード切替 */
+        .mode-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 14px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background: white;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .mode-btn.active-in {
+            border-color: var(--success);
+            background: #f0fdf4;
+            color: var(--success);
+        }
+
+        .mode-btn.active-out {
+            border-color: var(--danger);
+            background: #fef2f2;
+            color: var(--danger);
+        }
+
+        .mode-btn span {
+            font-size: 24px;
+        }
+
+        /* QRコードグリッド（デモ用） */
+        .qr-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .qr-item {
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .qr-item:hover {
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .qr-item.selected {
+            border-color: var(--success);
+            background: #f0fdf4;
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.2);
+        }
+
+        .qr-item canvas {
+            display: block;
+            margin: 0 auto 8px;
+        }
+
+        .qr-item-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text);
+            line-height: 1.3;
+            height: 2.6em;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .qr-item-code {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .qr-item-stock {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--primary);
+            margin-top: 4px;
+        }
+
+        .qr-item-stock.low {
+            color: var(--danger);
+        }
+
+        /* 検索フィルター */
+        .qr-filter {
+            margin-bottom: 12px;
+        }
+
+        .qr-filter input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .qr-filter input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* 読み取り結果 */
+        .scan-result {
+            display: none;
+            background: #f0fdf4;
+            border: 2px solid var(--success);
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 12px;
+        }
+
+        .scan-result.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .medicine-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .medicine-code {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .medicine-stock {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        /* 入力フォーム */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* 数量入力（大きめ） */
+        .quantity-input {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .quantity-btn {
+            width: 48px;
+            height: 48px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background: white;
+            font-size: 24px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quantity-btn:active {
+            background: var(--bg);
+            transform: scale(0.95);
+        }
+
+        .quantity-value {
+            flex: 1;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .quantity-value input {
+            width: 80px;
+            font-size: 32px;
+            font-weight: 700;
+            text-align: center;
+            border: none;
+            background: transparent;
+            -moz-appearance: textfield;
+        }
+
+        .quantity-value input::-webkit-outer-spin-button,
+        .quantity-value input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .quantity-value input:focus {
+            outline: 2px solid var(--primary);
+            border-radius: 8px;
+        }
+
+        .quantity-unit {
+            font-size: 16px;
+            color: var(--text-muted);
+        }
+
+        /* 患者選択（オートコンプリート） */
+        .patient-input-wrapper {
+            position: relative;
+        }
+
+        .patient-autocomplete {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 50;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .patient-autocomplete.show {
+            display: block;
+        }
+
+        .patient-autocomplete-item {
+            padding: 12px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+
+        .patient-autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .patient-autocomplete-item:hover {
+            background: var(--bg);
+        }
+
+        .patient-autocomplete-item .patient-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .patient-autocomplete-item .patient-id {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* 送信ボタン */
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 10px;
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .submit-btn.in-mode {
+            background: var(--success);
+            color: white;
+        }
+
+        .submit-btn.out-mode {
+            background: var(--danger);
+            color: white;
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .submit-btn:not(:disabled):active {
+            transform: scale(0.98);
+        }
+
+        /* 履歴 */
+        .history-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-right: 12px;
+        }
+
+        .history-icon.in {
+            background: #dcfce7;
+        }
+
+        .history-icon.out {
+            background: #fee2e2;
+        }
+
+        .history-content {
+            flex: 1;
+        }
+
+        .history-medicine {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .history-detail {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .history-qty {
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .history-qty.in {
+            color: var(--success);
+        }
+
+        .history-qty.out {
+            color: var(--danger);
+        }
+
+        /* トースト通知 */
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #1e293b;
+            color: white;
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s;
+            z-index: 250;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .toast.success {
+            background: var(--success);
+        }
+
+        .toast.error {
+            background: var(--danger);
+        }
+
+        /* バッチ登録リスト */
+        .add-to-list-btn {
+            width: 100%;
+            padding: 14px;
+            border: 2px dashed var(--primary);
+            border-radius: 10px;
+            background: #eff6ff;
+            color: var(--primary);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+
+        .add-to-list-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            border-color: var(--border);
+            background: var(--bg);
+            color: var(--text-muted);
+        }
+
+        .add-to-list-btn:not(:disabled):active {
+            transform: scale(0.98);
+            background: #dbeafe;
+        }
+
+        .batch-card {
+            border: 2px solid var(--primary);
+            background: #eff6ff;
+        }
+
+        .batch-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .batch-item:last-child {
+            border-bottom: none;
+        }
+
+        .batch-item-info {
+            flex: 1;
+        }
+
+        .batch-item-name {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .batch-item-detail {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .batch-item-qty {
+            font-weight: 700;
+            font-size: 15px;
+            margin-right: 10px;
+        }
+
+        .batch-item-qty.in {
+            color: var(--success);
+        }
+
+        .batch-item-qty.out {
+            color: var(--danger);
+        }
+
+        .batch-remove-btn {
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: #fee2e2;
+            color: var(--danger);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .batch-remove-btn:active {
+            transform: scale(0.9);
+        }
+
+        /* ボトムナビ */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid var(--border);
+            display: flex;
+            z-index: 200;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 0;
+            flex: 1;
+            min-height: 52px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 12px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: rgba(0,0,0,0.05);
+        }
+
+        .nav-item:hover {
+            background: #f0f4ff;
+            color: var(--primary);
+        }
+        .nav-item.active {
+            color: var(--primary);
+            background: #e8eeff;
+        }
+
+        .nav-item span {
+            font-size: 22px;
+            margin-bottom: 2px;
+        }
+
+        /* タブコンテンツ */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* 在庫一覧 */
+        .stock-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px;
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            transition: background 0.15s;
+        }
+        .stock-item:active {
+            background: #f0f4ff;
+        }
+
+        .stock-info {
+            flex: 1;
+        }
+
+        .stock-name {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .stock-code {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .stock-qty {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .stock-qty.low {
+            color: var(--danger);
+        }
+
+        .stock-unit {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .stock-category {
+            font-size: 11px;
+            color: #fff;
+            background: var(--primary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 2px;
+        }
+        .stock-category.child { background: #e67e22; }
+        .stock-category.external { background: #27ae60; }
+
+        .stock-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .cat-btn {
+            padding: 6px 14px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            background: white;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .cat-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* QRグリッド用カテゴリフィルター */
+        .qr-cat-filter {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* 手動選択ボタン */
+        .manual-add-btn {
+            width: 100%;
+            padding: 14px;
+            background: white;
+            border: 2px dashed var(--primary);
+            border-radius: 12px;
+            color: var(--primary);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+        .manual-add-btn:hover {
+            background: #f0f4ff;
+        }
+        .manual-add-btn:active {
+            background: #dde6ff;
+        }
+
+        /* モーダル */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 300;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .modal-overlay.show {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            width: 100%;
+            max-width: 500px;
+            border-radius: 20px 20px 0 0;
+            padding: 24px;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+        .medicine-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .medicine-item:hover {
+            background: var(--bg);
+            border-color: var(--primary);
+        }
+        .medicine-item-name {
+            font-weight: 600;
+        }
+        .medicine-item-stock {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .modal-category-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+            background: white;
+        }
+        .modal-category-card:hover {
+            background: #f0f4ff;
+            border-color: var(--primary);
+        }
+        .modal-category-card:active {
+            background: #dde6ff;
+        }
+        .modal-cat-icon {
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+            border-radius: 10px;
+            flex-shrink: 0;
+        }
+        .modal-cat-label {
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .modal-cat-count {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .modal-cat-arrow {
+            margin-left: auto;
+            color: var(--text-muted);
+            font-size: 18px;
+        }
+        .modal-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 0;
+            font-size: 13px;
+            flex-wrap: wrap;
+        }
+        .modal-bc-link {
+            color: var(--primary);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .modal-bc-sep { color: var(--text-muted); }
+        .modal-bc-current { color: var(--text); font-weight: 600; }
+        .medicine-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        /* スキャン通知ポップアップ */
+        .scan-popup-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.3);
+            z-index: 400;
+            align-items: center;
+            justify-content: center;
+        }
+        .scan-popup-overlay.show {
+            display: flex;
+        }
+        .scan-popup {
+            background: white;
+            border-radius: 16px;
+            padding: 24px 30px;
+            text-align: center;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            animation: popIn 0.2s ease;
+            max-width: 300px;
+        }
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .scan-popup-icon { font-size: 40px; margin-bottom: 8px; }
+        .scan-popup-name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+        .scan-popup-detail { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+        .scan-popup-badge {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .scan-popup-badge.stacked {
+            background: #eff6ff;
+            color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>薬品在庫管理システム <span class="demo-badge">DEMO</span></h1>
+        <div class="header-sub">西春内科・在宅クリニック（クリック選択デモ版）</div>
+    </div>
+
+    <!-- スキャンタブ -->
+    <div id="tab-scan" class="tab-content active">
+        <div class="container">
+            <!-- モード切替 -->
+            <div class="mode-toggle">
+                <button class="mode-btn" id="btn-in" onclick="setMode('in')">
+                    <span>📥</span>
+                    入庫（仕入）
+                </button>
+                <button class="mode-btn active-out" id="btn-out" onclick="setMode('out')">
+                    <span>📤</span>
+                    出庫（処方）
+                </button>
+            </div>
+
+            <!-- 薬品追加ボタン（用途別選択） -->
+            <button class="manual-add-btn" onclick="openManualSelect()">
+                ＋ 用途から薬品を選ぶ
+            </button>
+
+            <!-- QRコード選択グリッド（デモ用） -->
+            <div class="card">
+                <div class="card-title">🎯 薬品QRコードを選択（デモ用）</div>
+                <div class="qr-cat-filter">
+                    <button class="cat-btn active" onclick="setQRCategoryFilter('', this)">全て</button>
+                    <button class="cat-btn" onclick="setQRCategoryFilter('成人', this)">🧑 成人</button>
+                    <button class="cat-btn" onclick="setQRCategoryFilter('小児', this)">👶 小児</button>
+                    <button class="cat-btn" onclick="setQRCategoryFilter('外用', this)">💊 外用</button>
+                </div>
+                <div class="qr-filter">
+                    <input type="text" id="qr-filter-input" placeholder="薬品名で絞り込み..." oninput="filterQRGrid()">
+                </div>
+                <div class="qr-grid" id="qr-grid">
+                    <!-- QRコードがここに生成される -->
+                </div>
+
+                <!-- 読み取り結果 -->
+                <div id="scan-result" class="scan-result">
+                    <div class="medicine-name" id="result-name">-</div>
+                    <div class="medicine-code" id="result-code">コード: -</div>
+                    <div class="medicine-stock" id="result-stock">現在庫: - 個</div>
+                </div>
+            </div>
+
+            <!-- 数量入力 -->
+            <div class="card" id="quantity-card" style="display: none;">
+                <div class="card-title">📦 数量</div>
+                <div class="quantity-input">
+                    <button class="quantity-btn" onclick="changeQty(-1)">−</button>
+                    <div class="quantity-value">
+                        <input type="number" id="qty-value" value="1" min="1" inputmode="numeric" pattern="[0-9]*" onchange="updateQtyFromInput()">
+                        <span class="quantity-unit" id="qty-unit">錠</span>
+                    </div>
+                    <button class="quantity-btn" onclick="changeQty(1)">+</button>
+                </div>
+            </div>
+
+            <!-- 患者選択（出庫時のみ） -->
+            <div class="card" id="patient-card" style="display: none;">
+                <div class="card-title">👤 患者</div>
+                <div class="patient-input-wrapper">
+                    <input type="text" class="form-input" id="patient-input" placeholder="患者番号または氏名を入力" autocomplete="off">
+                    <div class="patient-autocomplete" id="patient-autocomplete">
+                        <!-- 候補がここに表示される -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- リストに追加ボタン -->
+            <button class="add-to-list-btn" id="add-to-list-btn" onclick="addToBatch()" disabled>
+                ＋ リストに追加して続ける
+            </button>
+
+            <!-- バッチリスト -->
+            <div class="card batch-card" id="batch-card" style="display: none;">
+                <div class="card-title">📋 登録リスト（<span id="batch-count">0</span>件）</div>
+                <div id="batch-list"></div>
+            </div>
+
+            <!-- 一括登録ボタン -->
+            <button class="submit-btn in-mode" id="submit-btn" onclick="submitAll()" style="display: none;" disabled>
+                📥 まとめて入庫
+            </button>
+        </div>
+    </div>
+
+    <!-- 在庫一覧タブ -->
+    <div id="tab-stock" class="tab-content">
+        <div class="container">
+            <div class="card">
+                <div class="card-title">🔍 薬品検索</div>
+                <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+                    <button class="cat-btn active" onclick="setCategoryFilter('', event)">全て</button>
+                    <button class="cat-btn" onclick="setCategoryFilter('成人', event)">🧑 成人</button>
+                    <button class="cat-btn" onclick="setCategoryFilter('小児', event)">👶 小児</button>
+                    <button class="cat-btn" onclick="setCategoryFilter('外用', event)">💊 外用</button>
+                </div>
+                <input type="text" class="form-input" id="stock-search" placeholder="薬品名で検索..." oninput="filterStock()">
+            </div>
+            <div id="stock-list">
+                <!-- 在庫一覧がここに表示される -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 履歴タブ -->
+    <div id="tab-history" class="tab-content">
+        <div class="container">
+            <div class="card">
+                <div class="card-title">📋 本日の履歴</div>
+                <div id="history-list">
+                    <!-- 履歴がここに表示される -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ボトムナビ -->
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('scan')">
+            <span>🎯</span>
+            選択
+        </div>
+        <div class="nav-item" onclick="switchTab('stock')">
+            <span>📦</span>
+            在庫
+        </div>
+        <div class="nav-item" onclick="switchTab('history')">
+            <span>📋</span>
+            履歴
+        </div>
+    </div>
+
+    <!-- 手動選択モーダル -->
+    <div class="modal-overlay" id="manual-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title-text">薬品を選択</div>
+                <button class="modal-close" onclick="closeManualSelect()">×</button>
+            </div>
+            <input type="text" class="form-input" id="modal-search" placeholder="薬品名・カテゴリで検索..." oninput="filterModalList()">
+            <div id="modal-breadcrumb" class="modal-breadcrumb" style="display:none;"></div>
+            <div class="medicine-list" id="modal-list">
+                <!-- 薬品リストがここに表示される -->
+            </div>
+        </div>
+    </div>
+
+    <!-- トースト -->
+    <div class="toast" id="toast"></div>
+
+    <!-- スキャン通知ポップアップ -->
+    <div class="scan-popup-overlay" id="scan-popup-overlay" onclick="closeScanPopup()">
+        <div class="scan-popup" onclick="event.stopPropagation()">
+            <div class="scan-popup-icon" id="scan-popup-icon">💊</div>
+            <div class="scan-popup-name" id="scan-popup-name">-</div>
+            <div class="scan-popup-detail" id="scan-popup-detail">-</div>
+            <div class="scan-popup-badge stacked" id="scan-popup-badge">リストに追加しました</div>
+        </div>
+    </div>
+
+    <script>
+        // ===== GAS連携設定 =====
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbzK2lx3UDMxKoOdVJy53HpVSyHhMmJaVaf4Cjh90JUALwLj5aQk8_fN2ncYzVlqPZ-mCg/exec';
+        const USE_GAS = true;
+
+        // ===== GAS API関数 =====
+        async function gasGet(action, params = {}) {
+            if (!USE_GAS) return null;
+            try {
+                const url = new URL(GAS_URL);
+                url.searchParams.append('action', action);
+                Object.entries(params).forEach(([k, v]) => url.searchParams.append(k, v));
+                const res = await fetch(url.toString());
+                return await res.json();
+            } catch (e) {
+                console.error('GAS GET error:', e);
+                showToast('サーバー通信エラー: ' + e.message, 'error');
+                return null;
+            }
+        }
+
+        async function gasPost(action, data) {
+            if (!USE_GAS) return null;
+            try {
+                const res = await fetch(GAS_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ action, ...data }),
+                    redirect: 'follow'
+                });
+                const text = await res.text();
+                console.log('GAS response:', text);
+                try {
+                    return JSON.parse(text);
+                } catch {
+                    if (res.ok || res.redirected) {
+                        return { success: true, message: '送信完了（レスポンス確認不可）' };
+                    }
+                    return { success: false, error: 'レスポンス解析エラー' };
+                }
+            } catch (e) {
+                console.error('GAS POST error:', e);
+                if (e.message.includes('CORS') || e.message.includes('NetworkError')) {
+                    return { success: true, message: '送信完了（CORS制限によりレスポンス確認不可）' };
+                }
+                showToast('通信エラー: ' + e.message, 'error');
+                return null;
+            }
+        }
+
+        // GASから在庫データを取得（在庫数のみ更新、カテゴリ等のローカル情報は維持）
+        async function loadStockFromGAS() {
+            const result = await gasGet('getStock');
+            if (result && result.success) {
+                const gasMap = {};
+                result.stock.forEach(s => {
+                    gasMap[String(s.code)] = s;
+                });
+                stockData.forEach(m => {
+                    const gs = gasMap[m.code];
+                    if (gs) {
+                        m.stock = gs.currentStock;
+                        if (gs.unit) m.unit = gs.unit;
+                        if (gs.threshold) m.threshold = gs.threshold;
+                    }
+                });
+                result.stock.forEach(s => {
+                    const code = String(s.code);
+                    if (!stockData.find(m => m.code === code)) {
+                        stockData.push({
+                            code: code,
+                            name: s.name,
+                            stock: s.currentStock,
+                            unit: s.unit,
+                            threshold: s.threshold || 10,
+                            category: '',
+                            usage: '',
+                            price: '',
+                            maker: '',
+                            target: ''
+                        });
+                    }
+                });
+                renderStockList();
+                renderQRGrid();
+                showToast('在庫数を同期しました (' + result.stock.length + '件)', 'success');
+            } else if (result && result.error) {
+                showToast('データ取得エラー: ' + result.error, 'error');
+            }
+        }
+
+        // GASから履歴を取得
+        async function loadHistoryFromGAS() {
+            const result = await gasGet('getHistory');
+            if (result && result.success) {
+                historyData = result.history.map(h => ({
+                    time: new Date(h.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+                    type: h.type,
+                    medicine: h.name,
+                    code: h.code,
+                    quantity: h.quantity,
+                    unit: h.unit,
+                    patient: h.patientName || null
+                }));
+                renderHistory();
+            }
+        }
+
+        // ===== データ（プロトタイプ用サンプル / GAS未接続時のフォールバック） =====
+        let stockData = [
+            { code: '621520803', name: '後）アセトアミノフェン錠 200㎎', stock: 160, unit: '錠', threshold: 20, category: '成人/解熱鎮痛剤', usage: '適時', price: '6.3', maker: '', target: '成人' },
+            { code: '622649001', name: '後）アセトアミノフェン錠 500㎎', stock: 48, unit: '錠', threshold: 20, category: '成人/解熱鎮痛剤', usage: '適時', price: '11.2', maker: '', target: '成人' },
+            { code: '620098801', name: '後）ロキソプロフェン錠６０ｍｇ 60㎎', stock: 15, unit: '錠', threshold: 20, category: '成人/解熱鎮痛剤', usage: '1日3回', price: '10.5', maker: '', target: '成人' },
+            { code: '612220325', name: 'メジコン錠１５ｍｇ 15㎎', stock: 120, unit: '錠', threshold: 20, category: '成人/咳止め', usage: '1日3回', price: '8.5', maker: '', target: '成人' },
+            { code: '612240006', name: 'アスベリン錠２０　２０ｍｇ 20㎎', stock: 95, unit: '錠', threshold: 20, category: '成人/咳止め', usage: '1日3回', price: '13.8', maker: '', target: '成人' },
+            { code: '612220347', name: 'レスプレン錠３０ｍｇ 30㎎', stock: 95, unit: '錠', threshold: 20, category: '成人/咳止め', usage: '1日3回', price: '11.8', maker: '', target: '成人' },
+            { code: '620007000', name: 'トランサミンカプセル２５０ｍｇ 250㎎', stock: 56, unit: '錠', threshold: 20, category: '成人/止血剤', usage: '1日3回', price: '10.8', maker: '', target: '成人' },
+            { code: '620005047', name: '後）トラネキサム酸錠２５０ｍｇ 250㎎', stock: 48, unit: '錠', threshold: 20, category: '成人/止血剤', usage: '1日3回', price: '10.8', maker: '', target: '成人' },
+            { code: '610407447', name: 'ムコダイン錠２５０ｍｇ 250㎎', stock: 250, unit: '錠', threshold: 20, category: '成人/去痰剤', usage: '1日3回', price: '10.8', maker: '「杏林製薬」', target: '成人' },
+            { code: 'DT00010', name: 'ムコダイン錠５００ｍｇ 500㎎', stock: 60, unit: '錠', threshold: 20, category: '成人/去痰剤', usage: '1日3回', price: '10.8', maker: '「杏林製薬」', target: '成人' },
+            { code: '620383101', name: 'カルボシステイン錠２５０ｍｇ 250㎎', stock: 35, unit: '錠', threshold: 20, category: '成人/去痰剤', usage: '1日3回', price: '10.8', maker: '', target: '成人' },
+            { code: 'DT00012', name: 'カルボシステイン錠５００ｍｇ 500㎎', stock: 90, unit: '錠', threshold: 20, category: '成人/去痰剤', usage: '1日3回', price: '10.8', maker: '', target: '成人' },
+            { code: 'DT00013', name: 'ミヤBM錠', stock: 12, unit: '錠', threshold: 20, category: '成人/整腸剤', usage: '1日3回', price: '6.1', maker: '', target: '成人' },
+            { code: 'DT00014', name: 'ビオフェルミン錠剤', stock: 24, unit: '錠', threshold: 10, category: '成人/整腸剤', usage: '1日3回', price: '6.1', maker: '', target: '成人' },
+            { code: '610443040', name: 'アレグラ錠６０ｍｇ 60㎎', stock: 15, unit: '錠', threshold: 20, category: '成人/抗アレルギー剤', usage: '1日2回', price: '20.9', maker: 'サノフィ', target: '成人' },
+            { code: 'DT00016', name: '後）フェキソフェナジン塩酸塩60㎎ 60㎎', stock: 35, unit: '錠', threshold: 20, category: '成人/抗アレルギー剤', usage: '1日2回', price: '10.8', maker: '', target: '成人' },
+            { code: 'DT00017', name: '後）ドンペリドン錠１０ｍｇ 10㎎', stock: 80, unit: '錠', threshold: 20, category: '成人/吐気止め', usage: '適時', price: '6.3', maker: '', target: '成人' },
+            { code: '620006100', name: 'プリンペラン錠５　５ｍｇ 5㎎', stock: 95, unit: '錠', threshold: 20, category: '成人/吐気止め', usage: '1日数回', price: '10.8', maker: '「日医工」', target: '成人' },
+            { code: '610454087', name: 'メリスロン錠６ｍｇ 6㎎', stock: 45, unit: '錠', threshold: 20, category: '成人/鎮暈剤', usage: '1日3回', price: '10.8', maker: '「エーザイ」', target: '成人' },
+            { code: '622404401', name: 'タケキャブ錠１０ｍｇ 10㎎', stock: 140, unit: '錠', threshold: 10, category: '成人/消化性潰瘍用剤', usage: '1日1回', price: '91.6', maker: '', target: '成人' },
+            { code: 'DT00021', name: '後）レボフロキサシン錠２５０ｍｇ 250㎎', stock: 15, unit: '錠', threshold: 20, category: '成人/抗生剤', usage: '1日1回', price: '24.7', maker: '', target: '成人' },
+            { code: '620006919', name: 'サワシリンカプセル２５０　２５０ｍｇ 250㎎', stock: 60, unit: '錠', threshold: 20, category: '成人/抗生剤', usage: '1日3回', price: '15.3', maker: '', target: '成人' },
+            { code: '620004981', name: 'ケフレックスカプセル２５０ｍｇ 250㎎', stock: 80, unit: '錠', threshold: 10, category: '成人/抗生剤', usage: '1日3回', price: '31.5', maker: '', target: '成人' },
+            { code: 'DT00024', name: 'クラリスロマイシン錠200㎎ 200㎎', stock: 160, unit: '錠', threshold: 10, category: '成人/抗生剤', usage: '1日2回', price: '19.2', maker: '「NPI」', target: '成人' },
+            { code: '615101504', name: '麻黄湯エキス顆粒 7.5g', stock: 15, unit: '包', threshold: 8, category: '成人/漢方薬', usage: '1日3回', price: '11.4', maker: '', target: '成人' },
+            { code: 'DT00026', name: '後）オセルタミビルカプセル 75㎎', stock: 60, unit: '錠', threshold: 10, category: '成人/抗インフルエンザ薬', usage: '1日2回', price: '108', maker: '「サワイ」', target: '成人' },
+            { code: '620509501', name: 'ＳＰトローチ０．２５ｍｇ「明治」 0.25㎎', stock: 12, unit: '錠', threshold: 10, category: '成人/口腔用剤', usage: '1日6回', price: '6.3', maker: '「明治」', target: '成人' },
+            { code: '615101755', name: '麻黄附子細辛湯', stock: 12, unit: '包', threshold: 8, category: '成人/漢方薬', usage: '1日3回', price: '18.4', maker: '', target: '成人' },
+            { code: 'DT00029', name: '小青竜湯', stock: 36, unit: '包', threshold: 8, category: '成人/漢方薬', usage: '1日3回', price: '12.8', maker: '', target: '成人' },
+            { code: '620481301', name: 'プルゼニド錠１２ｍｇ 12㎎', stock: 90, unit: '錠', threshold: 10, category: '成人/下剤', usage: '1日1回', price: '5.9', maker: '「サンファーマ」', target: '成人' },
+            { code: 'DT00031', name: 'プレドニン 5㎎', stock: 120, unit: '錠', threshold: 10, category: '成人/ステロイド', usage: '1日3回', price: '10.1', maker: '「シオノギ」', target: '成人' },
+            { code: 'DT00032', name: 'アメナリーフ 200㎎', stock: 15, unit: '錠', threshold: 10, category: '成人/抗ヘルペスウィルス薬', usage: '1日1回', price: '1148.7', maker: '「マルホ」', target: '成人' },
+            { code: 'DT00033', name: '向デパス 0.25㎎', stock: 72, unit: '錠', threshold: 10, category: '成人/抗不安薬', usage: '就寝前', price: '9.5', maker: '「田辺」', target: '成人' },
+            { code: 'DT00034', name: 'タミフルカプセル 75㎎', stock: 12, unit: '錠', threshold: 10, category: '成人/抗インフルエンザ薬', usage: '1日2回', price: '189.4', maker: '「中外」', target: '成人' },
+            { code: 'DT00035', name: 'クラリスロマイシン錠２００ｍｇ「ＮＩＧ」 200㎎', stock: 180, unit: '錠', threshold: 10, category: '成人/抗生剤', usage: '1日2回', price: '25.3', maker: '「ＮＩＧ」', target: '成人' },
+            { code: 'DT00036', name: 'ジスロマック 250㎎', stock: 120, unit: '錠', threshold: 10, category: '成人/抗生剤', usage: '1日1回', price: '145.4', maker: '', target: '成人' },
+            { code: '621925701', name: 'クラビット錠２５０ｍｇ　（レボフロキサシンとして） 250㎎', stock: 56, unit: '錠', threshold: 20, category: '成人/抗菌剤', usage: '1日1回', price: '65', maker: '', target: '成人' },
+            { code: '622080701', name: 'ネキシウムカプセル１０ｍｇ 10㎎', stock: 80, unit: '錠', threshold: 20, category: '成人/消化性潰瘍用剤', usage: '1日1回', price: '59.3', maker: '「アストラゼネカ」', target: '成人' },
+            { code: '621116301', name: 'オーグメンチン配合錠２５０ＲＳ　（３７５ｍｇ） 250㎎', stock: 180, unit: '錠', threshold: 10, category: '成人/抗生剤', usage: '1日3回', price: '45.7', maker: '', target: '成人' },
+            { code: 'DT00040', name: 'バルトレックス錠 500㎎', stock: 48, unit: '錠', threshold: 10, category: '成人/抗ヘルペスウィルス薬', usage: '1日2回', price: '145.4', maker: '「グラクソ」', target: '成人' },
+            { code: 'DT00041', name: 'ベルソムラ 20㎎', stock: 35, unit: '錠', threshold: 10, category: '成人/睡眠導入剤', usage: '就寝前', price: '69.3', maker: '「MSD」', target: '成人' },
+            { code: 'DT00042', name: 'ハルシオン 0.125㎎', stock: 8, unit: '錠', threshold: 10, category: '成人/睡眠導入剤', usage: '就寝前', price: '6.1', maker: '「ファイザー」', target: '成人' },
+            { code: '620002023', name: 'カロナール錠 200㎎', stock: 48, unit: '錠', threshold: 20, category: '成人/解熱鎮痛剤', usage: '適時', price: '6.1', maker: '「あゆみ」', target: '成人' },
+            { code: '620000033', name: 'カロナール錠 300㎎', stock: 200, unit: '錠', threshold: 20, category: '成人/解熱鎮痛剤', usage: '適時', price: '6.4', maker: '「あゆみ」', target: '成人' },
+            { code: '622381201', name: 'カロナール錠 500㎎', stock: 200, unit: '錠', threshold: 20, category: '成人/解熱鎮痛剤', usage: '適時', price: '', maker: '「あゆみ」', target: '成人' },
+            { code: '620383203', name: 'カルボシステイン錠２５０ｍｇ「ツルハラ」 250㎎', stock: 140, unit: '錠', threshold: 20, category: '成人/去痰剤', usage: '1日3回', price: '10.4', maker: '「ツルハラ」', target: '成人' },
+            { code: '620383709', name: 'カルボシステイン錠２５０ｍｇ「ＮＩＧ」 250㎎', stock: 120, unit: '錠', threshold: 20, category: '成人/去痰剤', usage: '1日3回', price: '10.4', maker: '「ＮＩＧ」', target: '成人' },
+            { code: '620383801', name: 'カルボシステイン錠２５０ｍｇ「トーワ」 250㎎', stock: 24, unit: '錠', threshold: 20, category: '成人/去痰剤', usage: '1日3回', price: '10.4', maker: '「トーワ」', target: '成人' },
+            { code: '620004412', name: 'アレグラ錠３０ｍｇ 30㎎', stock: 3, unit: '錠', threshold: 20, category: '成人/抗アレルギー剤', usage: '1日2回', price: '20.4', maker: '「サノフィ」', target: '成人' },
+            { code: '620003498', name: 'アタラックスPカプセル 25㎎', stock: 60, unit: 'CP', threshold: 20, category: '成人/抗アレルギー剤', usage: '1日2回', price: '6.1', maker: '', target: '成人' },
+            { code: '621741401', name: 'クラリスロマイシン錠２００ｍｇ「ＴＣＫ」 200㎎', stock: 48, unit: '錠', threshold: 10, category: '成人/抗生剤', usage: '1日2回', price: '22.8', maker: '「ＴＣＫ」', target: '成人' },
+            { code: '621742103', name: 'クラリスロマイシン錠２００ｍｇ「杏林」 200㎎', stock: 8, unit: '錠', threshold: 10, category: '成人/抗生剤', usage: '1日2回', price: '19.2', maker: '「杏林」', target: '成人' },
+            { code: '620005904', name: 'アムロジン錠 2.5㎎', stock: 35, unit: '錠', threshold: 20, category: '成人/降圧剤', usage: '1日1回', price: '11.3', maker: '「住友ファーマ」', target: '成人' },
+            { code: 'DT00054', name: 'ブスコパン錠 10㎎', stock: 60, unit: '錠', threshold: 10, category: '成人/鎮痙剤', usage: '1日3回', price: '6.1', maker: '「サノフィ」', target: '成人' },
+            { code: 'DT00055', name: 'マグミット 330㎎', stock: 150, unit: '錠', threshold: 10, category: '成人/下剤', usage: '1日数回', price: '5.9', maker: '', target: '成人' },
+            { code: 'DT00056', name: 'モビコールHD', stock: 160, unit: '錠', threshold: 10, category: '成人/下剤', usage: '1日数回', price: '', maker: '', target: '成人' },
+            { code: '615101406', name: '葛根湯', stock: 48, unit: '包', threshold: 8, category: '成人/漢方薬', usage: '1日3回', price: '13.4', maker: '', target: '成人' },
+            { code: 'DT00072', name: '後）アセトアミノフェンＤＳ小児用２０％ 0.5g', stock: 27, unit: '包', threshold: 10, category: '小児/解熱薬', usage: '1日3回', price: '7.2', maker: '', target: '10kg' },
+            { code: 'DT00073', name: '後）アセトアミノフェンＤＳ小児用２０％ 0.75g', stock: 24, unit: '包', threshold: 10, category: '小児/解熱薬', usage: '1日3回', price: '7.2', maker: '', target: '15kg' },
+            { code: 'DT00074', name: '後）アセトアミノフェンＤＳ小児用２０％ 1g', stock: 48, unit: '包', threshold: 10, category: '小児/解熱薬', usage: '1日3回', price: '7.2', maker: '', target: '20kg' },
+            { code: 'DT00075', name: '後）アセトアミノフェンＤＳ小児用２０％ 1.25g', stock: 12, unit: '包', threshold: 10, category: '小児/解熱薬', usage: '1日3回', price: '7.2', maker: '', target: '25kg' },
+            { code: 'DT00076', name: 'アンヒバ坐剤 100mg', stock: 3, unit: '個', threshold: 10, category: '小児/解熱薬', usage: '1日3回', price: '21.6', maker: '', target: '10㎎/kg' },
+            { code: 'DT00077', name: 'アンヒバ坐剤 200mg', stock: 0, unit: '個', threshold: 10, category: '小児/解熱薬', usage: '1日3回', price: '21.6', maker: '', target: '10㎎/kg' },
+            { code: 'DT00078', name: 'アスベリンDS2％ 0.125g', stock: 3, unit: '包', threshold: 10, category: '小児/咳止め', usage: '1日3回', price: '16.6', maker: '', target: '5kg' },
+            { code: 'DT00079', name: 'アスベリンDS2％ 0.25g', stock: 12, unit: '包', threshold: 10, category: '小児/咳止め', usage: '1日3回', price: '16.6', maker: '', target: '10kg' },
+            { code: 'DT00080', name: 'アスベリンDS2％ 0.375g', stock: 21, unit: '包', threshold: 10, category: '小児/咳止め', usage: '1日3回', price: '16.6', maker: '', target: '15kg' },
+            { code: 'DT00081', name: 'アスベリンDS2％ 0.5g', stock: 18, unit: '包', threshold: 10, category: '小児/咳止め', usage: '1日3回', price: '16.6', maker: '', target: '20kg' },
+            { code: 'DT00083', name: 'カルボシステインDS50％ 0.45g', stock: 5, unit: '包', threshold: 10, category: '小児/去痰剤', usage: '1日3回', price: '12.5', maker: '「杏林製薬」', target: '5kg' },
+            { code: 'DT00084', name: 'カルボシステインDS50％ 0.6g', stock: 27, unit: '包', threshold: 10, category: '小児/去痰剤', usage: '1日3回', price: '12.5', maker: '「杏林製薬」', target: '10kg' },
+            { code: 'DT00085', name: 'カルボシステインDS50％ 0.9g', stock: 12, unit: '包', threshold: 10, category: '小児/去痰剤', usage: '1日3回', price: '12.5', maker: '「杏林製薬」', target: '15kg' },
+            { code: 'DT00086', name: 'カルボシステインDS50％ 1.2g', stock: 27, unit: '包', threshold: 10, category: '小児/去痰剤', usage: '1日3回', price: '12.5', maker: '「杏林製薬」', target: '20kg' },
+            { code: 'DT00087', name: 'カルボシステインDS50％ 1.5g', stock: 5, unit: '包', threshold: 10, category: '小児/去痰剤', usage: '1日3回', price: '12.5', maker: '「杏林製薬」', target: '25kg' },
+            { code: 'DT00088', name: '後）フェキソフェナジンDS 0.5g', stock: 30, unit: '包', threshold: 10, category: '小児/抗アレルギー剤', usage: '1日2回', price: '28.2', maker: '', target: '2歳以上' },
+            { code: 'DT00089', name: '後）フェキソフェナジンDS 1.0g', stock: 18, unit: '包', threshold: 10, category: '小児/抗アレルギー剤', usage: '1日2回', price: '28.2', maker: '', target: '7歳以上' },
+            { code: 'DT00090', name: 'ビオフェルミン配合散 0.2g', stock: 36, unit: '包', threshold: 10, category: '小児/整腸剤', usage: '1日3回', price: '6.7', maker: '「ミヤリサン製薬」', target: '5kg' },
+            { code: 'DT00091', name: 'ビオフェルミン配合散 0.4g', stock: 3, unit: '包', threshold: 10, category: '小児/整腸剤', usage: '1日3回', price: '6.7', maker: '「ミヤリサン製薬」', target: '10kg' },
+            { code: 'DT00092', name: 'ビオフェルミン配合散 0.6g', stock: 27, unit: '包', threshold: 10, category: '小児/整腸剤', usage: '1日3回', price: '6.7', maker: '「ミヤリサン製薬」', target: '15kg' },
+            { code: 'DT00093', name: 'ビオフェルミン配合散 0.8g', stock: 24, unit: '包', threshold: 10, category: '小児/整腸剤', usage: '1日3回', price: '6.7', maker: '「ミヤリサン製薬」', target: '20kg' },
+            { code: 'DT00094', name: 'ビオフェルミン配合散 1.0g', stock: 8, unit: '包', threshold: 10, category: '小児/整腸剤', usage: '1日3回', price: '6.7', maker: '「ミヤリサン製薬」', target: '25kg' },
+            { code: 'DT00095', name: '後）ドンペリドン坐剤 10mg', stock: 15, unit: '個', threshold: 5, category: '小児/吐気止め', usage: '', price: '33.4', maker: '', target: '' },
+            { code: 'DT00096', name: '後）ドンペリドン坐剤 30mg', stock: 15, unit: '個', threshold: 5, category: '小児/吐気止め', usage: '', price: '52.8', maker: '', target: '' },
+            { code: 'DT00097', name: 'ダイアップ6㎎ 6㎎', stock: 8, unit: '個', threshold: 10, category: '小児/熱性けいれん緩和剤', usage: '', price: '', maker: '', target: '' },
+            { code: 'DT00098', name: 'ケフラール小児用顆粒100㎎ 1.5g', stock: 3, unit: '包', threshold: 10, category: '小児/抗生剤/セフェム系', usage: '1日3回', price: '44.3', maker: '「塩野義」', target: '5kg' },
+            { code: 'DT00099', name: 'ケフラール小児用顆粒100㎎ 3.0g', stock: 18, unit: '包', threshold: 10, category: '小児/抗生剤/セフェム系', usage: '1日3回', price: '44.3', maker: '「塩野義」', target: '10kg' },
+            { code: 'DT00100', name: 'ケフラール小児用顆粒100㎎ 4.5g', stock: 15, unit: '包', threshold: 10, category: '小児/抗生剤/セフェム系', usage: '1日3回', price: '44.3', maker: '「塩野義」', target: '15kg' },
+            { code: 'DT00101', name: 'ケフラール小児用顆粒100㎎ 6.0g', stock: 3, unit: '包', threshold: 10, category: '小児/抗生剤/セフェム系', usage: '1日3回', price: '44.3', maker: '「塩野義」', target: '20kg' },
+            { code: 'DT00102', name: 'ケフラール小児用顆粒100㎎ 7.5g', stock: 3, unit: '包', threshold: 10, category: '小児/抗生剤/セフェム系', usage: '1日3回', price: '44.3', maker: '「塩野義」', target: '25kg' },
+            { code: 'DT00103', name: '後）クラリスロマイシン錠小児用 0.5g', stock: 35, unit: '錠', threshold: 10, category: '小児/抗生剤/マクロライド系', usage: '1日2回', price: '11.2', maker: '', target: '' },
+            { code: 'DT00104', name: 'クラリスロマイシンＤＳ小児用10％ 0.5g', stock: 48, unit: '包', threshold: 10, category: '小児/抗生剤/マクロライド系', usage: '1日2回', price: '38', maker: '', target: '0～20kg' },
+            { code: 'DT00105', name: 'クラリスロマイシンＤＳ小児用10％ 1.0g', stock: 3, unit: '包', threshold: 10, category: '小児/抗生剤/マクロライド系', usage: '1日2回', price: '38', maker: '', target: '20～30kg' },
+            { code: 'DT00106', name: 'ワイドシリン細粒２０％　２００ｍｇ 1.0g', stock: 8, unit: '包', threshold: 10, category: '小児/抗生剤/ペニシリン系', usage: '1日3回', price: '11.8', maker: '', target: '5kg' },
+            { code: 'DT00107', name: 'ワイドシリン細粒２０％　２００ｍｇ 1.5g', stock: 42, unit: '包', threshold: 10, category: '小児/抗生剤/ペニシリン系', usage: '1日3回', price: '11.8', maker: '', target: '10kg' },
+            { code: 'DT00108', name: 'ワイドシリン細粒２０％　２００ｍｇ 2.3g', stock: 15, unit: '包', threshold: 10, category: '小児/抗生剤/ペニシリン系', usage: '1日3回', price: '11.8', maker: '', target: '15kg' },
+            { code: 'DT00109', name: 'ワイドシリン細粒２０％　２００ｍｇ 3.0g', stock: 12, unit: '包', threshold: 10, category: '小児/抗生剤/ペニシリン系', usage: '1日3回', price: '11.8', maker: '', target: '20kg' },
+            { code: 'DT00110', name: 'ワイドシリン細粒２０％　２００ｍｇ 3.8g', stock: 8, unit: '包', threshold: 10, category: '小児/抗生剤/ペニシリン系', usage: '1日3回', price: '11.8', maker: '', target: '25kg' },
+            { code: 'DT00111', name: '後）オセルタミビルDS3％ 1.0g', stock: 36, unit: '包', threshold: 10, category: '小児/抗インフルエンザ薬', usage: '1日2回', price: '75.9', maker: '「サワイ」', target: '5kg' },
+            { code: 'DT00112', name: '後）オセルタミビルDS3％ 1.3g', stock: 30, unit: '包', threshold: 10, category: '小児/抗インフルエンザ薬', usage: '1日2回', price: '75.9', maker: '「サワイ」', target: '10kg' },
+            { code: 'DT00113', name: '後）オセルタミビルDS3％ 1.9g', stock: 18, unit: '包', threshold: 10, category: '小児/抗インフルエンザ薬', usage: '1日2回', price: '75.9', maker: '「サワイ」', target: '15kg' },
+            { code: 'DT00114', name: '後）オセルタミビルDS3％ 2.6g', stock: 3, unit: '包', threshold: 10, category: '小児/抗インフルエンザ薬', usage: '1日2回', price: '75.9', maker: '「サワイ」', target: '20kg' },
+            { code: 'DT00115', name: '後）オセルタミビルDS3％ 3.2g', stock: 15, unit: '包', threshold: 10, category: '小児/抗インフルエンザ薬', usage: '1日2回', price: '75.9', maker: '「サワイ」', target: '25kg' },
+            { code: 'DT00116', name: '後）オセルタミビル75㎎', stock: 60, unit: '錠', threshold: 10, category: '小児/抗インフルエンザ薬', usage: '1日2回', price: '108', maker: '「サワイ」', target: '35kg以上' },
+            { code: 'DT00140', name: 'ゲンタシン軟膏 10g', stock: 5, unit: '本', threshold: 5, category: '外用/抗生物質製剤', usage: '', price: '11', maker: '', target: '' },
+            { code: '620009078', name: 'ロコイド軟膏０．１％', stock: 1, unit: '本', threshold: 10, category: '外用/ステロイド', usage: '', price: '14.9', maker: '', target: '' },
+            { code: 'DT00142', name: 'リンデロンVG軟膏0.12％ 5g', stock: 10, unit: '本', threshold: 5, category: '外用/ステロイド', usage: '', price: '27.7', maker: '', target: '' },
+            { code: '620009048', name: 'ヒルドイドクリーム０．３％ 25g', stock: 0, unit: '本', threshold: 5, category: '外用/保湿剤', usage: '', price: '17.7', maker: '', target: '' },
+            { code: '621169611', name: '白色ワセリン 50g', stock: 5, unit: '本', threshold: 5, category: '外用/保湿剤', usage: '', price: '2.43', maker: '', target: '' },
+            { code: 'DT00145', name: 'レボフラビン点眼0.5％ 5ml', stock: 0, unit: '本', threshold: 5, category: '外用/点眼薬', usage: '', price: '', maker: '', target: '' },
+            { code: '620007813', name: 'ロキソニンテープ１００ｍｇ　１０ｃｍ×１４ｃｍ 100㎎', stock: 28, unit: '枚', threshold: 5, category: '外用/消炎鎮痛剤', usage: '', price: '17.6', maker: '', target: '' },
+            { code: 'DT00147', name: '後）ツロブテロールテープ０．５ｍｇ 0.5㎎', stock: 35, unit: '枚', threshold: 10, category: '外用/気管支拡張剤', usage: '', price: '13.1', maker: '', target: '' },
+            { code: 'DT00148', name: '後）ツロブテロールテープ１ｍｇ 1.0㎎', stock: 20, unit: '枚', threshold: 10, category: '外用/気管支拡張剤', usage: '', price: '16.3', maker: '', target: '' },
+            { code: 'DT00149', name: '後）ツロブテロールテープ２ｍｇ 2.0㎎', stock: 5, unit: '枚', threshold: 10, category: '外用/気管支拡張剤', usage: '', price: '23.7', maker: '', target: '' },
+            { code: 'DT00150', name: 'イナビル吸入粉末剤２０ｍｇ 20㎎', stock: 2, unit: 'キット', threshold: 10, category: '外用/抗インフルエンザ薬', usage: '', price: '1484.9', maker: '「第一三共」', target: '' },
+            { code: 'DT00151', name: 'アドテスト', stock: 2, unit: '個', threshold: 10, category: '外用/検査キット', usage: '', price: '', maker: '', target: '' },
+            { code: 'DT00152', name: 'クイックチェイサー', stock: 15, unit: '個', threshold: 10, category: '外用/検査キット', usage: '', price: '', maker: '大塚製薬', target: '' },
+            { code: '621371901', name: 'アドレナリン注０．１％シリンジ「テルモ」　１ｍＬ 1ml', stock: 5, unit: '本', threshold: 10, category: '外用/救急薬', usage: '', price: '353', maker: '「テルモ」', target: '' },
+            { code: 'DT00155', name: 'メプチンエアー10μg 5ml', stock: 6, unit: '個', threshold: 5, category: '外用/気管支拡張剤', usage: '', price: '1060.9円/個', maker: '', target: '' },
+            { code: '620002619', name: 'アズノール軟膏0.033％ 20g', stock: 15, unit: '本', threshold: 5, category: '外用/消炎剤', usage: '', price: '8.03円/g', maker: '「日本新薬」', target: '' },
+            { code: 'DT00157', name: 'ジクロフェナク坐剤 25㎎', stock: 20, unit: '個', threshold: 10, category: '外用/消炎鎮痛剤', usage: '', price: '', maker: '「日新」', target: '' },
+            { code: 'DT00158', name: 'グリセリン浣腸液５０％「ムネ」３０ｍＬ 30ml', stock: 1, unit: '本', threshold: 5, category: '外用/浣腸剤', usage: '', price: '102.8', maker: '「ムネ」', target: '' },
+            { code: 'DT00159', name: 'グリセリン浣腸液５０％「ムネ」６０ｍＬ 60ml', stock: 15, unit: '本', threshold: 5, category: '外用/浣腸剤', usage: '', price: '124.2', maker: '「ムネ」', target: '' },
+            { code: '620007812', name: 'ロキソニンテープ５０ｍｇ　７ｃｍ×１０ｃｍ 50㎎', stock: 10, unit: '枚', threshold: 5, category: '外用/消炎鎮痛剤', usage: '', price: '12.7', maker: '', target: '' },
+            { code: 'DT00161', name: 'ヒアレイン点眼0.1％ 5ml', stock: 8, unit: '本', threshold: 5, category: '外用/点眼薬', usage: '', price: '', maker: '', target: '' },
+            { code: 'DT00162', name: 'レボフロキサシン点眼0.5％ 5ml', stock: 3, unit: '本', threshold: 5, category: '外用/点眼薬', usage: '', price: '', maker: '「日新」', target: '' },
+        ];
+
+        let historyData = [];
+
+        let patientData = [
+            { id: '90220', name: '薛 悌吉', furigana: 'セツ テイキチ' },
+            { id: '90205', name: '臼井 ユキ', furigana: 'ウスイ ユキ' },
+            { id: '90219', name: '長野 光雄', furigana: 'ナガノ ミツオ' },
+            { id: '90001', name: '山田 太郎', furigana: 'ヤマダ タロウ' },
+            { id: '90002', name: '佐藤 花子', furigana: 'サトウ ハナコ' },
+            { id: '90003', name: '田中 一郎', furigana: 'タナカ イチロウ' },
+        ];
+
+        // ===== 状態管理 =====
+        let currentMode = 'out';
+        let selectedMedicine = null;
+        let quantity = 1;
+        let selectedPatient = null;
+        let selectedQRItem = null;
+        let batchItems = [];
+
+        // ===== モード切替 =====
+        function setMode(mode) {
+            // モード変更時にバッチをクリア（入庫/出庫の混在を防ぐ）
+            if (batchItems.length > 0 && batchItems[0].mode !== mode) {
+                batchItems = [];
+                renderBatchList();
+            }
+            currentMode = mode;
+            const btnIn = document.getElementById('btn-in');
+            const btnOut = document.getElementById('btn-out');
+            const patientCard = document.getElementById('patient-card');
+
+            if (mode === 'in') {
+                btnIn.className = 'mode-btn active-in';
+                btnOut.className = 'mode-btn';
+                patientCard.style.display = 'none';
+            } else {
+                btnIn.className = 'mode-btn';
+                btnOut.className = 'mode-btn active-out';
+                patientCard.style.display = 'block';
+            }
+            updateActionButtons();
+        }
+
+        // ===== QRコードグリッド生成（デモ用） =====
+        let currentQRCategoryFilter = '';
+
+        function setQRCategoryFilter(cat, btn) {
+            currentQRCategoryFilter = cat;
+            document.querySelectorAll('.qr-cat-filter .cat-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            filterQRGrid();
+        }
+
+        function renderQRGrid(filter = '') {
+            const container = document.getElementById('qr-grid');
+            const lf = filter.toLowerCase();
+            const filtered = stockData.filter(m => {
+                const matchText = !lf ||
+                    m.name.toLowerCase().includes(lf) ||
+                    m.code.includes(filter);
+                const matchCat = !currentQRCategoryFilter ||
+                    (m.category || '').startsWith(currentQRCategoryFilter);
+                return matchText && matchCat;
+            });
+
+            container.innerHTML = '';
+
+            filtered.forEach(medicine => {
+                const item = document.createElement('div');
+                item.className = 'qr-item';
+                item.dataset.code = medicine.code;
+                item.onclick = () => selectQRItem(medicine.code);
+
+                // QRコード用canvas
+                const canvas = document.createElement('canvas');
+                canvas.id = 'qr-' + medicine.code;
+                item.appendChild(canvas);
+
+                // 薬品名
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'qr-item-name';
+                nameDiv.textContent = medicine.name;
+                item.appendChild(nameDiv);
+
+                // コード
+                const codeDiv = document.createElement('div');
+                codeDiv.className = 'qr-item-code';
+                codeDiv.textContent = medicine.code;
+                item.appendChild(codeDiv);
+
+                // 在庫数
+                const isExt = (medicine.category || '').startsWith('外用');
+                const stockDiv = document.createElement('div');
+                stockDiv.className = 'qr-item-stock' + (!isExt && medicine.stock <= medicine.threshold ? ' low' : '');
+                stockDiv.textContent = isExt ? '外部薬局' : '在庫: ' + medicine.stock + medicine.unit;
+                item.appendChild(stockDiv);
+
+                container.appendChild(item);
+
+                // QRコード生成
+                QRCode.toCanvas(canvas, medicine.code.replace(/^0+/, ''), {
+                    width: 80,
+                    margin: 1,
+                    color: {
+                        dark: '#1e293b',
+                        light: '#ffffff'
+                    }
+                }, function(error) {
+                    if (error) console.error('QR generation error:', error);
+                });
+            });
+        }
+
+        function filterQRGrid() {
+            const query = document.getElementById('qr-filter-input').value;
+            renderQRGrid(query);
+            // 選択状態を維持
+            if (selectedMedicine) {
+                const item = document.querySelector(`.qr-item[data-code="${selectedMedicine.code}"]`);
+                if (item) item.classList.add('selected');
+            }
+        }
+
+        function selectQRItem(code) {
+            // 前の選択を解除
+            document.querySelectorAll('.qr-item.selected').forEach(el => el.classList.remove('selected'));
+
+            const normalizedCode = normalizeCode(code);
+            const medicine = stockData.find(m => normalizeCode(m.code) === normalizedCode);
+
+            if (medicine) {
+                // 新しい選択をハイライト
+                const item = document.querySelector(`.qr-item[data-code="${medicine.code}"]`);
+                if (item) item.classList.add('selected');
+
+                selectMedicine(medicine);
+                if (navigator.vibrate) navigator.vibrate(50);
+            }
+        }
+
+        // コードの正規化（先頭ゼロの有無を吸収）
+        function normalizeCode(code) {
+            return String(parseInt(String(code), 10));
+        }
+
+        function selectMedicine(medicine) {
+            selectedMedicine = medicine;
+            document.getElementById('result-name').textContent = medicine.name;
+            document.getElementById('result-code').textContent = 'コード: ' + medicine.code;
+            document.getElementById('result-stock').textContent = '現在庫: ' + medicine.stock + ' ' + medicine.unit;
+            document.getElementById('scan-result').classList.add('show');
+            document.getElementById('quantity-card').style.display = 'block';
+            document.getElementById('qty-unit').textContent = medicine.unit;
+            quantity = 1;
+            document.getElementById('qty-value').value = quantity;
+            updateActionButtons();
+        }
+
+        // ===== 数量操作 =====
+        function changeQty(delta) {
+            quantity = Math.max(1, quantity + delta);
+            document.getElementById('qty-value').value = quantity;
+            if (navigator.vibrate) navigator.vibrate(30);
+        }
+
+        function updateQtyFromInput() {
+            const input = document.getElementById('qty-value');
+            const val = parseInt(input.value, 10);
+            if (isNaN(val) || val < 1) {
+                quantity = 1;
+                input.value = 1;
+            } else {
+                quantity = val;
+            }
+        }
+
+        // ===== 患者オートコンプリート =====
+        function showPatientAutocomplete(query) {
+            const container = document.getElementById('patient-autocomplete');
+            if (!query || query.length < 1) {
+                container.classList.remove('show');
+                return;
+            }
+            const queryLower = query.toLowerCase();
+            const filtered = patientData.filter(p =>
+                p.id.includes(query) ||
+                p.name.includes(query) ||
+                (p.furigana && p.furigana.toLowerCase().includes(queryLower))
+            ).slice(0, 5);
+            if (filtered.length === 0) {
+                container.classList.remove('show');
+                return;
+            }
+            container.innerHTML = filtered.map(p => `
+                <div class="patient-autocomplete-item" onclick="selectPatientFromAutocomplete('${p.id}', '${p.name}')">
+                    <div class="patient-name">${p.name}</div>
+                    <div class="patient-id">ID: ${p.id}${p.furigana ? ' / ' + p.furigana : ''}</div>
+                </div>
+            `).join('');
+            container.classList.add('show');
+        }
+
+        function selectPatientFromAutocomplete(id, name) {
+            selectedPatient = { id, name };
+            document.getElementById('patient-input').value = name;
+            document.getElementById('patient-autocomplete').classList.remove('show');
+            updateActionButtons();
+        }
+
+        function hidePatientAutocomplete() {
+            setTimeout(() => {
+                document.getElementById('patient-autocomplete').classList.remove('show');
+            }, 200);
+        }
+
+        // ===== ボタン状態管理 =====
+        function updateActionButtons() {
+            const addBtn = document.getElementById('add-to-list-btn');
+            const submitBtn = document.getElementById('submit-btn');
+
+            // 追加ボタン: 薬品選択済み（＋出庫時は患者入力済み）で有効
+            const canAdd = selectedMedicine &&
+                (currentMode === 'in' || (currentMode === 'out' && document.getElementById('patient-input').value));
+            addBtn.disabled = !canAdd;
+
+            // 一括登録ボタン: バッチに1件以上あれば表示
+            const totalItems = batchItems.length;
+            if (totalItems > 0) {
+                submitBtn.style.display = 'flex';
+                submitBtn.disabled = false;
+                const modeLabel = currentMode === 'in' ? '入庫' : '出庫';
+                submitBtn.className = `submit-btn ${currentMode === 'in' ? 'in-mode' : 'out-mode'}`;
+                submitBtn.innerHTML = `${currentMode === 'in' ? '📥' : '📤'} まとめて${modeLabel}（${totalItems}件）`;
+            } else {
+                submitBtn.style.display = 'none';
+            }
+        }
+
+        // ===== バッチ登録機能 =====
+        function addToBatch() {
+            if (!selectedMedicine) return;
+
+            const patientInputEl = document.getElementById('patient-input');
+            const patientInputVal = patientInputEl.value;
+            if (currentMode === 'out' && !patientInputVal) return;
+
+            const item = {
+                mode: currentMode,
+                medicine: { ...selectedMedicine },
+                quantity: quantity,
+                patient: currentMode === 'out' ? {
+                    id: selectedPatient?.id || '',
+                    name: patientInputVal
+                } : null
+            };
+
+            batchItems.push(item);
+            renderBatchList();
+
+            // 選択をリセットして次の薬品入力へ
+            selectedMedicine = null;
+            quantity = 1;
+            selectedPatient = null;
+            document.getElementById('scan-result').classList.remove('show');
+            document.getElementById('quantity-card').style.display = 'none';
+            document.getElementById('qty-value').value = 1;
+            document.querySelectorAll('.qr-item.selected').forEach(el => el.classList.remove('selected'));
+            // 出庫モードでは患者情報を維持（同じ患者に複数薬品を出庫するケースが多い）
+            if (currentMode === 'in') {
+                patientInputEl.value = '';
+            }
+            updateActionButtons();
+
+            showToast(`${item.medicine.name} をリストに追加しました`, 'success');
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+
+        function removeBatchItem(index) {
+            batchItems.splice(index, 1);
+            renderBatchList();
+            updateActionButtons();
+        }
+
+        function renderBatchList() {
+            const card = document.getElementById('batch-card');
+            const list = document.getElementById('batch-list');
+            const count = document.getElementById('batch-count');
+
+            if (batchItems.length === 0) {
+                card.style.display = 'none';
+                return;
+            }
+
+            card.style.display = 'block';
+            count.textContent = batchItems.length;
+
+            list.innerHTML = batchItems.map((item, i) => `
+                <div class="batch-item">
+                    <div class="batch-item-info">
+                        <div class="batch-item-name">${item.medicine.name}</div>
+                        <div class="batch-item-detail">${item.quantity}${item.medicine.unit}${item.patient ? ' / ' + item.patient.name : ''}</div>
+                    </div>
+                    <div class="batch-item-qty ${item.mode}">${item.mode === 'in' ? '+' : '-'}${item.quantity}</div>
+                    <button class="batch-remove-btn" onclick="removeBatchItem(${i})">✕</button>
+                </div>
+            `).join('');
+        }
+
+        // ===== 一括送信 =====
+        async function submitAll() {
+            if (batchItems.length === 0) return;
+
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '⏳ 送信中...';
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const item of batchItems) {
+                if (USE_GAS) {
+                    let result;
+                    if (item.mode === 'in') {
+                        result = await gasPost('stockIn', {
+                            code: item.medicine.code,
+                            quantity: item.quantity,
+                            operator: '担当者',
+                            note: ''
+                        });
+                    } else {
+                        const patientId = item.patient?.id || '';
+                        const patientName = item.patient?.name || '';
+                        result = await gasPost('stockOut', {
+                            code: item.medicine.code,
+                            quantity: item.quantity,
+                            patientId: patientId,
+                            patientName: patientName,
+                            operator: '担当者',
+                            note: ''
+                        });
+                    }
+
+                    if (result && (result.success || result.message)) {
+                        successCount++;
+                    } else {
+                        errorCount++;
+                    }
+                } else {
+                    successCount++;
+                }
+
+                // ローカルデータ更新
+                const normalizedCode = normalizeCode(item.medicine.code);
+                const idx = stockData.findIndex(m => normalizeCode(m.code) === normalizedCode);
+                if (idx >= 0) {
+                    if (item.mode === 'in') {
+                        stockData[idx].stock += item.quantity;
+                    } else {
+                        stockData[idx].stock -= item.quantity;
+                    }
+                }
+
+                // 履歴に追加
+                historyData.unshift({
+                    time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+                    type: item.mode,
+                    medicine: item.medicine.name,
+                    code: item.medicine.code,
+                    quantity: item.quantity,
+                    unit: item.medicine.unit,
+                    patient: item.patient?.name || null
+                });
+            }
+
+            const modeLabel = currentMode === 'in' ? '入庫' : '出庫';
+            if (errorCount === 0) {
+                showToast(`${successCount}件の${modeLabel}を記録しました`, 'success');
+            } else {
+                showToast(`${successCount}件成功、${errorCount}件失敗`, 'error');
+            }
+
+            batchItems = [];
+            renderBatchList();
+            renderQRGrid();
+            renderStockList();
+            updateActionButtons();
+        }
+
+        function resetForm() {
+            selectedMedicine = null;
+            quantity = 1;
+            selectedPatient = null;
+            document.getElementById('scan-result').classList.remove('show');
+            document.getElementById('quantity-card').style.display = 'none';
+            document.getElementById('patient-input').value = '';
+            document.querySelectorAll('.qr-item.selected').forEach(el => el.classList.remove('selected'));
+            updateActionButtons();
+        }
+
+        // ===== スキャン通知ポップアップ =====
+        let scanPopupTimer = null;
+
+        function showScanPopup(medicine, wasStacked) {
+            const overlay = document.getElementById('scan-popup-overlay');
+            document.getElementById('scan-popup-icon').textContent = '💊';
+            document.getElementById('scan-popup-name').textContent = medicine.name;
+            const catInfo = medicine.category ? '　' + medicine.category : '';
+            document.getElementById('scan-popup-detail').textContent = 'コード: ' + medicine.code + '　現在庫: ' + medicine.stock + ' ' + medicine.unit + catInfo;
+
+            const badge = document.getElementById('scan-popup-badge');
+            badge.textContent = 'リストに追加しました（' + batchItems.length + '件目）';
+            badge.className = 'scan-popup-badge stacked';
+
+            overlay.classList.add('show');
+
+            if (scanPopupTimer) clearTimeout(scanPopupTimer);
+            scanPopupTimer = setTimeout(() => {
+                overlay.classList.remove('show');
+            }, 1200);
+        }
+
+        function closeScanPopup() {
+            document.getElementById('scan-popup-overlay').classList.remove('show');
+            if (scanPopupTimer) clearTimeout(scanPopupTimer);
+        }
+
+        // ===== 即バッチ追加 =====
+        function addToBatchDirect(medicine) {
+            const item = {
+                mode: currentMode,
+                medicine: { ...medicine },
+                quantity: 1,
+            };
+            batchItems.push(item);
+            renderBatchList();
+            updateActionButtons();
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+
+        // ===== トースト通知 =====
+        function showToast(message, type = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // ===== タブ切替 =====
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+            document.querySelectorAll('.nav-item')[['scan', 'stock', 'history'].indexOf(tabName)].classList.add('active');
+            if (tabName === 'stock') renderStockList();
+            if (tabName === 'history') {
+                renderHistory();
+                if (USE_GAS) loadHistoryFromGAS();
+            }
+        }
+
+        // ===== 在庫一覧 =====
+        let currentCategoryFilter = '';
+
+        function setCategoryFilter(cat, event) {
+            currentCategoryFilter = cat;
+            const container = event.target.parentElement;
+            container.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            filterStock();
+        }
+
+        function renderStockList(filter = '') {
+            const container = document.getElementById('stock-list');
+            const lf = filter.toLowerCase();
+            const filtered = stockData.filter(m => {
+                const matchText = !lf ||
+                    m.name.toLowerCase().includes(lf) ||
+                    m.code.includes(filter) ||
+                    (m.category || '').toLowerCase().includes(lf) ||
+                    (m.maker || '').toLowerCase().includes(lf);
+                const matchCat = !currentCategoryFilter ||
+                    (m.category || '').startsWith(currentCategoryFilter);
+                return matchText && matchCat;
+            });
+            container.innerHTML = filtered.map(m => {
+                const isExt = (m.category || '').startsWith('外用');
+                const catClass = (m.category || '').startsWith('小児') ? 'child' : isExt ? 'external' : '';
+                const subCat = (m.category || '').split('/').slice(1).join('/');
+                const metaParts = [m.usage, m.price ? '\u00A5' + m.price : '', m.target && m.target !== '成人' ? m.target : ''].filter(Boolean);
+                if (isExt) metaParts.unshift('外部薬局');
+                return '<div class="stock-item" onclick="selectFromStock(\'' + m.code + '\')" style="cursor:pointer;">' +
+                    '<div class="stock-info">' +
+                        '<div class="stock-name">' + m.name + '</div>' +
+                        '<div class="stock-code">' + m.code + (subCat ? ' <span class="stock-category ' + catClass + '">' + subCat + '</span>' : '') + '</div>' +
+                        (metaParts.length ? '<div class="stock-meta">' + metaParts.join(' ｜ ') + '</div>' : '') +
+                    '</div>' +
+                    '<div style="text-align:right">' +
+                        '<span class="stock-qty" style="' + (isExt ? 'color:var(--text-muted)' : (!isExt && m.stock <= m.threshold ? 'color:var(--danger)' : '')) + '">' + (isExt ? '--' : m.stock) + '</span>' +
+                        '<span class="stock-unit">' + (isExt ? '' : m.unit) + '</span>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        }
+
+        function filterStock() {
+            const query = document.getElementById('stock-search').value;
+            renderStockList(query);
+        }
+
+        function selectFromStock(code) {
+            const normalizedCode = normalizeCode(code);
+            const medicine = stockData.find(m => normalizeCode(m.code) === normalizedCode);
+            if (!medicine) return;
+            addToBatchDirect(medicine);
+            showScanPopup(medicine, true);
+            if (navigator.vibrate) navigator.vibrate(50);
+            switchTab('scan');
+            setTimeout(() => {
+                const batchCard = document.getElementById('batch-card');
+                if (batchCard) batchCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+
+        // ===== 手動選択モーダル（カテゴリドリルダウン） =====
+        let modalDrillPath = [];
+
+        const catIcons = {
+            '成人': '🧑', '小児': '👶', '外用': '💊',
+            '解熱鎮痛剤': '🌡️', '咳止め': '😷', '止血剤': '🩹', '去痰剤': '💨',
+            '整腸剤': '🫁', '抗アレルギー剤': '🤧', '吐気止め': '🤢', '鎮暈剤': '😵',
+            '消化性潰瘍用剤': '💊', '抗生剤': '💉', '漢方薬': '🍃', '抗インフルエンザ薬': '🦠',
+            '口腔用剤': '👄', 'ホルモン剤': '⚗️', '抗菌剤': '🧫', '抗ヘルペスウィルス薬': '🧬',
+            '睡眠導入剤': '😴', '降圧剤': '❤️', '止痢剤': '🚿', '下剤': '🚽',
+            '解熱薬': '🌡️', '熱性けいれん緩和剤': '⚡',
+            '抗生剤/セフェム系': '💉', '抗生剤/マクロライド系': '💉', '抗生剤/ペニシリン系': '💉',
+            '抗生物質製剤': '🧴', '副腎皮質ホルモン剤': '🧴', 'ステロイド': '🧴',
+            '血行促進・皮膚保湿剤': '🧴', '軟膏基剤': '🧴', 'ヒスタミンH1受容体拮抗薬': '👁️',
+            '気管支拡張剤': '🫁', '気管支痙攣の緩解': '🫁', '解熱鎮痛消炎剤': '🌡️',
+            'Flu+Covid19': '🧪', 'StrepA': '🧪',
+            '鎮痙剤': '💊', '消炎鎮痛剤': '🩹', '浣腸剤': '🚿', '点眼薬': '👁️',
+            '検査キット': '🧪', '救急薬': '🚑', '抗不安薬': '😌', '消炎剤': '🩹',
+            '保湿剤': '🧴',
+        };
+
+        function openManualSelect() {
+            modalDrillPath = [];
+            document.getElementById('modal-search').value = '';
+            document.getElementById('manual-modal').classList.add('show');
+            renderModalView();
+        }
+
+        function closeManualSelect() {
+            document.getElementById('manual-modal').classList.remove('show');
+        }
+
+        function renderModalView() {
+            const search = document.getElementById('modal-search').value.trim();
+            if (search) {
+                renderModalSearchResults(search);
+                return;
+            }
+            renderModalCategories();
+        }
+
+        function renderModalSearchResults(query) {
+            const container = document.getElementById('modal-list');
+            const bc = document.getElementById('modal-breadcrumb');
+            bc.style.display = 'none';
+            document.getElementById('modal-title-text').textContent = '検索結果';
+
+            const lf = query.toLowerCase();
+            const filtered = stockData.filter(m =>
+                m.name.toLowerCase().includes(lf) ||
+                m.code.includes(query) ||
+                (m.category || '').toLowerCase().includes(lf)
+            );
+            if (filtered.length === 0) {
+                container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;">該当なし</div>';
+                return;
+            }
+            container.innerHTML = filtered.map(m => {
+                const subCat = (m.category || '').split('/').slice(1).join('/');
+                const isExt = (m.category || '').startsWith('外用');
+                const stockText = isExt ? '外部薬局' : '在庫: ' + m.stock + m.unit;
+                return '<div class="medicine-item" onclick="selectFromModal(\'' + m.code + '\')">' +
+                    '<div>' +
+                        '<div class="medicine-item-name">' + m.name + '</div>' +
+                        '<div class="medicine-item-stock">' + stockText + (subCat ? ' ｜ ' + subCat : '') + '</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        }
+
+        function renderModalCategories() {
+            const container = document.getElementById('modal-list');
+            const bc = document.getElementById('modal-breadcrumb');
+            const depth = modalDrillPath.length;
+            const prefix = modalDrillPath.join('/');
+
+            if (depth === 0) {
+                bc.style.display = 'none';
+                document.getElementById('modal-title-text').textContent = '用途から選ぶ';
+            } else {
+                bc.style.display = 'flex';
+                let html = '<span class="modal-bc-link" onclick="modalDrillTo(-1)">全て</span>';
+                modalDrillPath.forEach((p, i) => {
+                    html += '<span class="modal-bc-sep">\u203A</span>';
+                    if (i < depth - 1) {
+                        html += '<span class="modal-bc-link" onclick="modalDrillTo(' + i + ')">' + p + '</span>';
+                    } else {
+                        html += '<span class="modal-bc-current">' + p + '</span>';
+                    }
+                });
+                bc.innerHTML = html;
+                document.getElementById('modal-title-text').textContent = modalDrillPath[depth - 1];
+            }
+
+            const matchingItems = stockData.filter(m => {
+                const cat = m.category || '';
+                if (!prefix) return true;
+                return cat === prefix || cat.startsWith(prefix + '/');
+            });
+
+            const subCats = new Map();
+            matchingItems.forEach(m => {
+                const cat = m.category || '';
+                const parts = cat.split('/');
+                if (parts.length > depth) {
+                    const sub = parts[depth];
+                    if (!subCats.has(sub)) {
+                        subCats.set(sub, { count: 0, items: [] });
+                    }
+                    subCats.get(sub).count++;
+                    subCats.get(sub).items.push(m);
+                }
+            });
+
+            if (subCats.size >= 2) {
+                let html = '';
+                subCats.forEach((info, key) => {
+                    const icon = catIcons[key] || '💊';
+                    html += '<div class="modal-category-card" onclick="modalDrillDown(\'' + key + '\')">' +
+                        '<div class="modal-cat-icon">' + icon + '</div>' +
+                        '<div>' +
+                            '<div class="modal-cat-label">' + key + '</div>' +
+                            '<div class="modal-cat-count">' + info.count + '品目</div>' +
+                        '</div>' +
+                        '<div class="modal-cat-arrow">\u203A</div>' +
+                    '</div>';
+                });
+                container.innerHTML = html;
+            } else {
+                if (matchingItems.length === 0) {
+                    container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;">該当なし</div>';
+                    return;
+                }
+                container.innerHTML = matchingItems.map(m => {
+                    const targetInfo = m.target && m.target !== '成人' ? m.target : '';
+                    const usageInfo = m.usage || '';
+                    const isExt = (m.category || '').startsWith('外用');
+                    const extra = [isExt ? '外部薬局' : '', usageInfo, targetInfo].filter(Boolean).join(' ｜ ');
+                    const stockText = isExt ? '--' : '在庫: ' + m.stock + m.unit;
+                    return '<div class="medicine-item" onclick="selectFromModal(\'' + m.code + '\')">' +
+                        '<div>' +
+                            '<div class="medicine-item-name">' + m.name + '</div>' +
+                            '<div class="medicine-item-stock">' + stockText + (extra ? ' ｜ ' + extra : '') + '</div>' +
+                        '</div>' +
+                    '</div>';
+                }).join('');
+            }
+        }
+
+        function modalDrillDown(subCat) {
+            modalDrillPath.push(subCat);
+            renderModalView();
+            document.getElementById('modal-list').scrollTop = 0;
+        }
+
+        function modalDrillTo(index) {
+            if (index < 0) {
+                modalDrillPath = [];
+            } else {
+                modalDrillPath = modalDrillPath.slice(0, index + 1);
+            }
+            renderModalView();
+        }
+
+        function filterModalList() {
+            renderModalView();
+        }
+
+        function selectFromModal(code) {
+            const normalizedCode = normalizeCode(code);
+            const medicine = stockData.find(m => normalizeCode(m.code) === normalizedCode);
+            if (!medicine) return;
+            addToBatchDirect(medicine);
+            showScanPopup(medicine, true);
+            if (navigator.vibrate) navigator.vibrate(50);
+            closeManualSelect();
+            setTimeout(() => {
+                const batchCard = document.getElementById('batch-card');
+                if (batchCard) batchCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+
+        // ===== 履歴 =====
+        function renderHistory() {
+            const container = document.getElementById('history-list');
+            if (historyData.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">履歴がありません</div>';
+                return;
+            }
+            container.innerHTML = historyData.map(h => `
+                <div class="history-item">
+                    <div class="history-icon ${h.type}">${h.type === 'in' ? '📥' : '📤'}</div>
+                    <div class="history-content">
+                        <div class="history-medicine">${h.medicine}</div>
+                        <div class="history-detail">${h.time}${h.patient ? ' • ' + h.patient : ''}</div>
+                    </div>
+                    <div class="history-qty ${h.type}">${h.type === 'in' ? '+' : '-'}${h.quantity}${h.unit}</div>
+                </div>
+            `).join('');
+        }
+
+        // ===== 初期化 =====
+        const patientInput = document.getElementById('patient-input');
+
+        patientInput.addEventListener('input', function() {
+            selectedPatient = null;
+            showPatientAutocomplete(this.value);
+            updateActionButtons();
+        });
+
+        patientInput.addEventListener('blur', function() {
+            hidePatientAutocomplete();
+        });
+
+        patientInput.addEventListener('focus', function() {
+            if (this.value) {
+                showPatientAutocomplete(this.value);
+            }
+        });
+
+        setMode(currentMode);
+        renderStockList();
+        renderQRGrid(); // QRグリッドを初期化
+
+        if (USE_GAS) {
+            showToast('データを読み込み中...', '');
+            loadStockFromGAS();
+            loadHistoryFromGAS();
+        }
+    </script>
+</body>
+</html>

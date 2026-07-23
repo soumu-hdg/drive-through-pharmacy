@@ -1,0 +1,9 @@
+# 患者データ・DB機微情報を本番公開から除外（GitHub Pages公開版と同一の除外セット）
+_uke_test
+*.uke
+security_migration.sql
+seed_master_data.sql
+supabase_schema.sql
+_test_img_b64.txt
+SECURITY_TODO.md
+.vercel

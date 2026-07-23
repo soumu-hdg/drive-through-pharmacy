@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>薬品在庫DB (Supabase版)</title>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Hiragino Sans',sans-serif;background:#f8fafc;color:#1e293b}
+        .header{background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;padding:16px 20px}
+        .header h1{font-size:18px}.header-sub{font-size:12px;opacity:.9;margin-top:4px}
+        .container{max-width:1200px;margin:0 auto;padding:16px}
+        .stats{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+        .stat-card{background:#fff;border-radius:10px;padding:16px;flex:1;min-width:140px;box-shadow:0 1px 3px rgba(0,0,0,.1);text-align:center}
+        .stat-num{font-size:28px;font-weight:700;color:#7c3aed}.stat-label{font-size:12px;color:#64748b;margin-top:4px}
+        .tabs{display:flex;gap:8px;margin-bottom:16px}
+        .tab{padding:10px 20px;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;background:#e2e8f0;color:#64748b}
+        .tab.active{background:#7c3aed;color:#fff}
+        .search{width:100%;padding:10px 14px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;margin-bottom:12px}
+        .search:focus{outline:none;border-color:#7c3aed}
+        table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+        th{background:#f1f5f9;padding:10px 12px;text-align:left;font-size:12px;color:#64748b;font-weight:600;position:sticky;top:0}
+        td{padding:8px 12px;border-top:1px solid #f1f5f9;font-size:13px}
+        tr:hover{background:#f8fafc}
+        .stock-low{color:#dc2626;font-weight:700}.stock-ok{color:#16a34a}
+        .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+        .badge-child{background:#fef3c7;color:#92400e}.badge-adult{background:#dbeafe;color:#1e40af}
+        .badge-ext{background:#d1fae5;color:#065f46}.badge-test{background:#ede9fe;color:#5b21b6}
+        .loading{text-align:center;padding:40px;color:#64748b}
+        .error{text-align:center;padding:40px;color:#dc2626}
+        .conn-info{background:#ede9fe;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:#5b21b6}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>薬品在庫データベース（Supabase版）</h1>
+        <div class="header-sub">ドライブスルー診療 v0.5 — Supabase PostgreSQL接続</div>
+    </div>
+    <div class="container">
+        <div class="conn-info">接続先: <strong>Supabase</strong> (hundred-dr / ap-northeast-1)</div>
+        <div class="stats">
+            <div class="stat-card"><div class="stat-num" id="total-count">-</div><div class="stat-label">総薬品数</div></div>
+            <div class="stat-card"><div class="stat-num" id="patient-count">-</div><div class="stat-label">登録患者数</div></div>
+            <div class="stat-card"><div class="stat-num" id="low-stock">-</div><div class="stat-label">在庫不足</div></div>
+            <div class="stat-card"><div class="stat-num" id="category-count">-</div><div class="stat-label">カテゴリ数</div></div>
+        </div>
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('medicines')">薬品一覧</button>
+            <button class="tab" onclick="showTab('patients')">患者一覧</button>
+        </div>
+        <input type="text" class="search" id="search" placeholder="検索（コード・薬品名・カテゴリ）" oninput="filterTable()">
+        <div id="content"><div class="loading">Supabaseからデータを読み込み中...</div></div>
+    </div>
+<script>
+const SB='https://dyjhxkqzxibcpgoefbiv.supabase.co';
+const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5amh4a3F6eGliY3Bnb2VmYml2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2MjMwNzYsImV4cCI6MjA5MTE5OTA3Nn0.Oaf15-nIvyidZftbBamLpwbDK1DpI8CpVThYjxE8RqI';
+let medicines=[],patients=[],currentTab='medicines';
+async function sf(t,q=''){const r=await fetch(SB+'/rest/v1/'+t+'?'+q,{headers:{apikey:SK,Authorization:'Bearer '+SK}});return r.json()}
+function cb(c){if(!c)return'';if(c.startsWith('小児'))return'<span class="badge badge-child">'+c+'</span>';if(c.startsWith('成人'))return'<span class="badge badge-adult">'+c+'</span>';if(c.startsWith('外用')||c.startsWith('検査'))return'<span class="badge badge-ext">'+c+'</span>';return'<span class="badge badge-test">'+c+'</span>'}
+function rm(d){if(!d.length)return'<div class="loading">該当なし</div>';let h='<table><thead><tr><th>コード</th><th>薬品名</th><th>在庫</th><th>単位</th><th>閾値</th><th>カテゴリ</th><th>用法</th><th>価格</th></tr></thead><tbody>';d.forEach(m=>{const c=m.stock<=m.threshold?'stock-low':'stock-ok';h+='<tr><td><strong>'+m.code+'</strong></td><td>'+m.name+'</td><td class="'+c+'">'+m.stock+'</td><td>'+(m.unit||'')+'</td><td>'+m.threshold+'</td><td>'+cb(m.category)+'</td><td>'+(m.usage_info||'')+'</td><td>'+(m.price||'')+'</td></tr>'});return h+'</tbody></table>'}
+function rp(d){if(!d.length)return'<div class="loading">該当なし</div>';let h='<table><thead><tr><th>患者ID</th><th>氏名</th><th>ふりがな</th><th>登録日</th></tr></thead><tbody>';d.forEach(p=>{const dt=p.created_at?new Date(p.created_at).toLocaleDateString('ja-JP'):'';h+='<tr><td><strong>'+p.patient_id+'</strong></td><td>'+p.name+'</td><td>'+(p.furigana||'')+'</td><td>'+dt+'</td></tr>'});return h+'</tbody></table>'}
+function showTab(t){currentTab=t;document.querySelectorAll('.tab').forEach((b,i)=>{b.classList.toggle('active',(i===0&&t==='medicines')||(i===1&&t==='patients'))});document.getElementById('search').value='';filterTable()}
+function filterTable(){const q=document.getElementById('search').value.toLowerCase(),el=document.getElementById('content');if(currentTab==='medicines'){el.innerHTML=rm(medicines.filter(m=>m.code.toLowerCase().includes(q)||m.name.toLowerCase().includes(q)||(m.category||'').toLowerCase().includes(q)))}else{el.innerHTML=rp(patients.filter(p=>p.patient_id.includes(q)||p.name.toLowerCase().includes(q)||(p.furigana||'').toLowerCase().includes(q)))}}
+async function init(){try{[medicines,patients]=await Promise.all([sf('medicines','select=*&order=code'),sf('patients','select=*&order=patient_id')]);document.getElementById('total-count').textContent=medicines.length;document.getElementById('patient-count').textContent=patients.length;document.getElementById('low-stock').textContent=medicines.filter(m=>m.stock<=m.threshold).length;document.getElementById('category-count').textContent=new Set(medicines.map(m=>m.category).filter(Boolean)).size;filterTable()}catch(e){document.getElementById('content').innerHTML='<div class="error">接続エラー: '+e.message+'</div>'}}
+init();
+</script>
+</body>
+</html>
