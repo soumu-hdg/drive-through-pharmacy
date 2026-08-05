@@ -22,7 +22,7 @@
 | `README.md` | プロジェクトドキュメント |
 
 ## デプロイ
-- **GitHub Pages**: https://soumu-lgtm.github.io/drive-through-pharmacy/
+- **GitHub Pages**: https://soumu-hdg.github.io/drive-through-pharmacy/
 - **スプレッドシート**: https://docs.google.com/spreadsheets/d/13AId0dOUOrrZLnFnZi_V4NcOo5OT9pkaFr1UJPIK02c/
 
 ## Git
