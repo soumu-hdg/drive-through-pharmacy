@@ -280,8 +280,9 @@ async function loadFile(file) {
     reader.onload = (e) => {
       let text;
       try {
-        const decoder = new TextDecoder('shift_jis');
-        text = decoder.decode(e.target.result);
+        // fatal:true にしないと不正バイトを U+FFFD に置換するだけで例外が出ず、
+        // UTF-8フォールバックが永久に発火しない（SJIS外文字を含むUKEで文字化けの原因）。
+        text = new TextDecoder('shift_jis', { fatal: true }).decode(e.target.result);
       } catch {
         text = new TextDecoder('utf-8').decode(e.target.result);
       }

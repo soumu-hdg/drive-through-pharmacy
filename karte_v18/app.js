@@ -179,6 +179,48 @@ function isoToMD(iso) {
   return parseInt(parts[1]) + '/' + parseInt(parts[2]);
 }
 
+// ===== 支払方法（要望#6後半） =====
+// 方針（ユーザー確定 2026-08-05）: 一旦スタッフの手入力（選択式）。デジスマ側との連携は行わない。
+// ※ 現状は患者単位で保持する簡易版。受診ごとに分けたい場合はカルテ側へ移す。
+const PAY_METHODS = ['デジスマ', '現金', 'その他'];
+function payMethodCellHtml(p) {
+  const cur = p.payMethod || '';
+  let h = '<select class="pay-select' + (cur ? ' set' : '') + '" onclick="event.stopPropagation()"' +
+          ' onchange="event.stopPropagation();setPayMethod(\'' + p.id + '\',this.value)">';
+  h += '<option value=""' + (cur ? '' : ' selected') + '>-</option>';
+  PAY_METHODS.forEach(m => { h += '<option' + (cur === m ? ' selected' : '') + '>' + esc(m) + '</option>'; });
+  return h + '</select>';
+}
+function setPayMethod(id, v) {
+  const p = patients.find(x => x.id === id);
+  if (!p) return;
+  p.payMethod = v;
+  savePatientToApi(p);
+  renderPatientList();
+  showToast(v ? '支払方法: ' + v : '支払方法をクリア');
+}
+// 患者マスタ送信（項目を落とさないよう常に同じ形で送る）
+function savePatientToApi(p) {
+  postToApi('savePatient', {
+    '患者ID': p.id, '氏名': p.name, 'フリガナ': p.nameKana || '', '生年月日': p.dob || '',
+    '年齢': p.age, '性別': p.sex, '住所': p.address || '', '電話番号': p.phone || '',
+    'アレルギー': (p.allergies || []).join(','), 'メモ': p.memo || '', '支払方法': p.payMethod || ''
+  });
+}
+
+// 患者一覧「前回受付」列（要望#6）
+// 通常患者は prevVisitDate、DB患者は dbVisits から「今回より前の最新来院日」を出す。
+// ※ dbVisits の date は年を持たない "M/D" 形式のため、年跨ぎは判定できない（同年内の比較に留める）。
+function prevVisitLabel(p) {
+  if (p.dbSource && p.dbVisits && p.dbVisits.length) {
+    const toNum = md => { const a = String(md).split('/'); return (parseInt(a[0])||0) * 100 + (parseInt(a[1])||0); };
+    const curN = toNum(isoToMD(selectedDate));
+    const past = p.dbVisits.map(v => v.date).filter(d => toNum(d) < curN).sort((a,b) => toNum(b) - toNum(a));
+    return past.length ? past[0] : '-';
+  }
+  return p.prevVisitDate ? p.prevVisitDate.replace(/-/g, '/') : '-';
+}
+
 function renderPatientList() {
   showDateShift(selectedDate);
   const tbody = document.getElementById('patientListBody');
@@ -201,7 +243,7 @@ function renderPatientList() {
   if (filtered.length === 0) {
     const dbCount = patients.filter(p => p.dbSource).length;
     const dbMsg = dbCount > 0 ? '<br><span style="font-size:12px;">DB患者 ' + dbCount + '名あり → 上部の「DB患者一覧」から参照できます</span>' : '';
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted);font-size:14px;">この日の受付患者はいません' + dbMsg + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-muted);font-size:14px;">この日の受付患者はいません' + dbMsg + '</td></tr>';
     document.getElementById('listWait').textContent = 0;
     document.getElementById('listActive').textContent = 0;
     document.getElementById('listDone').textContent = 0;
@@ -216,14 +258,14 @@ function renderPatientList() {
       const doctor = visit ? (visit.doctor || '') : '';
       const tests = visit ? [visit.covid ? 'C+' : '', visit.flu ? 'Flu+' : '', visit.strep ? '溶+' : ''].filter(Boolean).join(' ') : '';
       const typeBadge = p.type === '新規' ? '<span class="status-badge" style="background:#dcfce7;color:#16a34a;">新規</span>' : '<span class="status-badge" style="background:#dbeafe;color:#2563eb;">再診</span>';
-      return '<tr onclick="openKarte(\'' + p.id + '\')" style="cursor:pointer;background:#f8faff;"><td>' + (p._origNum||i+1) + '</td><td class="td-status">' + typeBadge + '</td><td class="td-name">' + esc(p.name) + '<div class="sub">DB / ' + esc(p.address || '') + ' / ' + esc(time) + '</div></td><td>' + esc(p.age) + '歳 ' + esc(p.sex) + '</td><td>' + esc(p.insurance) + '</td><td class="td-allergy">' + esc(tests || '-') + '</td><td class="td-lane">' + esc(doctor) + '</td><td class="td-questionnaire">' + esc(p.route || '-') + '</td><td class="td-actions"><button class="action-btn karte-btn" onclick="event.stopPropagation();openKarte(\'' + p.id + '\')">カルテ</button></td></tr>';
+      return '<tr onclick="openKarte(\'' + p.id + '\')" style="cursor:pointer;background:#f8faff;"><td>' + (p._origNum||i+1) + '</td><td class="td-status">' + typeBadge + '</td><td class="td-name">' + esc(p.name) + '<div class="sub">DB / ' + esc(p.address || '') + ' / ' + esc(time) + '</div></td><td>' + esc(p.age) + '歳 ' + esc(p.sex) + '</td><td>' + esc(p.insurance) + '</td><td class="td-memo" title="' + esc(p.memo || tests || '') + '">' + esc(p.memo || tests || '-') + '</td><td class="td-lastvisit">' + esc(prevVisitLabel(p)) + '</td><td class="td-pay">-</td><td class="td-lane">' + esc(doctor) + '</td><td class="td-questionnaire">' + esc(p.route || '-') + '</td><td class="td-actions"><button class="action-btn karte-btn" onclick="event.stopPropagation();openKarte(\'' + p.id + '\')">カルテ</button></td></tr>';
     }
     if (p.status === 'waiting') waitC++; else if (p.status === 'active') activeC++; else if (p.status === 'done') doneC++;
     const statusBadge = p.status === 'active' ? '<span class="status-badge active">診察中</span>' : p.status === 'done' ? '<span class="status-badge done">完了</span>' : '<span class="status-badge waiting">待機</span>';
-    const allergyStr = p.allergies.length > 0 ? p.allergies.join(', ') : '-';
+    const memoStr = (p.memo || '').replace(/\s+/g, ' ').trim();
     const qBadge = p.questionnaire ? '<span class="q-badge received">受信済</span>' : '<span class="q-badge none">-</span>';
     const rowClass = p.status === 'done' ? ' class="status-done-row"' : '';
-    return '<tr' + rowClass + ' onclick="openKarte(\'' + p.id + '\')" style="cursor:pointer;"><td>' + (p._origNum||i+1) + '</td><td class="td-status">' + statusBadge + '</td><td class="td-name">' + esc(p.name) + '<div class="sub">' + esc(p.nameKana||'') + ' / ' + esc(p.id) + ' / ' + esc(p.arrivedAt||'') + '</div></td><td>' + esc(p.age) + '歳 ' + esc(p.sex) + '</td><td>' + esc(p.insurance) + '</td><td class="td-allergy">' + esc(allergyStr) + '</td><td class="td-lane">L' + esc(p.vehicle.lane) + '</td><td class="td-questionnaire">' + qBadge + '</td><td class="td-actions"><button class="action-btn karte-btn" onclick="event.stopPropagation();openKarte(\'' + p.id + '\')">カルテ</button>' + (p.status === 'waiting' ? '<button class="action-btn call-btn" onclick="event.stopPropagation();callPatientFromList(\'' + p.id + '\')">呼出</button>' : '') + '</td></tr>';
+    return '<tr' + rowClass + ' onclick="openKarte(\'' + p.id + '\')" style="cursor:pointer;"><td>' + (p._origNum||i+1) + '</td><td class="td-status">' + statusBadge + '</td><td class="td-name">' + esc(p.name) + '<div class="sub">' + esc(p.nameKana||'') + ' / ' + esc(p.id) + ' / ' + esc(p.arrivedAt||'') + '</div></td><td>' + esc(p.age) + '歳 ' + esc(p.sex) + '</td><td>' + esc(p.insurance) + '</td><td class="td-memo" title="' + esc(memoStr) + '">' + esc(memoStr || '-') + '</td><td class="td-lastvisit">' + esc(prevVisitLabel(p)) + '</td><td class="td-pay">' + payMethodCellHtml(p) + '</td><td class="td-lane">L' + esc(p.vehicle.lane) + '</td><td class="td-questionnaire">' + qBadge + '</td><td class="td-actions"><button class="action-btn karte-btn" onclick="event.stopPropagation();openKarte(\'' + p.id + '\')">カルテ</button>' + (p.status === 'waiting' ? '<button class="action-btn call-btn" onclick="event.stopPropagation();callPatientFromList(\'' + p.id + '\')">呼出</button>' : '') + '</td></tr>';
   }).join('');
   document.getElementById('listWait').textContent = waitC;
   document.getElementById('listActive').textContent = activeC;
@@ -247,10 +289,12 @@ function onDateChange() { selectedDate = document.getElementById('listDate').val
 function openNewPatientModal() {
   ['newName','newNameKana','newPhone','newPhone2','newPlate','newFacility','newZip','newPref','newCity','newStreet','newBuilding','newInsurerNumber'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   document.getElementById('newDob').value = '';
+  syncWarekiFromDob('new');                        // 要望#3: 和暦欄もクリア
   document.getElementById('newLane').value = patients.length + 1;
   document.getElementById('newPatientNo').value = 'P-' + String(patients.length + 1).padStart(5, '0');
   document.querySelector('input[name="newSex"][value="男"]').checked = true;
   document.getElementById('newInsurance').value = '社保3割';
+  document.getElementById('newPayMethod').value = '';   // 要望#6
   // OCR状態をクリア
   clearOcrPreview();
   stopOcrCamera();
@@ -290,7 +334,9 @@ function buildInsuranceNumberStr(fields) {
 }
 
 
-function autoFillAddress(zip) {
+// 郵便番号 → 都道府県/市区町村 自動入力（要望#2でカルテ内の患者情報編集からも使えるようID指定を可能にした）
+function autoFillAddress(zip, prefId, cityId) {
+  prefId = prefId || 'newPref'; cityId = cityId || 'newCity';
   const cleaned = zip.replace(/[^0-9]/g, '');
   if (cleaned.length === 7) {
     fetch('https://zipcloud.ibsnet.co.jp/api/search?zipcode=' + cleaned)
@@ -298,11 +344,80 @@ function autoFillAddress(zip) {
       .then(data => {
         if (data.results && data.results[0]) {
           const r = data.results[0];
-          document.getElementById('newPref').value = r.address1;
-          document.getElementById('newCity').value = r.address2 + r.address3;
+          const pe = document.getElementById(prefId), ce = document.getElementById(cityId);
+          if (pe) pe.value = r.address1;
+          if (ce) ce.value = r.address2 + r.address3;
         }
       }).catch(() => {});
   }
+}
+
+// ===== 住所の分割⇔連結（要望#2） =====
+// 患者データは分割項目(zip/pref/city/street/building)を持ちつつ、従来の1本の address も維持する。
+// これにより既存データ・GAS連携（'住所'1列）・一覧表示は一切変更せずに済む。
+function composeAddress(a) {
+  return [a.pref || '', a.city || '', a.street || '', a.building || ''].filter(Boolean).join(' ').trim();
+}
+function splitAddress(p) {
+  if (p.pref || p.city || p.street || p.building) {
+    return { zip: p.zip || '', pref: p.pref || '', city: p.city || '', street: p.street || '', building: p.building || '' };
+  }
+  // 旧データ（1本の住所）は「〜都道府県」「〜市区町村」で推定分解する。分解できない場合は番地欄へそのまま入れる。
+  const addr = (p.address || '').trim();
+  const m = addr.match(/^\s*(.+?[都道府県])\s*(.+?[市区町村])\s*(.*)$/);
+  if (m) return { zip: p.zip || '', pref: m[1], city: m[2], street: m[3].trim(), building: '' };
+  return { zip: p.zip || '', pref: '', city: '', street: addr, building: '' };
+}
+
+// ===== 和暦入力（要望#3） =====
+// 元号の切替日は正確な日付で判定する（例: 1989-01-07 は昭和64年、01-08 から平成元年）。
+const WAREKI_ERAS = [
+  { name: '令和', start: '2019-05-01', base: 2018 },
+  { name: '平成', start: '1989-01-08', base: 1988 },
+  { name: '昭和', start: '1926-12-25', base: 1925 },
+  { name: '大正', start: '1912-07-30', base: 1911 },
+  { name: '明治', start: '1868-01-25', base: 1867 }
+];
+function isoToWarekiParts(iso) {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const e = WAREKI_ERAS.find(x => iso >= x.start);
+  if (!e) return null;
+  const parts = iso.split('-').map(Number);
+  return { era: e.name, year: parts[0] - e.base, month: parts[1], day: parts[2] };
+}
+function warekiPartsToIso(eraName, wy, m, d) {
+  const e = WAREKI_ERAS.find(x => x.name === eraName);
+  if (!e || !wy || !m || !d) return '';
+  const y = e.base + Number(wy);
+  const pad = n => String(n).padStart(2, '0');
+  const iso = y + '-' + pad(m) + '-' + pad(d);
+  const dt = new Date(iso + 'T00:00:00');
+  if (isNaN(dt.getTime()) || dt.getDate() !== Number(d) || dt.getMonth() + 1 !== Number(m)) return '';
+  return iso;
+}
+// 和暦欄 → 西暦欄
+function onWarekiInput(prefix) {
+  const era = document.getElementById(prefix + 'WEra');
+  const wy = document.getElementById(prefix + 'WY');
+  const wm = document.getElementById(prefix + 'WM');
+  const wd = document.getElementById(prefix + 'WD');
+  const dob = document.getElementById(prefix + 'Dob');
+  if (!era || !wy || !wm || !wd || !dob) return;
+  const iso = warekiPartsToIso(era.value, wy.value, wm.value, wd.value);
+  if (iso) dob.value = iso;
+}
+// 西暦欄 → 和暦欄
+function onDobInput(prefix) { syncWarekiFromDob(prefix); }
+function syncWarekiFromDob(prefix) {
+  const dob = document.getElementById(prefix + 'Dob');
+  const era = document.getElementById(prefix + 'WEra');
+  const wy = document.getElementById(prefix + 'WY');
+  const wm = document.getElementById(prefix + 'WM');
+  const wd = document.getElementById(prefix + 'WD');
+  if (!dob || !era || !wy || !wm || !wd) return;
+  const parts = isoToWarekiParts(dob.value);
+  if (!parts) { era.value = ''; wy.value = ''; wm.value = ''; wd.value = ''; return; }
+  era.value = parts.era; wy.value = parts.year; wm.value = parts.month; wd.value = parts.day;
 }
 
 // v0.4: 新規受付の保険者番号リアルタイム判定
@@ -361,11 +476,14 @@ function addNewPatient(andOpen) {
   const city = document.getElementById('newCity').value;
   const street = document.getElementById('newStreet').value;
   const building = document.getElementById('newBuilding').value;
+  const zip = (document.getElementById('newZip') || {}).value || '';
   const address = [pref, city, street, building].filter(Boolean).join(' ');
   const now = new Date();
   const newP = {
     id: document.getElementById('newPatientNo').value || ('P' + (Date.now() % 100000)),
     name, nameKana: kana, age, sex, insurance: ins, ratio, dob, address,
+    zip: zip.trim(), pref, city, street, building,   // 要望#2: 分割項目も保持
+    payMethod: (document.getElementById('newPayMethod') || {}).value || '',   // 要望#6
     phone: document.getElementById('newPhone').value,
     allergies: [], history: [], prevRx: [], prevDays: 0, prevVisitDate: '',
     vehicle: { plate: document.getElementById('newPlate').value || '---', lane: parseInt(document.getElementById('newLane').value) || 1 },
@@ -445,6 +563,7 @@ function renderAllKarte() {
   renderSelectedDiseases();
   renderRxList();
   renderExamCheckList();
+  renderFindingsSnippets();
   recalcBilling();
   renderWaitingList();
   updateSurchargeBadge();
@@ -491,9 +610,16 @@ function populateDoctorSelect(p) {
 function onVisitInfoChange() {}
 
 // ===== Patient Info Tabs (Phase 3) =====
+// バイタルサイン入力欄は常設DOM。表示のみ「バイタル」タブに追従させる
+function syncVitalsInputVisibility() {
+  const w = document.getElementById('vitalsInputWrap');
+  if (w) w.style.display = (currentPatientTab === 'vitals') ? '' : 'none';
+}
+
 function switchPatientTab(tab) {
   currentPatientTab = tab;
   document.querySelectorAll('.patient-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  syncVitalsInputVisibility();
   const p = patients.find(x => x.id === currentPatientId);
   if (p) {
     renderPatientInfoTab(p);
@@ -505,6 +631,7 @@ function switchPatientTab(tab) {
 }
 
 function renderPatientInfoTab(p) {
+  syncVitalsInputVisibility();
   const body = document.getElementById('patientInfoBody');
   let h = '';
   switch (currentPatientTab) {
@@ -679,6 +806,7 @@ function renderPatientInfoTab(p) {
       h += '</div>';
       h += '<div class="disease-quick-btns" id="diseaseQuickBtns"></div>';
       h += '<div class="selected-diseases" id="selectedDiseases"></div>';
+      h += '<div style="font-size:10px;color:var(--text-muted);margin-top:4px;">［主］［確］［疑］をタップで切替（主病は1つ）</div>';
       h += '<div id="drugSuggestArea"></div>';
       h += '</div>';
       // 既往傷病名一覧
@@ -705,6 +833,69 @@ function renderPatientInfoTab(p) {
 function rtExec(cmd, val) {
   document.execCommand(cmd, false, val || null);
   document.getElementById('findingsEditor').focus();
+}
+
+// ===== 所見テンプレ（要望#11） =====
+// 医師記入欄の見出し［現病歴］［身体所見］［アセスメント＆プラン］をワンクリックで挿入する。
+const FINDINGS_SECTIONS = ['現病歴', '身体所見', 'アセスメント＆プラン'];
+
+function insertFindings(html) {
+  const ed = document.getElementById('findingsEditor');
+  if (!ed) return;
+  ed.focus();
+  // カーソル位置がエディタ内に無ければ末尾へ挿入する
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount || !ed.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+    const r = document.createRange();
+    r.selectNodeContents(ed); r.collapse(false);
+    sel.removeAllRanges(); sel.addRange(r);
+  }
+  document.execCommand('insertHTML', false, html);
+  ed.focus();
+  saveCurrentKarte();
+}
+function insertFindingsSection(name) { insertFindings(esc('[' + name + ']') + '<br><br>'); }
+function insertFindingsTemplate() {
+  insertFindings(FINDINGS_SECTIONS.map(n => esc('[' + n + ']') + '<br><br>').join(''));
+}
+
+// ユーザー定型文（localStorage）
+function loadFindingsSnippets() {
+  try { return JSON.parse(localStorage.getItem('karte_findingsSnippets') || '[]'); } catch (e) { return []; }
+}
+function saveFindingsSnippets(list) { localStorage.setItem('karte_findingsSnippets', JSON.stringify(list)); }
+function renderFindingsSnippets() {
+  const el = document.getElementById('findingsSnippetBtns');
+  if (!el) return;
+  el.innerHTML = loadFindingsSnippets().map((s, i) =>
+    '<button class="rt-btn rt-tpl-btn" onclick="insertFindingsSnippet(' + i + ')" ' +
+    'oncontextmenu="deleteFindingsSnippet(' + i + ');return false;" title="右クリックで削除">' + esc(s.label) + '</button>'
+  ).join('');
+}
+function insertFindingsSnippet(i) {
+  const s = loadFindingsSnippets()[i];
+  if (!s) return;
+  insertFindings(esc(s.text).replace(/\n/g, '<br>') + '<br>');
+}
+function addFindingsSnippet() {
+  const label = prompt('定型文の名前（ボタンに表示されます）');
+  if (!label) return;
+  const text = prompt('本文（改行可）');
+  if (!text) return;
+  const list = loadFindingsSnippets();
+  list.push({ label: label.trim(), text: text });
+  saveFindingsSnippets(list);
+  renderFindingsSnippets();
+  showToast('定型文「' + label.trim() + '」を登録');
+}
+function deleteFindingsSnippet(i) {
+  const list = loadFindingsSnippets();
+  if (!list[i]) return;
+  if (!confirm('定型文「' + list[i].label + '」を削除しますか？')) return;
+  list.splice(i, 1);
+  saveFindingsSnippets(list);
+  renderFindingsSnippets();
+  showToast('定型文を削除');
 }
 
 // ===== Chief Complaint =====
@@ -758,22 +949,38 @@ function addDisease(name, code) {
         if (results.length > 0 && results[0].name === name) code = results[0].code;
       }
     }
-    k.selectedDiseases.push({name, code: code || '', status:'confirmed'});
+    // 要望#10: 主病フラグ。まだ主病が無ければ最初の1件を主病にする（レセプトのSY主病フラグと整合）
+    const noMain = !k.selectedDiseases.some(d => d.main);
+    k.selectedDiseases.push({name, code: code || '', status:'confirmed', main: noMain});
   }
   document.getElementById('diseaseSearch').value = '';
   document.getElementById('diseaseResults').classList.remove('show');
   renderSelectedDiseases();
 }
 function removeDisease(i) { karteData[currentPatientId].selectedDiseases.splice(i,1); renderSelectedDiseases(); }
-function toggleDiseaseStatus(i) { const d = karteData[currentPatientId].selectedDiseases[i]; d.status = d.status === 'confirmed' ? 'suspected' : 'confirmed'; renderSelectedDiseases(); }
+// 要望#10: タップで ［主］→［確］→［疑］ を巡回。主病は常に1件だけ。
+function toggleDiseaseStatus(i) {
+  const list = karteData[currentPatientId].selectedDiseases;
+  const d = list[i];
+  if (!d) return;
+  if (d.main) {                       // 主 → 確
+    d.main = false; d.status = 'confirmed';
+  } else if (d.status === 'confirmed') { // 確 → 疑
+    d.status = 'suspected';
+  } else {                            // 疑 → 主
+    list.forEach(x => { x.main = false; });
+    d.main = true; d.status = 'confirmed';
+  }
+  renderSelectedDiseases();
+}
 function renderSelectedDiseases() {
   const el = document.getElementById('selectedDiseases');
   if (!el) return;
   const k = karteData[currentPatientId];
   el.innerHTML = k.selectedDiseases.map((d,i) => {
-    const cls = d.status === 'suspected' ? 'disease-tag suspected' : 'disease-tag';
-    const lbl = d.status === 'suspected' ? '疑' : '確';
-    return '<span class="' + cls + '"><span class="status-toggle" onclick="toggleDiseaseStatus(' + i + ')">[' + lbl + ']</span> ' + esc(d.name) + (d.code ? ' <span style="font-size:9px;opacity:0.7;">' + esc(d.code) + '</span>' : '') + ' <span class="remove" onclick="removeDisease(' + i + ')">&times;</span></span>';
+    const cls = d.main ? 'disease-tag main' : (d.status === 'suspected' ? 'disease-tag suspected' : 'disease-tag');
+    const lbl = d.main ? '主' : (d.status === 'suspected' ? '疑' : '確');
+    return '<span class="' + cls + '"><span class="status-toggle" title="タップで 主→確→疑 を切替" onclick="toggleDiseaseStatus(' + i + ')">[' + lbl + ']</span> ' + esc(d.name) + (d.code ? ' <span style="font-size:9px;opacity:0.7;">' + esc(d.code) + '</span>' : '') + ' <span class="remove" onclick="removeDisease(' + i + ')">&times;</span></span>';
   }).join('');
   // 案2: 病名から候補薬を提示（医師チェック前提）
   if (typeof renderDrugSuggestions === 'function') renderDrugSuggestions();
@@ -826,11 +1033,35 @@ function _renderSetManager() {
         '<div class="set-manager-info"><span class="set-manager-name">' + esc(s.name) + (s.builtin ? ' <span style="font-size:9px;color:var(--text-muted);">(組込)</span>' : '') + '</span>' +
         '<span class="set-manager-detail">' + drugNames + ' / ' + s.days + '日分</span></div>' +
         '<div class="set-manager-actions">' +
-        (!s.builtin ? '<button class="set-manager-del" onclick="deleteSetOrderFromManager(' + i + ')">削除</button>' : '') +
+        // 要望#12: 名前変更を追加。組込セットは直接書き換えず「複製して編集」で自分用を作る（元に戻せるように）
+        (s.builtin
+          ? '<button class="set-manager-edit" onclick="duplicateSetOrderFromManager(' + i + ')">複製して編集</button>'
+          : '<button class="set-manager-edit" onclick="renameSetOrderFromManager(' + i + ')">名前変更</button>' +
+            '<button class="set-manager-del" onclick="deleteSetOrderFromManager(' + i + ')">削除</button>') +
         '</div></div>';
     }).join('') +
     '</div>' +
     '<div class="modal-actions"><button class="set-manager-close" onclick="document.getElementById(\'setManagerOverlay\').classList.remove(\'show\')">閉じる</button></div>';
+}
+function renameSetOrderFromManager(i) {
+  const s = setOrders[i]; if (!s) return;
+  const input = prompt('セット名を変更', s.name);
+  if (input === null) return;
+  const name = input.trim();
+  if (!name) return;
+  if (setOrders.some((x, j) => j !== i && x.name === name)) { alert('同じ名前のセットが既にあります。'); return; }
+  s.name = name;
+  saveSetOrders(); renderSetOrders(); _renderSetManager(); showToast('セット名を「' + name + '」に変更');
+}
+function duplicateSetOrderFromManager(i) {
+  const s = setOrders[i]; if (!s) return;
+  const input = prompt('複製したセットの名前', s.name + 'のコピー');
+  if (input === null) return;
+  const name = input.trim();
+  if (!name) return;
+  if (setOrders.some(x => x.name === name)) { alert('同じ名前のセットが既にあります。'); return; }
+  setOrders.push({ name: name, items: s.items.map(it => Object.assign({}, it)), days: s.days, builtin: false });
+  saveSetOrders(); renderSetOrders(); _renderSetManager(); showToast('「' + name + '」を作成しました');
 }
 function deleteSetOrderFromManager(i) {
   if (!confirm(setOrders[i].name + ' を削除しますか？')) return;
@@ -884,7 +1115,11 @@ function renderRxList() {
 // ===== Exam =====
 function renderExamCheckList() {
   const k = karteData[currentPatientId];
-  document.getElementById('examCheckList').innerHTML = examItems.map(ex => {
+  // 要望#7: 検査登録UIは廃止（算定メニューの「検査」タブへ一本化）。
+  // 既存カルテの selectedExams（検査料の算定）はそのまま残すため、DOMが無い場合だけ描画をスキップする。
+  const listEl = document.getElementById('examCheckList');
+  if (!listEl) return;
+  listEl.innerHTML = examItems.map(ex => {
     const chk = k.selectedExams.includes(ex.id) ? 'checked' : '';
     return '<li class="exam-check-item"><input type="checkbox" id="exam_' + esc(ex.id) + '" ' + chk + ' onchange="toggleExam(\'' + esc(ex.id) + '\')"><label for="exam_' + esc(ex.id) + '">' + esc(ex.name) + '</label><span class="exam-points">' + ex.points + '点</span></li>';
   }).join('');
@@ -908,13 +1143,8 @@ function saveBillingMyLists() { localStorage.setItem('karte_billingMyLists', JSO
 function currentMyList() { return billingMyLists[currentMyListIdx] || billingMyLists[0]; }
 
 function switchBillingTab(cat) {
-  if (cat === 'mylist' && currentBillingTab === 'mylist') {
-    // already on mylist — cycle to next list
-    currentMyListIdx = (currentMyListIdx + 1) % billingMyLists.length;
-    renderMyListTab();
-    renderBillingMenu();
-    return;
-  }
+  // 要望#8: 以前は「マイリスト」再クリックで次のリストへ送っていたが、
+  // リストは常に並べて表示するようにしたため送り動作は廃止。
   currentBillingTab = cat;
   if (cat !== 'drug') drugTabMode = '';
   document.querySelectorAll('.bm-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.cat === cat); });
@@ -928,17 +1158,18 @@ function renderBillingMenu() {
   var el = document.getElementById('billingMenuItems');
   if (currentBillingTab === 'mylist') {
     var ml = currentMyList();
-    var header = '<div class="bm-mylist-header">' +
-      '<span class="bm-mylist-name" onclick="renameBillingMyList()" title="クリックで名前変更">' + esc(ml.name) + '</span>' +
-      '<span class="bm-mylist-nav">' +
-      (billingMyLists.length > 1 ? '<span class="bm-mylist-nav-btn" onclick="cycleMyList(-1)" title="前のリスト">&#9664;</span>' : '') +
-      '<span style="font-size:10px;color:var(--text-muted);">' + (currentMyListIdx+1) + '/' + billingMyLists.length + '</span>' +
-      (billingMyLists.length > 1 ? '<span class="bm-mylist-nav-btn" onclick="cycleMyList(1)" title="次のリスト">&#9654;</span>' : '') +
-      '</span>' +
+    // 要望#8: ◀▶送りを廃止し、登録済みリストを全て並べて1クリックで切替。作成/名前変更/削除は「＋管理」で別画面へ。
+    var chips = billingMyLists.map(function(l, i) {
+      return '<span class="bm-mylist-chip' + (i === currentMyListIdx ? ' active' : '') +
+        '" onclick="switchMyList(' + i + ')" title="' + esc(l.name) + '（' + l.items.length + '件）">' + esc(l.name) + '</span>';
+    }).join('');
+    var header = '<div class="bm-mylist-bar">' + chips +
+      '<span class="bm-mylist-chip bm-mylist-chip-manage" onclick="openMyListManager()" title="リストの新規作成・名前変更・削除">＋ 管理</span>' +
+      '</div>' +
+      '<div class="bm-mylist-header">' +
+      '<span class="bm-mylist-name">' + esc(ml.name) + '</span>' +
       '<span class="bm-mylist-actions">' +
       '<span class="bm-mylist-action-btn bm-mylist-action-add-all" onclick="addAllMyListItems()" title="全て追加">&#9660; 全追加</span>' +
-      '<span class="bm-mylist-action-btn" onclick="addNewBillingMyList()" title="新規リスト">+</span>' +
-      (billingMyLists.length > 1 ? '<span class="bm-mylist-action-btn bm-mylist-action-del" onclick="deleteBillingMyList()" title="このリストを削除">&#128465;</span>' : '') +
       '</span></div>';
     if (!ml.items.length) {
       el.innerHTML = header + '<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:11px;">リストが空です<br>各タブの★ボタンで登録できます</div>';
@@ -1090,12 +1321,77 @@ function cycleMyList(dir) {
   currentMyListIdx = (currentMyListIdx + dir + billingMyLists.length) % billingMyLists.length;
   renderMyListTab(); renderBillingMenu();
 }
+// 要望#8: チップを直接クリックして切替
+function switchMyList(i) {
+  if (i < 0 || i >= billingMyLists.length) return;
+  currentMyListIdx = i;
+  renderMyListTab(); renderBillingMenu();
+}
+// 要望#8: リストの管理（新規作成・名前変更・削除）は別画面へ分離
+function openMyListManager() {
+  var overlay = document.getElementById('myListManagerOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'myListManagerOverlay';
+    overlay.className = 'modal-overlay';
+    var modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'myListManagerBody';
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+  }
+  _renderMyListManager();
+  overlay.classList.add('show');
+}
+function closeMyListManager() {
+  var o = document.getElementById('myListManagerOverlay');
+  if (o) o.classList.remove('show');
+}
+function _renderMyListManager() {
+  var m = document.getElementById('myListManagerBody');
+  if (!m) return;
+  m.innerHTML = '<h3>算定マイリストの管理<button class="modal-close" onclick="closeMyListManager()">&times;</button></h3>' +
+    '<div class="set-manager-list">' +
+    billingMyLists.map(function(l, i) {
+      return '<div class="set-manager-item">' +
+        '<div class="set-manager-info">' +
+        '<span class="set-manager-name">' + esc(l.name) + (i === currentMyListIdx ? ' <span style="font-size:9px;color:var(--primary);">(表示中)</span>' : '') + '</span>' +
+        '<span class="set-manager-detail">' + (l.items.length ? esc(l.items.map(function(it) { return it.name; }).join(', ')) : '（空）') + '</span></div>' +
+        '<div class="set-manager-actions">' +
+        '<button class="set-manager-edit" onclick="renameMyListAt(' + i + ')">名前変更</button>' +
+        (billingMyLists.length > 1 ? '<button class="set-manager-del" onclick="deleteMyListAt(' + i + ')">削除</button>' : '') +
+        '</div></div>';
+    }).join('') +
+    '</div>' +
+    '<div class="modal-actions">' +
+    '<button class="btn btn-primary" onclick="addNewBillingMyList()">＋ 新しいリスト</button>' +
+    '<button class="set-manager-close" onclick="closeMyListManager()">閉じる</button></div>';
+}
+function renameMyListAt(i) {
+  var l = billingMyLists[i]; if (!l) return;
+  var input = prompt('リスト名を変更:', l.name);
+  if (input === null) return;
+  var name = input.trim(); if (!name) return;
+  l.name = name;
+  saveBillingMyLists(); renderMyListTab(); renderBillingMenu(); _renderMyListManager();
+  showToast('名前を変更: ' + name);
+}
+function deleteMyListAt(i) {
+  if (billingMyLists.length <= 1) return;
+  var l = billingMyLists[i]; if (!l) return;
+  if (!confirm(l.name + ' を削除しますか？')) return;
+  billingMyLists.splice(i, 1);
+  if (currentMyListIdx >= billingMyLists.length) currentMyListIdx = billingMyLists.length - 1;
+  saveBillingMyLists(); renderMyListTab(); renderBillingMenu(); _renderMyListManager();
+  showToast('リストを削除');
+}
 function addNewBillingMyList() {
   var name = prompt('新しいリスト名:', 'マイリスト' + (billingMyLists.length + 1));
   if (!name) return;
   billingMyLists.push({name:name, items:[]});
   currentMyListIdx = billingMyLists.length - 1;
   saveBillingMyLists(); renderMyListTab(); renderBillingMenu();
+  if (typeof _renderMyListManager === 'function') _renderMyListManager();
   showToast(name + ' を作成');
 }
 function deleteBillingMyList() {
@@ -1131,9 +1427,35 @@ function renameBillingMyList() {
 }
 
 // ===== Billing =====
+// 当院標準の毎回加算（clinic_standard／官報令和8点数）。初診/再診で付く加算を自動付与。
+var STD_ADDON_DEFS = {
+  first: [ {name:'機能強化加算', points:80}, {name:'外来・在宅物価対応料', points:4}, {name:'外来・在宅ベースアップ評価料', points:17} ],
+  re:    [ {name:'外来・在宅物価対応料', points:4}, {name:'外来・在宅ベースアップ評価料', points:4} ]
+};
+// カルテ・UKE生成の双方から呼ぶ。医師が外した加算(stdRemoved)は再付与しない。手動項目は温存。
+function ensureStandardAddons(k, isFirst) {
+  if (!k) return;
+  if (!k.addedBillingItems) k.addedBillingItems = [];
+  if (k.stdAddonsOff) return; // この患者は標準加算を付けない（明示オプトアウト）
+  var removed = k.stdRemoved || {};
+  var desired = isFirst ? STD_ADDON_DEFS.first : STD_ADDON_DEFS.re;
+  var desiredNames = desired.map(function(d){ return d.name; });
+  // 受診種別に不要な自動加算を除去（例: 再診で機能強化加算）。手動追加(std無し)は触らない
+  k.addedBillingItems = k.addedBillingItems.filter(function(it){
+    return !(it.std && desiredNames.indexOf(it.name) === -1);
+  });
+  // 不足分を追加（医師が明示的に外したものは除外）
+  desired.forEach(function(d){
+    if (removed[d.name]) return;
+    if (!k.addedBillingItems.find(function(x){ return x.name === d.name; })) {
+      k.addedBillingItems.push({ name:d.name, points:d.points, std:true });
+    }
+  });
+}
 function recalcBilling() {
   const p = patients.find(x => x.id === currentPatientId);
   const k = karteData[currentPatientId];
+  ensureStandardAddons(k, k.isFirstVisit); // 当院標準加算を自動付与
   const isExternal = k.rxModeExternal || false;
   const visitFee = getVisitFee(k.isFirstVisit, selectedDate);
   const shoshinTen = visitFee.points;
@@ -1239,6 +1561,31 @@ function getEditorPlainText() {
   return editor ? editor.innerText : '';
 }
 
+
+// ===== GAS送信のまとめ（2026-08-05）=====
+// 従来は カルテ1本＋処方N本＋傷病名M本＋検査E本＋算定1本を
+// 別々のPOSTで投げており、1回の確定で7〜17往復していた（1往復あたり約1.2秒）。
+// 内容は変えずに1本のPOSTへまとめ、GAS側は saveKarteBundle が同じ保存関数を順に呼ぶ。
+function buildKarteRows(karteId, k) {
+  return {
+    '処方': (k.prescriptions || []).map(rx => ({
+      'カルテID': karteId, '患者ID': currentPatientId,
+      '薬品名': rx.drug.name, '薬品コード': rx.drug.id,
+      '用量': rx.qty, '単位': rx.drug.unit || '錠',
+      '日数': rx.days || k.rxDays, '薬価': rx.drug.price || 0, '備考': rx.note || ''
+    })),
+    '傷病名': (k.selectedDiseases || []).map(d => ({
+      'カルテID': karteId, '患者ID': currentPatientId,
+      '傷病名': d.name, 'ICD10コード': d.code || '',
+      '確定区分': d.status === 'suspected' ? '疑い' : '確定', '主病': d.main ? '主' : ''
+    })),
+    '検査': (k.selectedExams || []).map(exId => {
+      const ex = examItems.find(e => e.id === exId);
+      return ex ? { 'カルテID': karteId, '患者ID': currentPatientId, '検査名': ex.name, '検査コード': exId } : null;
+    }).filter(Boolean)
+  };
+}
+
 function saveKarteDraft() {
   saveCurrentKarte();
   const p = patients.find(x => x.id === currentPatientId);
@@ -1247,12 +1594,13 @@ function saveKarteDraft() {
   const surchargeInfo = getTimeSurcharge(examStartTime);
   const timeSlotLabel = surchargeInfo ? surchargeInfo.type : '通常';
   const plainText = getEditorPlainText();
-  postToApi('saveKarte', { 'カルテID': karteId, '患者ID': currentPatientId, '受診日': selectedDate, '診察開始時刻': examStartTime ? examStartTime.toLocaleTimeString('ja-JP') : '', '主訴': k.chiefComplaint, '所見': plainText, '体温': k.vitals.t, '収縮期血圧': k.vitals.bps, '拡張期血圧': k.vitals.bpd, 'SpO2': k.vitals.spo2, '脈拍': k.vitals.pulse, '初診フラグ': k.isFirstVisit ? 'TRUE' : 'FALSE', '時間区分': timeSlotLabel, 'ステータス': '一時保存' });
-  if (k.prescriptions.length > 0) k.prescriptions.forEach(rx => { postToApi('savePrescription', { 'カルテID': karteId, '患者ID': currentPatientId, '薬品名': rx.drug.name, '薬品コード': rx.drug.id, '用量': rx.qty, '単位': rx.drug.unit||'錠', '日数': rx.days||k.rxDays, '薬価': rx.drug.price||0, '備考': rx.note||'' }); });
-  if (k.selectedDiseases.length > 0) k.selectedDiseases.forEach(d => { postToApi('saveDiagnosis', { 'カルテID': karteId, '患者ID': currentPatientId, '傷病名': d.name, 'ICD10コード': d.code||'', '確定区分': d.status === 'suspected' ? '疑い' : '確定' }); });
-  if (k.selectedExams.length > 0) k.selectedExams.forEach(exId => { const exInfo = examItems.find(e => e.id === exId); if (exInfo) postToApi('saveExam', { 'カルテID': karteId, '患者ID': currentPatientId, '検査名': exInfo.name, '検査コード': exId }); });
+  const draftRows = buildKarteRows(karteId, k);
+  postToApi('saveKarteBundle', Object.assign({
+    'カルテ': { 'カルテID': karteId, '患者ID': currentPatientId, '受診日': selectedDate, '診察開始時刻': examStartTime ? examStartTime.toLocaleTimeString('ja-JP') : '', '主訴': k.chiefComplaint, '所見': plainText, '体温': k.vitals.t, '収縮期血圧': k.vitals.bps, '拡張期血圧': k.vitals.bpd, 'SpO2': k.vitals.spo2, '脈拍': k.vitals.pulse, '初診フラグ': k.isFirstVisit ? 'TRUE' : 'FALSE', '時間区分': timeSlotLabel, 'ステータス': '一時保存' }
+  }, draftRows));
   // Supabase二重書き込み（スプシと並行）
   saveToSupabase(p, k, drugs).then(r => { if (r.success) console.log('[Supabase] 一時保存OK'); });
+  saveKarteSnapshot();          // 要望#9: 「直前保存に戻す」用のスナップショット
   showToast('カルテを一時保存しました');
 }
 
@@ -1270,10 +1618,7 @@ function confirmBilling() {
   const surchargeInfo = getTimeSurcharge(examStartTime);
   const timeSlotLabel = surchargeInfo ? surchargeInfo.type : '通常';
   const plainText = getEditorPlainText();
-  postToApi('saveKarte', { 'カルテID': karteId, '患者ID': currentPatientId, '受診日': selectedDate, '診察開始時刻': examStartTime ? examStartTime.toLocaleTimeString('ja-JP') : '', '診察終了時刻': new Date().toLocaleTimeString('ja-JP'), '主訴': k.chiefComplaint, '所見': plainText, '体温': k.vitals.t, '収縮期血圧': k.vitals.bps, '拡張期血圧': k.vitals.bpd, 'SpO2': k.vitals.spo2, '脈拍': k.vitals.pulse, '初診フラグ': k.isFirstVisit ? 'TRUE' : 'FALSE', '時間区分': timeSlotLabel, 'ステータス': '確定' });
-  if (k.prescriptions.length > 0) k.prescriptions.forEach(rx => { postToApi('savePrescription', { 'カルテID': karteId, '患者ID': currentPatientId, '薬品名': rx.drug.name, '薬品コード': rx.drug.id, '用量': rx.qty, '単位': rx.drug.unit||'錠', '日数': rx.days||k.rxDays, '薬価': rx.drug.price||0, '備考': rx.note||'' }); });
-  if (k.selectedDiseases.length > 0) k.selectedDiseases.forEach(d => { postToApi('saveDiagnosis', { 'カルテID': karteId, '患者ID': currentPatientId, '傷病名': d.name, 'ICD10コード': d.code||'', '確定区分': d.status === 'suspected' ? '疑い' : '確定' }); });
-  if (k.selectedExams.length > 0) k.selectedExams.forEach(exId => { const exInfo = examItems.find(e => e.id === exId); if (exInfo) postToApi('saveExam', { 'カルテID': karteId, '患者ID': currentPatientId, '検査名': exInfo.name, '検査コード': exId }); });
+  // 送信は saveBilling の値が揃ってから1本にまとめて行う（下部）
   const totalPoints = parseInt(totalEl.textContent) || 0;
   const burdenAmount = parseInt(burdenEl.textContent.replace(/[^0-9]/g, '')) || 0;
   const billingItemsList = [];
@@ -1281,7 +1626,11 @@ function confirmBilling() {
   if (!k.isFirstVisit) billingItemsList.push('外来管理加算 52点');
   if (surchargeInfo) billingItemsList.push(surchargeInfo.type + '加算 ' + surchargeInfo.points + '点');
   if (k.prescriptions.length > 0) billingItemsList.push('処方料・調剤料・薬剤料');
-  postToApi('saveBilling', { 'カルテID': karteId, '患者ID': currentPatientId, '項目名': billingItemsList.join(', '), '合計点数': totalPoints, '負担額': burdenAmount, '負担割合': p.ratio });
+  const confRows = buildKarteRows(karteId, k);
+  postToApi('saveKarteBundle', Object.assign({
+    'カルテ': { 'カルテID': karteId, '患者ID': currentPatientId, '受診日': selectedDate, '診察開始時刻': examStartTime ? examStartTime.toLocaleTimeString('ja-JP') : '', '診察終了時刻': new Date().toLocaleTimeString('ja-JP'), '主訴': k.chiefComplaint, '所見': plainText, '体温': k.vitals.t, '収縮期血圧': k.vitals.bps, '拡張期血圧': k.vitals.bpd, 'SpO2': k.vitals.spo2, '脈拍': k.vitals.pulse, '初診フラグ': k.isFirstVisit ? 'TRUE' : 'FALSE', '時間区分': timeSlotLabel, 'ステータス': '確定' },
+    '算定': { 'カルテID': karteId, '患者ID': currentPatientId, '項目名': billingItemsList.join(', '), '合計点数': totalPoints, '負担額': burdenAmount, '負担割合': p.ratio }
+  }, confRows));
   // Supabase二重書き込み（確定版）
   saveToSupabase(p, k, drugs).then(r => {
     if (r.success) console.log('[Supabase] 確定保存OK visitId=' + r.visitId);
@@ -1292,7 +1641,104 @@ function confirmBilling() {
   document.getElementById('examStartBtn').textContent = '診察開始';
   document.getElementById('examStartBtn').classList.remove('active');
   renderWaitingList();
+  saveKarteSnapshot();          // 要望#9: 「直前保存に戻す」用のスナップショット
   showToast(p.name + 'さんの診察を確定しました');
+}
+
+// ===== カルテの取り消し（要望#9） =====
+// 方針（ユーザー確定 2026-08-05）: ①直前保存の状態まで戻す ②完全削除 の2つを用意する。
+// ①のために、保存（一時保存・確定）のたびにカルテ内容のスナップショットを端末に残す。
+function karteKey(pid, date) { return (pid || currentPatientId) + '|' + (date || selectedDate); }
+function loadKarteSnapshots() { try { return JSON.parse(localStorage.getItem('karte_lastSaved') || '{}'); } catch (e) { return {}; } }
+function saveKarteSnapshot() {
+  try {
+    const snaps = loadKarteSnapshots();
+    snaps[karteKey()] = { savedAt: new Date().toISOString(), data: JSON.parse(JSON.stringify(karteData[currentPatientId])) };
+    // 端末の容量を圧迫しないよう、古いものから200件までに保つ
+    const keys = Object.keys(snaps);
+    if (keys.length > 200) {
+      keys.sort((a, b) => (snaps[a].savedAt || '').localeCompare(snaps[b].savedAt || ''));
+      keys.slice(0, keys.length - 200).forEach(k => delete snaps[k]);
+    }
+    localStorage.setItem('karte_lastSaved', JSON.stringify(snaps));
+  } catch (e) { console.warn('カルテスナップショット保存に失敗:', e); }
+}
+function getKarteSnapshot() { return loadKarteSnapshots()[karteKey()] || null; }
+function clearKarteSnapshot() {
+  const snaps = loadKarteSnapshots();
+  delete snaps[karteKey()];
+  try { localStorage.setItem('karte_lastSaved', JSON.stringify(snaps)); } catch (e) {}
+}
+function blankKarte(p) {
+  return {
+    chiefComplaint: '', chiefComplaintSelect: '', findingsHtml: '',
+    vitals: { t: '', bps: '', bpd: '', spo2: '', pulse: '' },
+    selectedDiseases: [], prescriptions: [], rxDays: 7, rxModeExternal: false,
+    isFirstVisit: !(p && p.prevVisitDate),
+    selectedExams: [], addedBillingItems: [], excludedBillingRows: {}
+  };
+}
+function currentOperator() {
+  try { if (typeof authUser !== 'undefined' && authUser && authUser.email) return authUser.email; } catch (e) {}
+  return '不明';
+}
+function openKarteCancelModal() {
+  const p = patients.find(x => x.id === currentPatientId);
+  if (!p) { showToast('患者が選択されていません'); return; }
+  saveCurrentKarte();
+  document.getElementById('karteCancelTarget').innerHTML =
+    '<b>' + esc(selectedDate) + '</b>　' + esc(p.name) + '（' + esc(p.id) + '）のカルテ';
+  const snap = getKarteSnapshot();
+  document.getElementById('karteCancelSnapInfo').textContent = snap
+    ? '直前の保存: ' + new Date(snap.savedAt).toLocaleString('ja-JP')
+    : 'このカルテはまだ保存されていません（戻す先がありません）';
+  document.getElementById('karteDeleteReason').value = '';
+  document.getElementById('karteDeleteNote').value = '';
+  document.getElementById('karteCancelModal').classList.add('show');
+}
+function resetKarteToLastSave() {
+  const snap = getKarteSnapshot();
+  if (!snap) { alert('直前に保存した状態がありません。\n（このカルテはまだ一時保存も確定もされていません）'); return; }
+  if (!confirm('保存後の変更をすべて破棄して、\n' + new Date(snap.savedAt).toLocaleString('ja-JP') + ' の状態に戻します。\nよろしいですか？')) return;
+  karteData[currentPatientId] = JSON.parse(JSON.stringify(snap.data));
+  closeModal('karteCancelModal');
+  renderAllKarte();
+  showToast('直前保存の状態に戻しました');
+}
+function loadKarteDeletionLog() { try { return JSON.parse(localStorage.getItem('karte_deletionLog') || '[]'); } catch (e) { return []; } }
+function deleteKarteCompletely() {
+  const reason = document.getElementById('karteDeleteReason').value;
+  if (!reason) { alert('削除理由を選択してください。'); return; }
+  const p = patients.find(x => x.id === currentPatientId);
+  if (!p) return;
+  const note = document.getElementById('karteDeleteNote').value.trim();
+  if (!confirm(selectedDate + '　' + p.name + 'さんのカルテを完全に削除します。\n記載・処方・傷病名・算定がすべて消えます。\n\n理由: ' + reason)) return;
+  if (!confirm('本当に削除しますか？\nこの操作は元に戻せません。')) return;
+
+  const karteId = 'K-' + currentPatientId + '-' + selectedDate;
+  // 端末内に削除の記録を残す（誰が・いつ・なぜ）
+  try {
+    const log = loadKarteDeletionLog();
+    log.push({ at: new Date().toISOString(), by: currentOperator(), karteId: karteId, patientId: p.id, patientName: p.name, visitDate: selectedDate, reason: reason, note: note });
+    localStorage.setItem('karte_deletionLog', JSON.stringify(log.slice(-500)));
+  } catch (e) { console.warn('削除記録の保存に失敗:', e); }
+
+  // バックエンドへ削除を通知
+  // ※ スプレッドシート(GAS)側は deleteKarte アクションの実装が必要（未実装だと無視される）
+  postToApi('deleteKarte', { 'カルテID': karteId, '患者ID': p.id, '受診日': selectedDate, '削除理由': reason, '詳細': note, '実施者': currentOperator() });
+  if (typeof deleteKarteFromSupabase === 'function') {
+    deleteKarteFromSupabase(p.id, selectedDate, 'nishiharu').then(r => {
+      if (r && r.success) console.log('[削除] Supabase OK', r.deleted);
+      else showToast('Supabaseの削除に失敗しました: ' + ((r && r.error) || '不明'));
+    });
+  }
+
+  karteData[currentPatientId] = blankKarte(p);
+  clearKarteSnapshot();
+  if (p.status === 'done') p.status = 'waiting';
+  closeModal('karteCancelModal');
+  renderAllKarte();
+  showToast('カルテを削除しました');
 }
 
 function postToApi(action, data) { try { fetch(API_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({action, data}) }); } catch(e) { console.warn('API error:', e); } }
@@ -1305,11 +1751,18 @@ function openEditPatientModal() {
   document.getElementById('editName').value = p.name;
   document.getElementById('editNameKana').value = p.nameKana || '';
   document.getElementById('editDob').value = p.dob || '';
+  syncWarekiFromDob('edit');                       // 要望#3
   document.getElementById('editSex').value = p.sex;
-  document.getElementById('editAddress').value = p.address || '';
+  const a = splitAddress(p);                       // 要望#2
+  document.getElementById('editZip').value = a.zip;
+  document.getElementById('editPref').value = a.pref;
+  document.getElementById('editCity').value = a.city;
+  document.getElementById('editStreet').value = a.street;
+  document.getElementById('editBuilding').value = a.building;
   document.getElementById('editPhone').value = p.phone || '';
   document.getElementById('editAllergies').value = p.allergies.join(', ');
   document.getElementById('editInsurance').value = p.insurance;
+  document.getElementById('editPayMethod').value = p.payMethod || '';   // 要望#6
   document.getElementById('editPatientModal').classList.add('show');
 }
 function savePatientEdit() {
@@ -1318,15 +1771,22 @@ function savePatientEdit() {
   p.nameKana = document.getElementById('editNameKana').value;
   p.dob = document.getElementById('editDob').value;
   p.sex = document.getElementById('editSex').value;
-  p.address = document.getElementById('editAddress').value;
+  // 要望#2: 分割項目を保存しつつ、従来の1本の住所も生成して維持する
+  p.zip = document.getElementById('editZip').value.trim();
+  p.pref = document.getElementById('editPref').value.trim();
+  p.city = document.getElementById('editCity').value.trim();
+  p.street = document.getElementById('editStreet').value.trim();
+  p.building = document.getElementById('editBuilding').value.trim();
+  p.address = composeAddress(p);
   p.phone = document.getElementById('editPhone').value;
   const ins = document.getElementById('editInsurance').value;
   p.insurance = ins;
   p.ratio = ins.includes('1割') ? 0.1 : ins.includes('2割') ? 0.2 : ins === '公費' ? 0 : 0.3;
   const a = document.getElementById('editAllergies').value;
   p.allergies = a ? a.split(/[,、]/).map(s => s.trim()).filter(Boolean) : [];
+  p.payMethod = document.getElementById('editPayMethod').value;   // 要望#6
   if (p.dob) { const t = new Date(), b = new Date(p.dob); let age = t.getFullYear()-b.getFullYear(); if (t.getMonth()<b.getMonth()||(t.getMonth()===b.getMonth()&&t.getDate()<b.getDate())) age--; p.age = age; }
-  postToApi('savePatient', { '患者ID': p.id, '氏名': p.name, 'フリガナ': p.nameKana, '生年月日': p.dob, '年齢': p.age, '性別': p.sex, '住所': p.address, '電話番号': p.phone, 'アレルギー': p.allergies.join(','), 'メモ': p.memo || '' });
+  savePatientToApi(p);
   closeModal('editPatientModal'); renderAllKarte(); showToast('患者情報を更新');
 }
 
@@ -1359,11 +1819,14 @@ function openInsuranceModal() {
   else { document.getElementById('iryoPhotoPreview').style.display = 'none'; document.getElementById('iryoUploadText').style.display = ''; document.getElementById('iryoPhotoDeleteBtn').style.display = 'none'; }
   document.getElementById('iryoType').value = p.iryoType || '';
   document.getElementById('iryoHobetsu').value = p.iryoHobetsu || '';
+  insuranceWarnDismissed = false;   // 要望#4: 開くたびに警告を判定し直す
   document.getElementById('iryoRecipientNumber').value = p.iryoRecipientNumber || '';
   document.getElementById('iryoValidFrom').value = p.iryoValidFrom || '';
   document.getElementById('iryoValidTo').value = p.iryoValidTo || '';
   document.getElementById('iryoMemo').value = p.iryoMemo || '';
   document.getElementById('insurancePhotoModal').classList.add('show');
+  updateInsuranceWarn();            // 要望#4
+  if (typeof renderPatientPhotos === 'function') renderPatientPhotos();   // 要望#5
   if (p.insurerNumber) { setTimeout(function() { runInsuranceCalc(); }, 100); }
 }
 
@@ -1413,10 +1876,18 @@ function runInsuranceCalc() {
     else if (result.insuranceCategory === '後期高齢者') document.getElementById('insuranceType').value = '後期高齢者';
     if (result.finalRate === 0 && result.kouhiApplied) document.getElementById('insuranceType').value = '公費';
   }
+  updateInsuranceWarn();   // 要望#4: 自動判定で割合が変わったら警告を判定し直す
 }
 
 function saveInsuranceInfo() {
   const p = patients.find(x => x.id === currentPatientId);
+  // 要望#4: 医療証ありなのに負担割合が残っている場合、保存前にもう一度だけ確認する（自動変更はしない）
+  const warn = insuranceWarnState();
+  if (warn && !insuranceWarnDismissed) {
+    updateInsuranceWarn();
+    if (!confirm('医療証（' + warn.iryo + '）が登録されていますが、負担割合が「' + warn.label + '」のままです。\nこのまま ' + warn.label + ' で保存しますか？\n\n［キャンセル］を押すと画面に戻ります。')) return;
+    insuranceWarnDismissed = true;
+  }
   p.insSymbol = document.getElementById('insSymbol').value;
   p.insNumber = document.getElementById('insNumber').value;
   p.insEdaban = document.getElementById('insEdaban').value;
@@ -1580,10 +2051,9 @@ function toWareki(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
-  const y = d.getFullYear(), m = d.getMonth()+1, day = d.getDate();
-  if (y >= 2019) return '令和' + (y===2019?'元':(y-2018)) + '年' + m + '月' + day + '日';
-  if (y >= 1989) return '平成' + (y===1989?'元':(y-1988)) + '年' + m + '月' + day + '日';
-  if (y >= 1926) return '昭和' + (y===1926?'元':(y-1925)) + '年' + m + '月' + day + '日';
+  // 要望#3の実装に合わせ、元号の切替は正確な日付で判定する（1989-01-07=昭和64年 / 01-08=平成元年）
+  const parts = isoToWarekiParts(dateStr.slice(0, 10));
+  if (parts) return parts.era + (parts.year === 1 ? '元' : parts.year) + '年' + parts.month + '月' + parts.day + '日';
   return dateStr;
 }
 
@@ -1641,7 +2111,9 @@ function renderAddedBillingList() {
 }
 function removeAddedBilling(i) {
   const k = karteData[currentPatientId];
-  const name = k.addedBillingItems[i].name;
+  const it = k.addedBillingItems[i];
+  const name = it.name;
+  if (it.std) { k.stdRemoved = k.stdRemoved || {}; k.stdRemoved[name] = true; } // 標準加算を外したら再付与しない
   k.addedBillingItems.splice(i,1);
   recalcBilling();
   showToast(name + ' を削除');
@@ -1678,6 +2150,42 @@ function clearAllBilling() {
 
 
 // ===== v0.11: 医療証種別→法別番号自動入力 =====
+// ===== 要望#4: 医療証と負担割合の食い違い警告 =====
+// 方針（ユーザー確定 2026-08-05）: 自動では負担割合を変えない。食い違いを警告するだけにする。
+// 医療証の種別によって実際の負担割合は異なる（子ども医療は自治体により一部自己負担、精神通院は1割）ため、
+// 「医療証あり＝一律0割」の自動化は行わない。
+var insuranceWarnDismissed = false;
+function insuranceWarnState() {
+  var typeEl = document.getElementById('iryoType');
+  var ratioEl = document.getElementById('insuranceRatio');
+  if (!typeEl || !ratioEl) return null;
+  var iryo = (typeEl.value || '').trim();
+  var ratio = parseFloat(ratioEl.value);
+  if (!iryo || iryo === 'なし') return null;
+  if (!(ratio > 0)) return null;
+  return { iryo: iryo, ratio: ratio, label: (ratio * 10) + '割' };
+}
+function updateInsuranceWarn() {
+  var banner = document.getElementById('insWarnBanner');
+  if (!banner) return;
+  var st = insuranceWarnState();
+  if (!st || insuranceWarnDismissed) { banner.style.display = 'none'; return; }
+  document.getElementById('insWarnText').innerHTML =
+    '&#9888; 医療証（' + esc(st.iryo) + '）が登録されていますが、負担割合が「' + esc(st.label) + '」のままです';
+  banner.style.display = '';
+}
+function applyKouhiZero() {
+  var ratioEl = document.getElementById('insuranceRatio');
+  if (ratioEl) ratioEl.value = '0';
+  insuranceWarnDismissed = false;
+  updateInsuranceWarn();
+  showToast('負担割合を0割にしました');
+}
+function dismissInsuranceWarn() {
+  insuranceWarnDismissed = true;
+  updateInsuranceWarn();
+}
+
 function onIryoTypeChange(val) {
   var hobetsuMap = {
     '乳幼児医療': '82',
@@ -1691,6 +2199,8 @@ function onIryoTypeChange(val) {
   };
   var code = hobetsuMap[val] || '';
   document.getElementById('iryoHobetsu').value = code;
+  insuranceWarnDismissed = false;   // 要望#4: 医療証を変えたら警告を出し直す
+  updateInsuranceWarn();
 }
 
 // ===== v0.8: 医療証写真・データ管理 =====

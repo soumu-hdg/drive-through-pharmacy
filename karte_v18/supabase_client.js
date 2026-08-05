@@ -296,3 +296,43 @@ async function fetchDrugsFromSupabase(clinicId) {
   if (error) { console.error('[Supabase] 薬品取得エラー:', error); return []; }
   return data || [];
 }
+
+/**
+ * カルテの完全削除（要望#9）
+ * 指定患者・指定受診日の visit に紐づく kartes / prescriptions / diseases_assigned を削除し、
+ * 最後に visit 自体を削除する。患者マスタ(patients)は消さない。
+ * @returns {object} { success, deleted?: {...}, error? }
+ */
+async function deleteKarteFromSupabase(patientNo, visitDate, clinicId) {
+  if (!isSupabaseReady()) return { success: false, error: 'Supabase未接続' };
+  clinicId = clinicId || 'nishiharu';
+  try {
+    // 患者の内部IDを引く
+    const { data: pRow, error: pErr } = await supabaseClient
+      .from('patients').select('id')
+      .eq('patient_no', patientNo).eq('clinic_id', clinicId).maybeSingle();
+    if (pErr) throw new Error('患者照会失敗: ' + pErr.message);
+    if (!pRow) return { success: true, deleted: { visits: 0 }, note: '対象患者なし' };
+
+    // 該当来院を引く
+    const { data: vRows, error: vErr } = await supabaseClient
+      .from('visits').select('id')
+      .eq('patient_id', pRow.id).eq('visit_date', visitDate).eq('clinic_id', clinicId);
+    if (vErr) throw new Error('来院照会失敗: ' + vErr.message);
+    if (!vRows || !vRows.length) return { success: true, deleted: { visits: 0 }, note: '対象来院なし' };
+
+    const visitIds = vRows.map(v => v.id);
+    for (const table of ['prescriptions', 'diseases_assigned', 'kartes']) {
+      const { error } = await supabaseClient.from(table).delete().in('visit_id', visitIds);
+      if (error) throw new Error(table + ' 削除失敗: ' + error.message);
+    }
+    const { error: delVisitErr } = await supabaseClient.from('visits').delete().in('id', visitIds);
+    if (delVisitErr) throw new Error('来院削除失敗: ' + delVisitErr.message);
+
+    console.log('[Supabase] カルテ削除完了 patient=' + patientNo + ' date=' + visitDate);
+    return { success: true, deleted: { visits: visitIds.length } };
+  } catch (e) {
+    console.error('[Supabase] 削除エラー:', e);
+    return { success: false, error: e.message };
+  }
+}

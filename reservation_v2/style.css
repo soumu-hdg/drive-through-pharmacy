@@ -20,6 +20,19 @@ body {
   background: var(--bg); color: var(--text); line-height: 1.6; font-size: 15px;
 }
 
+/* ---- LINE連携バー ---- */
+.line-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:11px 22px; background:#eafaf0; border-bottom:1px solid #bfe6cd; }
+.line-bar.connected { background:#e9f7ef; }
+.line-bar .lb-icon { width:30px; height:30px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:#06c755; color:#fff; border-radius:8px; font-size:16px; font-weight:700; }
+.line-bar .lb-text { display:flex; flex-direction:column; line-height:1.35; min-width:0; }
+.line-bar .lb-text b { font-size:14px; color:#14532d; }
+.line-bar .lb-text small { font-size:12px; color:#4b6b57; }
+.line-bar .lb-btn { margin-left:auto; background:#06c755; color:#fff; border:none; border-radius:8px; padding:9px 18px; font-size:14px; font-weight:700; cursor:pointer; }
+.line-bar .lb-btn:hover { filter:brightness(1.05); }
+.line-bar .lb-add { margin-left:auto; font-size:12.5px; font-weight:700; color:#06874a; text-decoration:none; border:1.5px solid #06c755; border-radius:8px; padding:7px 14px; white-space:nowrap; }
+.line-bar .lb-add:hover { background:#06c75514; }
+@media (max-width:560px){ .line-bar .lb-btn, .line-bar .lb-add { margin-left:0; width:100%; text-align:center; } }
+
 /* ---- 患者向けヘッダー（青） ---- */
 header.site { background: var(--blue); color:#fff; padding: 13px 22px; display:flex; align-items:center; gap:22px; flex-wrap:wrap; }
 header.site .brand { font-size:17px; font-weight:700; letter-spacing:.02em; }

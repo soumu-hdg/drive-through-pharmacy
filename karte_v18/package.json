@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "formdata-node": "^6.0.3"
+  }
+}

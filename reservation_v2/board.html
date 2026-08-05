@@ -20,6 +20,96 @@
   .slot-cap{ display:inline-flex; flex-direction:column; align-items:center; min-width:66px; border:1px solid var(--border); border-radius:8px; padding:6px 4px; font-size:13px; }
   .slot-cap.full{ background:#f3f4f6; color:#9ca3af; }
   .slot-cap .rem{ font-size:11px; color:var(--sub); }
+  /* クリニック切替（受付側・暗色ヘッダー内） */
+  .clinic-switch{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:9px; }
+  .clinic-switch .cs-label{ font-size:12px; color:#94a3b8; margin-right:2px; }
+  .clinic-pill{ font:inherit; font-size:13px; color:#e2e8f0; background:#334155; border:1px solid #475569; border-radius:999px; padding:5px 15px; cursor:pointer; }
+  .clinic-pill:hover{ background:#3f4d63; color:#fff; }
+  .clinic-pill.active{ background:#fff; color:var(--dark); font-weight:700; border-color:#fff; }
+  .clinic-pill small{ font-size:10px; opacity:.7; margin-left:4px; font-weight:400; }
+  /* 診察室バッジ */
+  .room-badge{ display:inline-block; font-size:11.5px; font-weight:700; color:#0e7490; background:#cffafe; border:1px solid #a5f3fc; border-radius:6px; padding:1px 8px; white-space:nowrap; }
+  .room-badge.r2{ color:#7c3aed; background:#ede9fe; border-color:#ddd6fe; }
+  /* 診察室 切替プルダウン */
+  .room-sel{ font:inherit; font-size:12.5px; font-weight:700; color:#0e7490; background:#ecfeff; border:1px solid #a5f3fc; border-radius:7px; padding:4px 6px; cursor:pointer; }
+  .room-sel.r2{ color:#7c3aed; background:#f5f3ff; border-color:#ddd6fe; }
+  .room-sel:focus{ outline:2px solid var(--blue-light); }
+  /* タイムライン（時間軸×診察室） */
+  .tl-toolbar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  .tl-toolbar .day{ font-weight:700; font-size:15px; }
+  .tl-wrap{ border:1px solid var(--dark); background:#fff; overflow-x:auto; }
+  .tl-grid{ display:grid; grid-template-columns:56px repeat(var(--cols,2), minmax(150px,1fr)); }
+  .tl-head-cell{ position:sticky; top:0; background:#eef2f7; border-bottom:1px solid var(--dark); border-right:1px solid var(--border); padding:8px 6px; font-size:12.5px; font-weight:700; text-align:center; z-index:2; }
+  .tl-head-cell:last-child{ border-right:none; }
+  .tl-axis{ border-right:1px solid var(--border); }
+  .tl-axis .hr{ height:60px; border-bottom:1px solid var(--border); font-size:11px; color:var(--sub); padding:2px 6px; box-sizing:border-box; }
+  .tl-col{ position:relative; border-right:1px solid var(--border); }
+  .tl-col:last-child{ border-right:none; }
+  .tl-col .hr{ height:60px; border-bottom:1px dashed var(--border); box-sizing:border-box; }
+  .tl-blk{ position:absolute; left:3px; right:3px; border-radius:4px; padding:4px 7px; color:#fff; overflow:hidden; box-sizing:border-box; }
+  .tl-blk .w{ font-weight:700; font-size:11.5px; line-height:1.25; }
+  .tl-blk .m{ opacity:.92; font-size:10.5px; line-height:1.25; }
+  .tl-blk.r1{ background:#0e7490; } .tl-blk.r2{ background:#7c3aed; }
+  .tl-now{ position:absolute; height:2px; background:var(--red); z-index:1; }
+  .tl-axis-tabs{ display:inline-flex; gap:4px; }
+  .tl-axis-btn{ font:inherit; font-size:13px; font-weight:700; padding:6px 14px; border:1px solid var(--border); background:#fff; color:var(--sub); border-radius:7px; cursor:pointer; }
+  .tl-axis-btn.on{ background:var(--blue); color:#fff; border-color:var(--blue); }
+  .tl-compact{ font-size:12.5px; color:var(--dark); display:inline-flex; align-items:center; gap:4px; cursor:pointer; }
+  /* 連絡事項 */
+  .day-note{ background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:10px 14px; margin-bottom:16px; }
+  .day-note .dn-label{ font-size:12.5px; font-weight:700; color:#92580b; display:block; margin-bottom:6px; }
+  .day-note textarea{ width:100%; min-height:44px; border:1px solid var(--border); border-radius:7px; padding:8px 10px; font:inherit; font-size:14px; resize:vertical; background:#fff; }
+  .day-note #dnStatus{ font-size:12px; color:var(--green); margin-left:6px; }
+  @media print {
+    .admin-header, .bk-modal-overlay { display:none !important; }
+    .admin-view:not(.active){ display:none !important; }
+    .tl-toolbar button, .tl-toolbar input, .tl-compact, .tl-axis-tabs { display:none !important; }
+    .tl-toolbar .day{ font-size:15px; }
+    .tl-wrap{ border:1px solid #999; overflow:visible; }
+    main{ padding:6px; max-width:none; }
+    body{ background:#fff; }
+  }
+  /* リソース設定 */
+  .res-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; margin-top:8px; }
+  .res-card{ background:#fff; border:1px solid var(--border); border-radius:10px; padding:16px; }
+  .res-row{ display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .res-name{ flex:1; padding:8px 10px; border:1px solid var(--border); border-radius:7px; font-size:14px; }
+  .res-del{ width:32px; height:32px; flex:0 0 auto; border:1px solid var(--red); color:var(--red); background:#fff; border-radius:7px; font-size:18px; font-weight:700; cursor:pointer; line-height:1; }
+  .res-del:hover{ background:var(--red-light); }
+  .res-add{ display:flex; gap:8px; margin-top:10px; border-top:1px dashed var(--border); padding-top:12px; }
+  .res-add input{ flex:1; padding:8px 10px; border:1px solid var(--border); border-radius:7px; font-size:14px; }
+  .res-plus{ flex:0 0 auto; background:var(--green); color:#fff; border:none; border-radius:7px; padding:8px 14px; font-weight:700; font-size:13px; cursor:pointer; }
+  .res-plus:hover{ filter:brightness(1.05); }
+  /* 担当/機材 割当セレクト（日別ボード） */
+  .assign-cell{ white-space:nowrap; }
+  .assign-sel{ font:inherit; font-size:11.5px; padding:3px 5px; border:1px solid var(--border); border-radius:6px; background:#fff; cursor:pointer; max-width:118px; margin:1px 0; display:block; }
+  .assign-sel.staff{ color:#0369a1; border-color:#bae6fd; background:#f0f9ff; }
+  .assign-sel.device{ color:#b45309; border-color:#fde68a; background:#fffbeb; }
+  /* 予約詳細モーダル */
+  .bk-modal-overlay{ position:fixed; inset:0; background:rgba(15,23,42,.5); display:flex; align-items:flex-start; justify-content:center; z-index:200; padding:32px 16px; overflow:auto; }
+  .bk-modal{ background:#fff; border-radius:14px; max-width:540px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+  .bk-head{ display:flex; align-items:center; justify-content:space-between; padding:15px 20px; border-bottom:1px solid var(--border); }
+  .bk-head h2{ margin:0; font-size:18px; }
+  .bk-close{ background:none; border:none; font-size:24px; cursor:pointer; color:var(--sub); line-height:1; padding:0 4px; }
+  .bk-body{ padding:16px 20px; }
+  .bk-sec{ margin-bottom:16px; }
+  .bk-sec h3{ font-size:11.5px; color:var(--sub); letter-spacing:.05em; margin:0 0 8px; font-weight:700; }
+  .bk-row{ display:flex; gap:10px; margin-bottom:6px; font-size:14px; }
+  .bk-row .k{ width:82px; color:var(--sub); flex:0 0 auto; }
+  .bk-row .v{ font-weight:600; }
+  .bk-assign{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+  .bk-assign label{ font-size:11px; color:var(--sub); display:block; margin-bottom:3px; font-weight:600; }
+  .bk-assign select{ width:100%; font-size:13px; padding:7px 6px; border:1px solid var(--border); border-radius:7px; }
+  .bk-actions{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:14px 20px; border-top:1px solid var(--border); }
+  .bk-plus{ color:var(--blue); cursor:pointer; text-decoration:underline; }
+  tr .pt-link{ cursor:pointer; }
+  tr .pt-link:hover{ text-decoration:underline; }
+  .tl-blk{ cursor:grab; user-select:none; }
+  .tl-blk:active{ cursor:grabbing; }
+  .tl-blk.dragging{ outline:2px solid var(--blue); box-shadow:0 6px 16px rgba(0,0,0,.28); }
+  .tl-blk.dragging::after{ content:attr(data-drop); position:absolute; top:1px; right:3px; background:rgba(15,23,42,.78); color:#fff; font-size:10px; font-weight:700; padding:1px 5px; border-radius:3px; }
+  #tlGuide{ position:absolute; left:56px; right:0; height:0; border-top:2px dashed var(--blue); z-index:9; pointer-events:none; }
+  #tlGuide .tg-label{ position:absolute; left:2px; top:-10px; background:var(--blue); color:#fff; font-size:11px; font-weight:700; padding:1px 7px; border-radius:3px; box-shadow:0 1px 3px rgba(0,0,0,.3); }
 </style>
 </head>
 <body>
@@ -31,13 +121,15 @@
       <a class="to-patient" href="index.html" target="_blank">患者向けサイトを開く ↗</a>
     </span>
   </div>
+  <div class="clinic-switch" id="clinicSwitch"></div>
   <nav class="admin-tabs" id="adminTabs">
     <a class="tab active" data-tab="board" onclick="showAdminTab('board')">日別ボード</a>
+    <a class="tab" data-tab="timeline" onclick="showAdminTab('timeline')">タイムライン</a>
     <a class="tab" data-tab="list" onclick="showAdminTab('list')">予約一覧</a>
     <a class="tab" data-tab="new" onclick="showAdminTab('new')">電話予約の代理入力</a>
     <a class="tab" data-tab="slots" onclick="showAdminTab('slots')">予約枠の確認</a>
+    <a class="tab" data-tab="resources" onclick="showAdminTab('resources')">リソース設定</a>
     <a class="tab" data-tab="menus" onclick="showAdminTab('menus')">美容メニュー</a>
-    <a class="tab" data-tab="staff" onclick="showAdminTab('staff')">スタッフ</a>
     <a class="tab" data-tab="import" onclick="showAdminTab('import')">CSV取り込み</a>
   </nav>
 </header>
@@ -51,9 +143,13 @@
       <span class="day" id="dayLabel"></span>
       <span style="margin-left:auto"><button class="small" onclick="resetDemo()">デモ初期化</button></span>
     </div>
+    <div id="dayNote" class="day-note"></div>
     <div class="stat-row" id="stats"></div>
     <div id="board"></div>
   </div>
+
+  <!-- タイムライン（時間軸×診察室） -->
+  <div id="view-timeline" class="admin-view"></div>
 
   <!-- 予約一覧 -->
   <div id="view-list" class="admin-view"></div>
@@ -64,22 +160,47 @@
   <!-- 予約枠の確認 -->
   <div id="view-slots" class="admin-view"></div>
 
+  <!-- リソース設定（部屋/スタッフ/機材） -->
+  <div id="view-resources" class="admin-view"></div>
+
   <!-- 準備中 -->
   <div id="view-menus" class="admin-view"></div>
-  <div id="view-staff" class="admin-view"></div>
   <div id="view-import" class="admin-view"></div>
 </main>
 
+<!-- 予約詳細モーダル（ブロック/患者名クリックで開く） -->
+<div id="bkModal" class="bk-modal-overlay" style="display:none" onclick="if(event.target===this)closeBooking()"></div>
+
 <script>window.__RSV_SUPABASE__ = true;</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="store.js"></script>
+<script src="store.js?v=20260729note"></script>
 <script>
 /* 受付ライブボード（タブ切替式）：患者予約が入った瞬間に日別ボード・予約一覧へ即反映 */
 function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
 let curTab = "board";
 let curDate = Store.todayStr();
+let curClinic = 1;              // 表示中のクリニック（既定=西春）。demo.html右側はこれで切替
 let prevCodes = new Set();
+
+/* ---------------- クリニック切替（受付側の確認ウィンドウを院ごとに） ---------------- */
+function curClinicObj(){ return Store.CLINICS.find(c=>c.id===curClinic) || Store.CLINICS[0]; }
+function firstCsOfClinic(){ const c=curClinicObj(); return c && c.services[0] ? c.services[0].id : null; }
+function inCurClinic(csId){ const c=Store.clinicOfCs(csId); return c && c.id===curClinic; }
+function renderClinicSwitch(){
+  const el=document.getElementById('clinicSwitch'); if(!el) return;
+  el.innerHTML = '<span class="cs-label">クリニック：</span>' + Store.CLINICS.map(c=>
+    `<button class="clinic-pill ${c.id===curClinic?'active':''}" onclick="setClinic(${c.id})">${esc(c.name)}${c.openingNote?'<small>開業前</small>':''}</button>`
+  ).join("");
+}
+function setClinic(id){
+  curClinic=id;
+  nf.csId=null; slotsCs=null;          // 代理入力・枠確認の選択を新クリニックへ
+  renderClinicSwitch();
+  prevCodes = currentCodes();
+  renderTab(curTab);
+  loadDayNote();
+}
 
 /* ---------------- タブ切替 ---------------- */
 function showAdminTab(id){
@@ -91,25 +212,255 @@ function showAdminTab(id){
 }
 function renderTab(id){
   if(id==="board") renderBoard();
+  else if(id==="timeline") renderTimeline();
   else if(id==="list") renderList();
   else if(id==="new") renderNew();
   else if(id==="slots") renderSlots();
+  else if(id==="resources") renderResources();
   else if(id==="menus") renderPlaceholder("menus");
-  else if(id==="staff") renderPlaceholder("staff");
   else if(id==="import") renderPlaceholder("import");
 }
 
 /* ---------------- 日別ボード ---------------- */
-function setDate(d){ curDate = d; renderBoard(); }
-function shift(n){ curDate = Store.addDays(curDate, n); renderBoard(); }
-function currentCodes(){ return new Set(Store.dayReservations(curDate).map(r=>r.code)); }
+function setDate(d){ curDate = d; renderBoard(); loadDayNote(); }
+function shift(n){ curDate = Store.addDays(curDate, n); renderBoard(); loadDayNote(); }
+/* 連絡事項（当日メモ・院×日付） */
+async function loadDayNote(){
+  const el=document.getElementById('dayNote'); if(!el) return;
+  const note=await Store.getNote(curClinic, curDate);
+  el.innerHTML=`<span class="dn-label">📌 ${esc(curClinicObj().name)} ${Store.fmtJa(curDate)} の連絡事項</span>
+    <textarea id="dnText" placeholder="当日の申し送り・注意事項を記入（自動保存）" onblur="saveDayNote()">${esc(note||"")}</textarea>
+    <span id="dnStatus" class="muted"></span>`;
+}
+async function saveDayNote(){
+  const t=document.getElementById('dnText'); if(!t) return;
+  const res=await Store.saveNote(curClinic, curDate, t.value);
+  const s=document.getElementById('dnStatus'); if(s){ s.textContent=res.ok?'✓ 保存しました':'保存に失敗'; setTimeout(()=>{ if(s) s.textContent=''; },1600); }
+}
+function clinicRows(date){ return Store.dayReservations(date).filter(r=>inCurClinic(r.csId)); }
+function roomTag(r){ const rm=Store.roomName(r); return rm?`<span class="room-badge ${rm.endsWith("2")?"r2":""}">${esc(rm)}</span>`:'<span class="muted" style="font-size:12px">—</span>'; }
+// 診察室の切替プルダウン（受付が任意に変更／相手がいれば入れ替え）
+function roomSelect(r){
+  const cur=Store.roomOf(r);
+  const opts=Store.ROOMS.map(rm=>`<option value="${rm.id}" ${rm.id===cur?'selected':''}>${esc(rm.name)}</option>`).join("");
+  return `<select class="room-sel ${cur===2?'r2':''}" title="診察室を変更" onchange="switchRoom('${esc(r.code)}', this.value)">${opts}</select>`;
+}
+async function switchRoom(code, roomId){
+  const res=await Store.setRoom(code, roomId);
+  if(!res.ok){ alert(res.error); }
+  afterMutate();
+}
+// スタッフ/機材の割当セレクト（受付ボードから任意割当・被りは拒否）
+function resSelect(r, kind){
+  const cur = kind==="staff"?r.staffId:r.deviceId;
+  const list = Store.resourcesOf(curClinic, kind);
+  if(!list.length) return `<span class="muted" style="font-size:11px">${kind==='staff'?'担当':'機材'}未登録</span>`;
+  const opts = `<option value="">${kind==="staff"?'担当…':'機材…'}</option>`+list.map(x=>`<option value="${x.id}" ${Number(cur)===Number(x.id)?'selected':''}>${esc(x.name)}</option>`).join("");
+  return `<select class="assign-sel ${kind}" onchange="assignRes('${esc(r.code)}','${kind}',this.value)">${opts}</select>`;
+}
+async function assignRes(code, kind, val){
+  const res=await Store.assignResource(code, kind, val||null);
+  if(!res.ok){ alert(res.error==="COL_MISSING" ? "この環境では割当を保存できません（DB列の追加が必要）。" : res.error); }
+  afterMutate();
+}
+
+/* ---------------- 予約詳細モーダル（クリックで詳細・割当編集） ---------------- */
+function ageFrom(birth){ try{ const [y,m,d]=birth.split("-").map(Number); const t=new Date(); let a=t.getFullYear()-y; if(t.getMonth()+1<m||(t.getMonth()+1===m&&t.getDate()<d))a--; return a>=0&&a<130?a:null; }catch{ return null; } }
+function openBooking(code){
+  if(_tlDragged) return;                                  // ドラッグ直後のクリックは無視
+  const r=Store.loadReservations().find(x=>x.code===code); if(!r) return;
+  const clinic=Store.clinicOfCs(r.csId), svc=Store.serviceOfCs(r.csId), menu=r.menuId?Store.menuById(r.menuId):null, cid=clinic.id;
+  const dur=Store.durMin(r), end=tlHHMM(tlToMin(r.time)+dur), age=r.birthDate?ageFrom(r.birthDate):null;
+  const stMap={CONFIRMED:['予約確定','confirmed'],VISITED:['来院済','visited'],CANCELLED:['キャンセル','cancelled'],NO_SHOW:['不履行','no-show']};
+  const st=stMap[r.status]||[r.status,'confirmed'];
+  const roomOpts=Store.ROOMS.map(rm=>`<option value="${rm.id}" ${Store.roomOf(r)===rm.id?'selected':''}>${esc(rm.name)}</option>`).join("");
+  const staffOpts=`<option value="">担当なし</option>`+Store.resourcesOf(cid,'staff').map(x=>`<option value="${x.id}" ${Number(r.staffId)===Number(x.id)?'selected':''}>${esc(x.name)}</option>`).join("");
+  const devOpts=`<option value="">機材なし</option>`+Store.resourcesOf(cid,'device').map(x=>`<option value="${x.id}" ${Number(r.deviceId)===Number(x.id)?'selected':''}>${esc(x.name)}</option>`).join("");
+  document.getElementById('bkModal').innerHTML=`<div class="bk-modal" onclick="event.stopPropagation()">
+    <div class="bk-head"><h2>予約詳細</h2><button class="bk-close" onclick="closeBooking()">×</button></div>
+    <div class="bk-body">
+      <div class="bk-sec"><span class="badge ${st[1]}" style="font-size:12.5px">${st[0]}</span> <span class="muted" style="font-size:12px;margin-left:6px">予約番号 ${esc(r.code)}</span></div>
+      <div class="bk-sec"><h3>患者</h3>
+        <div class="bk-row"><span class="k">お名前</span><span class="v">${esc(r.name)} 様 ${r.visitType==="FIRST"?'<span class="badge first">初診</span>':(r.visitType==="REVISIT"?'<span class="badge confirmed">再診</span>':'')}</span></div>
+        ${r.kana?`<div class="bk-row"><span class="k">フリガナ</span><span class="v">${esc(r.kana)}</span></div>`:""}
+        ${r.birthDate?`<div class="bk-row"><span class="k">生年月日</span><span class="v">${esc(r.birthDate)}${age!=null?`（${age}歳）`:""}</span></div>`:""}
+        <div class="bk-row"><span class="k">電話</span><span class="v">${esc(r.phone)}</span></div>
+        ${r.email?`<div class="bk-row"><span class="k">メール</span><span class="v">${esc(r.email)}</span></div>`:""}
+        <div class="bk-row"><span class="k">LINE通知</span><span class="v" style="color:${r.lineUserId?'#06c755':'var(--sub)'}">${r.lineUserId?'連携済み（確定/リマインドを自動送信）':'未連携'}</span></div>
+      </div>
+      <div class="bk-sec"><h3>予約内容</h3>
+        <div class="bk-row"><span class="k">クリニック</span><span class="v">${esc(clinic.name)}（${esc(svc.name)}）</span></div>
+        ${menu?`<div class="bk-row"><span class="k">メニュー</span><span class="v">${esc(menu.name)}</span></div>`:""}
+        <div class="bk-row"><span class="k">日時</span><span class="v">${Store.fmtJa(r.date)} ${r.time}〜${end}（${dur}分）</span></div>
+        <div class="bk-row"><span class="k">経路</span><span class="v">${r.channel==="WEB"?"Web予約":r.channel==="PHONE"?"電話予約":esc(r.channel)}</span></div>
+        ${r.note?`<div class="bk-row"><span class="k">ご要望</span><span class="v" style="font-weight:400">${esc(r.note)}</span></div>`:""}
+      </div>
+      <div class="bk-sec"><h3>リソース割当（変更すると同時間帯の被りは自動で拒否）</h3>
+        <div class="bk-assign">
+          <div><label>診察室</label><select onchange="bkSet('${esc(r.code)}','room',this.value)">${roomOpts}</select></div>
+          <div><label>担当スタッフ</label><select onchange="bkSet('${esc(r.code)}','staff',this.value)">${staffOpts}</select></div>
+          <div><label>使用機材</label><select onchange="bkSet('${esc(r.code)}','device',this.value)">${devOpts}</select></div>
+        </div>
+      </div>
+    </div>
+    <div class="bk-actions">
+      ${r.status==="CONFIRMED"?`<button onclick="bkStatus('${esc(r.code)}','VISITED')">来院にする</button>`:""}
+      ${r.status!=="CANCELLED"?`<button class="danger" onclick="bkStatus('${esc(r.code)}','CANCELLED')">予約を取消</button>`:`<button class="secondary" onclick="bkStatus('${esc(r.code)}','CONFIRMED')">取消を戻す</button>`}
+      <button class="secondary" style="margin-left:auto" onclick="closeBooking()">閉じる</button>
+    </div>
+  </div>`;
+  document.getElementById('bkModal').style.display='flex';
+}
+function closeBooking(){ const m=document.getElementById('bkModal'); m.style.display='none'; m.innerHTML=''; }
+async function bkSet(code, kind, val){
+  const res = (kind==='room') ? await Store.setRoom(code, val) : await Store.assignResource(code, kind, val||null);
+  if(!res.ok){ alert(res.error==="COL_MISSING"?"この環境では保存できません（DB列が必要）。":res.error); }
+  afterMutate(); openBooking(code);
+}
+async function bkStatus(code, status){
+  if(status==="CANCELLED" && !confirm("この予約を取り消しますか？")) return;
+  await Store.updateStatus(code, status);
+  if(status==="CANCELLED"){ closeBooking(); afterMutate(); return; }
+  afterMutate(); openBooking(code);
+}
+
+/* ---------------- タイムライン 空き枠クリック → 新規予約 ---------------- */
+function tlColClick(ci, ev){
+  if(curClinicObj().openingNote) return;                 // 開業前は不可
+  const col=ev.currentTarget; const rect=col.getBoundingClientRect();
+  let min = tlState.sMin + Math.round(((ev.clientY - rect.top)/tlState.ppm)/30)*30;   // 30分スナップ
+  const time = tlHHMM(Math.max(tlState.sMin, min));
+  const rc = tlState.resList[ci];
+  const prefill = { time };
+  if(tlState.axis==="room") prefill.roomId = ci+1;
+  else if(tlState.axis==="staff") prefill.staffId = rc && rc.id;
+  else if(tlState.axis==="device") prefill.deviceId = rc && rc.id;
+  openNewBooking(prefill);
+}
+function openNewBooking(prefill){
+  const clinic=curClinicObj();
+  const svcOpts=clinic.services.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("");
+  let assignLabel="";
+  if(prefill.roomId){ const rm=Store.ROOMS.find(r=>r.id===prefill.roomId); assignLabel=rm?("診察室："+rm.name):""; }
+  else if(prefill.staffId){ const s=Store.resourcesOf(clinic.id,'staff').find(r=>Number(r.id)===Number(prefill.staffId)); assignLabel=s?("担当："+s.name):""; }
+  else if(prefill.deviceId){ const d=Store.resourcesOf(clinic.id,'device').find(r=>Number(r.id)===Number(prefill.deviceId)); assignLabel=d?("機材："+d.name):""; }
+  document.getElementById('bkModal').innerHTML=`<div class="bk-modal" onclick="event.stopPropagation()">
+    <div class="bk-head"><h2>新規予約（受付）</h2><button class="bk-close" onclick="closeBooking()">×</button></div>
+    <div class="bk-body">
+      <div class="bk-sec"><span class="muted">${esc(clinic.name)}クリニック ／ ${Store.fmtJa(curDate)}${assignLabel?' ／ <b>'+esc(assignLabel)+'</b>':''}</span></div>
+      <div id="nbErr"></div>
+      <div class="stack" style="max-width:none;gap:11px">
+        <label class="field">診療区分<select id="nb_cs">${svcOpts}</select></label>
+        <label class="field">時刻<span class="req">必須</span><input id="nb_time" type="time" value="${prefill.time}" step="900"></label>
+        <label class="field">お名前<span class="req">必須</span><input id="nb_name" placeholder="例）山田 花子"></label>
+        <label class="field">フリガナ<input id="nb_kana" placeholder="例）ヤマダ ハナコ"></label>
+        <label class="field">電話番号<span class="req">必須</span><input id="nb_phone" type="tel" placeholder="例）090-1234-5678"></label>
+        <label class="field">生年月日<input id="nb_birth" type="date"></label>
+        <div class="field">初診・再診<span class="req">必須</span>
+          <div class="radio-row"><label><input type="radio" name="nbvt" value="FIRST">初めて（初診）</label><label><input type="radio" name="nbvt" value="REVISIT">2回目以降（再診）</label></div>
+        </div>
+      </div>
+    </div>
+    <div class="bk-actions"><button id="nbBtn" onclick='submitNew(${JSON.stringify(prefill)})'>この内容で予約する</button><button class="secondary" style="margin-left:auto" onclick="closeBooking()">閉じる</button></div>
+  </div>`;
+  document.getElementById('bkModal').style.display='flex';
+}
+async function submitNew(prefill){
+  const g=id=>document.getElementById(id);
+  const name=(g('nb_name').value||'').trim(), phone=(g('nb_phone').value||'').trim();
+  const time=g('nb_time').value||prefill.time, csId=Number(g('nb_cs').value);
+  const vt=(document.querySelector('input[name=nbvt]:checked')||{}).value||'';
+  const err=(m)=>{ g('nbErr').innerHTML=`<div class="alert">${esc(m)}</div>`; };
+  if(!name||!phone) return err('お名前・電話番号は必須です。');
+  if(!vt) return err('初診・再診を選択してください。');
+  const btn=g('nbBtn'); if(btn){ btn.disabled=true; btn.textContent='登録中…'; }
+  const res=await Store.createReservation({ csId, date:curDate, time, name, phone,
+    kana:(g('nb_kana').value||'').trim(), birthDate:g('nb_birth').value, visitType:vt, channel:'PHONE',
+    roomId:prefill.roomId||null, staffId:prefill.staffId||null, deviceId:prefill.deviceId||null });
+  if(!res.ok){ if(btn){ btn.disabled=false; btn.textContent='この内容で予約する'; } return err(res.error); }
+  closeBooking(); afterMutate(); if(curTab==='timeline') renderTimeline();
+}
+
+/* ---------------- タイムライン ドラッグで時刻・リソース変更 ---------------- */
+let _tlDrag=null, _tlDragged=false;
+function columnOfBooking(code){
+  const r=Store.loadReservations().find(x=>x.code===code); if(!r) return -1;
+  if(tlState.axis==='room') return Store.roomOf(r)-1;
+  const rid = tlState.axis==='staff' ? r.staffId : r.deviceId;
+  return tlState.resList.findIndex(x=>Number(x.id)===Number(rid));
+}
+function tlDragStart(ev, code){
+  if(ev.button!==0) return;
+  ev.preventDefault();
+  const blk=ev.currentTarget;
+  _tlDrag={ code, blk, startX:ev.clientX, startY:ev.clientY, origTop:parseInt(blk.style.top)||0, moved:false, snapMin:null };
+  document.addEventListener('mousemove', tlDragMove);
+  document.addEventListener('mouseup', tlDragEnd);
+}
+function snapMinAt(clientY, colEl){
+  const rect=colEl.getBoundingClientRect();
+  let min=tlState.sMin+Math.round(((clientY-rect.top)/tlState.ppm)/30)*30;
+  return Math.max(tlState.sMin, min);
+}
+function tlDragMove(ev){
+  if(!_tlDrag) return;
+  const dy=ev.clientY-_tlDrag.startY, dx=ev.clientX-_tlDrag.startX;
+  if(Math.abs(dy)>3||Math.abs(dx)>3){ _tlDrag.moved=true; _tlDrag.blk.classList.add('dragging'); }
+  if(!_tlDrag.moved) return;
+  // カーソル下の列を特定
+  const cols=[...document.querySelectorAll('#view-timeline .tl-col')];
+  let col=_tlDrag.blk.parentElement;
+  cols.forEach(c=>{ const r=c.getBoundingClientRect(); if(ev.clientX>=r.left && ev.clientX<r.right) col=c; });
+  const min=snapMinAt(ev.clientY, col);
+  const dur=Store.durMin(Store.loadReservations().find(x=>x.code===_tlDrag.code)||{});
+  _tlDrag.snapMin=min; _tlDrag.snapCol=col;
+  // ブロックを30分グリッドにスナップ表示＋ドロップ時刻ラベル
+  _tlDrag.blk.style.top=((min-tlState.sMin)*tlState.ppm)+'px';
+  _tlDrag.blk.style.opacity='.9'; _tlDrag.blk.style.zIndex='8';
+  _tlDrag.blk.setAttribute('data-drop', tlHHMM(min)+'〜'+tlHHMM(min+dur));
+  showDropGuide(min);
+}
+function showDropGuide(min){
+  const grid=document.querySelector('#view-timeline .tl-grid'); if(!grid) return;
+  let g=document.getElementById('tlGuide');
+  if(!g){ g=document.createElement('div'); g.id='tlGuide'; grid.appendChild(g); }
+  g.style.top=(34+(min-tlState.sMin)*tlState.ppm)+'px';
+  g.innerHTML=`<span class="tg-label">${tlHHMM(min)}</span>`;
+  g.style.display='block';
+}
+function hideDropGuide(){ const g=document.getElementById('tlGuide'); if(g) g.remove(); }
+async function tlDragEnd(ev){
+  document.removeEventListener('mousemove', tlDragMove);
+  document.removeEventListener('mouseup', tlDragEnd);
+  const d=_tlDrag; _tlDrag=null; hideDropGuide();
+  if(!d) return;
+  if(!d.moved){ d.blk.style.opacity=''; d.blk.style.zIndex=''; d.blk.classList.remove('dragging'); return; }   // 動いてない＝クリック（詳細）
+  _tlDragged=true; setTimeout(()=>{_tlDragged=false;}, 350);
+  const cols=[...document.querySelectorAll('#view-timeline .tl-col')];
+  let newCi=-1; cols.forEach((c,i)=>{ const r=c.getBoundingClientRect(); if(ev.clientX>=r.left && ev.clientX<r.right) newCi=i; });
+  const min = (d.snapMin!=null) ? d.snapMin : snapMinAt(ev.clientY, cols[Math.max(0,newCi)]||cols[0]);
+  const newTime=tlHHMM(min);
+  const oldCi=columnOfBooking(d.code);
+  // まず列（リソース）を変更 → 次に時刻移動（どちらも被りは拒否）
+  let res={ok:true};
+  if(newCi>=0 && newCi!==oldCi && tlState.resList[newCi]){
+    const rc=tlState.resList[newCi];
+    if(tlState.axis==='room') res=await Store.setRoom(d.code, newCi+1);
+    else if(tlState.axis==='staff') res=await Store.assignResource(d.code,'staff', rc.id);
+    else if(tlState.axis==='device') res=await Store.assignResource(d.code,'device', rc.id);
+  }
+  if(res.ok) res=await Store.moveReservation(d.code, newTime);
+  if(!res.ok) alert(res.error==="COL_MISSING"?"この環境では保存できません（DB列が必要）。":res.error);
+  afterMutate(); renderTimeline();
+}
+function currentCodes(){ return new Set(clinicRows(curDate).map(r=>r.code)); }
 
 function renderBoard(flashCodes){
   document.getElementById("dateInput").value = curDate;
   document.getElementById("dayLabel").textContent = Store.fmtJa(curDate);
-  const rows = Store.dayReservations(curDate);
-  const byClinic = {};
-  rows.forEach(r=>{ const c = Store.clinicOfCs(r.csId); (byClinic[c.name] = byClinic[c.name] || []).push(r); });
+  const clinic = curClinicObj();
+  // 表示中クリニックの予約を、時刻→診察室 の順に整列
+  const rows = clinicRows(curDate).slice().sort((a,b)=> a.time.localeCompare(b.time) || String(Store.roomName(a)).localeCompare(String(Store.roomName(b))));
 
   const total = rows.length, firstVisit = rows.filter(r=>r.visitType==="FIRST").length, web = rows.filter(r=>r.channel==="WEB").length;
   document.getElementById("stats").innerHTML = `
@@ -118,26 +469,26 @@ function renderBoard(flashCodes){
     <div class="stat"><div class="num">${web}</div><div class="label">Web予約</div></div>
     <div class="stat"><div class="num">${total-web}</div><div class="label">電話/その他</div></div>`;
 
-  if(total===0){ document.getElementById("board").innerHTML = '<div class="card">この日の予約はありません。患者向けサイトや「電話予約の代理入力」から予約すると、ここに即時反映されます。</div>'; return; }
+  if(total===0){ document.getElementById("board").innerHTML = `<div class="card"><strong>${esc(clinic.name)}クリニック</strong>のこの日の予約はありません。${clinic.openingNote?`（${esc(clinic.openingNote)}）`:""}<br><span class="muted">患者向けサイトや「電話予約の代理入力」から予約すると、ここに即時反映されます。</span></div>`; return; }
 
-  document.getElementById("board").innerHTML = Object.entries(byClinic).map(([name, list])=>{
-    const trs = list.map(r=>{
-      const svc = Store.serviceOfCs(r.csId), menu = r.menuId ? Store.menuById(r.menuId) : null, isNew = flashCodes && flashCodes.has(r.code);
-      return `<tr class="${isNew?"flash-new":""}">
-        <td style="font-weight:700">${r.time}</td>
-        <td>${esc(svc.name)}${menu?`<div class="muted" style="font-size:12px">${esc(menu.name)}</div>`:""}</td>
-        <td>${esc(r.name)} 様${r.visitType==="FIRST"?'<span class="badge first" style="margin-left:4px">初診</span>':""}${isNew?'<span class="new-tag">NEW</span>':""}</td>
-        <td>${r.channel==="WEB"?'<span class="badge web">Web</span>':'<span class="badge phone">電話</span>'}</td>
-        <td><span class="muted" style="font-size:12px">${esc(r.phone)}</span></td>
-        <td><button class="small secondary" onclick="markVisited('${esc(r.code)}')">来院</button> <button class="small danger" onclick="cancelRes('${esc(r.code)}')">取消</button></td>
-      </tr>`;
-    }).join("");
-    return `<div class="card">
-      <h2 style="margin-top:0">${esc(name)}クリニック（${list.length}件）</h2>
-      <table><thead><tr><th style="width:64px">時刻</th><th>内容</th><th>患者</th><th style="width:60px">経路</th><th>電話</th><th style="width:130px">操作</th></tr></thead>
-      <tbody>${trs}</tbody></table>
-    </div>`;
+  const trs = rows.map(r=>{
+    const svc = Store.serviceOfCs(r.csId), menu = r.menuId ? Store.menuById(r.menuId) : null, isNew = flashCodes && flashCodes.has(r.code);
+    return `<tr class="${isNew?"flash-new":""}">
+      <td style="font-weight:700">${r.time}</td>
+      <td>${roomSelect(r)}</td>
+      <td class="assign-cell">${resSelect(r,'staff')}${resSelect(r,'device')}</td>
+      <td>${esc(svc.name)}${menu?`<div class="muted" style="font-size:12px">${esc(menu.name)}</div>`:""}</td>
+      <td><span class="pt-link" onclick="openBooking('${esc(r.code)}')">${esc(r.name)} 様</span>${r.visitType==="FIRST"?'<span class="badge first" style="margin-left:4px">初診</span>':""}${isNew?'<span class="new-tag">NEW</span>':""}</td>
+      <td>${r.channel==="WEB"?'<span class="badge web">Web</span>':'<span class="badge phone">電話</span>'}</td>
+      <td><span class="muted" style="font-size:12px">${esc(r.phone)}</span></td>
+      <td><button class="small secondary" onclick="markVisited('${esc(r.code)}')">来院</button> <button class="small danger" onclick="cancelRes('${esc(r.code)}')">取消</button></td>
+    </tr>`;
   }).join("");
+  document.getElementById("board").innerHTML = `<div class="card">
+    <h2 style="margin-top:0">${esc(clinic.name)}クリニック（${rows.length}件）</h2>
+    <table><thead><tr><th style="width:60px">時刻</th><th style="width:104px">診察室</th><th style="width:132px">担当／機材</th><th>内容</th><th>患者</th><th style="width:56px">経路</th><th>電話</th><th style="width:120px">操作</th></tr></thead>
+    <tbody>${trs}</tbody></table>
+  </div>`;
 }
 
 async function markVisited(code){ await Store.updateStatus(code, "VISITED"); afterMutate(); }
@@ -145,11 +496,119 @@ async function cancelRes(code){ if(!confirm("この予約を取り消します�
 async function resetDemo(){ await Store.resetDemo(); afterMutate(); }
 function afterMutate(){ prevCodes = currentCodes(); renderTab(curTab); }
 
+/* ---------------- タイムライン（時間軸 × 診察室・全院対応） ---------------- */
+function tlToMin(hhmm){ const [h,m]=hhmm.split(":").map(Number); return h*60+m; }
+function tlHHMM(min){ return `${String(Math.floor(min/60)).padStart(2,"0")}:${String(min%60).padStart(2,"0")}`; }
+function resDurMin(r){
+  if(r.menuId){ const m=Store.menuById(r.menuId); if(m&&m.durationMin) return m.durationMin; }
+  const s=Store.serviceOfCs(r.csId); return (s&&s.name==="在宅")?60:30;
+}
+let tlAxis="room";
+let tlCompact=false;                                  // 縮小表示
+let tlState={ sMin:540, axis:"room", resList:[], ppm:1 };   // 空き枠クリック用に現在の描画状態を保持
+const AXIS_LABEL={room:"ルーム",staff:"スタッフ",device:"機材"};
+function setTlAxis(k){ tlAxis=k; renderTimeline(); }
+function renderTimeline(){
+  const clinic=curClinicObj();
+  const rows=clinicRows(curDate).slice().sort((a,b)=>a.time.localeCompare(b.time));
+  const resList=Store.resourcesOf(clinic.id, tlAxis);          // この院×この軸のリソース＝列
+  // 表示レンジ（9:00-18:00基準・予約に合わせて拡張）
+  let sMin=9*60, eMin=18*60;
+  rows.forEach(r=>{ const st=tlToMin(r.time), en=st+resDurMin(r);
+    if(st<sMin) sMin=Math.floor(st/60)*60; if(en>eMin) eMin=Math.ceil(en/60)*60; });
+  const hours=[]; for(let m=sMin;m<eMin;m+=60) hours.push(m);
+  const HEAD=34, PPM=tlCompact?0.5:1;
+  tlState={ sMin, axis:tlAxis, resList, ppm:PPM };   // 空き枠クリック/ドラッグで参照
+  const hrHtml=hours.map(m=>`<div class="hr" style="height:${60*PPM}px">${tlHHMM(m)}</div>`).join("");
+  const gridHr=hours.map(()=>`<div class="hr" style="height:${60*PPM}px"></div>`).join("");
+  const axisTabs=["room","staff","device"].map(k=>`<button class="tl-axis-btn ${tlAxis===k?'on':''}" onclick="setTlAxis('${k}')">${AXIS_LABEL[k]}</button>`).join("");
+  const toolbar=`<div class="tl-toolbar">
+      <button class="secondary small" onclick="shift(-1);renderTimeline()">‹ 前日</button>
+      <input type="date" value="${curDate}" onchange="setDate(this.value);renderTimeline()">
+      <button class="secondary small" onclick="shift(1);renderTimeline()">翌日 ›</button>
+      <span class="day">${esc(clinic.name)}クリニック ／ ${Store.fmtJa(curDate)}</span>
+      <label class="tl-compact" style="margin-left:auto"><input type="checkbox" ${tlCompact?'checked':''} onchange="tlCompact=this.checked;renderTimeline()"> 縮小</label>
+      <button class="secondary small no-print" onclick="window.print()">印刷</button>
+      <span class="tl-axis-tabs">${axisTabs}</span>
+    </div>`;
+  const box=document.getElementById("view-timeline");
+  if(!resList.length){
+    box.innerHTML = toolbar + `<div class="card">この院の「${AXIS_LABEL[tlAxis]}」が未登録です。<a onclick="showAdminTab('resources')" style="color:var(--blue);cursor:pointer;font-weight:700">リソース設定</a>から追加してください。</div>`;
+    return;
+  }
+  const head=`<div class="tl-head-cell">時刻</div>`+resList.map(rc=>`<div class="tl-head-cell">${esc(rc.name)}</div>`).join("");
+  const axis=`<div class="tl-axis">${hrHtml}</div>`;
+  const cols=resList.map((rc,ci)=>{
+    // room軸: 予約のroomOf(1/2..)を列indexにマッピング。staff/device軸: 予約のstaffId/deviceIdで割当。
+    const colBookings = (tlAxis==="room")
+      ? rows.filter(r=>Store.roomOf(r)===ci+1)
+      : rows.filter(r=> Number(tlAxis==="staff"?r.staffId:r.deviceId) === Number(rc.id));
+    const blks=colBookings.map(r=>{
+      const st=tlToMin(r.time), dur=resDurMin(r), end=st+dur;
+      const top=(st-sMin)*PPM, h=Math.max(16,dur*PPM);
+      const svc=Store.serviceOfCs(r.csId), menu=r.menuId?Store.menuById(r.menuId):null;
+      return `<div class="tl-blk ${ci%2?'r2':'r1'}" style="top:${top}px;height:${h}px"
+                onmousedown="tlDragStart(event,'${esc(r.code)}')"
+                onclick="event.stopPropagation();openBooking('${esc(r.code)}')"
+                title="${esc(r.name)}様 ${r.time}-${tlHHMM(end)} / ${esc(menu?menu.name:svc.name)}（クリックで詳細・ドラッグで移動）">
+        <div class="w">${esc(r.name)} 様${r.channel==="PHONE"?' 📞':''}</div>
+        <div class="m">${r.time}-${tlHHMM(end)}・${esc(menu?menu.name:svc.name)}</div>
+      </div>`;
+    }).join("");
+    return `<div class="tl-col" onclick="tlColClick(${ci}, event)" title="空き部分をクリックで新規予約">${gridHr}${blks}</div>`;
+  }).join("");
+  let now="";
+  if(curDate===Store.todayStr()){
+    const d=new Date(), nm=d.getHours()*60+d.getMinutes();
+    if(nm>=sMin && nm<=eMin) now=`<div class="tl-now" style="top:${HEAD+(nm-sMin)*PPM}px;left:56px;right:0"></div>`;
+  }
+  const note = (tlAxis==="room")
+    ? "診察室ごとの時系列。予約が入ると即反映されます。列は「リソース設定」で編集できます。"
+    : `「${AXIS_LABEL[tlAxis]}」の列は「リソース設定」で編集できます。※予約への${AXIS_LABEL[tlAxis]}割当（どの予約が誰／どの機材か）は次段階で実装します。`;
+  box.innerHTML = toolbar +
+    `<div class="tl-wrap"><div class="tl-grid" style="--cols:${resList.length};position:relative">${head}${axis}${cols}${now}</div></div>
+     <p class="muted" style="margin-top:10px">${note}</p>`;
+}
+
+/* ---------------- リソース設定（部屋/スタッフ/機材・＋/−で増減） ---------------- */
+const RES_KIND=[["room","部屋","第1診察室"],["staff","スタッフ","島原医師"],["device","機材","ハイフ機"]];
+function renderResources(){
+  const clinic=curClinicObj();
+  const sections=RES_KIND.map(([kind,label,eg])=>{
+    const items=Store.resourcesOf(clinic.id, kind);
+    const rows=items.map(r=>`<div class="res-row">
+        <input class="res-name" value="${esc(r.name)}" onchange="resRename(${r.id}, this.value)">
+        <button class="res-del" title="削除" onclick="resDelete(${r.id}, ${JSON.stringify(r.name)})">−</button>
+      </div>`).join("") || `<div class="muted" style="padding:6px 2px">未登録</div>`;
+    return `<div class="res-card">
+      <h3 style="margin-top:0">${label}<span class="muted" style="font-weight:400;font-size:12px;margin-left:8px">${items.length}件</span></h3>
+      ${rows}
+      <div class="res-add">
+        <input id="resAdd_${kind}" placeholder="${label}名（例：${eg}）" onkeydown="if(event.key==='Enter')resAdd('${kind}')">
+        <button class="res-plus" onclick="resAdd('${kind}')">＋ 追加</button>
+      </div>
+    </div>`;
+  }).join("");
+  document.getElementById("view-resources").innerHTML=`
+    <h1>リソース設定<span class="muted" style="font-size:15px;font-weight:400;margin-left:8px">${esc(clinic.name)}クリニック</span></h1>
+    <p class="muted">この院の「部屋・スタッフ・機材」を管理します。<b>＋で追加・−で削除</b>、名称は直接編集できます。ここで登録したものが<b>タイムラインの列</b>になります（クリニック切替で院ごとに設定）。</p>
+    <div class="res-grid">${sections}</div>`;
+}
+async function resAdd(kind){
+  const el=document.getElementById('resAdd_'+kind); const name=(el.value||'').trim();
+  if(!name){ el.focus(); return; }
+  el.disabled=true;
+  try{ await Store.addResource(curClinic, kind, name); }catch(e){ alert('追加できませんでした：'+(e&&e.message||'')); }
+  renderResources();
+}
+async function resRename(id,name){ name=(name||'').trim(); if(!name){ renderResources(); return; } try{ await Store.renameResource(id,name); }catch(e){ alert('保存できませんでした'); renderResources(); } }
+async function resDelete(id,name){ if(!confirm(`「${name}」を削除しますか？`)) return; try{ await Store.removeResource(id); }catch(e){ alert('削除できませんでした'); } renderResources(); }
+
 /* ---------------- 予約一覧（全日・全ステータス） ---------------- */
 let listFilter = "ALL";
 function setListFilter(f){ listFilter = f; renderList(); }
 function renderList(){
-  let all = Store.loadReservations().slice().sort((a,b)=> (b.date+b.time).localeCompare(a.date+a.time));
+  let all = Store.loadReservations().filter(r=>inCurClinic(r.csId)).sort((a,b)=> (b.date+b.time).localeCompare(a.date+a.time));
   if(listFilter!=="ALL") all = all.filter(r=>r.status===listFilter);
   const STATUS = { CONFIRMED:['予約確定','confirmed'], VISITED:['来院済','visited'], CANCELLED:['キャンセル','cancelled'], NO_SHOW:['不履行','no-show'] };
   const chips = [['ALL','すべて'],['CONFIRMED','予約確定'],['VISITED','来院済'],['CANCELLED','キャンセル']]
@@ -157,17 +616,18 @@ function renderList(){
   const rows = all.map(r=>{
     const c=Store.clinicOfCs(r.csId), svc=Store.serviceOfCs(r.csId), menu=r.menuId?Store.menuById(r.menuId):null;
     const st = STATUS[r.status]||[r.status,'confirmed'];
+    const rm = r.status==="CONFIRMED" ? Store.roomName(r) : "";
     return `<tr style="${r.status==='CANCELLED'?'opacity:.55':''}">
       <td style="white-space:nowrap">${Store.fmtJa(r.date)} ${r.time}</td>
-      <td>${esc(c.name)}／${esc(svc.name)}${menu?`<div class="muted" style="font-size:12px">${esc(menu.name)}</div>`:""}</td>
-      <td>${esc(r.name)} 様${r.visitType==="FIRST"?'<span class="badge first" style="margin-left:4px">初診</span>':""}<div class="muted" style="font-size:12px">${esc(r.phone)}</div></td>
+      <td>${esc(c.name)}／${esc(svc.name)}${rm?` <span class="room-badge ${rm.endsWith("2")?"r2":""}">${esc(rm)}</span>`:""}${menu?`<div class="muted" style="font-size:12px">${esc(menu.name)}</div>`:""}</td>
+      <td><span class="pt-link" onclick="openBooking('${esc(r.code)}')">${esc(r.name)} 様</span>${r.visitType==="FIRST"?'<span class="badge first" style="margin-left:4px">初診</span>':""}<div class="muted" style="font-size:12px">${esc(r.phone)}</div></td>
       <td>${r.channel==="WEB"?'<span class="badge web">Web</span>':'<span class="badge phone">電話</span>'}</td>
       <td><span class="badge ${st[1]}">${st[0]}</span></td>
       <td>${r.status==="CONFIRMED"?`<button class="small secondary" onclick="markVisited('${esc(r.code)}')">来院</button> <button class="small danger" onclick="cancelRes('${esc(r.code)}')">取消</button>`:'<span class="muted" style="font-size:12px">—</span>'}</td>
     </tr>`;
   }).join("");
   document.getElementById("view-list").innerHTML = `
-    <h1>予約一覧</h1>
+    <h1>予約一覧<span class="muted" style="font-size:15px;font-weight:400;margin-left:8px">${esc(curClinicObj().name)}クリニック</span></h1>
     <div class="chips" style="margin-bottom:6px">${chips}</div>
     <div class="card" style="padding:0;overflow:auto">
       <table><thead><tr><th style="width:120px">日時</th><th>クリニック／区分</th><th>患者</th><th style="width:60px">経路</th><th style="width:96px">状態</th><th style="width:130px">操作</th></tr></thead>
@@ -178,11 +638,18 @@ function renderList(){
 /* ---------------- 電話予約の代理入力 ---------------- */
 let nf = { csId:null, date:Store.todayStr(), time:null };
 function csOptions(sel){
-  return Store.CLINICS.filter(c=>!c.openingNote).flatMap(c=>c.services.map(s=>
-    `<option value="${s.id}" ${s.id==sel?'selected':''}>${esc(c.name)}クリニック ／ ${esc(s.name)}</option>`)).join("");
+  const c=curClinicObj();
+  return c.services.map(s=>
+    `<option value="${s.id}" ${s.id==sel?'selected':''}>${esc(c.name)}クリニック ／ ${esc(s.name)}</option>`).join("");
+}
+function preparingCard(title){
+  return `<h1>${esc(title)}<span class="muted" style="font-size:15px;font-weight:400;margin-left:8px">${esc(curClinicObj().name)}クリニック</span></h1>
+    <div class="card placeholder-box"><div class="pi">このクリニックは開業前です（${esc(curClinicObj().openingNote||"準備中")}）</div>
+    <div>開業後にこの画面から予約の代理入力・枠確認が行えます。上部のクリニック切替から開業中のクリニックをお選びください。</div></div>`;
 }
 function renderNew(){
-  if(nf.csId==null){ const first=Store.CLINICS.find(c=>!c.openingNote); nf.csId=first.services[0].id; }
+  if(curClinicObj().openingNote){ document.getElementById("view-new").innerHTML = preparingCard("電話予約の代理入力"); return; }
+  if(nf.csId==null || !inCurClinic(nf.csId)){ nf.csId=firstCsOfClinic(); }
   document.getElementById("view-new").innerHTML = `
     <h1>電話予約の代理入力</h1>
     <p class="muted">電話でお受けした予約を受付が代理入力します。登録すると日別ボード・予約一覧へ即時反映されます。</p>
@@ -250,16 +717,17 @@ async function nfSubmit(){
 /* ---------------- 予約枠の確認（読み取り専用） ---------------- */
 let slotsCs = null;
 function renderSlots(){
-  if(slotsCs==null){ const first=Store.CLINICS.find(c=>!c.openingNote); slotsCs=first.services[0].id; }
+  if(curClinicObj().openingNote){ document.getElementById("view-slots").innerHTML = preparingCard("予約枠の確認"); return; }
+  if(slotsCs==null || !inCurClinic(slotsCs)){ slotsCs=firstCsOfClinic(); }
   const days=Store.getDays(slotsCs, 14);
   const body=days.map(d=>{
     if(!d.slots.length) return `<div class="slot-grid-day"><div class="d">${d.label}<span class="muted" style="font-weight:400;margin-left:8px">休診</span></div></div>`;
-    const chips=d.slots.map(s=>`<span class="slot-cap ${s.remaining===0?'full':''}">${s.time}<span class="rem">空き ${s.remaining}/${s.capacity}</span></span>`).join(" ");
+    const chips=d.slots.map(s=>`<span class="slot-cap ${s.remaining===0?'full':''}">${s.time}<span class="rem">空き ${s.remaining}/${s.capacity}室</span></span>`).join(" ");
     return `<div class="slot-grid-day"><div class="d">${d.label}</div>${chips}</div>`;
   }).join("");
   document.getElementById("view-slots").innerHTML = `
-    <h1>予約枠の確認</h1>
-    <p class="muted">診療時間マスタから自動生成された枠の空き状況です（今後2週間）。<br>※プロトタイプでは閲覧のみ。枠の停止・定員変更・臨時休診の編集は今後実装予定です。</p>
+    <h1>予約枠の確認<span class="muted" style="font-size:15px;font-weight:400;margin-left:8px">${esc(curClinicObj().name)}クリニック</span></h1>
+    <p class="muted">診療時間マスタから自動生成された枠の空き状況です（今後2週間）。各時間帯は<strong>診察室1・診察室2の2室</strong>を用意しています。<br>※プロトタイプでは閲覧のみ。枠の停止・定員変更・臨時休診の編集は今後実装予定です。</p>
     <div class="card">
       <label class="field" style="max-width:400px;margin-bottom:14px">クリニック／診療区分
         <select onchange="slotsCs=Number(this.value);renderSlots()">${csOptions(slotsCs)}</select>
@@ -307,6 +775,7 @@ Store.onSync((msg)=>{
 });
 
 /* ---------------- 起動 ---------------- */
+renderClinicSwitch();
 renderBoard();
 Store.ready.then(()=>{
   prevCodes = currentCodes();
@@ -314,6 +783,7 @@ Store.ready.then(()=>{
   const brand = document.querySelector(".admin-header .brand small");
   if(brand) brand.textContent = b==="supabase" ? "Supabase リアルタイム同期" : "リアルタイム同期（ローカル）";
   renderTab(curTab);
+  loadDayNote();
 });
 </script>
 </body>
