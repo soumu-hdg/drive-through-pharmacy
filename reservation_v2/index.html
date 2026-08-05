@@ -15,12 +15,15 @@
     <a data-nav="lookup">予約の確認・キャンセル</a>
   </nav>
 </header>
+<div id="lineBar" class="line-bar" style="display:none"></div>
 <main id="app"></main>
 
 <!-- Supabase接続（利用可能なら実DB＋Realtime同期。不達時はローカル同期に自動フォールバック） -->
 <script>window.__RSV_SUPABASE__ = true;</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="store.js"></script>
+<!-- LINE LIFF SDK（LINEログインで予約者のuserIdを取得し、予約確定をLINE通知） -->
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="store.js?v=20260729note"></script>
 <script>
 /* =========================================================
    患者向けSPA
@@ -382,6 +385,7 @@ async function submitReservation(){
     name: form.name.trim(), kana: form.kana.trim(), birthDate: form.birthDate,
     phone: form.phone.trim(), email: form.email.trim(), visitType: form.visitType,
     menuId: state.menuId, note: form.note.trim(), channel: "WEB",
+    lineUserId: (window.__lineUser && window.__lineUser.id) || null,
   });
   if(!res.ok){ formStep="confirm"; renderForm(); err(res.error); return; }
   state.doneCode = res.reservation.code;
@@ -406,6 +410,7 @@ function renderDone(){
         <tr><th>クリニック</th><td>${esc(clinic.name)}（${esc(svc.name)}）</td></tr>
         ${menu?`<tr><th>メニュー</th><td>${esc(menu.name)}</td></tr>`:""}
         <tr><th>日時</th><td>${Store.fmtJa(rr.date)} ${rr.time}</td></tr>
+        ${Store.roomName(rr)?`<tr><th>診察室</th><td>${esc(Store.roomName(rr))}</td></tr>`:""}
         <tr><th>お名前</th><td>${esc(rr.name)} 様</td></tr>
         <tr><th>初診・再診</th><td>${rr.visitType==="FIRST"?"初めて（初診）":"2回目以降（再診）"}</td></tr>
       </tbody></table>
@@ -475,6 +480,61 @@ Store.ready.then(()=>{
   if(badge) badge.innerHTML = `<span class="sync-dot"></span>${b==="supabase"?"Supabase リアルタイム同期":"リアルタイム同期（ローカル）"}`;
   render();
 });
+</script>
+
+<!-- ================= LINE連携（LIFFログイン→userId取得→予約確定通知） ================= -->
+<script>
+(function(){
+  const LIFF_ID = "2008141336-KokioNBq";                       // 公開情報（クライアント埋め込み用）
+  const OA_ADD_URL = "https://line.me/R/ti/p/@584zdybj";       // 予約通知を送るLINE公式アカウントの友だち追加
+  window.__lineUser = null;
+
+  function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+  function renderLineBar(){
+    const bar = document.getElementById("lineBar");
+    if(!bar) return;
+    if(window.__lineUser){
+      bar.innerHTML =
+        '<span class="lb-icon">✓</span>'
+        + '<span class="lb-text"><b>LINE連携済み：'+esc(window.__lineUser.name)+' さん</b>'
+        + '<small>ご予約が確定すると、この LINE に確認メッセージをお送りします。</small></span>'
+        + '<a class="lb-add" href="'+OA_ADD_URL+'" target="_blank" rel="noopener">通知を受け取るには友だち追加</a>';
+      bar.classList.add("connected");
+    }else{
+      bar.innerHTML =
+        '<span class="lb-icon">💬</span>'
+        + '<span class="lb-text"><b>LINEで予約通知を受け取る</b>'
+        + '<small>LINEと連携すると、予約確定やお知らせを LINE で受け取れます（任意）。</small></span>'
+        + '<button class="lb-btn" onclick="__lineLogin()">LINEで連携する</button>';
+      bar.classList.remove("connected");
+    }
+    bar.style.display = "flex";
+  }
+
+  window.__lineLogin = function(){
+    try{ if(window.liff && liff.login) liff.login({ redirectUri: location.href }); }
+    catch(e){ alert("LINE連携を開始できませんでした。時間をおいてお試しください。"); }
+  };
+
+  function boot(){
+    if(!window.liff){ return; }   // SDK未読込時は何も出さない
+    liff.init({ liffId: LIFF_ID }).then(function(){
+      if(liff.isLoggedIn()){
+        return liff.getProfile().then(function(p){
+          window.__lineUser = { id: p.userId, name: p.displayName };
+          renderLineBar();
+        });
+      }
+      renderLineBar();
+    }).catch(function(e){
+      // LIFF初期化失敗（ドメイン未登録・ネットワーク等）→ バーは出さない
+      console.warn("LIFF init failed:", e && e.message);
+    });
+  }
+  if(document.readyState==="complete" || document.readyState==="interactive") boot();
+  else window.addEventListener("DOMContentLoaded", boot);
+})();
 </script>
 </body>
 </html>

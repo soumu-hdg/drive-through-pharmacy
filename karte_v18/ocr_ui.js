@@ -313,6 +313,7 @@ function applyOcrResults() {
   // 生年月日
   if (f.dob) {
     document.getElementById('newDob').value = f.dob;
+    if (typeof syncWarekiFromDob === 'function') syncWarekiFromDob('new');  // 要望#3: 和暦欄へ反映
   }
 
   // 性別

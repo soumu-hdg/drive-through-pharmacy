@@ -35,3 +35,7 @@ Thumbs.db
 # 患者レセプトUKEテストデータは公開しない（個人情報・医療情報）
 _uke_test/
 *.uke
+
+# 開発・検証用のHTML（撮影ハーネス等）は公開しない
+_*.html
+karte_*/_*.html

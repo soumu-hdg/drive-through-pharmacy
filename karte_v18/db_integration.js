@@ -388,8 +388,8 @@ function onDbPatientSearch(q) {
     const visits = p.dbVisits ? p.dbVisits.length : 0;
     const lastDate = p.pastKartes && p.pastKartes.length > 0 ? p.pastKartes[0].date : '-';
     return '<div style="padding:6px 10px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;justify-content:space-between;align-items:center;" onclick="openKarte(\'' + p.id + '\')" onmouseenter="this.style.background=\'var(--bg)\'" onmouseleave="this.style.background=\'#fff\'">' +
-      '<div><strong>' + p.name + '</strong> <span style="color:var(--text-muted);font-size:10px;">' + p.age + '歳 ' + p.sex + ' / ' + p.insurance + '</span></div>' +
-      '<div style="font-size:10px;color:var(--text-muted);">' + visits + '回来院 / 最終:' + lastDate + '</div></div>';
+      '<div><strong>' + esc(p.name) + '</strong> <span style="color:var(--text-muted);font-size:10px;">' + esc(p.age) + '歳 ' + esc(p.sex) + ' / ' + esc(p.insurance) + '</span></div>' +
+      '<div style="font-size:10px;color:var(--text-muted);">' + visits + '回来院 / 最終:' + esc(lastDate) + '</div></div>';
   }).join('');
   if (dbPats.length > 20) results.innerHTML += '<div style="padding:6px;text-align:center;color:var(--text-muted);font-size:10px;">他' + (dbPats.length - 20) + '件</div>';
   results.style.display = 'block';
@@ -407,8 +407,8 @@ function toggleDbPatientList() {
       const lastDate = p.pastKartes && p.pastKartes.length > 0 ? p.pastKartes[0].date : '-';
       const typeBadge = p.type === '新規' ? '<span style="background:#dcfce7;color:#16a34a;padding:0 4px;border-radius:3px;font-size:9px;margin-left:4px;">新規</span>' : p.type === '再診' ? '<span style="background:#dbeafe;color:#2563eb;padding:0 4px;border-radius:3px;font-size:9px;margin-left:4px;">再診</span>' : '';
       return '<div style="padding:5px 10px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;justify-content:space-between;align-items:center;" onclick="openKarte(\'' + p.id + '\')" onmouseenter="this.style.background=\'var(--bg)\'" onmouseleave="this.style.background=\'#fff\'">' +
-        '<div><strong>' + p.name + '</strong>' + typeBadge + ' <span style="color:var(--text-muted);font-size:10px;">' + p.age + '歳 ' + p.sex + ' / ' + p.insurance + '</span></div>' +
-        '<div style="font-size:10px;color:var(--text-muted);">' + (p.address || '') + ' / ' + visits + '回 / ' + lastDate + '</div></div>';
+        '<div><strong>' + esc(p.name) + '</strong>' + typeBadge + ' <span style="color:var(--text-muted);font-size:10px;">' + esc(p.age) + '歳 ' + esc(p.sex) + ' / ' + esc(p.insurance) + '</span></div>' +
+        '<div style="font-size:10px;color:var(--text-muted);">' + esc(p.address || '') + ' / ' + visits + '回 / ' + esc(lastDate) + '</div></div>';
     }).join('');
   results.style.display = 'block';
   dbListVisible = true;

@@ -81,9 +81,31 @@ function invStockBar(entry) {
   '</span>';
 }
 
-// 院内薬タブ用: 在庫121件をカルテのdrug形式で返す（price=0は当面の暫定）
+// 名称照合で拾えない商品名/規格の薬価 上書き表（枠）。必要時にここへ追加。
+// キー = 院内薬名を NFKC・空白除去したもの（部分一致）。
+const INHOUSE_PRICE_OVERRIDE = {
+  'プリンペラン錠5mg': 10.8,
+  'サワシリンカプセル250mg': 15.3,
+  'アンヒバ坐剤100mg': 21.6,
+  'アンヒバ坐剤200mg': 21.6,
+  'ダイアップ6mg': 50.3
+};
+// 院内薬の薬価を解決: ①上書き表 → ②公式マスタ名称照合(getDrugPriceByName) → ③0。
+function resolveInvPrice(name) {
+  const nm = String(name || '').normalize('NFKC').replace(/[\s　]/g, '');
+  for (const k in INHOUSE_PRICE_OVERRIDE) { if (nm.indexOf(k) !== -1) return INHOUSE_PRICE_OVERRIDE[k]; }
+  try {
+    if (typeof MasterLoader !== 'undefined' && MasterLoader.getDrugPriceByName) {
+      const p = MasterLoader.getDrugPriceByName(name);
+      if (p != null) return p;
+    }
+  } catch (e) { /* マスタ未ロード時は0 */ }
+  return 0;
+}
+
+// 院内薬タブ用: 在庫をカルテのdrug形式で返す。薬価は公式マスタ名称照合＋上書き表で解決。
 function invDrugMenu() {
   return invStockList.map(function (s) {
-    return { id: 'inv_' + s.code, name: s.name, price: 0, unit: s.unit || 'T', category: '院内', _inv: s };
+    return { id: 'inv_' + s.code, name: s.name, price: resolveInvPrice(s.name), unit: s.unit || 'T', category: '院内', _inv: s };
   });
 }

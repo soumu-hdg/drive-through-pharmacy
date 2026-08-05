@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1024">
 <title>ドライブスルー診療 電子カルテ v0.15</title>
-<link rel="stylesheet" href="style.css?v=20260625_v11">
+<link rel="stylesheet" href="style.css?v=20260805_v13">
 <!-- CDN: バージョン固定 + SRI(改竄検知) + crossorigin。更新時はハッシュも再計算すること -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" integrity="sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -60,6 +60,7 @@
     <div class="spacer"></div>
     <span class="clock" id="clockList">00:00:00</span>
     <span id="authUserBadge" style="display:none;background:#dbeafe;color:#1d4ed8;padding:3px 10px;border-radius:6px;font-size:11px;margin-left:8px;"></span>
+    <button onclick="generateAndOpenReceipt()" title="前月等の確定患者からUKEを生成します（試作）" style="font-size:11px;padding:4px 10px;background:#c9821f;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-left:4px;">&#128203; レセプト作成（試作）</button>
     <button onclick="window.open('receipt.html','_blank')" style="font-size:11px;padding:4px 10px;background:#3a6b35;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-left:4px;">&#128203; レセプト点検</button>
     <button onclick="openUserManager()" style="font-size:11px;padding:4px 10px;background:#6366f1;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-left:4px;">ID管理</button>
     <button onclick="handleLogout()" style="font-size:11px;padding:4px 10px;background:#ef4444;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-left:4px;">ログアウト</button>
@@ -103,7 +104,9 @@
           <th>患者名</th>
           <th>年齢/性別</th>
           <th>保険</th>
-          <th>アレルギー</th>
+          <th>患者メモ</th>
+          <th>前回受付</th>
+          <th>支払</th>
           <th>レーン</th>
           <th>問診票</th>
           <th>操作</th>
@@ -185,6 +188,20 @@
         <div class="patient-tab" data-tab="diseases" onclick="switchPatientTab('diseases')">傷病名</div>
         <div class="patient-tab" data-tab="exam" onclick="switchPatientTab('exam')">検査</div>
       </div>
+      <!-- バイタルサイン入力（「バイタル」タブ選択時のみ表示）
+           ※patientInfoBody は innerHTML を都度再構築するため、入力値の消失と
+             getElementById の null 参照を避けて常設DOMとして外に置く -->
+      <div id="vitalsInputWrap" style="display:none;padding:8px 10px 0;flex-shrink:0;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">バイタルサイン</label>
+          <div class="vital-grid">
+            <div class="vital-item"><label>T</label><input type="text" id="vitalT" placeholder="36.5"><span class="unit">&deg;C</span></div>
+            <div class="vital-item"><label>BP</label><div class="bp-group"><input type="text" id="vitalBPS" placeholder="120"><span class="slash">/</span><input type="text" id="vitalBPD" placeholder="80"></div><span class="unit">mmHg</span></div>
+            <div class="vital-item"><label>SpO2</label><input type="text" id="vitalSpO2" placeholder="98"><span class="unit">%</span></div>
+            <div class="vital-item"><label>P</label><input type="text" id="vitalP" placeholder="72"><span class="unit">/min</span></div>
+          </div>
+        </div>
+      </div>
       <div class="panel-body" id="patientInfoBody"></div>
     </div>
 
@@ -263,7 +280,16 @@
               <span class="rt-sep"></span>
               <button class="rt-btn" onclick="rtExec('bold')" title="太字" style="font-weight:700;">B</button>
             </div>
-            <div class="richtext-editor" id="findingsEditor" contenteditable="true" data-placeholder="[現病歴]&#10;&#10;[身体所見]&#10;&#10;[A&P]"></div>
+            <!-- 所見テンプレ（要望#11） -->
+            <div class="richtext-tpl-bar">
+              <button class="rt-btn rt-tpl-btn" onclick="insertFindingsTemplate()" title="3項目まとめて挿入">&#128203; 診察テンプレ</button>
+              <button class="rt-btn rt-tpl-btn" onclick="insertFindingsSection('現病歴')">［現病歴］</button>
+              <button class="rt-btn rt-tpl-btn" onclick="insertFindingsSection('身体所見')">［身体所見］</button>
+              <button class="rt-btn rt-tpl-btn" onclick="insertFindingsSection('アセスメント＆プラン')">［アセスメント＆プラン］</button>
+              <span id="findingsSnippetBtns"></span>
+              <button class="rt-btn rt-tpl-btn rt-tpl-add" onclick="addFindingsSnippet()" title="よく使う文面を登録（登録後は右クリックで削除）">＋定型文を登録</button>
+            </div>
+            <div class="richtext-editor" id="findingsEditor" contenteditable="true" data-placeholder="[現病歴]&#10;&#10;[身体所見]&#10;&#10;[アセスメント＆プラン]"></div>
           </div>
           <!-- Resize handle: Findings | Actions -->
           <div class="split-resize-handle" id="resizeSplit" title="ドラッグで幅調整"></div>
@@ -288,21 +314,14 @@
                 <button class="btn btn-primary" onclick="confirmBilling()">確定</button>
                 <button class="btn btn-outline" onclick="printBilling()">印刷</button>
                 <button class="btn btn-outline btn-clear-billing" id="btnClearBilling" onclick="clearAllBilling()" disabled>算定クリア</button>
+                <!-- 要望#9: カルテ取り消し（直前保存に戻す／完全削除） -->
+                <button class="btn btn-outline btn-karte-undo" onclick="openKarteCancelModal()" title="直前保存に戻す・完全削除">取り消し</button>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Vitals -->
-        <div class="form-group" style="margin-top:6px;">
-          <label class="form-label">バイタルサイン</label>
-          <div class="vital-grid">
-            <div class="vital-item"><label>T</label><input type="text" id="vitalT" placeholder="36.5"><span class="unit">&deg;C</span></div>
-            <div class="vital-item"><label>BP</label><div class="bp-group"><input type="text" id="vitalBPS" placeholder="120"><span class="slash">/</span><input type="text" id="vitalBPD" placeholder="80"></div><span class="unit">mmHg</span></div>
-            <div class="vital-item"><label>SpO2</label><input type="text" id="vitalSpO2" placeholder="98"><span class="unit">%</span></div>
-            <div class="vital-item"><label>P</label><input type="text" id="vitalP" placeholder="72"><span class="unit">/min</span></div>
-          </div>
-        </div>
+        <!-- Vitals: 左パネルの「バイタル」タブへ移設（2026-08-04） -->
 
         <!-- Prescription -->
         <div class="form-group">
@@ -356,17 +375,13 @@
           </div>
         </div>
 
-        <!-- 検査・文書（機能8: 折りたたみ対応） -->
+        <!-- 文書（要望#7: 検査登録は算定メニューの「検査」タブへ一本化したため削除） -->
         <div class="right-section">
           <div class="right-section-title collapsible" onclick="toggleExamSection()" style="cursor:pointer;">
-            <span class="icon">&#128300;</span> 検査・文書
+            <span class="icon">&#128196;</span> 文書
             <span id="examCollapseIcon" style="float:right;font-size:10px;color:var(--text-muted);">&#9660;</span>
           </div>
           <div class="right-section-body" id="examSectionBody">
-            <div class="info-section">
-              <div class="info-section-title">検査登録</div>
-              <ul class="exam-check-list" id="examCheckList"></ul>
-            </div>
             <div class="info-section">
               <div class="info-section-title">文書作成</div>
               <div class="doc-btns">
@@ -407,9 +422,41 @@
     <h3>患者情報の編集 <button class="modal-close" onclick="closeModal('editPatientModal')">&times;</button></h3>
     <div class="edit-form-row"><label>氏名</label><input type="text" id="editName"></div>
     <div class="edit-form-row"><label>フリガナ</label><input type="text" id="editNameKana" placeholder="タナカタロウ"></div>
-    <div class="edit-form-row"><label>生年月日</label><input type="date" id="editDob"></div>
+    <!-- 生年月日: 和暦＋西暦を併設（要望#3） -->
+    <div class="edit-form-row" style="align-items:flex-start;">
+      <label style="margin-top:8px;">生年月日</label>
+      <div class="wareki-grid">
+        <div class="wareki-row">
+          <select id="editWEra" onchange="onWarekiInput('edit')">
+            <option value="">元号</option><option>令和</option><option>平成</option><option>昭和</option><option>大正</option><option>明治</option>
+          </select>
+          <input type="number" id="editWY" min="1" max="64" placeholder="年" oninput="onWarekiInput('edit')"><span class="wareki-unit">年</span>
+          <input type="number" id="editWM" min="1" max="12" placeholder="月" oninput="onWarekiInput('edit')"><span class="wareki-unit">月</span>
+          <input type="number" id="editWD" min="1" max="31" placeholder="日" oninput="onWarekiInput('edit')"><span class="wareki-unit">日</span>
+        </div>
+        <div class="wareki-row">
+          <input type="date" id="editDob" oninput="onDobInput('edit')" onchange="onDobInput('edit')">
+          <span class="wareki-hint">西暦と自動で連動</span>
+        </div>
+      </div>
+    </div>
     <div class="edit-form-row"><label>性別</label><select id="editSex"><option value="男">男</option><option value="女">女</option></select></div>
-    <div class="edit-form-row"><label>住所</label><input type="text" id="editAddress"></div>
+    <!-- 住所: 新規患者登録と同じ構成（要望#2） -->
+    <div class="edit-form-row" style="align-items:flex-start;">
+      <label style="margin-top:8px;">住所</label>
+      <div class="addr-grid">
+        <div class="addr-zip-row">
+          <input type="text" id="editZip" placeholder="460-0001" style="width:120px;" oninput="autoFillAddress(this.value,'editPref','editCity')">
+          <span style="font-size:10px;color:var(--primary);">郵便番号で自動入力</span>
+        </div>
+        <div class="addr-detail-row">
+          <input type="text" id="editPref" placeholder="都道府県" style="width:48%;">
+          <input type="text" id="editCity" placeholder="市区町村" style="width:48%;">
+        </div>
+        <input type="text" id="editStreet" placeholder="番地" style="width:100%;">
+        <input type="text" id="editBuilding" placeholder="建物名・号室" style="width:100%;">
+      </div>
+    </div>
     <div class="edit-form-row"><label>電話番号</label><input type="text" id="editPhone"></div>
     <div class="edit-form-row"><label>保険種別</label>
       <select id="editInsurance">
@@ -419,6 +466,12 @@
       </select>
     </div>
     <div class="edit-form-row"><label>アレルギー</label><input type="text" id="editAllergies" placeholder="カンマ区切り"></div>
+    <!-- 要望#6: 支払方法（手入力・選択式） -->
+    <div class="edit-form-row"><label>支払方法</label>
+      <select id="editPayMethod">
+        <option value="">未設定</option><option value="デジスマ">デジスマ</option><option value="現金">現金</option><option value="その他">その他</option>
+      </select>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal('editPatientModal')">キャンセル</button>
       <button class="btn btn-primary" onclick="savePatientEdit()">保存</button>
@@ -481,7 +534,24 @@
         <label class="radio-label"><input type="radio" name="newSex" value="女"> 女性</label>
       </div>
     </div>
-    <div class="edit-form-row"><label>生年月日<span class="req">*</span></label><input type="date" id="newDob"></div>
+    <!-- 生年月日: 和暦＋西暦を併設（要望#3） -->
+    <div class="edit-form-row" style="align-items:flex-start;">
+      <label style="margin-top:8px;">生年月日<span class="req">*</span></label>
+      <div class="wareki-grid">
+        <div class="wareki-row">
+          <select id="newWEra" onchange="onWarekiInput('new')">
+            <option value="">元号</option><option>令和</option><option>平成</option><option>昭和</option><option>大正</option><option>明治</option>
+          </select>
+          <input type="number" id="newWY" min="1" max="64" placeholder="年" oninput="onWarekiInput('new')"><span class="wareki-unit">年</span>
+          <input type="number" id="newWM" min="1" max="12" placeholder="月" oninput="onWarekiInput('new')"><span class="wareki-unit">月</span>
+          <input type="number" id="newWD" min="1" max="31" placeholder="日" oninput="onWarekiInput('new')"><span class="wareki-unit">日</span>
+        </div>
+        <div class="wareki-row">
+          <input type="date" id="newDob" oninput="onDobInput('new')" onchange="onDobInput('new')">
+          <span class="wareki-hint">西暦と自動で連動</span>
+        </div>
+      </div>
+    </div>
     <div class="edit-form-row" style="align-items:flex-start;">
       <label style="margin-top:8px;">住所</label>
       <div class="addr-grid">
@@ -511,6 +581,12 @@
         <option value="社保3割">社保3割</option><option value="国保3割">国保3割</option>
         <option value="後期高齢者1割">後期高齢者1割</option><option value="後期高齢者2割">後期高齢者2割</option><option value="後期高齢者3割">後期高齢者3割</option>
         <option value="公費">公費</option><option value="自費">自費</option>
+      </select>
+    </div>
+    <!-- 要望#6: 支払方法（手入力・選択式） -->
+    <div class="edit-form-row"><label>支払方法</label>
+      <select id="newPayMethod">
+        <option value="">未設定</option><option value="デジスマ">デジスマ</option><option value="現金">現金</option><option value="その他">その他</option>
       </select>
     </div>
     <div class="edit-form-row"><label>車両番号</label><input type="text" id="newPlate" placeholder="名古屋 500 あ 12-34"></div>
@@ -657,6 +733,23 @@
       <div class="edit-form-row"><label>備考</label><textarea id="iryoMemo" rows="2" style="width:100%;font-size:12px;border:1px solid var(--border);border-radius:4px;padding:6px;resize:vertical;" placeholder="自己負担上限額、適用条件等"></textarea></div>
     </fieldset>
 
+    <!-- 要望#5: 写真を複数枚（サーバー保存＋容量の可視化） -->
+    <fieldset style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+      <legend style="font-size:12px;font-weight:600;color:var(--primary);padding:0 6px;">写真（保険証・医療証・検査結果）</legend>
+      <div id="photoStorageBanner"></div>
+      <div id="patientPhotoGrid" class="photo-grid"></div>
+      <div class="photo-add-row">
+        <select id="photoTypeSelect">
+          <option>保険証</option><option>医療証</option><option>検査結果</option><option>その他</option>
+        </select>
+        <label class="photo-add-btn">＋ 写真を追加
+          <input type="file" accept="image/*" capture="environment" style="display:none" onchange="onAddPatientPhoto(this)">
+        </label>
+        <span id="photoCountInfo" class="photo-count"></span>
+      </div>
+      <div id="photoUsageMeter"></div>
+    </fieldset>
+
     <!-- 手動設定（従来互換） -->
     <fieldset style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
       <legend style="font-size:12px;font-weight:600;color:var(--text-muted,#666);padding:0 6px;">手動設定</legend>
@@ -664,7 +757,16 @@
       <div class="edit-form-row"><label>有効期限</label><input type="date" id="insuranceExpiry"></div>
       <div class="edit-form-row" style="display:flex;gap:8px;">
         <div style="flex:1;"><label>区分</label><select id="insuranceType"><option value="社保">社保</option><option value="国保">国保</option><option value="後期高齢者">後期高齢者</option><option value="公費">公費</option></select></div>
-        <div style="flex:1;"><label>負担割合</label><select id="insuranceRatio"><option value="0.3">3割</option><option value="0.2">2割</option><option value="0.1">1割</option><option value="0">公費（0割）</option></select></div>
+        <div style="flex:1;"><label>負担割合</label><select id="insuranceRatio" onchange="updateInsuranceWarn()"><option value="0.3">3割</option><option value="0.2">2割</option><option value="0.1">1割</option><option value="0">0割</option></select></div>
+      </div>
+      <!-- 要望#4: 医療証あり×負担割合の食い違いを保存前に警告（自動では変更しない） -->
+      <div id="insWarnBanner" style="display:none;margin-top:10px;background:#fef3c7;border:1px solid #d97706;border-radius:6px;padding:8px 10px;">
+        <div id="insWarnText" style="font-size:12px;font-weight:700;color:#92400e;"></div>
+        <div style="font-size:11px;color:#92400e;margin-top:3px;">このまま保存すると、その負担割合で確定します。</div>
+        <div style="margin-top:6px;display:flex;gap:6px;">
+          <button type="button" class="btn btn-primary" style="font-size:11px;padding:3px 10px;" onclick="applyKouhiZero()">0割にする</button>
+          <button type="button" class="btn btn-outline" style="font-size:11px;padding:3px 10px;" onclick="dismissInsuranceWarn()">このまま保存する</button>
+        </div>
       </div>
     </fieldset>
 
@@ -672,6 +774,51 @@
       <button class="btn btn-outline" onclick="closeModal('insurancePhotoModal')">キャンセル</button>
       <button class="btn btn-outline" onclick="openInsuranceRuleRef()" style="font-size:11px;">ルール参照</button>
       <button class="btn btn-primary" onclick="saveInsuranceInfo()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- カルテ取り消しモーダル（要望#9） -->
+<div class="modal-overlay" id="karteCancelModal">
+  <div class="modal" style="max-width:460px;">
+    <h3>カルテの取り消し <button class="modal-close" onclick="closeModal('karteCancelModal')">&times;</button></h3>
+    <div id="karteCancelTarget" style="background:var(--bg);border-left:3px solid var(--primary);padding:8px 10px;font-size:12px;margin-bottom:12px;"></div>
+
+    <!-- ① 直前保存に戻す -->
+    <div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px;">① 直前に保存した状態に戻す</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;" id="karteCancelSnapInfo"></div>
+      <button class="btn btn-primary" style="font-size:12px;padding:5px 12px;" onclick="resetKarteToLastSave()">直前保存に戻す</button>
+    </div>
+
+    <!-- ② 完全削除 -->
+    <div style="border:1px solid var(--danger);border-radius:8px;padding:12px 14px;">
+      <div style="font-size:13px;font-weight:700;color:var(--danger);margin-bottom:4px;">② カルテを完全に削除する</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">
+        このカルテの記載・処方・傷病名・算定をすべて削除します。<b>元に戻せません。</b>
+      </div>
+      <div class="edit-form-row" style="align-items:flex-start;">
+        <label style="margin-top:6px;font-size:12px;">削除理由<span class="req">*</span></label>
+        <div style="flex:1;">
+          <select id="karteDeleteReason" style="width:100%;margin-bottom:4px;">
+            <option value="">選択してください</option>
+            <option value="患者取り違え">患者取り違え</option>
+            <option value="重複登録">重複登録</option>
+            <option value="受診なし（キャンセル）">受診なし（キャンセル）</option>
+            <option value="テスト入力">テスト入力</option>
+            <option value="その他">その他</option>
+          </select>
+          <input type="text" id="karteDeleteNote" placeholder="詳細（任意）" style="width:100%;">
+        </div>
+      </div>
+      <button class="btn" style="background:var(--danger);color:#fff;font-size:12px;padding:5px 12px;margin-top:6px;" onclick="deleteKarteCompletely()">完全に削除する</button>
+    </div>
+
+    <div style="font-size:10px;color:var(--text-muted);margin-top:10px;">
+      削除の記録（日時・実施者・理由）は端末内の履歴に残ります。
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('karteCancelModal')">閉じる</button>
     </div>
   </div>
 </div>
@@ -761,16 +908,18 @@
 <script src="name_dict.js"></script>
 <script src="ocr_engine.js"></script>
 <script src="qr_decoder.js?v=20260507b"></script>
-<script src="db_integration.js?v=20260717_v18"></script>
+<script src="db_integration.js?v=20260728_v19"></script>
 <script src="supabase_client.js"></script>
 <script src="resizer.js"></script>
-<script src="whisper_client.js?v=20260603_v08"></script>
+<script src="whisper_client.js?v=20260731_v25"></script>
 <script src="billing_revision_2026.js?v=20260602"></script>
-<script src="master_loader.js"></script>
+<script src="master_loader.js?v=20260728_v23"></script>
 <script src="auth.js?v=20260609"></script>
-<script src="ocr_ui.js?v=20260703_v12d"></script>
-<script src="inventory_stock.js?v=20260703_v12e"></script>
+<script src="ocr_ui.js?v=20260805_v29"></script>
+<script src="inventory_stock.js?v=20260728_v22"></script>
 <script src="drug_suggest.js?v=20260703_v12f"></script>
-<script src="app.js?v=20260717_v18b"></script>
+<script src="patient_photos.js?v=20260805_v29"></script>
+<script src="app.js?v=20260805_v29"></script>
+<script src="uke_generator.js?v=20260805_v29"></script>
 </body>
 </html>
