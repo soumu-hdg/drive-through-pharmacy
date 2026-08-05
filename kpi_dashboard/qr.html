@@ -39,13 +39,13 @@ body {
   <h1>EC売上KPIダッシュボード</h1>
   <div class="sub">HUNDRED DOCTOR / Supabase版</div>
   <div id="qr"></div>
-  <div class="url">https://soumu-lgtm.github.io/drive-through-pharmacy/kpi_dashboard/index.html</div>
+  <div class="url">https://soumu-hdg.github.io/drive-through-pharmacy/kpi_dashboard/index.html</div>
   <div class="note">スマホ・タブレットからもアクセス可能<br>データは1時間毎に自動更新</div>
   <button class="print-btn" onclick="window.print()">印刷</button>
 </div>
 <script>
 const qr = qrcode(0, 'M');
-qr.addData('https://soumu-lgtm.github.io/drive-through-pharmacy/kpi_dashboard/index.html');
+qr.addData('https://soumu-hdg.github.io/drive-through-pharmacy/kpi_dashboard/index.html');
 qr.make();
 document.getElementById('qr').innerHTML = qr.createImgTag(6, 0);
 </script>
