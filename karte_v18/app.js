@@ -569,6 +569,7 @@ function renderAllKarte() {
   updateSurchargeBadge();
   updatePrevButton();
   renderBillingMenu();
+  updateLateClaimBadge();
 }
 
 function renderHeader(p) {
@@ -1739,6 +1740,162 @@ function deleteKarteCompletely() {
   closeModal('karteCancelModal');
   renderAllKarte();
   showToast('カルテを削除しました');
+}
+
+// ===== 月遅れ請求（2026-08-06 要望） =====
+// 現場の運用では、提出漏れなどで「診療した月」と「請求として出す月」がずれる。
+// 診療月は変えずに、受診（診察）ごとに「月遅れ」の印と請求月を持たせる。
+// 保存先は端末（localStorage）。レセプト点検画面(receipt.html)は同一オリジンなので同じ値を読める。
+const LATE_CLAIM_KEY = 'karte_lateClaims';
+function loadLateClaims() { try { return JSON.parse(localStorage.getItem(LATE_CLAIM_KEY) || '{}'); } catch (e) { return {}; } }
+function saveLateClaims(map) { try { localStorage.setItem(LATE_CLAIM_KEY, JSON.stringify(map)); } catch (e) { console.warn('月遅れ設定の保存に失敗:', e); } }
+function lateClaimKey(pid, date) { return (pid || currentPatientId) + '|' + (date || selectedDate); }
+function getLateClaim(pid, date) { return loadLateClaims()[lateClaimKey(pid, date)] || null; }
+
+function ymOfDate(iso) { return (iso || '').substring(0, 7); }              // 'YYYY-MM'
+function ymLabel(ym) { const a = (ym || '').split('-'); return a.length === 2 ? a[0] + '年' + parseInt(a[1], 10) + '月' : (ym || ''); }
+function ymShift(ym, n) {
+  const a = (ym || '').split('-'); if (a.length !== 2) return ym;
+  const d = new Date(parseInt(a[0], 10), parseInt(a[1], 10) - 1 + n, 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+// その患者の「同じ月」の受診日をすべて集める。
+// 通常患者は visitDate と pastKartes、DB患者は dbVisits（"M/D"形式なので年はその月の年で補う）。
+function patientVisitDatesInMonth(p, ym) {
+  const out = [];
+  const push = d => { if (d && ymOfDate(d) === ym && out.indexOf(d) === -1) out.push(d); };
+  push(p.visitDate);
+  push(selectedDate);                       // 表示中の診察は必ず対象に含める
+  (p.pastKartes || []).forEach(k => push(k.date));
+  if (p.dbSource && p.dbVisits) {
+    const year = ym.substring(0, 4);
+    p.dbVisits.forEach(v => {
+      const a = String(v.date || '').split('/');
+      if (a.length === 2) push(year + '-' + String(a[0]).padStart(2, '0') + '-' + String(a[1]).padStart(2, '0'));
+    });
+  }
+  return out.sort();
+}
+
+function applyLateClaim(p, dates, on) {
+  const map = loadLateClaims();
+  const bmEl = document.getElementById('lateBillingMonth');
+  const rsEl = document.getElementById('lateReason');
+  const billingMonth = bmEl ? bmEl.value : ymShift(ymOfDate(selectedDate), 1);
+  const reason = rsEl ? rsEl.value.trim() : '';
+  dates.forEach(d => {
+    const key = lateClaimKey(p.id, d);
+    if (on) {
+      map[key] = {
+        patientId: p.id, patientName: p.name, visitDate: d,
+        treatMonth: ymOfDate(d), billingMonth: billingMonth, reason: reason,
+        setAt: new Date().toISOString(), setBy: currentOperator()
+      };
+    } else {
+      delete map[key];
+    }
+  });
+  saveLateClaims(map);
+  renderLateClaimModal();
+  updateLateClaimBadge();
+}
+
+function openLateClaimModal() {
+  const p = patients.find(x => x.id === currentPatientId);
+  if (!p) { showToast('患者が選択されていません'); return; }
+  const treatYm = ymOfDate(selectedDate);
+  const todayYm = ymOfDate(new Date().toISOString().split('T')[0]);
+  // 請求月の候補: 診療月の翌月から先を並べ、今月より前は選べないようにする
+  let start = ymShift(treatYm, 1);
+  if (start < todayYm) start = todayYm;
+  const sel = document.getElementById('lateBillingMonth');
+  let opts = '';
+  for (let i = 0; i < 8; i++) { const ym = ymShift(start, i); opts += '<option value="' + ym + '">' + ymLabel(ym) + '</option>'; }
+  sel.innerHTML = opts;
+  const cur = getLateClaim(p.id, selectedDate);
+  if (cur && cur.billingMonth) {
+    if (!Array.prototype.some.call(sel.options, o => o.value === cur.billingMonth)) {
+      sel.insertAdjacentHTML('afterbegin', '<option value="' + cur.billingMonth + '">' + ymLabel(cur.billingMonth) + '</option>');
+    }
+    sel.value = cur.billingMonth;
+  }
+  document.getElementById('lateReason').value = cur ? (cur.reason || '') : '';
+  renderLateClaimModal();
+  document.getElementById('lateClaimModal').classList.add('show');
+}
+
+function renderLateClaimModal() {
+  const p = patients.find(x => x.id === currentPatientId);
+  if (!p) return;
+  const ym = ymOfDate(selectedDate);
+  const dates = patientVisitDatesInMonth(p, ym);
+  const marked = dates.filter(d => getLateClaim(p.id, d));
+
+  document.getElementById('lateClaimTarget').innerHTML =
+    '<b>' + esc(p.name) + '</b>（' + esc(p.id) + '）　診療月 <b>' + esc(ymLabel(ym)) + '</b>　／　表示中の診察 <b>' + esc(selectedDate) + '</b>';
+  document.getElementById('lateMonthLabel').textContent = ymLabel(ym) + '　' + dates.length + '件';
+
+  document.getElementById('lateVisitList').innerHTML = dates.map(d => {
+    const lc = getLateClaim(p.id, d);
+    const isCur = (d === selectedDate);
+    const badge = lc
+      ? '<span style="background:#fdf1dd;color:#b45309;border:1px solid #b45309;border-radius:2px;font-size:10px;font-weight:700;padding:1px 6px;">月遅れ → ' + esc(ymLabel(lc.billingMonth)) + '請求</span>'
+      : '<span style="color:var(--text-muted);font-size:11px;">通常請求</span>';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-bottom:1px solid var(--border);' +
+      (isCur ? 'background:#eef4ff;' : '') + '">' +
+      '<span style="font-size:12px;min-width:92px;">' + esc(d) + (isCur ? ' <b>（表示中）</b>' : '') + '</span>' +
+      badge + '</div>';
+  }).join('') || '<div style="padding:8px;color:var(--text-muted);font-size:12px;">この月の受診がありません</div>';
+
+  document.getElementById('lateWholeBtn').textContent = 'この月すべてを月遅れにする（' + dates.length + '件）';
+  document.getElementById('lateClearWholeBtn').disabled = (marked.length === 0);
+  document.getElementById('lateClearCurBtn').disabled = !getLateClaim(p.id, selectedDate);
+}
+
+function markLateCurrentVisit() {
+  const p = patients.find(x => x.id === currentPatientId); if (!p) return;
+  applyLateClaim(p, [selectedDate], true);
+  showToast(selectedDate + ' の診察を月遅れにしました');
+}
+function markLateWholeMonth() {
+  const p = patients.find(x => x.id === currentPatientId); if (!p) return;
+  const ym = ymOfDate(selectedDate);
+  const dates = patientVisitDatesInMonth(p, ym);
+  if (!dates.length) { showToast('対象の受診がありません'); return; }
+  if (!confirm(p.name + 'さんの ' + ymLabel(ym) + ' の受診 ' + dates.length + '件（' + dates.join('、') + '）を\nすべて月遅れにします。よろしいですか？')) return;
+  applyLateClaim(p, dates, true);
+  showToast(ymLabel(ym) + ' の ' + dates.length + '件を月遅れにしました');
+}
+function clearLateCurrentVisit() {
+  const p = patients.find(x => x.id === currentPatientId); if (!p) return;
+  applyLateClaim(p, [selectedDate], false);
+  showToast(selectedDate + ' の月遅れを解除しました');
+}
+function clearLateWholeMonth() {
+  const p = patients.find(x => x.id === currentPatientId); if (!p) return;
+  const ym = ymOfDate(selectedDate);
+  const dates = patientVisitDatesInMonth(p, ym);
+  if (!confirm(p.name + 'さんの ' + ymLabel(ym) + ' の月遅れ設定をすべて解除します。よろしいですか？')) return;
+  applyLateClaim(p, dates, false);
+  showToast(ymLabel(ym) + ' の月遅れを解除しました');
+}
+
+// 受診情報バーと患者情報パネルのボタンに、月遅れかどうかを出す
+function updateLateClaimBadge() {
+  const item = document.getElementById('lateClaimInfoItem');
+  const val = document.getElementById('lateClaimInfoValue');
+  const btn = document.getElementById('lateClaimMenuBtn');
+  if (!item || !val) return;
+  const lc = currentPatientId ? getLateClaim(currentPatientId, selectedDate) : null;
+  if (lc) {
+    item.style.display = '';
+    val.textContent = '月遅れ（' + ymLabel(lc.billingMonth) + '請求）';
+    if (btn) btn.classList.add('on');
+  } else {
+    item.style.display = 'none';
+    if (btn) btn.classList.remove('on');
+  }
 }
 
 function postToApi(action, data) { try { fetch(API_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({action, data}) }); } catch(e) { console.warn('API error:', e); } }
