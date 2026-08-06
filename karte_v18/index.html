@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1024">
 <title>ドライブスルー診療 電子カルテ v0.15</title>
-<link rel="stylesheet" href="style.css?v=20260805_v13">
+<link rel="stylesheet" href="style.css?v=20260806_v14">
 <!-- CDN: バージョン固定 + SRI(改竄検知) + crossorigin。更新時はハッシュも再計算すること -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" integrity="sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -167,6 +167,11 @@
       <span class="visit-info-label">保険種別</span>
       <span class="visit-info-value" id="visitInsuranceType">---</span>
     </div>
+    <!-- 月遅れ請求の表示（設定されている診察のみ出る） -->
+    <div class="visit-info-item" id="lateClaimInfoItem" style="display:none;">
+      <span class="visit-info-label">請求</span>
+      <span class="visit-info-value" id="lateClaimInfoValue" style="color:#b45309;font-weight:700;">月遅れ</span>
+    </div>
   </div>
 
   <div class="main-grid" id="mainGrid">
@@ -174,7 +179,11 @@
     <div class="panel patient-info">
       <div class="panel-title">
         <span class="icon">&#128100;</span> 患者情報
-        <div class="panel-actions"><button class="panel-action-btn" onclick="openEditPatientModal()">編集</button></div>
+        <div class="panel-actions">
+          <!-- 月遅れ請求（2026-08-06 要望）: 表示中の診察だけ／同月まとめて の2通り -->
+          <button class="panel-action-btn" id="lateClaimMenuBtn" onclick="openLateClaimModal()" title="月遅れ請求の設定">月遅れ</button>
+          <button class="panel-action-btn" onclick="openEditPatientModal()">編集</button>
+        </div>
       </div>
       <div class="patient-tabs-row" id="patientTabsRow1">
         <div class="patient-tab active" data-tab="basic" onclick="switchPatientTab('basic')">基本</div>
@@ -778,6 +787,42 @@
   </div>
 </div>
 
+<!-- 月遅れ請求モーダル（2026-08-06 要望） -->
+<div class="modal-overlay" id="lateClaimModal">
+  <div class="modal" style="max-width:520px;">
+    <h3>月遅れ請求の設定 <button class="modal-close" onclick="closeModal('lateClaimModal')">&times;</button></h3>
+    <div id="lateClaimTarget" style="background:var(--bg);border-left:3px solid var(--primary);padding:8px 10px;font-size:12px;margin-bottom:12px;"></div>
+
+    <div class="edit-form-row">
+      <label style="font-size:12px;">請求月<span class="req">*</span></label>
+      <select id="lateBillingMonth" style="flex:1;"></select>
+    </div>
+    <div class="edit-form-row">
+      <label style="font-size:12px;">理由</label>
+      <input type="text" id="lateReason" placeholder="提出漏れ／保険証確認待ち など（任意）" style="flex:1;">
+    </div>
+
+    <div style="font-size:12px;font-weight:700;margin:12px 0 4px;">この月の受診　<span id="lateMonthLabel" style="font-weight:400;color:var(--text-muted);"></span></div>
+    <div id="lateVisitList" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;"></div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+      <button class="btn btn-primary" style="font-size:12px;padding:5px 12px;" onclick="markLateCurrentVisit()">この診察のみ月遅れにする</button>
+      <button class="btn btn-primary" id="lateWholeBtn" style="font-size:12px;padding:5px 12px;" onclick="markLateWholeMonth()">この月の受診をすべて月遅れにする</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+      <button class="btn btn-outline" id="lateClearCurBtn" style="font-size:12px;padding:5px 12px;" onclick="clearLateCurrentVisit()">この診察の解除</button>
+      <button class="btn btn-outline" id="lateClearWholeBtn" style="font-size:12px;padding:5px 12px;" onclick="clearLateWholeMonth()">この月をすべて解除</button>
+    </div>
+
+    <div style="font-size:10px;color:var(--text-muted);margin-top:10px;">
+      診療月は変わりません。<b>請求として提出する月だけ</b>を変えます。設定はレセプト点検画面から参照されます。
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('lateClaimModal')">閉じる</button>
+    </div>
+  </div>
+</div>
+
 <!-- カルテ取り消しモーダル（要望#9） -->
 <div class="modal-overlay" id="karteCancelModal">
   <div class="modal" style="max-width:460px;">
@@ -915,11 +960,11 @@
 <script src="billing_revision_2026.js?v=20260602"></script>
 <script src="master_loader.js?v=20260728_v23"></script>
 <script src="auth.js?v=20260609"></script>
-<script src="ocr_ui.js?v=20260805_v29"></script>
+<script src="ocr_ui.js?v=20260806_v30"></script>
 <script src="inventory_stock.js?v=20260728_v22"></script>
 <script src="drug_suggest.js?v=20260703_v12f"></script>
-<script src="patient_photos.js?v=20260805_v29"></script>
-<script src="app.js?v=20260805_v29"></script>
-<script src="uke_generator.js?v=20260805_v29"></script>
+<script src="patient_photos.js?v=20260806_v30"></script>
+<script src="app.js?v=20260806_v30"></script>
+<script src="uke_generator.js?v=20260806_v30"></script>
 </body>
 </html>
