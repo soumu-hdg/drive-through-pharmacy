@@ -134,6 +134,9 @@
   </nav>
 </header>
 <main>
+  <!-- 予約DBに接続できないときの警告（保存されないことを受付にはっきり伝える） -->
+  <div id="connBar" style="display:none;margin:0 0 14px;padding:11px 16px;border:1px solid #fca5a5;border-left:5px solid #dc2626;background:#fef2f2;color:#7f1d1d;font-size:14px;font-weight:700;border-radius:6px"></div>
+
   <!-- 日別ボード -->
   <div id="view-board" class="admin-view active">
     <div class="board-toolbar">
@@ -173,10 +176,36 @@
 
 <script>window.__RSV_SUPABASE__ = true;</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="store.js?v=20260729note"></script>
+<script src="store.js?v=20260812w1"></script>
 <script>
 /* 受付ライブボード（タブ切替式）：患者予約が入った瞬間に日別ボード・予約一覧へ即反映 */
 function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+/* ---------------- 保存失敗の表示（黙って成功したように見せない） ----------------
+   store.js は失敗の種類を reason で返す：
+     DUPLICATE … DBの一意/排他制約が二重予約を拒否（同じ枠の同じ部屋/担当/機材）
+     OFFLINE   … 予約DB（Supabase）へ接続できていない
+     NETWORK   … 通信不達 ／ DB … その他DBエラー ／ COL_MISSING … DB列が未整備
+   いずれも受付には必ず見せる（ローカルへ黙って保存する経路は廃止済み）。 */
+function boardMsg(res, fallback){
+  if(!res) return fallback || "保存できませんでした。";
+  if(res.reason==="COL_MISSING" || res.error==="COL_MISSING") return "この環境では保存できません（DBの列追加が必要です）。";
+  return res.error || fallback || "保存できませんでした。";
+}
+function boardFail(res, fallback){
+  console.error("[受付ボード] 保存に失敗しました:", res);
+  alert("⚠ " + boardMsg(res, fallback));
+}
+// 接続できていないときの警告バー
+function renderConnBar(){
+  const bar=document.getElementById('connBar'); if(!bar) return;
+  if(Store.isOffline()){
+    const e=Store.getBackendError()||{};
+    bar.innerHTML = "⚠ 予約データベース（Supabase）に接続できていません。予約の登録・変更・取消は保存されません（この端末には保存しません）。"
+      + `<span style="font-weight:400;font-size:12px;display:block;margin-top:3px">種別：${esc(e.reason||"-")}／${esc(e.message||"")}</span>`;
+    bar.style.display='block';
+  } else bar.style.display='none';
+}
 
 let curTab = "board";
 let curDate = Store.todayStr();
@@ -235,7 +264,12 @@ async function loadDayNote(){
 async function saveDayNote(){
   const t=document.getElementById('dnText'); if(!t) return;
   const res=await Store.saveNote(curClinic, curDate, t.value);
-  const s=document.getElementById('dnStatus'); if(s){ s.textContent=res.ok?'✓ 保存しました':'保存に失敗'; setTimeout(()=>{ if(s) s.textContent=''; },1600); }
+  const s=document.getElementById('dnStatus');
+  if(s){
+    s.textContent = res.ok ? '✓ 保存しました' : '⚠ 保存できませんでした（内容は反映されていません）';
+    s.style.color = res.ok ? '' : 'var(--red)';
+    if(res.ok) setTimeout(()=>{ if(s) s.textContent=''; },1600);   // 失敗表示は消さない
+  }
 }
 function clinicRows(date){ return Store.dayReservations(date).filter(r=>inCurClinic(r.csId)); }
 function roomTag(r){ const rm=Store.roomName(r); return rm?`<span class="room-badge ${rm.endsWith("2")?"r2":""}">${esc(rm)}</span>`:'<span class="muted" style="font-size:12px">—</span>'; }
@@ -247,8 +281,8 @@ function roomSelect(r){
 }
 async function switchRoom(code, roomId){
   const res=await Store.setRoom(code, roomId);
-  if(!res.ok){ alert(res.error); }
-  afterMutate();
+  if(!res.ok){ boardFail(res, "診察室を変更できませんでした。"); }
+  afterMutate();   // 失敗時も store 側で最新状態を再読込済み。表示を戻す
 }
 // スタッフ/機材の割当セレクト（受付ボードから任意割当・被りは拒否）
 function resSelect(r, kind){
@@ -260,8 +294,8 @@ function resSelect(r, kind){
 }
 async function assignRes(code, kind, val){
   const res=await Store.assignResource(code, kind, val||null);
-  if(!res.ok){ alert(res.error==="COL_MISSING" ? "この環境では割当を保存できません（DB列の追加が必要）。" : res.error); }
-  afterMutate();
+  if(!res.ok){ boardFail(res, (kind==='staff'?"担当":"機材")+"の割当を保存できませんでした。"); }
+  afterMutate();   // 失敗時も store 側で最新状態を再読込済み。セレクトの表示を実データへ戻す
 }
 
 /* ---------------- 予約詳細モーダル（クリックで詳細・割当編集） ---------------- */
@@ -314,12 +348,13 @@ function openBooking(code){
 function closeBooking(){ const m=document.getElementById('bkModal'); m.style.display='none'; m.innerHTML=''; }
 async function bkSet(code, kind, val){
   const res = (kind==='room') ? await Store.setRoom(code, val) : await Store.assignResource(code, kind, val||null);
-  if(!res.ok){ alert(res.error==="COL_MISSING"?"この環境では保存できません（DB列が必要）。":res.error); }
-  afterMutate(); openBooking(code);
+  if(!res.ok){ boardFail(res, "割当を保存できませんでした。"); }
+  afterMutate(); openBooking(code);   // 再描画で実データの割当に戻る
 }
 async function bkStatus(code, status){
   if(status==="CANCELLED" && !confirm("この予約を取り消しますか？")) return;
-  await Store.updateStatus(code, status);
+  const res = await Store.updateStatus(code, status);
+  if(res && !res.ok){ boardFail(res, "予約の状態を変更できませんでした。"); afterMutate(); openBooking(code); return; }
   if(status==="CANCELLED"){ closeBooking(); afterMutate(); return; }
   afterMutate(); openBooking(code);
 }
@@ -377,7 +412,8 @@ async function submitNew(prefill){
   const res=await Store.createReservation({ csId, date:curDate, time, name, phone,
     kana:(g('nb_kana').value||'').trim(), birthDate:g('nb_birth').value, visitType:vt, channel:'PHONE',
     roomId:prefill.roomId||null, staffId:prefill.staffId||null, deviceId:prefill.deviceId||null });
-  if(!res.ok){ if(btn){ btn.disabled=false; btn.textContent='この内容で予約する'; } return err(res.error); }
+  // ★保存に失敗したら予約として扱わない（入力内容は残したまま再試行できる状態に戻す）
+  if(!res.ok){ if(btn){ btn.disabled=false; btn.textContent='この内容で予約する'; } console.error("[受付ボード] 新規予約に失敗:", res); return err(boardMsg(res, "予約を登録できませんでした。")); }
   closeBooking(); afterMutate(); if(curTab==='timeline') renderTimeline();
 }
 
@@ -450,8 +486,8 @@ async function tlDragEnd(ev){
     else if(tlState.axis==='device') res=await Store.assignResource(d.code,'device', rc.id);
   }
   if(res.ok) res=await Store.moveReservation(d.code, newTime);
-  if(!res.ok) alert(res.error==="COL_MISSING"?"この環境では保存できません（DB列が必要）。":res.error);
-  afterMutate(); renderTimeline();
+  if(!res.ok) boardFail(res, "予約を移動できませんでした。");
+  afterMutate(); renderTimeline();   // 失敗時は最新状態で描き直す＝ブロックは元の位置へ戻る
 }
 function currentCodes(){ return new Set(clinicRows(curDate).map(r=>r.code)); }
 
@@ -491,9 +527,22 @@ function renderBoard(flashCodes){
   </div>`;
 }
 
-async function markVisited(code){ await Store.updateStatus(code, "VISITED"); afterMutate(); }
-async function cancelRes(code){ if(!confirm("この予約を取り消しますか？")) return; await Store.updateStatus(code, "CANCELLED"); afterMutate(); }
-async function resetDemo(){ await Store.resetDemo(); afterMutate(); }
+async function markVisited(code){
+  const res = await Store.updateStatus(code, "VISITED");
+  if(res && !res.ok) boardFail(res, "来院済みにできませんでした。");
+  afterMutate();
+}
+async function cancelRes(code){
+  if(!confirm("この予約を取り消しますか？")) return;
+  const res = await Store.updateStatus(code, "CANCELLED");
+  if(res && !res.ok) boardFail(res, "予約を取り消せませんでした。");
+  afterMutate();
+}
+async function resetDemo(){
+  const res = await Store.resetDemo();
+  if(res && !res.ok) boardFail(res, "デモ初期化に失敗しました。");
+  afterMutate();
+}
 function afterMutate(){ prevCodes = currentCodes(); renderTab(curTab); }
 
 /* ---------------- タイムライン（時間軸 × 診察室・全院対応） ---------------- */
@@ -707,7 +756,13 @@ async function nfSubmit(){
     csId:nf.csId, date:nf.date, time:nf.time, name, kana:document.getElementById('nf_kana').value.trim(),
     phone, birthDate:document.getElementById('nf_birth').value, visitType:vt, channel:"PHONE"
   });
-  if(!res.ok){ if(btn){btn.disabled=false;btn.textContent="この内容で予約する";} return err(res.error); }
+  // ★保存に失敗したら予約として扱わない（入力内容は残したまま再試行できる状態に戻す）
+  if(!res.ok){
+    if(btn){btn.disabled=false;btn.textContent="この内容で予約する";}
+    console.error("[受付ボード] 代理入力の予約に失敗:", res);
+    nfRefreshTimes();                       // 最新の空き状況で時間ボタンを描き直す
+    return err(boardMsg(res, "予約を登録できませんでした。"));
+  }
   // 成功 → その日を日別ボードで表示
   curDate=nf.date; nf.time=null;
   document.getElementById("view-new").innerHTML=`<div class="success">予約を登録しました（予約番号 ${esc(res.reservation.code)}）。日別ボードに反映されています。</div>`;
@@ -771,6 +826,7 @@ Store.onSync((msg)=>{
   }
   // 表示中タブを再描画（ボードはフラッシュ付き）
   if(curTab==="board") renderBoard(flash);
+  else if(curTab==="new") nfRefreshTimes();   // 代理入力中は入力内容を消さない。空き時間だけ更新する
   else renderTab(curTab);
 });
 
@@ -781,7 +837,12 @@ Store.ready.then(()=>{
   prevCodes = currentCodes();
   const b = Store.getBackend();
   const brand = document.querySelector(".admin-header .brand small");
-  if(brand) brand.textContent = b==="supabase" ? "Supabase リアルタイム同期" : "リアルタイム同期（ローカル）";
+  if(brand) brand.textContent = b==="supabase" ? "Supabase リアルタイム同期"
+                              : b==="offline"  ? "⚠ 予約DBに未接続（保存されません）"
+                              : "リアルタイム同期（ローカル）";
+  const lat=document.getElementById("latency");
+  if(lat && b==="offline"){ lat.textContent="接続エラー"; lat.style.color="#fca5a5"; }
+  renderConnBar();
   renderTab(curTab);
   loadDayNote();
 });

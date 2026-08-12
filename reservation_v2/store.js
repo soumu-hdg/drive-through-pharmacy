@@ -180,6 +180,73 @@ const Store = (() => {
     return c;
   }
 
+  /* =========================================================
+     保存失敗の分類（Wave1：失敗を握りつぶさず必ず利用者へ見せる）
+     ---------------------------------------------------------
+     ・DUPLICATE … DBの一意/排他制約違反。同じ枠の同じ部屋/担当/機材への二重登録を
+                   DB側（uq_rsv2_room_slot / uq_rsv2_staff_slot / uq_rsv2_device_slot）が拒否した。
+                   ★判定は HTTPステータスではなく error.code で行う。
+                     PostgRESTは 23505→409、23P01→400 とマッピングが異なり、
+                     ステータスでの分岐は将来 EXCLUDE 制約へ移行した時に壊れるため。
+     ・OFFLINE   … 予約の正本（Supabase）へ接続できていない。ローカル保存で代替してはいけない。
+     ・NETWORK   … 通信不達（fetch失敗）。
+     ・DB        … その他のDBエラー（権限/列欠落など）。
+     ========================================================= */
+  const DUP_CODES = ["23505", "23P01"];          // 一意制約違反 / 排他制約違反
+  const ERR_MSG = {
+    duplicate:  "その部屋／担当／機材には、同じ時間帯に別の予約が入っています。",
+    offline:    "予約データベースに接続できていないため保存できませんでした。ネットワーク状況をご確認ください。",
+    createFail: "予約を保存できませんでした。通信状況をご確認のうえ、もう一度お試しください。",
+    saveFail:   "保存できませんでした。通信状況をご確認のうえ、もう一度お試しください。",
+    moveFail:   "移動を保存できませんでした。通信状況をご確認のうえ、もう一度お試しください。",
+    cancelFail: "キャンセルを保存できませんでした。通信状況をご確認のうえ、もう一度お試しください。",
+  };
+
+  function classifyError(e) {
+    const code    = String((e && e.code) || "");
+    const message = String((e && e.message) || "");
+    const details = String((e && e.details) || "");
+    if (e && e.__rsvOffline) return { reason: "OFFLINE", code, message, details, resource: null };
+    if (DUP_CODES.indexOf(code) >= 0) {
+      const m = (message + " " + details).match(/uq_rsv2_(room|staff|device)_slot/);
+      return { reason: "DUPLICATE", code, message, details, resource: m ? m[1] : null };
+    }
+    if (!code && /failed to fetch|networkerror|network request failed|load failed|fetcherror/i.test(message))
+      return { reason: "NETWORK", code, message, details, resource: null };
+    return { reason: "DB", code, message, details, resource: null };
+  }
+
+  // ネットワーク断・DBエラー・制約違反を区別してコンソールに残す（利用者向け文言は別途UIが出す）
+  function logFail(op, info, raw) {
+    const tag = { DUPLICATE:"重複＝DB制約が拒否", OFFLINE:"Supabase未接続", NETWORK:"通信不達", DB:"DBエラー" }[info.reason] || info.reason;
+    console.error(
+      `[予約システム] ${op}に失敗 / 種別=${info.reason}（${tag}）`
+      + ` code=${info.code || "-"}`
+      + (info.resource ? ` 競合リソース=${info.resource}` : "")
+      + ` message=${info.message || "-"}`
+      + (info.details ? ` details=${info.details}` : ""),
+      raw
+    );
+  }
+
+  // 予約の最新状態を取り直す（古い表示のまま再試行させない）
+  async function refreshReservations() {
+    try {
+      if (backend && backend.refresh) { await backend.refresh(); dispatch({ type: "reservation", at: Date.now() }); }
+    } catch (e) { console.warn("[予約システム] 予約状況の再読込に失敗しました:", e && e.message); }
+  }
+
+  // 書き込み失敗の共通処理：分類 → ログ → 最新状態の再読込 → UIへ結果を返す
+  async function failResult(op, e, failMsg) {
+    const info = classifyError(e);
+    logFail(op, info, e);
+    await refreshReservations();
+    const error = info.reason === "DUPLICATE" ? ERR_MSG.duplicate
+                : info.reason === "OFFLINE"   ? ERR_MSG.offline
+                : failMsg;
+    return { ok: false, reason: info.reason, resource: info.resource, error };
+  }
+
   /* ---------- 空き枠 = マスタ − 予約 ---------- */
   function getDays(csId, days) {
     const svc = serviceOfCs(csId);
@@ -272,12 +339,20 @@ const Store = (() => {
           })
           .subscribe((s) => dispatch({ type: "status", status: s }));
       },
+      // 最新の予約状況を取り直す（重複エラー時などに古い表示のまま再試行させないため）
+      async refresh() {
+        const { data, error } = await client.from(TABLE).select("*").eq("status", "CONFIRMED");
+        if (error) throw error;
+        _cache = (data || []).map(fromRow);
+      },
       async insert(res) {
         res.sentAt = Date.now();
         const row = toRow(res);
         let { error } = await client.from(TABLE).insert(row);
         let tries = 0;   // room_id/staff_id/device_id 列が無い環境 → その列を外して再送（予約は通す）
-        while (error && tries < 3 && /(room_id|staff_id|device_id)/.test(error.message||"")) {
+        //   ★制約違反(23505/23P01)はここで再送してはいけない（DBが正しく拒否した二重予約のため）
+        while (error && tries < 3 && DUP_CODES.indexOf(String(error.code||"")) < 0
+               && /(room_id|staff_id|device_id)/.test(error.message||"")) {
           ["room_id","staff_id","device_id"].forEach(c => { if (new RegExp(c).test(error.message||"")) delete row[c]; });
           ({ error } = await client.from(TABLE).insert(row)); tries++;
         }
@@ -291,9 +366,23 @@ const Store = (() => {
         const r = _cache.find(x => x.code === code); if (r) r.status = status;
       },
       async setRoom(updates) {
-        for (const u of updates) {
-          const { error } = await client.from(TABLE).update({ room_id: u.roomId }).eq("code", u.code);
-          if (error) { if (/room_id/.test(error.message||"")) throw new Error("NO_ROOM_COLUMN"); throw error; }
+        // 診察室の入れ替え（2件更新）は、途中経過で uq_rsv2_room_slot(部屋×枠) に触れてしまうため、
+        // 相手をいったん NULL（＝部分一意インデックスの対象外）へ退避してから順に確定する。
+        const undo = updates.map(u => {
+          const r = _cache.find(x => x.code === u.code);
+          return { code: u.code, roomId: r ? (r.roomId ?? null) : null };
+        });
+        const put = async (code, roomId) => {
+          const { error } = await client.from(TABLE).update({ room_id: roomId }).eq("code", code);
+          if (error) { if (/room_id/.test(error.message||"") && !error.code) throw new Error("NO_ROOM_COLUMN"); throw error; }
+        };
+        try {
+          for (const u of updates.slice(1)) await put(u.code, null);   // 相手を退避
+          for (const u of updates) await put(u.code, u.roomId);        // 本命→相手の順に確定
+        } catch (e) {
+          // 途中失敗時は元の割当へ戻す（戻せなくても予約自体は残る）
+          for (const b of undo) { try { await put(b.code, b.roomId); } catch (e2) { console.warn("[予約システム] 診察室の巻き戻しに失敗:", b.code, e2 && e2.message); } }
+          throw e;
         }
         updates.forEach(u => { const r = _cache.find(x => x.code === u.code); if (r) r.roomId = u.roomId; });
       },
@@ -365,6 +454,7 @@ const Store = (() => {
           if (e.key === "rsv2.ping" && e.newValue) { _cache = load(); try { dispatch(JSON.parse(e.newValue)); } catch {} }
         });
       },
+      async refresh() { _cache = load(); },
       async insert(res) { const l = load(); l.push(res); save(l); _cache = l; fire({ type:"reservation", at: Date.now() }); },
       async setStatus(code, status) { const l = load(); const r = l.find(x=>x.code===code); if (r){ r.status=status; save(l); _cache=l; fire({type:"reservation",at:Date.now()}); } },
       async setRoom(updates) { const l = load(); updates.forEach(u=>{ const r=l.find(x=>x.code===u.code); if(r) r.roomId=u.roomId; }); save(l); _cache=l; fire({type:"reservation",at:Date.now()}); },
@@ -381,20 +471,55 @@ const Store = (() => {
     };
   }
 
-  /* ---------- バックエンド確定（Supabase優先・失敗時ローカル） ---------- */
+  /* ---------- 接続不可バックエンド（★Wave1で新設） ----------
+     Supabase を使う設定なのに接続できなかった場合に使う。書き込みは必ず失敗させる。
+     ・以前はここで localStorage へ黙って保存し、患者へ「予約完了」と表示していた。
+       院に予約が届いていないのに患者が予約できたと思い込む事故につながるため廃止した。 */
+  function makeUnavailableBackend(cause) {
+    const fail = () => {
+      const e = new Error("予約データベース（Supabase）へ接続できていません: " + ((cause && cause.message) || "原因不明"));
+      e.__rsvOffline = true;
+      throw e;
+    };
+    return {
+      async init() {},
+      async refresh() {},                       // 取り直せるものが無い（キャッシュは空のまま）
+      async insert() { fail(); },
+      async setStatus() { fail(); },
+      async setRoom() { fail(); },
+      async assignResource() { fail(); },
+      async reschedule() { fail(); },
+      async resetDemo() { fail(); },
+      async loadResources() { return []; },
+      async getNote() { return ""; },
+      async saveNote() { fail(); },
+      async addResource() { fail(); },
+      async renameResource() { fail(); },
+      async removeResource() { fail(); },
+    };
+  }
+
+  /* ---------- バックエンド確定 ----------
+     ・Supabaseを使う設定（__RSV_SUPABASE__ && supabase-js 読込済）→ Supabase。失敗したら「接続不可」。
+       ★ローカル保存へ黙ってフォールバックしない（失敗は必ず利用者に見せる）。
+     ・そもそもSupabaseを使わない設定（file://・CDN不達 等）→ 従来どおりローカル同期（デモ用）。 */
   let backend = makeLocalBackend();   // 既定
+  let backendError = null;            // 接続不可のときの分類結果（UIの警告表示に使う）
   const ready = (async () => {
-    let ok = false;
     if (USE_SUPABASE) {
       try {
         const sb = makeSupabaseBackend();
         await sb.init();
-        backend = sb; backendName = "supabase"; ok = true;
+        backend = sb; backendName = "supabase";
       } catch (e) {
-        console.warn("[予約システム] Supabase未接続のためローカル同期にフォールバックします（テーブル未作成の可能性）:", e && e.message);
+        backendError = classifyError(e);
+        logFail("Supabaseへの接続", backendError, e);
+        backend = makeUnavailableBackend(e); backendName = "offline";
+        _cache = [];
       }
+    } else {
+      await backend.init(); backendName = "local";
     }
-    if (!ok) { await backend.init(); backendName = "local"; }
     try { _resources = await backend.loadResources(); } catch { _resources = []; }
   })();
 
@@ -408,7 +533,10 @@ const Store = (() => {
   async function renameResource(id, name) { await backend.renameResource(id, name); await refreshResources(); dispatch({ type: "resources", at: Date.now() }); }
   async function removeResource(id) { await backend.removeResource(id); await refreshResources(); dispatch({ type: "resources", at: Date.now() }); }
   async function getNote(clinicId, date) { try { return await backend.getNote(clinicId, date); } catch { return ""; } }
-  async function saveNote(clinicId, date, note) { try { await backend.saveNote(clinicId, date, note); return { ok:true }; } catch { return { ok:false }; } }
+  async function saveNote(clinicId, date, note) {
+    try { await backend.saveNote(clinicId, date, note); return { ok:true }; }
+    catch (e) { const info = classifyError(e); logFail("連絡事項の保存", info, e); return { ok:false, reason: info.reason }; }
+  }
 
   /* ---------- 公開API（UIが呼ぶ） ---------- */
 
@@ -426,7 +554,9 @@ const Store = (() => {
     if (input.deviceId && resourceConflict("device", Number(input.deviceId), input.date, st, en))
       return { ok: false, error: "選択した機材はその時間帯に別の予約で使用中です。" };
     const r = mkRes(input);
-    try { await backend.insert(r); } catch (e) { return { ok: false, error: "通信エラーで予約できませんでした。時間をおいてお試しください。" }; }
+    // ★予約番号は「保存が成功してから」確定・表示する（失敗したのに番号は出さない）
+    try { await backend.insert(r); }
+    catch (e) { return await failResult("予約の登録", e, ERR_MSG.createFail); }
     return { ok: true, reservation: r };
   }
   // スタッフ/機材の割当変更（受付ボードから）。被りは拒否。
@@ -442,8 +572,9 @@ const Store = (() => {
     }
     try { await backend.assignResource(code, kind, resourceId); }
     catch (e) {
-      if (/staff_id|device_id/.test(e && e.message || "")) return { ok: false, error: "COL_MISSING" };
-      return { ok: false, error: "通信エラーで保存できませんでした。" };
+      // 列そのものが無い環境（DB未整備）は従来どおり COL_MISSING を返す
+      if (!e.code && !e.__rsvOffline && /staff_id|device_id/.test(e && e.message || "")) return { ok: false, reason: "COL_MISSING", error: "COL_MISSING" };
+      return await failResult((kind === "staff" ? "担当" : "機材") + "の割当", e, ERR_MSG.saveFail);
     }
     return { ok: true };
   }
@@ -457,7 +588,8 @@ const Store = (() => {
     if (used >= ROOMS.length) return { ok: false, error: "移動先の枠は満員です。" };
     if (res.staffId && resourceConflict("staff", res.staffId, res.date, s, e, code)) return { ok: false, error: "移動先の時間は担当スタッフが別予約と重複します。" };
     if (res.deviceId && resourceConflict("device", res.deviceId, res.date, s, e, code)) return { ok: false, error: "移動先の時間は機材が別予約で使用中です。" };
-    try { await backend.reschedule(code, newTime); } catch (e2) { return { ok: false, error: "通信エラーで移動できませんでした。" }; }
+    try { await backend.reschedule(code, newTime); }
+    catch (e2) { return await failResult("予約時刻の移動", e2, ERR_MSG.moveFail); }
     return { ok: true };
   }
   // 診察室の切り替え（対象室に別の予約があれば入れ替え）
@@ -476,8 +608,8 @@ const Store = (() => {
       await backend.setRoom(updates);
     } catch (e) {
       if (String(e && e.message) === "NO_ROOM_COLUMN")
-        return { ok: false, error: "診察室の変更を保存できません（DBに room_id 列の追加が必要です）。" };
-      return { ok: false, error: "通信エラーで診察室を変更できませんでした。" };
+        return { ok: false, reason: "COL_MISSING", error: "診察室の変更を保存できません（DBに room_id 列の追加が必要です）。" };
+      return await failResult("診察室の変更", e, ERR_MSG.saveFail);
     }
     return { ok: true, swapped: !!other };
   }
@@ -486,19 +618,32 @@ const Store = (() => {
     if (!r || r.phone.replace(/-/g,"") !== (phone||"").replace(/-/g,"").trim())
       return { ok: false, error: "予約が見つかりません。予約番号と電話番号をご確認ください。" };
     if (r.status !== "CONFIRMED") return { ok: false, error: "この予約はすでにキャンセル済みです。" };
-    try { await backend.setStatus(r.code, "CANCELLED"); } catch { return { ok:false, error:"通信エラーでキャンセルできませんでした。" }; }
+    try { await backend.setStatus(r.code, "CANCELLED"); }
+    catch (e) { return await failResult("予約のキャンセル", e, ERR_MSG.cancelFail); }
     return { ok: true };
   }
-  async function updateStatus(code, status) { try { await backend.setStatus(code, status); } catch {} }
+  // 状態変更（来院済/取消/戻す）。★失敗を握りつぶさず結果を返す（呼び出し側が必ず表示する）
+  async function updateStatus(code, status) {
+    try { await backend.setStatus(code, status); }
+    catch (e) { return await failResult("予約状態の変更", e, ERR_MSG.saveFail); }
+    return { ok: true };
+  }
 
   return {
-    CLINICS, MENUS, ROOMS, WD, getBackend: () => backendName,
+    CLINICS, MENUS, ROOMS, WD,
+    getBackend: () => backendName,                                   // "supabase" | "local" | "offline"
+    isOffline: () => backendName === "offline",                      // 予約の正本に書けない状態
+    getBackendError: () => backendError,                             // {reason,code,message,details}
+    refreshReservations,                                             // 明示的な再読込（UIから呼べる）
     todayStr, addDays, fmtJa, weekday,
     clinicOfCs, serviceOfCs, menusOfCs, menuById, roomOf, roomName, freeRoom, durMin, resourceConflict,
     getDays, createReservation, setRoom, assignResource, moveReservation, findReservation, cancelReservation, updateStatus,
     dayReservations, loadReservations,
     resourcesOf, refreshResources, addResource, renameResource, removeResource, getNote, saveNote,
     onSync, ready,
-    resetDemo() { return backend.resetDemo(); },
+    async resetDemo() {
+      try { await backend.resetDemo(); return { ok:true }; }
+      catch (e) { return await failResult("デモ初期化", e, ERR_MSG.saveFail); }
+    },
   };
 })();
