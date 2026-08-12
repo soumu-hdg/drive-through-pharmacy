@@ -37,25 +37,40 @@ const Store = (() => {
   const USE_SUPABASE  = WANT_SUPABASE && SDK_LOADED;
 
   /* ---------- マスタ：クリニック・診療区分 ---------- */
+  /* 院ごとの診療区分（2026-08-12 現場の指定で改定）
+       西春=外来・在宅・夜間休日 ／ 横浜=外来・在宅 ／ 千葉=外来・在宅・美容 ／ 中川=在宅・夜間休日
+     ★ id（cs_id）は既存の予約データが参照しているため、区分を入れ替えるときも
+       「使わなくなったidを別の区分に再利用しない」こと。再利用すると過去の予約の区分が書き換わる。 */
   const CLINICS = [
     { id: 1, name: "西春", area: "愛知", address: "愛知県北名古屋市徳重", phone: "0568-00-0000",
-      services: [ { id: 11, name: "外来" }, { id: 12, name: "在宅" }, { id: 13, name: "美容" } ] },
+      services: [ { id: 11, name: "外来" }, { id: 12, name: "在宅" }, { id: 14, name: "夜間休日" } ] },
     { id: 2, name: "横浜", area: "神奈川", address: "神奈川県横浜市西区", phone: "045-000-0000",
-      services: [ { id: 21, name: "美容" }, { id: 22, name: "外来" } ] },
+      services: [ { id: 22, name: "外来" }, { id: 23, name: "在宅" } ] },
     { id: 3, name: "千葉", area: "千葉", address: "千葉県千葉市中央区", phone: "043-000-0000",
-      services: [ { id: 31, name: "外来" }, { id: 32, name: "夜間休日" } ] },
+      services: [ { id: 31, name: "外来" }, { id: 33, name: "在宅" }, { id: 34, name: "美容" } ] },
     { id: 4, name: "中川", area: "愛知", address: "愛知県名古屋市中川区", phone: "052-000-0000",
       openingNote: "11月開業予定",
-      services: [ { id: 41, name: "外来" } ] },
+      services: [ { id: 42, name: "在宅" }, { id: 43, name: "夜間休日" } ] },
+  ];
+
+  /* 取り扱いをやめた診療区分。新規予約では選べないが、
+     過去の予約が「不明な区分」にならないよう表示用にだけ残す。 */
+  const RETIRED_SERVICES = [
+    { id: 13, name: "美容", clinicId: 1, retiredAt: "2026-08-12" },  // 西春の美容
+    { id: 21, name: "美容", clinicId: 2, retiredAt: "2026-08-12" },  // 横浜の美容
+    { id: 32, name: "夜間休日", clinicId: 3, retiredAt: "2026-08-12" },  // 千葉の夜間休日
+    { id: 41, name: "外来", clinicId: 4, retiredAt: "2026-08-12" },  // 中川の外来
   ];
 
   const MENUS = [
-    { id: 101, csId: 13, name: "ダーマペン4", concerns: "毛穴・ニキビ跡・肌質", price: 19800, firstVisitPrice: 14800, durationMin: 60, popular: true, catch: "毛穴・ニキビ跡が気になる方へ", downtime: "赤みが数時間", staffType: "看護師（医師診察あり）" },
-    { id: 102, csId: 13, name: "医療ハイフ（全顔）", concerns: "たるみ・フェイスライン", price: 49800, firstVisitPrice: 39800, durationMin: 45, popular: true, catch: "切らないリフトアップ", downtime: "ほぼなし", staffType: "看護師" },
-    { id: 103, csId: 13, name: "IPL光治療", concerns: "シミ・そばかす・赤み", price: 12000, firstVisitPrice: null, durationMin: 30, popular: false, catch: "肌トーンを整える", downtime: "なし", staffType: "看護師" },
-    { id: 104, csId: 13, name: "医療脱毛（両ワキ）", concerns: "むだ毛", price: 3000, firstVisitPrice: null, durationMin: 20, popular: false, catch: "スピーディに完了", downtime: "なし", staffType: "看護師" },
-    { id: 201, csId: 21, name: "ボトックス（額）", concerns: "小じわ・ハリ不足", price: 22000, firstVisitPrice: 16800, durationMin: 20, popular: true, catch: "表情じわをやわらげる", downtime: "ほぼなし", staffType: "医師" },
-    { id: 202, csId: 21, name: "ダーマペン4", concerns: "毛穴・ニキビ跡", price: 20800, firstVisitPrice: 15800, durationMin: 60, popular: false, catch: "肌の生まれ変わりを促す", downtime: "赤みが数時間", staffType: "看護師（医師診察あり）" },
+    /* 美容は千葉クリニックの取り扱いに一本化（2026-08-12）。
+       もとは西春(csId 13)と横浜(csId 21)に分かれていたメニューを千葉(csId 34)へ集約し、
+       重複していた「ダーマペン4」は西春の内容を残した。 */
+    { id: 101, csId: 34, name: "ダーマペン4", concerns: "毛穴・ニキビ跡・肌質", price: 19800, firstVisitPrice: 14800, durationMin: 60, popular: true, catch: "毛穴・ニキビ跡が気になる方へ", downtime: "赤みが数時間", staffType: "看護師（医師診察あり）" },
+    { id: 102, csId: 34, name: "医療ハイフ（全顔）", concerns: "たるみ・フェイスライン", price: 49800, firstVisitPrice: 39800, durationMin: 45, popular: true, catch: "切らないリフトアップ", downtime: "ほぼなし", staffType: "看護師" },
+    { id: 103, csId: 34, name: "IPL光治療", concerns: "シミ・そばかす・赤み", price: 12000, firstVisitPrice: null, durationMin: 30, popular: false, catch: "肌トーンを整える", downtime: "なし", staffType: "看護師" },
+    { id: 104, csId: 34, name: "医療脱毛（両ワキ）", concerns: "むだ毛", price: 3000, firstVisitPrice: null, durationMin: 20, popular: false, catch: "スピーディに完了", downtime: "なし", staffType: "看護師" },
+    { id: 201, csId: 34, name: "ボトックス（額）", concerns: "小じわ・ハリ不足", price: 22000, firstVisitPrice: 16800, durationMin: 20, popular: true, catch: "表情じわをやわらげる", downtime: "ほぼなし", staffType: "医師" },
   ];
 
   /* ---------- 診察室：リソース台帳（rsv2_resources / kind='room'）が正 ----------
@@ -123,10 +138,17 @@ const Store = (() => {
     return new Date(y,m-1,d).getDay();
   }
 
-  function clinicOfCs(csId) { return CLINICS.find(c => c.services.some(s => s.id === csId)); }
+  function clinicOfCs(csId) {
+    const c = CLINICS.find(x => x.services.some(s => s.id === csId));
+    if (c) return c;
+    // 取り扱いをやめた区分の過去予約も、どの院のものかは分かるようにする
+    const r = RETIRED_SERVICES.find(x => x.id === csId);
+    return r ? CLINICS.find(x => x.id === r.clinicId) : undefined;
+  }
   function serviceOfCs(csId) {
     for (const c of CLINICS) { const s = c.services.find(x => x.id === csId); if (s) return s; }
-    return null;
+    const r = RETIRED_SERVICES.find(x => x.id === csId);
+    return r ? { id: r.id, name: r.name, retired: true } : null;   // 表示用（新規予約には出さない）
   }
   function menusOfCs(csId) { return MENUS.filter(m => m.csId === csId); }
   function menuById(id) { return MENUS.find(m => m.id === id); }

@@ -27,7 +27,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- LINE LIFF SDK（LINEログインで予約者のuserIdを取得し、予約確定をLINE通知） -->
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="store.js?v=20260812w3"></script>
+<script src="store.js?v=20260812w4"></script>
 <script>
 /* =========================================================
    患者向けSPA
@@ -83,7 +83,8 @@ function renderHome(){
       .map(s=>{
         const isPrimary = s.name===primary;
         const label = s.name==="美容" ? "美容施術を探す" : `${s.name}を予約する`;
-        if(c.openingNote) return `<button class="svc-btn disabled">${SVG[s.name]||""}${label}（準備中）</button>`;
+        // 開業前は「〜を予約する」を外し、区分名＋準備中の短い表記にする（ボタン内で折り返さないため）
+        if(c.openingNote) return `<button class="svc-btn disabled">${SVG[s.name]||""}${s.name}（準備中）</button>`;
         return `<button class="svc-btn ${isPrimary?"":"secondary"}" onclick="go({view:'service',csId:${s.id},menuId:null,concern:null,date:null})">${SVG[s.name]||""}${label}</button>`;
       }).join("");
     return `<section class="clinic-card">
