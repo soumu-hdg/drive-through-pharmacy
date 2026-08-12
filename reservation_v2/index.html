@@ -25,7 +25,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- LINE LIFF SDK（LINEログインで予約者のuserIdを取得し、予約確定をLINE通知） -->
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="store.js?v=20260812w1"></script>
+<script src="store.js?v=20260812w2b"></script>
 <script>
 /* =========================================================
    患者向けSPA
@@ -257,11 +257,27 @@ function renderSlotList(clinic, svc){
 
 /* ---------------- 3. 予約フォーム（入力→確認） ---------------- */
 function startForm(){
-  form = form || { name:"", kana:"", birthDate:"", phone:"", email:"", visitType:"", note:"", agree:false, consent:false };
+  form = form || { name:"", kana:"", birthDate:"", phone:"", email:"", visitType:"", note:"", agree:false, consent:false, staffId:"" };
   go({ view:"form" }); formStep="input"; renderForm();
 }
 let formStep = "input";
 let consentOpen = false;
+
+/* 担当スタッフのご指名（Wave2 / 仕様書v2 §3.2-C・欠陥D-5）
+   Web予約は担当が未設定（NULL）で入るため、DBの部分一意インデックス（担当×枠）の
+   対象外になり、担当の重複がDBで止まらなかった。ここで指名できるようにすると、
+   指名された予約は登録した瞬間からDBの重複拒否の対象になる。
+   「指名なし」のままでも受付ボードの「未割当」列から後で割り当てられる。 */
+function staffList(clinic){ return clinic ? Store.resourcesOf(clinic.id, "staff") : []; }
+function staffField(clinic){
+  const list = staffList(clinic);
+  if(!list.length) return "";                       // スタッフ未登録の院では出さない
+  const opts = `<option value="">指名なし（当院にお任せ）</option>`
+    + list.map(s=>`<option value="${s.id}" ${String(form.staffId)===String(s.id)?"selected":""}>${esc(s.name)}</option>`).join("");
+  return `<label class="field">ご指名（担当スタッフ）<select id="f_staff">${opts}</select>
+    <span class="muted">ご指名の担当がその時間に埋まっている場合は、確定時にお知らせします。</span></label>`;
+}
+function staffNameOf(clinic, id){ const s = staffList(clinic).find(x=>String(x.id)===String(id)); return s ? s.name : ""; }
 
 function renderForm(){
   const clinic = Store.clinicOfCs(state.csId);
@@ -287,6 +303,7 @@ function renderForm(){
               <label><input type="radio" name="vt" value="REVISIT" ${form.visitType==="REVISIT"?"checked":""}>2回目以降（再診）</label>
             </div>
           </div>
+          ${staffField(clinic)}
           <label class="field">ご相談内容・気になること（任意）<textarea id="f_note" rows="3">${esc(form.note)}</textarea></label>
           <div class="policy-box">
             <strong style="font-size:14px">同意書のご確認<span class="req">必須</span></strong>
@@ -319,6 +336,7 @@ function renderForm(){
           <tr><th>電話番号</th><td>${esc(form.phone)}</td></tr>
           ${form.email?`<tr><th>メール</th><td>${esc(form.email)}</td></tr>`:""}
           <tr><th>初診・再診</th><td>${form.visitType==="FIRST"?"初めて（初診）":"2回目以降（再診）"}</td></tr>
+          ${staffList(clinic).length?`<tr><th>ご指名</th><td>${form.staffId?esc(staffNameOf(clinic, form.staffId)):"指名なし（当院にお任せ）"}</td></tr>`:""}
           <tr><th>同意書</th><td>✓ 確認・同意済み</td></tr>
           ${form.note?`<tr><th>ご相談内容</th><td>${esc(form.note)}</td></tr>`:""}
         </tbody></table>
@@ -354,6 +372,7 @@ function readForm(){
   form.phone = (document.getElementById("f_phone")||{}).value ?? form.phone;
   form.email = (document.getElementById("f_email")||{}).value ?? form.email;
   form.note = (document.getElementById("f_note")||{}).value ?? form.note;
+  form.staffId = (document.getElementById("f_staff")||{}).value ?? form.staffId;   // 指名（空＝指名なし）
   // ラジオ（初診/再診）・チェック（注意事項同意）はDOMから読む（インラインで変数へ代入しない）
   const vt = document.querySelector('input[name="vt"]:checked');
   if (vt) form.visitType = vt.value;
@@ -412,6 +431,7 @@ async function submitReservation(){
     name: form.name.trim(), kana: form.kana.trim(), birthDate: form.birthDate,
     phone: form.phone.trim(), email: form.email.trim(), visitType: form.visitType,
     menuId: state.menuId, note: form.note.trim(), channel: "WEB",
+    staffId: form.staffId ? Number(form.staffId) : null,   // ご指名（未指名はnull＝受付が後で割当）
     lineUserId: (window.__lineUser && window.__lineUser.id) || null,
   });
   // ★保存に失敗したら「完了」にしない。入力内容（form）は消さず、確認画面のまま再試行できる状態に戻す。
@@ -447,6 +467,7 @@ function renderDone(){
         ${menu?`<tr><th>メニュー</th><td>${esc(menu.name)}</td></tr>`:""}
         <tr><th>日時</th><td>${Store.fmtJa(rr.date)} ${rr.time}</td></tr>
         ${Store.roomName(rr)?`<tr><th>診察室</th><td>${esc(Store.roomName(rr))}</td></tr>`:""}
+        ${rr.staffId&&staffNameOf(clinic, rr.staffId)?`<tr><th>ご指名</th><td>${esc(staffNameOf(clinic, rr.staffId))}</td></tr>`:""}
         <tr><th>お名前</th><td>${esc(rr.name)} 様</td></tr>
         <tr><th>初診・再診</th><td>${rr.visitType==="FIRST"?"初めて（初診）":"2回目以降（再診）"}</td></tr>
       </tbody></table>

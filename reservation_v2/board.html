@@ -54,6 +54,13 @@
   .tl-axis-tabs{ display:inline-flex; gap:4px; }
   .tl-axis-btn{ font:inherit; font-size:13px; font-weight:700; padding:6px 14px; border:1px solid var(--border); background:#fff; color:var(--sub); border-radius:7px; cursor:pointer; }
   .tl-axis-btn.on{ background:var(--blue); color:#fff; border-color:var(--blue); }
+  /* 未割当（仮想列）：担当/機材が未設定の予約の置き場。見落とし防止のため琥珀色で目立たせる */
+  .tl-head-cell.unassigned{ background:#fef3c7; color:#92580b; border-right:2px solid #f59e0b; }
+  .tl-head-cell .u-count{ display:block; font-size:10.5px; font-weight:700; color:#b45309; margin-top:2px; }
+  .tl-col.unassigned{ background:#fffbeb; border-right:2px solid #f59e0b; }
+  .tl-blk.un{ background:#b45309; }
+  .tl-axis-btn .u-badge{ display:inline-block; min-width:16px; margin-left:6px; padding:0 5px; border-radius:4px; background:#f59e0b; color:#fff; font-size:11px; font-weight:700; }
+  .tl-axis-btn.on .u-badge{ background:#fff; color:#b45309; }
   .tl-compact{ font-size:12.5px; color:var(--dark); display:inline-flex; align-items:center; gap:4px; cursor:pointer; }
   /* 連絡事項 */
   .day-note{ background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:10px 14px; margin-bottom:16px; }
@@ -176,7 +183,7 @@
 
 <script>window.__RSV_SUPABASE__ = true;</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="store.js?v=20260812w1"></script>
+<script src="store.js?v=20260812w2b"></script>
 <script>
 /* 受付ライブボード（タブ切替式）：患者予約が入った瞬間に日別ボード・予約一覧へ即反映 */
 function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -272,12 +279,16 @@ async function saveDayNote(){
   }
 }
 function clinicRows(date){ return Store.dayReservations(date).filter(r=>inCurClinic(r.csId)); }
-function roomTag(r){ const rm=Store.roomName(r); return rm?`<span class="room-badge ${rm.endsWith("2")?"r2":""}">${esc(rm)}</span>`:'<span class="muted" style="font-size:12px">—</span>'; }
-// 診察室の切替プルダウン（受付が任意に変更／相手がいれば入れ替え）
+// 診察室バッジの色分けは「その院の部屋の並び順（偶数/奇数）」で決める（名称に依存しない）
+function roomAlt(r){ return Store.roomIndex(r)%2===1; }
+function roomTag(r){ const rm=Store.roomName(r); return rm?`<span class="room-badge ${roomAlt(r)?"r2":""}">${esc(rm)}</span>`:'<span class="muted" style="font-size:12px">—</span>'; }
+// 診察室の切替プルダウン（受付が任意に変更／相手がいれば入れ替え）。選択肢＝この院の登録部屋
 function roomSelect(r){
   const cur=Store.roomOf(r);
-  const opts=Store.ROOMS.map(rm=>`<option value="${rm.id}" ${rm.id===cur?'selected':''}>${esc(rm.name)}</option>`).join("");
-  return `<select class="room-sel ${cur===2?'r2':''}" title="診察室を変更" onchange="switchRoom('${esc(r.code)}', this.value)">${opts}</select>`;
+  const rooms=Store.roomsOfCs(r.csId);
+  if(!rooms.length) return `<span class="muted" style="font-size:11px">部屋未登録</span>`;
+  const opts=rooms.map(rm=>`<option value="${rm.id}" ${Number(rm.id)===Number(cur)?'selected':''}>${esc(rm.name)}</option>`).join("");
+  return `<select class="room-sel ${roomAlt(r)?'r2':''}" title="診察室を変更" onchange="switchRoom('${esc(r.code)}', this.value)">${opts}</select>`;
 }
 async function switchRoom(code, roomId){
   const res=await Store.setRoom(code, roomId);
@@ -307,7 +318,10 @@ function openBooking(code){
   const dur=Store.durMin(r), end=tlHHMM(tlToMin(r.time)+dur), age=r.birthDate?ageFrom(r.birthDate):null;
   const stMap={CONFIRMED:['予約確定','confirmed'],VISITED:['来院済','visited'],CANCELLED:['キャンセル','cancelled'],NO_SHOW:['不履行','no-show']};
   const st=stMap[r.status]||[r.status,'confirmed'];
-  const roomOpts=Store.ROOMS.map(rm=>`<option value="${rm.id}" ${Store.roomOf(r)===rm.id?'selected':''}>${esc(rm.name)}</option>`).join("");
+  const rooms=Store.roomsOfCs(r.csId);
+  const roomOpts=rooms.length
+    ? rooms.map(rm=>`<option value="${rm.id}" ${Number(Store.roomOf(r))===Number(rm.id)?'selected':''}>${esc(rm.name)}</option>`).join("")
+    : `<option value="">（部屋が未登録です）</option>`;
   const staffOpts=`<option value="">担当なし</option>`+Store.resourcesOf(cid,'staff').map(x=>`<option value="${x.id}" ${Number(r.staffId)===Number(x.id)?'selected':''}>${esc(x.name)}</option>`).join("");
   const devOpts=`<option value="">機材なし</option>`+Store.resourcesOf(cid,'device').map(x=>`<option value="${x.id}" ${Number(r.deviceId)===Number(x.id)?'selected':''}>${esc(x.name)}</option>`).join("");
   document.getElementById('bkModal').innerHTML=`<div class="bk-modal" onclick="event.stopPropagation()">
@@ -367,16 +381,19 @@ function tlColClick(ci, ev){
   const time = tlHHMM(Math.max(tlState.sMin, min));
   const rc = tlState.resList[ci];
   const prefill = { time };
-  if(tlState.axis==="room") prefill.roomId = ci+1;
-  else if(tlState.axis==="staff") prefill.staffId = rc && rc.id;
-  else if(tlState.axis==="device") prefill.deviceId = rc && rc.id;
+  // 未割当列（rc.unassigned）は割当なしで作成する（＝リソースを指定しない新規予約）
+  if(rc && !rc.unassigned){
+    if(tlState.axis==="room") prefill.roomId = rc.id;
+    else if(tlState.axis==="staff") prefill.staffId = rc.id;
+    else if(tlState.axis==="device") prefill.deviceId = rc.id;
+  }
   openNewBooking(prefill);
 }
 function openNewBooking(prefill){
   const clinic=curClinicObj();
   const svcOpts=clinic.services.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("");
   let assignLabel="";
-  if(prefill.roomId){ const rm=Store.ROOMS.find(r=>r.id===prefill.roomId); assignLabel=rm?("診察室："+rm.name):""; }
+  if(prefill.roomId){ const rm=Store.roomsOf(clinic.id).find(r=>Number(r.id)===Number(prefill.roomId)); assignLabel=rm?("診察室："+rm.name):""; }
   else if(prefill.staffId){ const s=Store.resourcesOf(clinic.id,'staff').find(r=>Number(r.id)===Number(prefill.staffId)); assignLabel=s?("担当："+s.name):""; }
   else if(prefill.deviceId){ const d=Store.resourcesOf(clinic.id,'device').find(r=>Number(r.id)===Number(prefill.deviceId)); assignLabel=d?("機材："+d.name):""; }
   document.getElementById('bkModal').innerHTML=`<div class="bk-modal" onclick="event.stopPropagation()">
@@ -421,9 +438,10 @@ async function submitNew(prefill){
 let _tlDrag=null, _tlDragged=false;
 function columnOfBooking(code){
   const r=Store.loadReservations().find(x=>x.code===code); if(!r) return -1;
-  if(tlState.axis==='room') return Store.roomOf(r)-1;
-  const rid = tlState.axis==='staff' ? r.staffId : r.deviceId;
-  return tlState.resList.findIndex(x=>Number(x.id)===Number(rid));
+  const rid = tlState.axis==='room' ? Store.roomOf(r) : (tlState.axis==='staff' ? r.staffId : r.deviceId);
+  const i = (rid==null) ? -1 : tlState.resList.findIndex(x=>Number(x.id)===Number(rid));
+  if(i>=0) return i;
+  return tlState.resList.findIndex(x=>x.unassigned);   // 未割当列（無ければ-1）
 }
 function tlDragStart(ev, code){
   if(ev.button!==0) return;
@@ -481,7 +499,12 @@ async function tlDragEnd(ev){
   let res={ok:true};
   if(newCi>=0 && newCi!==oldCi && tlState.resList[newCi]){
     const rc=tlState.resList[newCi];
-    if(tlState.axis==='room') res=await Store.setRoom(d.code, newCi+1);
+    if(rc.unassigned){
+      // 未割当列へ戻す＝担当/機材の割当を外す。診察室は必ずどこかの室に入るため外せない。
+      if(tlState.axis==='room') res={ ok:false, error:"診察室は「未割当」へは戻せません。別の診察室の列へ移動してください。" };
+      else res=await Store.assignResource(d.code, tlState.axis, null);
+    }
+    else if(tlState.axis==='room') res=await Store.setRoom(d.code, rc.id);
     else if(tlState.axis==='staff') res=await Store.assignResource(d.code,'staff', rc.id);
     else if(tlState.axis==='device') res=await Store.assignResource(d.code,'device', rc.id);
   }
@@ -556,7 +579,24 @@ let tlAxis="room";
 let tlCompact=false;                                  // 縮小表示
 let tlState={ sMin:540, axis:"room", resList:[], ppm:1 };   // 空き枠クリック用に現在の描画状態を保持
 const AXIS_LABEL={room:"ルーム",staff:"スタッフ",device:"機材"};
+const AXIS_NOUN={room:"診察室",staff:"担当",device:"機材"};
 function setTlAxis(k){ tlAxis=k; renderTimeline(); }
+/* ---- 未割当の判定（Wave2 / 仕様書v2 §3.2-A・欠陥D-5） ----
+   患者Web予約は担当・機材が未設定（null）で入るため、割当済みだけを描くと軸から消えてしまう。
+   その軸のリソースが割り当たっていない予約を「未割当」列に集めて、受付が見落とさないようにする。
+   room軸では通常 roomOf が自動導出するので空になるが、部屋を減らして登録外になった予約は
+   ここに出す（＝室数を減らしても予約が画面から消えない）。 */
+function tlUnassigned(rows, axis, resList){
+  return rows.filter(r=>{
+    const id = axis==='room' ? Store.roomOf(r) : (axis==='staff' ? r.staffId : r.deviceId);
+    return id==null || !resList.some(x=>Number(x.id)===Number(id));
+  });
+}
+// 軸タブに出す「割当待ち」件数（表示中の院・日付）
+function tlUnassignedCount(axis){
+  const rows=clinicRows(curDate);
+  return tlUnassigned(rows, axis, Store.resourcesOf(curClinic, axis)).length;
+}
 function renderTimeline(){
   const clinic=curClinicObj();
   const rows=clinicRows(curDate).slice().sort((a,b)=>a.time.localeCompare(b.time));
@@ -567,10 +607,18 @@ function renderTimeline(){
     if(st<sMin) sMin=Math.floor(st/60)*60; if(en>eMin) eMin=Math.ceil(en/60)*60; });
   const hours=[]; for(let m=sMin;m<eMin;m+=60) hours.push(m);
   const HEAD=34, PPM=tlCompact?0.5:1;
-  tlState={ sMin, axis:tlAxis, resList, ppm:PPM };   // 空き枠クリック/ドラッグで参照
+  // 未割当（仮想列）を先頭に足す。staff/device軸は常に表示（割当待ちの受け皿）、
+  // room軸は「登録外の部屋を指す予約」がある時だけ表示する。
+  const unRows=tlUnassigned(rows, tlAxis, resList);
+  const showUn=(tlAxis!=="room") || unRows.length>0;
+  const colList=showUn ? [{ id:null, name:"未割当", unassigned:true }].concat(resList) : resList.slice();
+  tlState={ sMin, axis:tlAxis, resList:colList, ppm:PPM };   // 空き枠クリック/ドラッグで参照
   const hrHtml=hours.map(m=>`<div class="hr" style="height:${60*PPM}px">${tlHHMM(m)}</div>`).join("");
   const gridHr=hours.map(()=>`<div class="hr" style="height:${60*PPM}px"></div>`).join("");
-  const axisTabs=["room","staff","device"].map(k=>`<button class="tl-axis-btn ${tlAxis===k?'on':''}" onclick="setTlAxis('${k}')">${AXIS_LABEL[k]}</button>`).join("");
+  const axisTabs=["room","staff","device"].map(k=>{
+    const n=tlUnassignedCount(k);
+    return `<button class="tl-axis-btn ${tlAxis===k?'on':''}" onclick="setTlAxis('${k}')">${AXIS_LABEL[k]}${n?`<span class="u-badge" title="${AXIS_NOUN[k]}が未割当の予約">${n}</span>`:""}</button>`;
+  }).join("");
   const toolbar=`<div class="tl-toolbar">
       <button class="secondary small" onclick="shift(-1);renderTimeline()">‹ 前日</button>
       <input type="date" value="${curDate}" onchange="setDate(this.value);renderTimeline()">
@@ -581,22 +629,31 @@ function renderTimeline(){
       <span class="tl-axis-tabs">${axisTabs}</span>
     </div>`;
   const box=document.getElementById("view-timeline");
-  if(!resList.length){
+  if(!colList.length){
     box.innerHTML = toolbar + `<div class="card">この院の「${AXIS_LABEL[tlAxis]}」が未登録です。<a onclick="showAdminTab('resources')" style="color:var(--blue);cursor:pointer;font-weight:700">リソース設定</a>から追加してください。</div>`;
     return;
   }
-  const head=`<div class="tl-head-cell">時刻</div>`+resList.map(rc=>`<div class="tl-head-cell">${esc(rc.name)}</div>`).join("");
+  const head=`<div class="tl-head-cell">時刻</div>`+colList.map(rc=>rc.unassigned
+      ? `<div class="tl-head-cell unassigned" title="${AXIS_NOUN[tlAxis]}が割り当てられていない予約。ドラッグで右の列へ割り当てられます">未割当<span class="u-count">割当待ち ${unRows.length}件</span></div>`
+      : `<div class="tl-head-cell">${esc(rc.name)}</div>`).join("");
   const axis=`<div class="tl-axis">${hrHtml}</div>`;
-  const cols=resList.map((rc,ci)=>{
-    // room軸: 予約のroomOf(1/2..)を列indexにマッピング。staff/device軸: 予約のstaffId/deviceIdで割当。
-    const colBookings = (tlAxis==="room")
-      ? rows.filter(r=>Store.roomOf(r)===ci+1)
-      : rows.filter(r=> Number(tlAxis==="staff"?r.staffId:r.deviceId) === Number(rc.id));
-    const blks=colBookings.map(r=>{
-      const st=tlToMin(r.time), dur=resDurMin(r), end=st+dur;
+  const cols=colList.map((rc,ci)=>{
+    // room軸: 予約のroomOf(=リソースID)で列を決める。staff/device軸: 予約のstaffId/deviceIdで割当。
+    // 先頭が未割当列のときは、その軸のリソースが未設定/登録外の予約をまとめて置く。
+    const colBookings = rc.unassigned ? unRows
+      : (tlAxis==="room")
+        ? rows.filter(r=>Number(Store.roomOf(r))===Number(rc.id))
+        : rows.filter(r=> Number(tlAxis==="staff"?r.staffId:r.deviceId) === Number(rc.id));
+    // 同じ列で時間帯が重なるブロックは横に並べる（未割当列に同時刻が積み上がると1件しか見えないため）
+    const items=colBookings.map(r=>({ r, st:tlToMin(r.time), en:tlToMin(r.time)+resDurMin(r) }));
+    items.forEach(it=>{ const ov=items.filter(o=>o.st<it.en && it.st<o.en); it.n=ov.length; it.i=ov.indexOf(it); });
+    const blks=items.map(it=>{
+      const r=it.r;
+      const st=it.st, dur=resDurMin(r), end=st+dur;
       const top=(st-sMin)*PPM, h=Math.max(16,dur*PPM);
+      const w=`calc((100% - 6px) / ${it.n})`, left=`calc(3px + (100% - 6px) * ${it.i} / ${it.n})`;
       const svc=Store.serviceOfCs(r.csId), menu=r.menuId?Store.menuById(r.menuId):null;
-      return `<div class="tl-blk ${ci%2?'r2':'r1'}" style="top:${top}px;height:${h}px"
+      return `<div class="tl-blk ${rc.unassigned?'un':(ci%2?'r2':'r1')}" style="top:${top}px;height:${h}px;left:${left};width:${w};right:auto"
                 onmousedown="tlDragStart(event,'${esc(r.code)}')"
                 onclick="event.stopPropagation();openBooking('${esc(r.code)}')"
                 title="${esc(r.name)}様 ${r.time}-${tlHHMM(end)} / ${esc(menu?menu.name:svc.name)}（クリックで詳細・ドラッグで移動）">
@@ -604,7 +661,7 @@ function renderTimeline(){
         <div class="m">${r.time}-${tlHHMM(end)}・${esc(menu?menu.name:svc.name)}</div>
       </div>`;
     }).join("");
-    return `<div class="tl-col" onclick="tlColClick(${ci}, event)" title="空き部分をクリックで新規予約">${gridHr}${blks}</div>`;
+    return `<div class="tl-col ${rc.unassigned?'unassigned':''}" onclick="tlColClick(${ci}, event)" title="空き部分をクリックで新規予約">${gridHr}${blks}</div>`;
   }).join("");
   let now="";
   if(curDate===Store.todayStr()){
@@ -612,10 +669,11 @@ function renderTimeline(){
     if(nm>=sMin && nm<=eMin) now=`<div class="tl-now" style="top:${HEAD+(nm-sMin)*PPM}px;left:56px;right:0"></div>`;
   }
   const note = (tlAxis==="room")
-    ? "診察室ごとの時系列。予約が入ると即反映されます。列は「リソース設定」で編集できます。"
-    : `「${AXIS_LABEL[tlAxis]}」の列は「リソース設定」で編集できます。※予約への${AXIS_LABEL[tlAxis]}割当（どの予約が誰／どの機材か）は次段階で実装します。`;
+    ? "診察室ごとの時系列。予約が入ると即反映されます。列＝この院に登録された部屋（「リソース設定」で増減でき、枠の定員もその室数になります）。"
+    : `「${AXIS_LABEL[tlAxis]}」の列は「リソース設定」で編集できます。左端の<b>未割当</b>列は${AXIS_NOUN[tlAxis]}が決まっていない予約（Web予約は未割当で入ります）。<b>ドラッグで列へ移すと割り当てられます</b>（同じ時間帯の重複はDBが拒否します）。`
+      + (resList.length ? "" : `<br>この院の「${AXIS_LABEL[tlAxis]}」が未登録です。<a onclick="showAdminTab('resources')" style="color:var(--blue);cursor:pointer;font-weight:700">リソース設定</a>から追加してください。`);
   box.innerHTML = toolbar +
-    `<div class="tl-wrap"><div class="tl-grid" style="--cols:${resList.length};position:relative">${head}${axis}${cols}${now}</div></div>
+    `<div class="tl-wrap"><div class="tl-grid" style="--cols:${colList.length};position:relative">${head}${axis}${cols}${now}</div></div>
      <p class="muted" style="margin-top:10px">${note}</p>`;
 }
 
@@ -665,10 +723,10 @@ function renderList(){
   const rows = all.map(r=>{
     const c=Store.clinicOfCs(r.csId), svc=Store.serviceOfCs(r.csId), menu=r.menuId?Store.menuById(r.menuId):null;
     const st = STATUS[r.status]||[r.status,'confirmed'];
-    const rm = r.status==="CONFIRMED" ? Store.roomName(r) : "";
+    const rm = r.status==="CONFIRMED" ? Store.roomName(r) : "", rmAlt = rm && roomAlt(r);
     return `<tr style="${r.status==='CANCELLED'?'opacity:.55':''}">
       <td style="white-space:nowrap">${Store.fmtJa(r.date)} ${r.time}</td>
-      <td>${esc(c.name)}／${esc(svc.name)}${rm?` <span class="room-badge ${rm.endsWith("2")?"r2":""}">${esc(rm)}</span>`:""}${menu?`<div class="muted" style="font-size:12px">${esc(menu.name)}</div>`:""}</td>
+      <td>${esc(c.name)}／${esc(svc.name)}${rm?` <span class="room-badge ${rmAlt?"r2":""}">${esc(rm)}</span>`:""}${menu?`<div class="muted" style="font-size:12px">${esc(menu.name)}</div>`:""}</td>
       <td><span class="pt-link" onclick="openBooking('${esc(r.code)}')">${esc(r.name)} 様</span>${r.visitType==="FIRST"?'<span class="badge first" style="margin-left:4px">初診</span>':""}<div class="muted" style="font-size:12px">${esc(r.phone)}</div></td>
       <td>${r.channel==="WEB"?'<span class="badge web">Web</span>':'<span class="badge phone">電話</span>'}</td>
       <td><span class="badge ${st[1]}">${st[0]}</span></td>
