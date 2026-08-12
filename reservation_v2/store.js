@@ -25,7 +25,12 @@ const Store = (() => {
   const SUPA_URL = "https://vypwgxkqtxuzqfaaeamf.supabase.co";
   const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ5cHdneGtxdHh1enFmYWFlYW1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NzMxNTgsImV4cCI6MjEwMDM0OTE1OH0.Vyo6iOvAYF4DOVF1bfNwNWoA1e8ja-9byx8dULmWzb8";
   const TABLE = "rsv2_reservations";
-  const USE_SUPABASE = typeof window !== "undefined" && window.__RSV_SUPABASE__ && window.supabase;
+  /* この画面がSupabaseを使う設定か（患者予約サイト・受付ボードは true。demo.html は宣言せずローカルデモ）と、
+     supabase-js（CDN）が実際に読み込めたかを分けて持つ。
+     ★両者を混ぜると「CDNが読めなかった」ときに黙ってローカル保存へ落ちて「予約完了」と出てしまう（2026-08-12 是正）。 */
+  const WANT_SUPABASE = typeof window !== "undefined" && window.__RSV_SUPABASE__ === true;
+  const SDK_LOADED    = typeof window !== "undefined" && !!window.supabase;
+  const USE_SUPABASE  = WANT_SUPABASE && SDK_LOADED;
 
   /* ---------- マスタ：クリニック・診療区分 ---------- */
   const CLINICS = [
@@ -49,16 +54,17 @@ const Store = (() => {
     { id: 202, csId: 21, name: "ダーマペン4", concerns: "毛穴・ニキビ跡", price: 20800, firstVisitPrice: 15800, durationMin: 60, popular: false, catch: "肌の生まれ変わりを促す", downtime: "赤みが数時間", staffType: "看護師（医師診察あり）" },
   ];
 
-  /* ---------- 診察室：各クリニック・各区分に2室（診察室1／診察室2） ---------- */
-  //   予約枠 = 「時間帯 × 診察室数」で用意する。capacity = 室数(2) とし、
-  //   各予約がどの室かは枠内の先着順で決定的に割り当てる（roomOf）。
-  const ROOMS = [ { id: 1, name: "診察室1" }, { id: 2, name: "診察室2" } ];
+  /* ---------- 診察室：リソース台帳（rsv2_resources / kind='room'）が正 ----------
+     ★Wave2（仕様書v2 §3.2-B / 欠陥D-4）で、固定配列 ROOMS（2室決め打ち）を廃止した。
+       部屋の数と並びは院ごとの登録リソースから取得し、枠の定員＝その院の有効な部屋数とする。
+       これにより「リソース設定で3室目を登録したのに予約を置けない」状態が解消される。
+       予約の roomId には rsv2_resources.id（bigint）が入る（DBは移行SQLで変換済み）。 */
 
   const TEMPLATES = {
-    "外来":     { weekdays: [1,2,3,4,5],   times: gen("09:00","11:30",30).concat(gen("15:00","17:30",30)), capacity: ROOMS.length, dur: 30 },
-    "在宅":     { weekdays: [1,3,5],       times: gen("13:00","16:00",60), capacity: ROOMS.length, dur: 60 },
-    "美容":     { weekdays: [2,3,4,5,6],   times: gen("10:00","17:30",30), capacity: ROOMS.length, dur: 30, role: "NURSE" },
-    "夜間休日": { weekdays: [0,6],         times: gen("19:00","21:30",30), capacity: ROOMS.length, dur: 30 },
+    "外来":     { weekdays: [1,2,3,4,5],   times: gen("09:00","11:30",30).concat(gen("15:00","17:30",30)), dur: 30 },
+    "在宅":     { weekdays: [1,3,5],       times: gen("13:00","16:00",60), dur: 60 },
+    "美容":     { weekdays: [2,3,4,5,6],   times: gen("10:00","17:30",30), dur: 30, role: "NURSE" },
+    "夜間休日": { weekdays: [0,6],         times: gen("19:00","21:30",30), dur: 30 },
   };
 
   function gen(from, to, step) {
@@ -99,9 +105,17 @@ const Store = (() => {
   function menusOfCs(csId) { return MENUS.filter(m => m.csId === csId); }
   function menuById(id) { return MENUS.find(m => m.id === id); }
 
-  /* ---------- 診察室の割り当て ----------
-     ・予約は診察室IDを保存（roomId）。受付が任意に切り替えられる。
+  /* ---------- 診察室の割り当て（部屋＝リソース台帳） ----------
+     ・部屋の一覧は院ごとの登録リソース（kind='room'・active）。並びは sort_order→id。
+     ・予約は診察室IDを保存（roomId＝rsv2_resources.id）。受付が任意に切り替えられる。
      ・roomId未設定の旧データは、同枠(csId×date×time)の空き室を先着順で埋めて導出（互換）。 */
+  function roomsOf(clinicId) { return resourcesOf(clinicId, "room"); }
+  // 診療区分ID（csId）からその院の部屋一覧を引く
+  function roomsOfCs(csId) { const c = clinicOfCs(csId); return c ? roomsOf(c.id) : []; }
+  // 枠の定員＝その院の有効な部屋数。未登録（0室）の院は従来どおり1件は受けられるようにする
+  //（この場合 roomId は null のまま＝部屋の一意インデックスの対象外になる点に注意）
+  function capacityOfCs(csId) { return Math.max(1, roomsOfCs(csId).length); }
+
   function sameSlotPeers(res) {
     return _cache
       .filter(r => r.status === "CONFIRMED" && r.csId === res.csId && r.date === res.date && r.time === res.time)
@@ -109,20 +123,38 @@ const Store = (() => {
   }
   function roomOf(res) {
     if (!res) return null;
-    if (res.roomId) return res.roomId;                 // 明示割当があればそれを優先
-    const peers = sameSlotPeers(res);                  // 旧データ互換：空き室を先着順で
-    const taken = new Set(peers.filter(p => p.roomId).map(p => p.roomId));
-    const free = ROOMS.map(r => r.id).filter(id => !taken.has(id));
-    const idx = peers.filter(p => !p.roomId).findIndex(p => p.code === res.code);
-    return (idx >= 0 && free[idx]) ? free[idx] : null;
+    const rooms = roomsOfCs(res.csId);
+    if (res.roomId != null && res.roomId !== "") {
+      const id = Number(res.roomId);
+      if (rooms.some(r => Number(r.id) === id)) return id;         // 明示割当（リソースID）
+      // 旧データ互換：room_id が「何番目の部屋か（1,2…）」で入っている場合は順番で解決する。
+      // （本番DBは移行SQL 2026-08-12_w2 でリソースIDへ変換済み。ローカルデモ用の保険）
+      if (id >= 1 && id <= rooms.length) return Number(rooms[id-1].id);
+      return id;                                                    // 不明なIDは値をそのまま保持
+    }
+    const peers = sameSlotPeers(res);                  // 未割当データ互換：空き室を先着順で
+    const taken = new Set(peers.filter(p => p.roomId != null).map(p => Number(roomOf(p))));
+    const free = rooms.map(r => Number(r.id)).filter(id => !taken.has(id));
+    const idx = peers.filter(p => p.roomId == null).findIndex(p => p.code === res.code);
+    return (idx >= 0 && free[idx] != null) ? free[idx] : null;
   }
-  function roomName(res) { const id = roomOf(res); const rm = ROOMS.find(r => r.id === id); return rm ? rm.name : ""; }
-  // 枠内で空いている診察室を1つ返す（無ければnull=満員）
+  function roomName(res) {
+    const id = roomOf(res);
+    const rm = roomsOfCs(res && res.csId).find(r => Number(r.id) === Number(id));
+    return rm ? rm.name : "";
+  }
+  // 部屋の並び順（0始まり）。表示色の出し分けに使う（-1＝一覧に無い）
+  function roomIndex(res) {
+    const id = roomOf(res);
+    return roomsOfCs(res && res.csId).findIndex(r => Number(r.id) === Number(id));
+  }
+  // 枠内で空いている診察室を1つ返す（無ければnull=満員／部屋未登録の院もnull）
   function freeRoom(csId, date, time) {
     const taken = new Set(_cache
       .filter(r => r.status === "CONFIRMED" && r.csId === csId && r.date === date && r.time === time)
-      .map(r => roomOf(r)));
-    return ROOMS.map(r => r.id).find(id => !taken.has(id)) || null;
+      .map(r => Number(roomOf(r))));
+    const id = roomsOfCs(csId).map(r => Number(r.id)).find(id => !taken.has(id));
+    return id != null ? id : null;
   }
 
   /* ---------- スタッフ/機材の割当（被り防止） ---------- */
@@ -253,6 +285,7 @@ const Store = (() => {
     const tpl = TEMPLATES[svc.name];
     const res = _cache.filter(r => r.status === "CONFIRMED" && r.csId === csId);
     const base = todayStr();
+    const cap = capacityOfCs(csId);        // ★定員＝その院の登録部屋数（Wave2）
     const out = [];
     for (let i=0;i<days;i++) {
       const date = addDays(base, i);
@@ -260,7 +293,7 @@ const Store = (() => {
       const slots = isOpen ? tpl.times.map(time => {
         const id = `${csId}_${date}_${time}`;
         const used = res.filter(r => r.slotId === id).length;
-        return { id, time, capacity: tpl.capacity, remaining: Math.max(0, tpl.capacity - used), open: true };
+        return { id, time, capacity: cap, remaining: Math.max(0, cap - used), open: true };
       }) : [];
       out.push({ date, label: fmtJa(date), wd: WD[weekday(date)], slots });
     }
@@ -269,7 +302,7 @@ const Store = (() => {
 
   function slotRemaining(slotId) {
     const csId = Number(slotId.split("_")[0]);
-    const cap = TEMPLATES[serviceOfCs(csId).name].capacity;
+    const cap = capacityOfCs(csId);        // ★定員＝その院の登録部屋数（Wave2）
     const used = _cache.filter(r => r.status === "CONFIRMED" && r.slotId === slotId).length;
     return Math.max(0, cap - used);
   }
@@ -517,6 +550,15 @@ const Store = (() => {
         backend = makeUnavailableBackend(e); backendName = "offline";
         _cache = [];
       }
+    } else if (WANT_SUPABASE) {
+      // Supabaseを使う画面なのに supabase-js（CDN）が読み込めていない。
+      // ここでローカル保存に落ちると、院に届いていないのに「予約完了」と表示されてしまうため接続不可として扱う。
+      const e = new Error("予約システムの読み込みに失敗しました（supabase-js を取得できませんでした）");
+      e.__rsvOffline = true;
+      backendError = classifyError(e);
+      logFail("予約システムの読み込み", backendError, e);
+      backend = makeUnavailableBackend(e); backendName = "offline";
+      _cache = [];
     } else {
       await backend.init(); backendName = "local";
     }
@@ -585,7 +627,7 @@ const Store = (() => {
     if (newTime === res.time) return { ok: true };
     const s = _toMin(newTime), e = s + durMin(res);
     const used = _cache.filter(r => r.status === "CONFIRMED" && r.code !== code && r.csId === res.csId && r.date === res.date && r.time === newTime).length;
-    if (used >= ROOMS.length) return { ok: false, error: "移動先の枠は満員です。" };
+    if (used >= capacityOfCs(res.csId)) return { ok: false, error: "移動先の枠は満員です。" };
     if (res.staffId && resourceConflict("staff", res.staffId, res.date, s, e, code)) return { ok: false, error: "移動先の時間は担当スタッフが別予約と重複します。" };
     if (res.deviceId && resourceConflict("device", res.deviceId, res.date, s, e, code)) return { ok: false, error: "移動先の時間は機材が別予約で使用中です。" };
     try { await backend.reschedule(code, newTime); }
@@ -595,9 +637,10 @@ const Store = (() => {
   // 診察室の切り替え（対象室に別の予約があれば入れ替え）
   async function setRoom(code, targetRoomId) {
     targetRoomId = Number(targetRoomId);
-    if (!ROOMS.some(r => r.id === targetRoomId)) return { ok: false, error: "診察室の指定が不正です。" };
     const res = _cache.find(x => x.code === code && x.status === "CONFIRMED");
     if (!res) return { ok: false, error: "予約が見つかりません。" };
+    // ★対象は「その院に登録されている部屋リソース」であること（Wave2：台帳が正）
+    if (!roomsOfCs(res.csId).some(r => Number(r.id) === targetRoomId)) return { ok: false, error: "診察室の指定が不正です。" };
     const cur = roomOf(res);
     if (cur === targetRoomId) return { ok: true };
     const other = _cache.find(x => x.status === "CONFIRMED" && x.code !== code
@@ -630,13 +673,14 @@ const Store = (() => {
   }
 
   return {
-    CLINICS, MENUS, ROOMS, WD,
+    CLINICS, MENUS, WD,
     getBackend: () => backendName,                                   // "supabase" | "local" | "offline"
     isOffline: () => backendName === "offline",                      // 予約の正本に書けない状態
     getBackendError: () => backendError,                             // {reason,code,message,details}
     refreshReservations,                                             // 明示的な再読込（UIから呼べる）
     todayStr, addDays, fmtJa, weekday,
-    clinicOfCs, serviceOfCs, menusOfCs, menuById, roomOf, roomName, freeRoom, durMin, resourceConflict,
+    clinicOfCs, serviceOfCs, menusOfCs, menuById,
+    roomsOf, roomsOfCs, capacityOfCs, roomOf, roomName, roomIndex, freeRoom, durMin, resourceConflict,
     getDays, createReservation, setRoom, assignResource, moveReservation, findReservation, cancelReservation, updateStatus,
     dayReservations, loadReservations,
     resourcesOf, refreshResources, addResource, renameResource, removeResource, getNote, saveNote,

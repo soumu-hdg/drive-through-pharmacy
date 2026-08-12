@@ -52,6 +52,9 @@
 --    実物では code 以外はすべて NULL 許容（画面側の入力チェックに依存している）。
 --    room_id / staff_id / device_id は rsv2_resources.id を指すが、
 --    実物に外部キー制約は張られていない（リソース削除時の整合は画面側の責任）。
+--    ※ room_id は 2026-08-12(Wave2) までは「1/2＝何番目の診察室か」を入れる smallint
+--       だった。仕様書v2 §3.2-B に従い rsv2_resources.id（bigint）へ付け替えた。
+--       移行SQL: sql/2026-08-12_w2_room_id_to_resource_id.sql（適用済み・冪等）
 -- =============================================================
 create table if not exists public.rsv2_reservations (
   code        text primary key,          -- 予約番号（crypto乱数で発行）
@@ -71,14 +74,16 @@ create table if not exists public.rsv2_reservations (
   channel     text default 'WEB',        -- WEB / PHONE / LINE
   sent_at     bigint,                    -- 送信時刻(ms)＝レイテンシ計測用
   created_at  timestamptz default now(),
-  room_id     smallint,                  -- 診察室（rsv2_resources.id / kind='room'）
+  room_id     bigint,                    -- 診察室（rsv2_resources.id / kind='room'）
   line_user_id text,                     -- LINEログイン(LIFF)のユーザーID
   staff_id    bigint,                    -- 担当スタッフ（rsv2_resources.id / kind='staff'）
   device_id   bigint                     -- 使用機材（rsv2_resources.id / kind='device'）
 );
 
 -- 既存テーブルへの後付け（作成済み環境でも列を揃えるため。既にあれば無視）
-alter table public.rsv2_reservations add column if not exists room_id      smallint;
+alter table public.rsv2_reservations add column if not exists room_id      bigint;
+-- 旧環境（smallint で作成済み）を新しい型へ揃える。既に bigint なら実質no-op。
+alter table public.rsv2_reservations alter column room_id type bigint;
 alter table public.rsv2_reservations add column if not exists line_user_id text;
 alter table public.rsv2_reservations add column if not exists staff_id     bigint;
 alter table public.rsv2_reservations add column if not exists device_id    bigint;
@@ -124,6 +129,18 @@ create table if not exists public.rsv2_daily_notes (
   note       text,                       -- 連絡事項の本文（自由記述）
   updated_at timestamptz not null default now(),
   primary key (clinic_id, ndate)
+);
+
+
+-- =============================================================
+-- 3.5 移行の適用記録 public.rsv2_migrations（2026-08-12 Wave2 で新設）
+--    データ移行SQLを何度実行しても安全（冪等）にするための適用済みキー台帳。
+--    値だけを見ても移行済みか判定できない移行（例: room_id の付け替え）で使う。
+-- =============================================================
+create table if not exists public.rsv2_migrations (
+  key        text primary key,                     -- 移行の識別キー（SQLファイル名相当）
+  applied_at timestamptz not null default now(),
+  note       text
 );
 
 
