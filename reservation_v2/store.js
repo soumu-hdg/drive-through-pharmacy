@@ -2,7 +2,11 @@
    クリニック予約システム ── 同期ストア（ローカル/Supabase 両対応）
    -------------------------------------------------------------
    ■ 設計方針
-     ・空き枠 = 「診療時間マスタ（テンプレ）」 − 「予約（正本）」の引き算で算出
+     ・空き枠 = 「診療時間マスタ」 − 「予約（正本）」 − 「非患者ブロック」 の引き算で算出
+       - 診療時間マスタは rsv2_hours（院×診療区分×曜日）／休診日は rsv2_closures。
+         どちらも行が無い診療区分は、従来どおり下の TEMPLATES（ハードコード）を使う。
+       - 非患者ブロック（休憩・機材メンテ・院内業務）は予約と同じテーブルに kind 列で持つ
+         （仕様書v2 §3.6-A。別テーブルにすると「ブロックの上に予約が入る」のをDBで防げない）
      ・予約の正本は1つ。ダブルブッキングは構造的に排除
      ・リアルタイム同期：予約が入った瞬間、患者UIと受付ボードの双方へ即反映
 
@@ -78,6 +82,28 @@ const Store = (() => {
     return out;
   }
 
+  /* =========================================================
+     非患者ブロック（休憩・機材メンテ・院内業務）── 仕様書v2 §3.6-A
+     ---------------------------------------------------------
+     ・予約と同じ rsv2_reservations に kind 列で持つ。別テーブルにすると
+       「ブロックの上に患者予約が入る」のをDBで防げないため（§3.5 と同じ理由）。
+     ・kind='PATIENT' 以外の行は患者情報（氏名・電話・生年月日等）を持たない
+       （DB側の CHECK 制約 rsv2_reservations_block_no_pii でも強制）。
+     ・ブロックは「30分の枠ごとに1行」で作り、同じ休憩の行を block_group でまとめる。
+       こうすると uq_rsv2_room_slot / uq_rsv2_staff_slot / uq_rsv2_device_slot が
+       ブロックの覆う全ての枠に効き、患者予約との重なりをDBが拒否できる。
+     ========================================================= */
+  const BLOCK_STEP = 30;                       // ブロック1行あたりの長さ（分）
+  const BLOCK_KINDS = [
+    { kind: "BREAK", label: "休憩" },
+    { kind: "MAINT", label: "機材メンテ" },
+    { kind: "OTHER", label: "院内業務" },
+  ];
+  function isBlock(r) { return !!r && !!r.kind && r.kind !== "PATIENT"; }
+  function blockKindLabel(kind) { const k = BLOCK_KINDS.find(x => x.kind === kind); return k ? k.label : "ブロック"; }
+  // ブロックの表示名（ラベル未入力なら種別名）
+  function blockLabel(r) { return (r && r.note) ? r.note : blockKindLabel(r && r.kind); }
+
   /* ---------- 日付ユーティリティ ---------- */
   const WD = ["日","月","火","水","木","金","土"];
   function todayStr() {
@@ -117,12 +143,16 @@ const Store = (() => {
   function capacityOfCs(csId) { return Math.max(1, roomsOfCs(csId).length); }
 
   function sameSlotPeers(res) {
+    // ★ブロック（非患者）は含めない。ブロックは必ず明示のリソースを持つ／持たないかのどちらかで、
+    //   患者予約の「先着順で空き室を埋める」導出には参加させない。
     return _cache
-      .filter(r => r.status === "CONFIRMED" && r.csId === res.csId && r.date === res.date && r.time === res.time)
+      .filter(r => r.status === "CONFIRMED" && !isBlock(r) && r.csId === res.csId && r.date === res.date && r.time === res.time)
       .sort((a, b) => String(a.createdAt||"").localeCompare(String(b.createdAt||"")) || String(a.code||"").localeCompare(String(b.code||"")));
   }
   function roomOf(res) {
     if (!res) return null;
+    // ブロックは指定された部屋のみ（自動導出しない。部屋指定なし＝担当/機材だけ、または院全体のブロック）
+    if (isBlock(res)) return (res.roomId != null && res.roomId !== "") ? Number(res.roomId) : null;
     const rooms = roomsOfCs(res.csId);
     if (res.roomId != null && res.roomId !== "") {
       const id = Number(res.roomId);
@@ -149,18 +179,54 @@ const Store = (() => {
     return roomsOfCs(res && res.csId).findIndex(r => Number(r.id) === Number(id));
   }
   // 枠内で空いている診察室を1つ返す（無ければnull=満員／部屋未登録の院もnull）
+  //   ★ブロック（休憩・機材メンテ）で塞がっている部屋は候補から外す。
+  //     外さないと自動割当がブロック中の部屋を選び、DBの一意インデックスで弾かれてしまう。
   function freeRoom(csId, date, time) {
     const taken = new Set(_cache
-      .filter(r => r.status === "CONFIRMED" && r.csId === csId && r.date === date && r.time === time)
+      .filter(r => r.status === "CONFIRMED" && !isBlock(r) && r.csId === csId && r.date === date && r.time === time)
       .map(r => Number(roomOf(r))));
+    const st = _toMin(time), en = st + slotStepOf(csId, date);
+    blocksOverlapping(csId, date, st, en).forEach(b => { if (b.roomId != null) taken.add(Number(b.roomId)); });
     const id = roomsOfCs(csId).map(r => Number(r.id)).find(id => !taken.has(id));
     return id != null ? id : null;
   }
 
+  /* ---------- 非患者ブロックの引き当て ----------
+     ブロックは院単位で効かせる（休憩は診療区分をまたいでその部屋/担当を塞ぐため）。
+     時間の重なりで判定するので、60分の休憩は30分枠2つを塞ぐ。 */
+  function blocksOverlapping(csId, date, startMin, endMin) {
+    const c = clinicOfCs(csId);
+    if (!c) return [];
+    return _cache.filter(r => {
+      if (r.status !== "CONFIRMED" || !isBlock(r) || r.date !== date) return false;
+      const rc = clinicOfCs(r.csId);
+      if (!rc || rc.id !== c.id) return false;
+      const s = _toMin(r.time), e = s + durMin(r);
+      return startMin < e && s < endMin;
+    });
+  }
+  /* 枠の空き＝定員 −（患者予約）−（ブロックで塞がった部屋数）。
+     リソースを一つも指定しないブロック（院全体の休止）はその枠を丸ごと閉じる。
+     担当/機材だけのブロックは部屋の定員には影響しない（その担当・機材だけがDBで塞がる）。 */
+  function slotAvail(csId, date, time, exceptCode) {
+    const cap = capacityOfCs(csId);
+    const st = _toMin(time), en = st + slotStepOf(csId, date);
+    const patients = _cache.filter(r => r.status === "CONFIRMED" && !isBlock(r)
+      && r.csId === csId && r.date === date && r.time === time && r.code !== exceptCode).length;
+    const blocks = blocksOverlapping(csId, date, st, en);
+    if (blocks.some(b => b.roomId == null && b.staffId == null && b.deviceId == null))
+      return { capacity: cap, used: cap, remaining: 0, blocked: true };
+    const rooms = new Set(blocks.filter(b => b.roomId != null).map(b => Number(b.roomId)));
+    const used = patients + rooms.size;
+    return { capacity: cap, used, remaining: Math.max(0, cap - used), blocked: rooms.size > 0 };
+  }
+
   /* ---------- スタッフ/機材の割当（被り防止） ---------- */
   function _toMin(hhmm){ const [h,m]=String(hhmm).split(":").map(Number); return h*60+m; }
-  // 予約の所要分（メニュー基準・無ければ外来30/在宅60）
+  function _hhmm(min){ return `${String(Math.floor(min/60)).padStart(2,"0")}:${String(min%60).padStart(2,"0")}`; }
+  // 予約の所要分（メニュー基準・無ければ外来30/在宅60）。ブロックは1行=30分
   function durMin(r){
+    if(isBlock(r)) return BLOCK_STEP;
     if(r && r.menuId){ const m=menuById(r.menuId); if(m&&m.durationMin) return m.durationMin; }
     const s=serviceOfCs(r && r.csId); return (s&&s.name==="在宅")?60:30;
   }
@@ -179,6 +245,8 @@ const Store = (() => {
   /* ---------- 予約キャッシュ（getDays等が同期参照） ---------- */
   let _cache = [];       // 予約の正本（メモリ）。ローカル=localStorageと同期／Supabase=DBと同期
   let _resources = [];   // 院ごとのリソース（部屋/スタッフ/機材）。管理画面で編集
+  let _hours = [];       // 診療時間（rsv2_hours）。0件の診療区分は TEMPLATES にフォールバック
+  let _closures = [];    // 休診日（rsv2_closures）。臨時休診はここに入る
 
   // 院×種別のリソース一覧（sort_order順）。kind省略で全種別。
   function resourcesOf(clinicId, kind) {
@@ -187,9 +255,110 @@ const Store = (() => {
       .sort((a,b) => (a.sortOrder-b.sortOrder) || (a.id-b.id));
   }
 
+  /* =========================================================
+     診療時間・休診日（院ごと）── 競合機能調査 §F#2 / 仕様書v2 §3.6-B
+     ---------------------------------------------------------
+     問題だったこと: 診療時間が全院共通のハードコード（TEMPLATES）で、休診日の設定が無い。
+       臨時休診にしてもWeb予約の枠が開いたままで、新規予約が入ってきてしまう＝事故の構造。
+     方針:
+       ・rsv2_hours（院×診療区分×曜日×開始/終了/刻み）に1件でも行があれば、その区分は
+         DBの設定が正。行が1件も無い区分は従来どおり TEMPLATES を使う
+         （＝設定が無い状態では今までと同じ枠が出る。移行時に枠が消えない）。
+       ・休診は2種類。定休＝その曜日の rsv2_hours 行を作らない。
+         臨時休診＝rsv2_closures に日付で持つ（cs_id が null なら院全体）。
+     ========================================================= */
+  // 院×診療区分の診療時間（曜日→開始時刻の順）
+  function hoursOf(csId) {
+    return _hours
+      .filter(h => Number(h.csId) === Number(csId) && h.active !== false)
+      .sort((a,b) => (a.weekday-b.weekday) || String(a.openTime).localeCompare(String(b.openTime)));
+  }
+  // その診療区分の診療時間がDBで設定されているか（false＝ハードコードのTEMPLATESを使う）
+  function hasHours(csId) { return hoursOf(csId).length > 0; }
+  // 院の休診日（新しい日付順）
+  function closuresOf(clinicId) {
+    return _closures
+      .filter(c => Number(c.clinicId) === Number(clinicId))
+      .sort((a,b) => String(a.date).localeCompare(String(b.date)));
+  }
+  // その日が休診か（臨時休診の行があるか）。院全体(csId=null)の休診も見る
+  function closureOn(csId, date) {
+    const c = clinicOfCs(csId);
+    if (!c) return null;
+    return _closures.find(x => Number(x.clinicId) === c.id && x.date === date
+      && (x.csId == null || Number(x.csId) === Number(csId))) || null;
+  }
+  // ハードコードの診療時間テンプレ（フォールバック元）
+  function templateOfCs(csId) {
+    const svc = serviceOfCs(csId);
+    return (svc && TEMPLATES[svc.name]) || TEMPLATES["外来"];
+  }
+  // 現在の既定（TEMPLATES）を rsv2_hours の行の形に直したもの。管理画面の「既定を取り込む」で使う
+  function defaultHoursOf(csId) {
+    const tpl = templateOfCs(csId), c = clinicOfCs(csId);
+    if (!tpl || !c) return [];
+    // 連続した時刻の並びを「開始〜終了」の区間に畳む（例: 09:00…11:30 → 09:00-12:00）
+    const step = (tpl.times.length > 1) ? (_toMin(tpl.times[1]) - _toMin(tpl.times[0])) : (tpl.dur || 30);
+    const runs = [];
+    tpl.times.forEach(t => {
+      const m = _toMin(t), last = runs[runs.length-1];
+      if (last && m === last.end) last.end = m + step;
+      else runs.push({ start: m, end: m + step });
+    });
+    const out = [];
+    tpl.weekdays.forEach(wd => runs.forEach(r => out.push({
+      clinicId: c.id, csId, weekday: wd,
+      openTime: _hhmm(r.start), closeTime: _hhmm(r.end), slotMin: step,
+    })));
+    return out;
+  }
+  // その日の枠の開始時刻一覧（休診日・時間外は空配列）
+  function daySlotTimes(csId, date) {
+    if (closureOn(csId, date)) return [];
+    const wd = weekday(date);
+    if (hasHours(csId)) {
+      const rows = hoursOf(csId).filter(h => Number(h.weekday) === wd);
+      const set = [];
+      rows.forEach(h => {
+        const step = Math.max(5, Number(h.slotMin) || 30);
+        for (let m = _toMin(h.openTime); m + step <= _toMin(h.closeTime); m += step) {
+          const t = _hhmm(m); if (set.indexOf(t) < 0) set.push(t);
+        }
+      });
+      return set.sort();
+    }
+    const tpl = templateOfCs(csId);
+    return tpl.weekdays.includes(wd) ? tpl.times.slice() : [];
+  }
+  // 枠1つの長さ（分）。ブロックとの重なり判定に使う
+  function slotStepOf(csId, date) {
+    if (hasHours(csId)) {
+      const rows = hoursOf(csId).filter(h => Number(h.weekday) === weekday(date));
+      if (rows.length) return Math.max(5, Number(rows[0].slotMin) || 30);
+    }
+    const tpl = templateOfCs(csId);
+    return (tpl.times.length > 1) ? (_toMin(tpl.times[1]) - _toMin(tpl.times[0])) : (tpl.dur || 30);
+  }
+  // その日が休診かどうか（受付ボードの表示用）
+  function isClosed(csId, date) { return daySlotTimes(csId, date).length === 0; }
+
   function mkRes(o) {
+    const kind = o.kind || "PATIENT";
+    // ★ブロック（非患者）は患者情報を一切持たない。空文字も入れない（DBのCHECK制約がNULLを要求する）
+    if (kind !== "PATIENT") {
+      return {
+        code: o.code || genCode(), kind, blockGroup: o.blockGroup || null,
+        csId: o.csId, slotId: `${o.csId}_${o.date}_${o.time}`, date: o.date, time: o.time,
+        name: null, kana: null, phone: null, birthDate: null, email: null, visitType: null, lineUserId: null,
+        roomId: o.roomId ?? null, staffId: o.staffId ?? null, deviceId: o.deviceId ?? null,
+        menuId: null, note: o.note || "", status: "CONFIRMED", channel: o.channel || "STAFF",
+        createdAt: o.createdAt || new Date().toISOString(), sentAt: o.sentAt || null,
+      };
+    }
     return {
       code: o.code || genCode(),
+      kind,
+      blockGroup: null,
       csId: o.csId, slotId: `${o.csId}_${o.date}_${o.time}`,
       date: o.date, time: o.time,
       name: o.name, kana: o.kana || "", phone: o.phone, birthDate: o.birthDate || "",
@@ -279,32 +448,36 @@ const Store = (() => {
     return { ok: false, reason: info.reason, resource: info.resource, error };
   }
 
-  /* ---------- 空き枠 = マスタ − 予約 ---------- */
+  /* ---------- 空き枠 = 診療時間マスタ − 予約 − ブロック ----------
+     ・その日の枠 = daySlotTimes（rsv2_hours があればそれ、無ければ TEMPLATES）
+     ・休診日（rsv2_closures）は slots が空配列になる＝患者画面では「休」表示になる
+     ・ブロック（休憩・機材メンテ）は slotAvail が差し引く */
   function getDays(csId, days) {
-    const svc = serviceOfCs(csId);
-    const tpl = TEMPLATES[svc.name];
-    const res = _cache.filter(r => r.status === "CONFIRMED" && r.csId === csId);
     const base = todayStr();
-    const cap = capacityOfCs(csId);        // ★定員＝その院の登録部屋数（Wave2）
     const out = [];
     for (let i=0;i<days;i++) {
       const date = addDays(base, i);
-      const isOpen = tpl.weekdays.includes(weekday(date));
-      const slots = isOpen ? tpl.times.map(time => {
-        const id = `${csId}_${date}_${time}`;
-        const used = res.filter(r => r.slotId === id).length;
-        return { id, time, capacity: cap, remaining: Math.max(0, cap - used), open: true };
-      }) : [];
-      out.push({ date, label: fmtJa(date), wd: WD[weekday(date)], slots });
+      const times = daySlotTimes(csId, date);
+      const closure = closureOn(csId, date);
+      const slots = times.map(time => {
+        const a = slotAvail(csId, date, time);
+        return { id: `${csId}_${date}_${time}`, time, capacity: a.capacity, remaining: a.remaining, open: true };
+      });
+      out.push({ date, label: fmtJa(date), wd: WD[weekday(date)], slots,
+                 closed: slots.length === 0, closureReason: closure ? (closure.reason || "臨時休診") : null });
     }
     return out;
   }
 
   function slotRemaining(slotId) {
-    const csId = Number(slotId.split("_")[0]);
-    const cap = capacityOfCs(csId);        // ★定員＝その院の登録部屋数（Wave2）
-    const used = _cache.filter(r => r.status === "CONFIRMED" && r.slotId === slotId).length;
-    return Math.max(0, cap - used);
+    // slotId = "csId_YYYY-MM-DD_HH:MM"
+    const p = String(slotId).split("_");
+    const csId = Number(p[0]), date = p[1], time = p[2];
+    // 休診日（臨時休診・その曜日の診療時間が無い日）は残0。
+    // ★時間の一致までは求めない：受付が枠グリッド外の時刻（例 昼休みの割り込み）で
+    //   代理入力できる従来の運用を壊さないため。
+    if (daySlotTimes(csId, date).length === 0) return 0;
+    return slotAvail(csId, date, time).remaining;
   }
 
   function loadReservations() { return _cache.slice(); }
@@ -313,8 +486,8 @@ const Store = (() => {
   }
   function findReservation(code, phone) {
     const r = _cache.find(x => x.code === (code||"").toUpperCase().trim());
-    if (!r) return null;
-    if (r.phone.replace(/-/g,"") !== (phone||"").replace(/-/g,"").trim()) return null;
+    if (!r || isBlock(r)) return null;                    // ブロックは患者からは引けない（電話番号を持たない）
+    if (String(r.phone||"").replace(/-/g,"") !== (phone||"").replace(/-/g,"").trim()) return null;
     return r;
   }
 
@@ -345,6 +518,7 @@ const Store = (() => {
       visitType: r.visit_type || "", menuId: r.menu_id, note: r.note || "", status: r.status,
       channel: r.channel || "WEB", createdAt: r.created_at, sentAt: r.sent_at,
       lineUserId: r.line_user_id || null,
+      kind: r.kind || "PATIENT", blockGroup: r.block_group || null,
     });
     const toRow = res => ({
       code: res.code, cs_id: res.csId, slot_id: res.slotId, rdate: res.date, rtime: res.time,
@@ -352,6 +526,7 @@ const Store = (() => {
       room_id: res.roomId ?? null, staff_id: res.staffId ?? null, device_id: res.deviceId ?? null,
       visit_type: res.visitType, menu_id: res.menuId, note: res.note, status: res.status,
       channel: res.channel, sent_at: res.sentAt, line_user_id: res.lineUserId || null,
+      kind: res.kind || "PATIENT", block_group: res.blockGroup || null,
     });
     return {
       async init() {
@@ -361,6 +536,14 @@ const Store = (() => {
         client.channel("rsv2-changes")
           .on("postgres_changes", { event: "*", schema: "public", table: TABLE }, (payload) => {
             const recvAt = Date.now();
+            // DELETE（ブロックの削除・デモ初期化）は行をキャッシュから外す。
+            // ※ payload.old は主キー(code)だけのことがあるため、fromRow に通さず code で消す。
+            if (payload.eventType === "DELETE" || payload.type === "DELETE") {
+              const code = payload.old && payload.old.code;
+              if (code) { const i = _cache.findIndex(x => x.code === code); if (i >= 0) _cache.splice(i,1); }
+              dispatch({ type: "reservation", at: Date.now() });
+              return;
+            }
             const row = payload.new && payload.new.code ? payload.new : payload.old;
             if (!row) return;
             const res = fromRow(row);
@@ -382,11 +565,15 @@ const Store = (() => {
         res.sentAt = Date.now();
         const row = toRow(res);
         let { error } = await client.from(TABLE).insert(row);
-        let tries = 0;   // room_id/staff_id/device_id 列が無い環境 → その列を外して再送（予約は通す）
+        // room_id/staff_id/device_id（および患者予約なら kind/block_group）の列が無い環境
+        //  → その列を外して再送（予約自体は通す）。
         //   ★制約違反(23505/23P01)はここで再送してはいけない（DBが正しく拒否した二重予約のため）
+        //   ★ブロック行から kind を外すと患者予約になってしまうので、ブロックでは外さない（＝失敗させる）
+        const strip = ["room_id","staff_id","device_id"].concat(row.kind === "PATIENT" ? ["kind","block_group"] : []);
+        let tries = 0;
         while (error && tries < 3 && DUP_CODES.indexOf(String(error.code||"")) < 0
-               && /(room_id|staff_id|device_id)/.test(error.message||"")) {
-          ["room_id","staff_id","device_id"].forEach(c => { if (new RegExp(c).test(error.message||"")) delete row[c]; });
+               && strip.some(c => new RegExp(c).test(error.message||""))) {
+          strip.forEach(c => { if (new RegExp(c).test(error.message||"")) delete row[c]; });
           ({ error } = await client.from(TABLE).insert(row)); tries++;
         }
         if (error) throw error;
@@ -450,6 +637,34 @@ const Store = (() => {
       async addResource(r) { const { error } = await client.from("rsv2_resources").insert({ clinic_id:r.clinicId, kind:r.kind, name:r.name, sort_order:r.sortOrder||0 }); if (error) throw error; },
       async renameResource(id, name) { const { error } = await client.from("rsv2_resources").update({ name }).eq("id", id); if (error) throw error; },
       async removeResource(id) { const { error } = await client.from("rsv2_resources").delete().eq("id", id); if (error) throw error; },
+      /* --- 非患者ブロック（グループ単位で削除） --- */
+      async removeBlock(group) {
+        const { error } = await client.from(TABLE).delete().eq("block_group", group);
+        if (error) throw error;
+        _cache = _cache.filter(r => r.blockGroup !== group);
+      },
+      /* --- 診療時間・休診日 --- */
+      async loadHours() {
+        const { data, error } = await client.from("rsv2_hours").select("*").eq("active", true);
+        if (error) return [];   // テーブル未作成でも予約本体は動かす（＝従来のハードコード運用）
+        return (data || []).map(h => ({ id:h.id, clinicId:h.clinic_id, csId:h.cs_id, weekday:h.weekday,
+          openTime:h.open_time, closeTime:h.close_time, slotMin:h.slot_min, active:h.active }));
+      },
+      async loadClosures() {
+        const { data, error } = await client.from("rsv2_closures").select("*");
+        if (error) return [];
+        return (data || []).map(c => ({ id:c.id, clinicId:c.clinic_id, csId:c.cs_id, date:c.cdate, reason:c.reason||"" }));
+      },
+      async addHours(rows) {
+        const { error } = await client.from("rsv2_hours").insert(rows.map(h => ({
+          clinic_id:h.clinicId, cs_id:h.csId, weekday:h.weekday,
+          open_time:h.openTime, close_time:h.closeTime, slot_min:h.slotMin||30 })));
+        if (error) throw error;
+      },
+      async removeHours(id)   { const { error } = await client.from("rsv2_hours").delete().eq("id", id); if (error) throw error; },
+      async clearHours(csId)  { const { error } = await client.from("rsv2_hours").delete().eq("cs_id", csId); if (error) throw error; },
+      async addClosure(c)     { const { error } = await client.from("rsv2_closures").insert({ clinic_id:c.clinicId, cs_id:c.csId ?? null, cdate:c.date, reason:c.reason||null }); if (error) throw error; },
+      async removeClosure(id) { const { error } = await client.from("rsv2_closures").delete().eq("id", id); if (error) throw error; },
     };
   }
 
@@ -457,6 +672,9 @@ const Store = (() => {
     /* ---- ローカル バックエンド（localStorage + BroadcastChannel） ---- */
     const LS_KEY = "rsv2.reservations";
     const RES_KEY = "rsv2.resources";
+    const HR_KEY  = "rsv2.hours";        // 診療時間（既定は空＝TEMPLATESを使う）
+    const CL_KEY  = "rsv2.closures";     // 休診日
+    const lsList = (k) => { try { return JSON.parse(localStorage.getItem(k) || "[]"); } catch { return []; } };
     const load = () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); } catch { return []; } };
     const save = (l) => localStorage.setItem(LS_KEY, JSON.stringify(l));
     function resSeed(){
@@ -501,6 +719,16 @@ const Store = (() => {
       async addResource(r) { resSeed(); const l=JSON.parse(localStorage.getItem(RES_KEY)||"[]"); const id=Math.max(0,...l.map(x=>x.id||0))+1; l.push({id,clinicId:r.clinicId,kind:r.kind,name:r.name,sortOrder:r.sortOrder||0}); localStorage.setItem(RES_KEY,JSON.stringify(l)); },
       async renameResource(id,name){ const l=JSON.parse(localStorage.getItem(RES_KEY)||"[]"); const r=l.find(x=>x.id===id); if(r){r.name=name; localStorage.setItem(RES_KEY,JSON.stringify(l));} },
       async removeResource(id){ let l=JSON.parse(localStorage.getItem(RES_KEY)||"[]"); l=l.filter(x=>x.id!==id); localStorage.setItem(RES_KEY,JSON.stringify(l)); },
+      /* --- 非患者ブロック（localStorage） --- */
+      async removeBlock(group){ const l=load().filter(x=>x.blockGroup!==group); save(l); _cache=l; fire({type:"reservation",at:Date.now()}); },
+      /* --- 診療時間・休診日（localStorage。既定は空＝ハードコードのTEMPLATESを使う） --- */
+      async loadHours(){ try{ return JSON.parse(localStorage.getItem(HR_KEY)||"[]"); }catch{ return []; } },
+      async loadClosures(){ try{ return JSON.parse(localStorage.getItem(CL_KEY)||"[]"); }catch{ return []; } },
+      async addHours(rows){ const l=lsList(HR_KEY); let id=Math.max(0,...l.map(x=>x.id||0)); rows.forEach(h=>l.push(Object.assign({id:++id, active:true}, h))); localStorage.setItem(HR_KEY,JSON.stringify(l)); },
+      async removeHours(id){ localStorage.setItem(HR_KEY, JSON.stringify(lsList(HR_KEY).filter(x=>x.id!==id))); },
+      async clearHours(csId){ localStorage.setItem(HR_KEY, JSON.stringify(lsList(HR_KEY).filter(x=>Number(x.csId)!==Number(csId)))); },
+      async addClosure(c){ const l=lsList(CL_KEY); const id=Math.max(0,...l.map(x=>x.id||0))+1; l.push({id, clinicId:c.clinicId, csId:c.csId??null, date:c.date, reason:c.reason||""}); localStorage.setItem(CL_KEY,JSON.stringify(l)); },
+      async removeClosure(id){ localStorage.setItem(CL_KEY, JSON.stringify(lsList(CL_KEY).filter(x=>x.id!==id))); },
     };
   }
 
@@ -529,6 +757,14 @@ const Store = (() => {
       async addResource() { fail(); },
       async renameResource() { fail(); },
       async removeResource() { fail(); },
+      async removeBlock() { fail(); },
+      async loadHours() { return []; },
+      async loadClosures() { return []; },
+      async addHours() { fail(); },
+      async removeHours() { fail(); },
+      async clearHours() { fail(); },
+      async addClosure() { fail(); },
+      async removeClosure() { fail(); },
     };
   }
 
@@ -563,6 +799,8 @@ const Store = (() => {
       await backend.init(); backendName = "local";
     }
     try { _resources = await backend.loadResources(); } catch { _resources = []; }
+    try { _hours    = await backend.loadHours(); }    catch { _hours = []; }
+    try { _closures = await backend.loadClosures(); } catch { _closures = []; }
   })();
 
   // リソースCRUD（管理画面から呼ぶ）。編集後は再取得して同期通知。
@@ -580,13 +818,105 @@ const Store = (() => {
     catch (e) { const info = classifyError(e); logFail("連絡事項の保存", info, e); return { ok:false, reason: info.reason }; }
   }
 
+  /* =========================================================
+     診療時間・休診日 の編集API（受付ボードの「診療時間・休診日」タブから呼ぶ）
+     ・保存に失敗したら必ず {ok:false,error} を返す（黙って成功にしない）
+     ========================================================= */
+  async function refreshHours() {
+    try { _hours = await backend.loadHours(); } catch { _hours = []; }
+    try { _closures = await backend.loadClosures(); } catch { _closures = []; }
+  }
+  async function hoursOp(op, fn, failMsg) {
+    try { await fn(); } catch (e) { return await failResult(op, e, failMsg); }
+    await refreshHours(); dispatch({ type: "hours", at: Date.now() });
+    return { ok: true };
+  }
+  // 診療時間の1行追加（院×区分×曜日×開始/終了/刻み）
+  function addHours(csId, weekday, openTime, closeTime, slotMin) {
+    const c = clinicOfCs(csId);
+    if (!c) return Promise.resolve({ ok:false, error:"診療区分が不正です。" });
+    if (_toMin(closeTime) <= _toMin(openTime)) return Promise.resolve({ ok:false, error:"終了時刻は開始時刻より後にしてください。" });
+    return hoursOp("診療時間の追加",
+      () => backend.addHours([{ clinicId:c.id, csId, weekday:Number(weekday), openTime, closeTime, slotMin:Number(slotMin)||30 }]),
+      "診療時間を保存できませんでした。");
+  }
+  function removeHours(id) { return hoursOp("診療時間の削除", () => backend.removeHours(id), "診療時間を削除できませんでした。"); }
+  // 現在の既定（ハードコードの診療時間）を取り込んで編集可能にする
+  function importDefaultHours(csId) {
+    const rows = defaultHoursOf(csId);
+    if (!rows.length) return Promise.resolve({ ok:false, error:"取り込める既定の診療時間がありません。" });
+    return hoursOp("既定の診療時間の取り込み", () => backend.addHours(rows), "診療時間を保存できませんでした。");
+  }
+  // その区分の設定を全消し＝既定（ハードコード）へ戻す
+  function resetHours(csId) { return hoursOp("診療時間の初期化", () => backend.clearHours(csId), "診療時間を初期化できませんでした。"); }
+  // 臨時休診の登録／解除（csId=null で院全体）
+  function addClosure(clinicId, csId, date, reason) {
+    if (!date) return Promise.resolve({ ok:false, error:"日付を選んでください。" });
+    return hoursOp("休診日の登録", () => backend.addClosure({ clinicId, csId: csId||null, date, reason }), "休診日を保存できませんでした。");
+  }
+  function removeClosure(id) { return hoursOp("休診日の解除", () => backend.removeClosure(id), "休診日を解除できませんでした。"); }
+
+  /* =========================================================
+     非患者ブロック（休憩・機材メンテ・院内業務）の登録／削除
+     ・30分ごとに1行を作り、同じ block_group でまとめる
+       → ブロックが覆うすべての枠に、既存の一意インデックス3本がそのまま効く
+     ・患者情報は一切持たない（氏名・電話は不要）
+     ========================================================= */
+  async function createBlock(input) {
+    const kind = input.kind || "BREAK";
+    if (!BLOCK_KINDS.some(k => k.kind === kind)) return { ok:false, error:"ブロックの種別が不正です。" };
+    const st = _toMin(input.startTime), en = _toMin(input.endTime);
+    if (!(en > st)) return { ok:false, error:"終了時刻は開始時刻より後にしてください。" };
+    if (en - st > 12*60) return { ok:false, error:"1件のブロックは12時間までにしてください。" };
+    const group = "BG" + genCode();
+    const rows = [];
+    for (let m = st; m < en; m += BLOCK_STEP) {
+      rows.push(mkRes({
+        kind, blockGroup: group, csId: input.csId, date: input.date, time: _hhmm(m),
+        roomId: input.roomId ?? null, staffId: input.staffId ?? null, deviceId: input.deviceId ?? null,
+        note: (input.label || "").trim() || blockKindLabel(kind), channel: "STAFF",
+      }));
+    }
+    const done = [];
+    for (const r of rows) {
+      try { await backend.insert(r); done.push(r); }
+      catch (e) {
+        // 途中で失敗（＝その枠に既に予約/別ブロックがある）→ 作りかけを取り消して、まとめて失敗にする
+        try { if (done.length) await backend.removeBlock(group); } catch (e2) { console.warn("[予約システム] ブロックの巻き戻しに失敗:", e2 && e2.message); }
+        _cache = _cache.filter(x => x.blockGroup !== group);
+        const info = classifyError(e);
+        logFail("ブロックの登録", info, e);
+        await refreshReservations();
+        return { ok:false, reason: info.reason,
+          error: info.reason === "DUPLICATE"
+            ? "その時間帯には既に予約またはブロックが入っています（" + _hhmm(_toMin(r.time)) + "）。"
+            : (info.reason === "OFFLINE" ? ERR_MSG.offline : "ブロックを登録できませんでした。") };
+      }
+    }
+    dispatch({ type: "reservation", at: Date.now() });
+    return { ok:true, group, rows: done.length };
+  }
+  async function removeBlock(group) {
+    try { await backend.removeBlock(group); }
+    catch (e) { return await failResult("ブロックの削除", e, "ブロックを削除できませんでした。"); }
+    dispatch({ type: "reservation", at: Date.now() });
+    return { ok:true };
+  }
+
   /* ---------- 公開API（UIが呼ぶ） ---------- */
 
   async function createReservation(input) {
     const slotId = `${input.csId}_${input.date}_${input.time}`;
+    // 休診日（臨時休診・診療時間の設定なし）は理由がわかる文言で断る
+    if (daySlotTimes(input.csId, input.date).length === 0) {
+      const cl = closureOn(input.csId, input.date);
+      return { ok: false, reason: "CLOSED",
+        error: cl ? `この日は休診です（${cl.reason || "臨時休診"}）。別の日をお選びください。`
+                  : "この日は診療日ではありません。別の日をお選びください。" };
+    }
     if (slotRemaining(slotId) <= 0) return { ok: false, error: "この枠は満員です。別の日時をお選びください。" };
-    const dup = _cache.find(r => r.status === "CONFIRMED" && r.date === input.date && r.time === input.time
-      && r.phone.replace(/-/g,"") === input.phone.replace(/-/g,"") && r.name === input.name);
+    const dup = _cache.find(r => r.status === "CONFIRMED" && !isBlock(r) && r.date === input.date && r.time === input.time
+      && String(r.phone||"").replace(/-/g,"") === String(input.phone||"").replace(/-/g,"") && r.name === input.name);
     if (dup) return { ok: false, error: "同じ日時に既にご予約があります。" };
     if (input.roomId == null) input.roomId = freeRoom(input.csId, input.date, input.time);  // 空き診察室を自動割当
     // スタッフ・機材の被りチェック（受付が指定した場合）
@@ -624,10 +954,12 @@ const Store = (() => {
   async function moveReservation(code, newTime) {
     const res = _cache.find(x => x.code === code && x.status === "CONFIRMED");
     if (!res) return { ok: false, error: "予約が見つかりません。" };
+    if (isBlock(res)) return { ok: false, error: "ブロックは移動できません。いったん削除して、登録し直してください。" };
     if (newTime === res.time) return { ok: true };
     const s = _toMin(newTime), e = s + durMin(res);
-    const used = _cache.filter(r => r.status === "CONFIRMED" && r.code !== code && r.csId === res.csId && r.date === res.date && r.time === newTime).length;
-    if (used >= capacityOfCs(res.csId)) return { ok: false, error: "移動先の枠は満員です。" };
+    // 移動先の空き＝定員 − 患者予約 − ブロック（自分自身は除外して数える）
+    if (slotAvail(res.csId, res.date, newTime, code).remaining <= 0)
+      return { ok: false, error: "移動先の枠は満員（またはブロック中）です。" };
     if (res.staffId && resourceConflict("staff", res.staffId, res.date, s, e, code)) return { ok: false, error: "移動先の時間は担当スタッフが別予約と重複します。" };
     if (res.deviceId && resourceConflict("device", res.deviceId, res.date, s, e, code)) return { ok: false, error: "移動先の時間は機材が別予約で使用中です。" };
     try { await backend.reschedule(code, newTime); }
@@ -673,7 +1005,13 @@ const Store = (() => {
   }
 
   return {
-    CLINICS, MENUS, WD,
+    CLINICS, MENUS, WD, BLOCK_KINDS, BLOCK_STEP,
+    // 非患者ブロック（休憩・機材メンテ・院内業務）
+    isBlock, blockLabel, blockKindLabel, createBlock, removeBlock,
+    // 診療時間・休診日
+    hoursOf, hasHours, closuresOf, closureOn, isClosed, daySlotTimes, slotStepOf, defaultHoursOf,
+    addHours, removeHours, importDefaultHours, resetHours, addClosure, removeClosure, refreshHours,
+    slotAvail,
     getBackend: () => backendName,                                   // "supabase" | "local" | "offline"
     isOffline: () => backendName === "offline",                      // 予約の正本に書けない状態
     getBackendError: () => backendError,                             // {reason,code,message,details}
