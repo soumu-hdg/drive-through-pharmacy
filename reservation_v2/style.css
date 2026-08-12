@@ -2,36 +2,72 @@
    クリニック予約システム スタイル
    医療系のクリーンな青を基調（患者が迷わない実用性を優先）。
    ============================================================= */
+/* -------------------------------------------------------------
+   デザイントークン
+   ・純黒は使わない（長時間見ても疲れない濃紺グレー）
+   ・赤は「取消・エラー」専用。価格・日曜は別の色にする
+   ・診療区分の色は「意味」として固定（外来=青／在宅=青緑／美容=赤紫／夜間=青紫）
+   ・文字4.5:1 / UI部品3:1（WCAG AA）を満たす値を選定
+   ※ --text / --border は受付ボード(board.html)が参照している旧名。
+     互換のため残し、患者側の新規ルールでは --ink / --line を使う。
+   ------------------------------------------------------------- */
 :root {
-  --blue: #2563eb; --blue-hover: #1d4ed8; --blue-light: #dbeafe;
-  --bg: #f5f7fa; --surface: #ffffff; --text: #111827; --sub: #6b7280;
-  --border: #d5dbe3; --disabled: #e5e7eb;
-  --green: #16a34a; --green-light: #dcfce7;
-  --warn: #d97706; --warn-light: #fef3c7;
-  --red: #dc2626; --red-light: #fee2e2;
-  --price: #dc2626;
+  /* 文字・面 */
+  --ink: #1f2933;            /* 本文 */
+  --ink-strong: #101828;     /* 見出し・強調数値 */
+  --text: #1f2933;           /* 旧名（= --ink） */
+  --sub: #5d6b7a;            /* 補助文字 */
+  --bg: #f4f6f8; --surface: #ffffff;
+  --line: #e4e9ef;           /* 罫線（淡） */
+  --line-strong: #c9d3de;    /* 入力枠・区切り強 */
+  --border: #d5dbe3;         /* 旧名（受付ボードの罫線。値は据え置き） */
+  --disabled: #eceff3;
+
+  /* ブランド（青は1系統のみ） */
+  --blue: #2160c4; --blue-hover: #194fa5; --blue-light: #e7eff9;
+
+  /* セマンティック（赤緑の対比を作らない） */
+  --green: #0e7a5f; --green-light: #e3f2ec;   /* 来院済・成功 */
+  --warn:  #a96a10; --warn-light: #fbf1dd;    /* 初診・注意 */
+  --red:   #c0392f; --red-light:  #faeae8;    /* 取消・エラー専用 */
+  --price: #a04a00;                            /* 価格（赤と分ける） */
+  --sun:   #c0392f; --sat: #2160c4;            /* 日曜・土曜の曜日色 */
+
   --area-aichi: #b45309; --area-kanagawa: #0369a1; --area-chiba: #be185d;
-  --svc-gairai: #2563eb; --svc-zaitaku: #16a34a; --svc-biyou: #be185d; --svc-yakan: #6d28d9;
+  /* 診療区分（バッジ・タイムライン共通の意味色） */
+  --svc-gairai: #2160c4; --svc-zaitaku: #0e7a5f; --svc-biyou: #a13a70; --svc-yakan: #5b4bb5;
   --dark: #1e293b;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: "Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
-  background: var(--bg); color: var(--text); line-height: 1.6; font-size: 15px;
+  background: var(--bg); color: var(--ink); line-height: 1.6; font-size: 15px;
 }
+h1, h2, .stat .num, .clinic-card-name { color: var(--ink-strong); }
+/* 数字の桁を揃える（時刻・電話・金額・予約番号。本文には掛けない） */
+table, .code-display, .stat .num, .day-date, .time-chip, .slot, .slot-x,
+.tl-axis, .tl-blk, .hp-price-num, .sel-summary .sel-dt { font-variant-numeric: tabular-nums; }
+/* キーボード操作時のフォーカスリング（WCAG 2.4.7／太さ2px・3:1以上） */
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 
-/* ---- LINE連携バー ---- */
-.line-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:11px 22px; background:#eafaf0; border-bottom:1px solid #bfe6cd; }
-.line-bar.connected { background:#e9f7ef; }
-.line-bar .lb-icon { width:30px; height:30px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:#06c755; color:#fff; border-radius:8px; font-size:16px; font-weight:700; }
+/* ---- LINE連携バー ----
+   予約タスクより先に視線を奪わないよう、通常ページでは1行に畳む。
+   本命の案内（リマインドを受け取る）は完了画面の .line-invite に置く。 */
+.line-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:7px 22px; background:#f2faf5; border-bottom:1px solid #d8ecdf; }
+.line-bar .lb-text small { display:none; }   /* 通常時は1行だけ */
+.line-bar.connected { background:#eef8f2; }
+.line-bar .lb-icon { width:24px; height:24px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:#06c755; color:#fff; border-radius:6px; font-size:14px; font-weight:700; }
 .line-bar .lb-text { display:flex; flex-direction:column; line-height:1.35; min-width:0; }
 .line-bar .lb-text b { font-size:14px; color:#14532d; }
 .line-bar .lb-text small { font-size:12px; color:#4b6b57; }
-.line-bar .lb-btn { margin-left:auto; background:#06c755; color:#fff; border:none; border-radius:8px; padding:9px 18px; font-size:14px; font-weight:700; cursor:pointer; }
+.line-bar .lb-btn { margin-left:auto; background:#fff; color:#06874a; border:1.5px solid #06c755; border-radius:6px; padding:5px 14px; font-size:13px; font-weight:700; cursor:pointer; }
 .line-bar .lb-btn:hover { filter:brightness(1.05); }
-.line-bar .lb-add { margin-left:auto; font-size:12.5px; font-weight:700; color:#06874a; text-decoration:none; border:1.5px solid #06c755; border-radius:8px; padding:7px 14px; white-space:nowrap; }
+.line-bar .lb-add { margin-left:auto; font-size:12.5px; font-weight:700; color:#06874a; text-decoration:none; border:1.5px solid #06c755; border-radius:6px; padding:5px 12px; white-space:nowrap; }
 .line-bar .lb-add:hover { background:#06c75514; }
-@media (max-width:560px){ .line-bar .lb-btn, .line-bar .lb-add { margin-left:0; width:100%; text-align:center; } }
+@media (max-width:560px){
+  .line-bar { padding:6px 14px; gap:8px; }
+  .line-bar .lb-btn, .line-bar .lb-add { margin-left:auto; width:auto; text-align:center; }
+}
 
 /* ---- 患者向けヘッダー（青） ---- */
 header.site { background: var(--blue); color:#fff; padding: 13px 22px; display:flex; align-items:center; gap:22px; flex-wrap:wrap; }
@@ -39,9 +75,15 @@ header.site .brand { font-size:17px; font-weight:700; letter-spacing:.02em; }
 header.site nav { display:flex; gap:16px; margin-left:auto; }
 header.site a { color:#fff; text-decoration:none; font-size:13.5px; opacity:.92; cursor:pointer; }
 header.site a:hover { opacity:1; text-decoration:underline; }
-header.site .sync-badge { font-size:11px; background:rgba(255,255,255,.18); border-radius:4px; padding:3px 8px; display:inline-flex; gap:5px; align-items:center; }
-.sync-dot { width:7px; height:7px; border-radius:50%; background:#4ade80; box-shadow:0 0 0 0 rgba(74,222,128,.6); animation:pulse 2s infinite; }
-@keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(74,222,128,.5)} 70%{box-shadow:0 0 0 6px rgba(74,222,128,0)} 100%{box-shadow:0 0 0 0 rgba(74,222,128,0)} }
+/* 同期バッジ: 患者に技術用語を見せない。正常時は非表示、
+   接続できていないときだけ「受け付けできません」を出す（安全側の表示は必ず残す）。 */
+header.site .sync-badge { display:none; }
+header.site .sync-badge.warn {
+  display:inline-flex; gap:6px; align-items:center; font-size:12px; font-weight:700;
+  background:#fff1f0; color:#8a2b22; border:1px solid #f0b6b0; border-radius:4px; padding:3px 9px;
+}
+.sync-dot { display:none; }
+header.site .sync-badge.warn .sync-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#c0392f; }
 
 /* ---- 管理ヘッダー（濃色）＋タブ ---- */
 header.admin-header { background: var(--dark); color:#fff; padding: 11px 22px 0; }
@@ -62,23 +104,23 @@ h2 { font-size: 17px; margin: 22px 0 12px; }
 .back:hover { text-decoration:underline; }
 .muted { color: var(--sub); font-size: 13px; }
 
-.card { background:#fff; border:1px solid var(--border); border-radius:10px; padding:18px; margin-bottom:15px; }
+.card { background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:18px; margin-bottom:15px; }
 
 /* ---- クリニックカード（トップ） ---- */
 .clinic-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(285px,1fr)); gap:14px; margin-top:16px; }
-.clinic-card { background:#fff; border:1px solid var(--border); border-radius:14px; padding:16px 18px; }
+.clinic-card { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:16px 18px; }
 .clinic-card-head { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-.area-label { font-size:12px; font-weight:700; border-radius:6px; padding:2px 10px; }
-.badge-opening { font-size:11px; font-weight:700; background:var(--warn-light); color:var(--warn); border-radius:6px; padding:2px 8px; }
+.area-label { font-size:12px; font-weight:700; border-radius:3px; padding:2px 10px; }
+.badge-opening { font-size:11px; font-weight:700; background:var(--warn-light); color:var(--warn); border-radius:3px; padding:2px 8px; }
 .clinic-card-name { font-size:19px; font-weight:700; margin-top:7px; }
 .clinic-card-addr { font-size:12.5px; color:var(--sub); margin-top:2px; }
 .clinic-card-svcline { font-size:12.5px; color:var(--sub); margin-top:2px; }
 .clinic-card-btns { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
-.svc-btn { display:flex; align-items:center; gap:9px; min-height:44px; font-size:15px; justify-content:flex-start; padding:0 14px; border-radius:9px; cursor:pointer; border:1.5px solid var(--blue); background:var(--blue); color:#fff; font-weight:600; text-align:left; }
+.svc-btn { display:flex; align-items:center; gap:9px; min-height:44px; font-size:15px; justify-content:flex-start; padding:0 14px; border-radius:6px; cursor:pointer; border:1.5px solid var(--blue); background:var(--blue); color:#fff; font-weight:600; text-align:left; }
 .svc-btn.secondary { background:#fff; color:var(--blue); }
 .svc-btn:hover { filter:brightness(1.05); }
 .svc-btn svg { width:18px; height:18px; flex-shrink:0; }
-.svc-btn.disabled { border-color:var(--border); background:#f3f4f6; color:#9ca3af; cursor:default; filter:none; }
+.svc-btn.disabled { border-color:var(--line-strong); background:#f2f4f7; color:#7a8794; cursor:default; filter:none; }
 
 /* ---- 悩み別チップ＋施術カード（美容） ---- */
 .chips { display:flex; gap:8px; overflow-x:auto; padding:4px 0 12px; }
@@ -86,73 +128,121 @@ h2 { font-size: 17px; margin: 22px 0 12px; }
 .chip:hover { border-color:var(--blue); color:var(--blue); }
 .chip.active { background:var(--blue); border-color:var(--blue); color:#fff; font-weight:600; }
 .hp-list { display:flex; flex-direction:column; gap:13px; }
-.hp-card { display:flex; background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
-.hp-img { width:200px; flex-shrink:0; background:#f3f4f6; position:relative; }
-.hp-noimg { width:100%; height:100%; min-height:150px; display:flex; align-items:center; justify-content:center; font-size:40px; font-weight:700; color:#cbd5e1; background:linear-gradient(135deg,#eff6ff,#f8fafc); }
+.hp-card { display:flex; background:var(--surface); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+.hp-img { width:200px; flex-shrink:0; background:#f1f4f7; position:relative; }
+/* 写真が無いときのプレースホルダ: 頭文字1字ではなく区分色地＋アイコン（未完成に見せない） */
+.hp-noimg { width:100%; height:100%; min-height:150px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+  font-size:12px; font-weight:600; color:#8fa0b1; background:#eef2f6; }
+.hp-noimg svg { width:34px; height:34px; color:var(--svc-biyou); opacity:.55; }
+.hp-noimg.hp-noimg-sm { width:64px; height:52px; min-height:0; border-radius:6px; }
+.hp-noimg.hp-noimg-sm svg { width:24px; height:24px; }
 .hp-badges { position:absolute; top:8px; left:8px; display:flex; gap:6px; }
-.hp-badge { font-size:11px; font-weight:700; color:#fff; border-radius:4px; padding:2px 8px; }
-.hp-badge.pop { background:#be185d; }
+.hp-badge { font-size:11px; font-weight:700; color:#fff; border-radius:3px; padding:2px 8px; }
+.hp-badge.pop { background:var(--svc-biyou); }
 .hp-badge.first { background:var(--warn); }
 .hp-body { flex:1; padding:14px 16px; min-width:0; }
-.hp-name { font-size:16.5px; font-weight:700; color:#111827; cursor:pointer; }
+.hp-name { font-size:16.5px; font-weight:700; color:var(--ink-strong); cursor:pointer; }
 .hp-name:hover { color:var(--blue); text-decoration:underline; }
-.hp-catch { font-size:13.5px; color:#374151; margin-top:3px; }
+.hp-catch { font-size:13.5px; color:#3c4a58; margin-top:3px; }
 .hp-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-.hp-tag { font-size:11px; color:var(--blue); background:var(--blue-light); border-radius:4px; padding:2px 8px; }
+.hp-tag { font-size:11px; color:var(--blue); background:var(--blue-light); border-radius:3px; padding:2px 8px; }
 .hp-meta { font-size:12px; color:var(--sub); margin-top:5px; }
-.hp-side { width:200px; flex-shrink:0; border-left:1px solid #f1f5f9; padding:14px 16px; display:flex; flex-direction:column; gap:2px; }
+.hp-side { width:216px; flex-shrink:0; border-left:1px solid var(--line); padding:14px 16px; display:flex; flex-direction:column; gap:2px; }
+.hp-side .btn { font-size:14px; padding:10px 12px; white-space:nowrap; }   /* CTAをボタン内で折り返させない(P-5) */
 .hp-price-label { font-size:12.5px; font-weight:700; color:var(--warn); }
 .hp-price-num { font-size:21px; font-weight:700; color:var(--price); }
 .hp-price-tax { font-size:11px; color:var(--sub); }
 .hp-price-note { font-size:11px; color:var(--sub); }
 .hp-dur { font-size:12px; color:var(--sub); margin-top:4px; }
-@media (max-width:640px){ .hp-card{flex-direction:column} .hp-img{width:100%;height:150px} .hp-side{width:100%;border-left:none;border-top:1px solid #f1f5f9} }
+@media (max-width:640px){ .hp-card{flex-direction:column} .hp-img{width:100%;height:150px} .hp-side{width:100%;border-left:none;border-top:1px solid var(--line)} }
 
 /* ---- 週間ストリップ（日時選択） ---- */
 .week-nav { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:6px 0 10px; }
 .week-nav button { padding:6px 12px; font-size:13px; }
 .week-strip { display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; }
-.day-cell { flex:1 1 0; min-width:60px; display:flex; flex-direction:column; align-items:center; gap:2px; background:#fff; border:1.5px solid var(--border); border-radius:10px; padding:8px 4px; cursor:pointer; font-weight:600; }
+.day-cell { flex:1 1 0; min-width:60px; display:flex; flex-direction:column; align-items:center; gap:2px; background:var(--surface); border:1.5px solid var(--line-strong); border-radius:6px; padding:8px 4px; cursor:pointer; font-weight:600; }
 .day-cell:hover:not(.disabled) { border-color:var(--blue); }
 .day-cell.selected { border-color:var(--blue); background:var(--blue-light); box-shadow:inset 0 0 0 1px var(--blue); }
-.day-cell.disabled { background:#f8fafc; color:#9ca3af; cursor:default; }
+.day-cell.disabled { background:#f2f4f7; color:#6b7a89; cursor:default; }
 .day-date { font-size:13px; }
 .day-wd { font-size:11px; color:var(--sub); }
-.day-wd.sat { color:#2563eb; } .day-wd.sun { color:var(--price); }
+.day-wd.sat { color:var(--sat); } .day-wd.sun { color:var(--sun); }
 .day-mark { font-size:15px; font-weight:700; }
-.mark-ok { color:var(--green); } .mark-few { color:var(--warn); } .mark-full,.mark-closed { color:#9ca3af; }
+.mark-ok { color:var(--green); } .mark-few { color:var(--warn); } .mark-full,.mark-closed { color:#6b7a89; }
+/* ○△×の凡例（初見の患者に △=残りわずか を伝える・P-14） */
+.mark-legend { display:flex; flex-wrap:wrap; gap:14px; margin:8px 0 2px; font-size:12px; color:var(--sub); }
+.mark-legend b { font-weight:700; margin-right:3px; }
 .time-grid { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
-.time-chip { background:#fff; border:1.5px solid var(--blue); color:var(--blue); border-radius:8px; padding:10px 14px; font-size:14px; font-weight:600; cursor:pointer; min-height:44px; }
+.time-chip { display:inline-flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.25;
+  background:var(--surface); border:1.5px solid var(--blue); color:var(--blue); border-radius:6px; padding:6px 14px; font-size:14px; font-weight:600; cursor:pointer; min-width:78px; min-height:44px; }
 .time-chip:hover:not(:disabled) { background:var(--blue-light); }
-.time-chip.selected { background:var(--blue-hover); color:#fff; }
-.time-chip:disabled { border-color:var(--disabled); color:#9ca3af; background:var(--disabled); cursor:default; }
+.time-chip.selected { background:var(--blue-hover); border-color:var(--blue-hover); color:#fff; }
+.time-chip:disabled { border-color:var(--line-strong); color:#6b7a89; background:var(--disabled); cursor:default; }
 .time-chip .rem { font-size:11px; display:block; font-weight:400; }
+.time-chip .rem.few { color:var(--warn); font-weight:700; }
+.time-chip.selected .rem.few { color:#ffe3b8; }
+/* 時間帯の区切り（午前／午後 などの見出し）: 12個以上並ぶチップの壁を割る */
+.time-band { margin-top:12px; }
+.time-band > .band-label { display:block; font-size:12px; font-weight:700; color:var(--sub); letter-spacing:.04em;
+  border-left:3px solid var(--line-strong); padding-left:8px; margin-bottom:2px; }
 
-/* ---- 外来/在宅の枠一覧 ---- */
+/* ---- 外来/在宅の枠一覧（現在は週ストリップに統一。旧クラスは互換のため残置） ---- */
 .slot-day .date { font-weight:700; margin-bottom:8px; }
 .slot-list { display:flex; flex-wrap:wrap; gap:8px; }
-.slot { display:inline-block; border:1.5px solid var(--blue); color:var(--blue); border-radius:8px; padding:8px 14px; font-size:14px; background:#fff; cursor:pointer; min-height:40px; }
+.slot { display:inline-block; border:1.5px solid var(--blue); color:var(--blue); border-radius:6px; padding:8px 14px; font-size:14px; background:#fff; cursor:pointer; min-height:40px; }
 .slot:hover { background:var(--blue-light); }
-.slot-x { display:inline-block; border:1px solid var(--border); color:#9ca3af; border-radius:8px; padding:8px 14px; font-size:14px; background:#f3f4f6; }
-.earliest-line { display:flex; align-items:center; flex-wrap:wrap; gap:8px; background:#eef4ff; border:1px solid var(--blue); border-radius:10px; padding:10px 16px; margin-bottom:14px; }
+.slot-x { display:inline-block; border:1px solid var(--line); color:#6b7a89; border-radius:6px; padding:8px 14px; font-size:14px; background:#f2f4f7; }
+.earliest-line { display:flex; align-items:center; flex-wrap:wrap; gap:8px; background:var(--blue-light); border:1px solid #bcd3f0; border-left:4px solid var(--blue); border-radius:6px; padding:10px 16px; margin-bottom:14px; }
 
-/* ---- フォーム ---- */
+/* ---- フォーム ----
+   .field はブロック要素にする。flex-direction:column だと「必須」バッジが
+   1行を丸ごと占有して〈項目名／必須／入力欄〉の3段に泣き別れるため（P-1）。 */
 .stack { display:flex; flex-direction:column; gap:13px; max-width:520px; }
-.field { display:flex; flex-direction:column; gap:4px; font-size:14px; font-weight:600; }
-.req { color:var(--red); font-size:11px; margin-left:6px; }
-input,select,textarea { font:inherit; padding:9px 11px; border:1px solid var(--border); border-radius:8px; background:#fff; font-size:14px; }
+.field { display:block; font-size:13.5px; font-weight:600; }
+.field > input, .field > select, .field > textarea { display:block; width:100%; margin-top:6px; font-weight:400; }
+.field > .muted { display:block; margin-top:4px; font-weight:400; }
+.req { display:inline-block; vertical-align:1px; margin-left:6px; font-size:10.5px; font-weight:700;
+  color:var(--red); border:1px solid currentColor; border-radius:3px; padding:0 5px; line-height:1.5; }
+.opt { display:inline-block; vertical-align:1px; margin-left:6px; font-size:10.5px; font-weight:700;
+  color:var(--sub); border:1px solid var(--line-strong); border-radius:3px; padding:0 5px; line-height:1.5; }
+.form-note { font-size:12.5px; color:var(--sub); margin-bottom:12px; }
+.field-err { display:block; margin-top:4px; font-size:12.5px; font-weight:700; color:var(--red); }
+input,select,textarea { font:inherit; padding:9px 11px; border:1px solid var(--line-strong); border-radius:6px; background:#fff; font-size:14px; }
 input:focus,select:focus,textarea:focus { outline:2px solid var(--blue-light); border-color:var(--blue); }
-button,.btn { font:inherit; display:inline-flex; align-items:center; justify-content:center; background:var(--blue); color:#fff; border:none; border-radius:8px; padding:10px 20px; cursor:pointer; font-weight:600; text-decoration:none; }
+button,.btn { font:inherit; display:inline-flex; align-items:center; justify-content:center; background:var(--blue); color:#fff; border:none; border-radius:6px; padding:10px 20px; cursor:pointer; font-weight:600; text-decoration:none; }
 button:hover,.btn:hover { filter:brightness(1.07); }
 button.secondary,.btn.secondary { background:#fff; color:var(--blue); border:1.5px solid var(--blue); }
 button.danger { background:var(--red); }
 button.small { padding:5px 11px; font-size:13px; font-weight:500; }
-button:disabled { background:var(--disabled); color:#9ca3af; cursor:default; filter:none; }
-.radio-row { display:flex; gap:18px; margin-top:4px; }
+button:disabled { background:var(--disabled); color:#6b7a89; cursor:default; filter:none; }
+.radio-row { display:flex; gap:18px; margin-top:6px; }
 .radio-row label { display:flex; align-items:center; gap:6px; font-weight:400; font-size:14px; }
-.policy-box { border:1px solid var(--border); border-radius:8px; padding:12px; background:var(--warn-light); }
+.policy-box { border:1px solid #ecd9ab; border-left:4px solid var(--warn); border-radius:4px; padding:12px; background:var(--warn-light); }
 .cta-bar { margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; }
 .rel-added { color:var(--green); font-weight:700; font-size:13px; }
+
+/* ---- 選択内容の固定サマリー（入力/確認画面で「何を選んだか」を見失わせない・P-3） ---- */
+.sel-summary { display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+  background:var(--blue-light); border:1px solid #bcd3f0; border-left:4px solid var(--blue);
+  border-radius:4px; padding:10px 14px; margin-bottom:14px; font-size:14px; }
+.sel-summary .sel-dt { font-weight:700; font-size:15px; color:var(--ink-strong); font-variant-numeric:tabular-nums; }
+.sel-summary .sel-change { margin-left:auto; font-size:13px; font-weight:700; color:var(--blue); text-decoration:underline; cursor:pointer; }
+
+/* ---- 3ステップの進行表示（いまどこか・P-7） ---- */
+.steps { display:flex; gap:4px; margin:10px 0 16px; font-size:12px; color:var(--sub); }
+.steps .st { flex:1; text-align:center; padding:6px 4px; border-bottom:3px solid var(--line); }
+.steps .st.on { color:var(--blue); font-weight:700; border-bottom-color:var(--blue); }
+.steps .st.done { color:var(--ink); border-bottom-color:var(--line-strong); }
+
+/* ---- スマホ: 確定ボタンを画面下に固定（親指が届く位置・P-9） ---- */
+@media (max-width:560px) {
+  .steps { font-size:11px; gap:2px; }
+  .steps .st { padding:5px 2px; }
+  .card > .cta-bar { position:sticky; bottom:0; z-index:50; background:#fff;
+    margin:16px -18px -18px; padding:10px 18px calc(10px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--line); }
+  .card > .cta-bar button { flex:1 1 100%; min-height:48px; }
+}
 
 /* ---- テーブル ---- */
 table { width:100%; border-collapse:collapse; background:#fff; font-size:14px; }
@@ -160,22 +250,34 @@ th,td { border:1px solid var(--border); padding:8px 10px; text-align:left; verti
 th { background:#f1f5f9; font-weight:700; white-space:nowrap; }
 table.confirm th { width:32%; }
 
-/* ---- バッジ ---- */
-.badge { display:inline-block; border-radius:999px; padding:1px 10px; font-size:12px; font-weight:600; white-space:nowrap; }
+/* ---- バッジ ----
+   丸ピルをやめ矩形に。色相＝意味、状態は「塗り／打消し線」の形状でも区別する（色だけに頼らない）。
+   経路（web/電話）は無彩色に降格し、状態バッジと張り合わせない。 */
+.badge { display:inline-block; border-radius:3px; padding:1px 8px; font-size:11.5px; font-weight:600; white-space:nowrap; border:1px solid transparent; }
 .badge.confirmed { background:var(--blue-light); color:var(--blue); }
-.badge.cancelled { background:var(--red-light); color:var(--red); }
+.badge.cancelled { background:#f1f3f6; color:#5d6b7a; text-decoration:line-through; }
 .badge.first { background:var(--warn-light); color:var(--warn); }
-.badge.web { background:#e0e7ff; color:#4338ca; }
-.badge.phone { background:#dcfce7; color:#15803d; }
-.badge.visited { background:#dcfce7; color:#15803d; }
-.badge.no-show { background:#e5e7eb; color:#6b7280; }
+.badge.web { background:#eef1f6; color:#40506b; }
+.badge.phone { background:#eef1f6; color:#40506b; }
+.badge.visited { background:var(--green-light); color:var(--green); }
+.badge.no-show { background:#f1f3f6; color:#5d6b7a; }
 
 /* ---- アラート ---- */
-.alert { background:var(--red-light); border:1px solid var(--red); color:var(--red); border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:14px; }
-.success { background:var(--green-light); border:1px solid var(--green); color:#15803d; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:14px; }
+.alert { background:var(--red-light); border:1px solid #e3b3ad; border-left:4px solid var(--red); color:#8a2b22; border-radius:4px; padding:10px 14px; margin-bottom:14px; font-size:14px; font-weight:600; }
+.success { background:var(--green-light); border:1px solid #b9dfd0; border-left:4px solid var(--green); color:#0b5d48; border-radius:4px; padding:10px 14px; margin-bottom:14px; font-size:14px; }
 
 /* ---- 完了画面 ---- */
-.code-display { font-size:28px; font-weight:700; letter-spacing:4px; color:var(--blue); background:var(--blue-light); border-radius:8px; padding:12px 22px; display:inline-block; margin:12px 0; }
+.code-display { font-size:28px; font-weight:700; letter-spacing:4px; color:var(--blue); background:var(--blue-light); border-radius:6px; padding:12px 22px; display:inline-block; margin:12px 0; }
+/* 完了画面のLINE案内: 「通知を受け取りたい」動機が最大化するこの瞬間に置く（ヘッダーの常時表示から移設） */
+.line-invite { display:flex; gap:12px; align-items:center; flex-wrap:wrap; background:#f2faf5; border:1px solid #cfe9da; border-left:4px solid #06c755; border-radius:4px; padding:13px 16px; margin-bottom:15px; }
+.line-invite .li-icon { width:32px; height:32px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:#06c755; color:#fff; border-radius:6px; font-size:17px; font-weight:700; }
+.line-invite .li-text b { font-size:14.5px; color:#14532d; display:block; }
+.line-invite .li-text small { font-size:12.5px; color:#4b6b57; }
+.line-invite .li-btn { margin-left:auto; background:#06c755; color:#fff; text-decoration:none; border-radius:6px; padding:9px 18px; font-size:14px; font-weight:700; white-space:nowrap; }
+.done-links { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+.done-links a { font-size:13.5px; font-weight:700; color:var(--blue); text-decoration:none; border:1px solid var(--line-strong); border-radius:6px; padding:8px 14px; }
+.done-links a:hover { background:var(--blue-light); border-color:var(--blue); }
+@media (max-width:560px){ .line-invite .li-btn { margin-left:0; width:100%; text-align:center; } }
 
 /* ---- 同意書モーダル ---- */
 .modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,.55); display:flex; align-items:center; justify-content:center; padding:16px; z-index:100; }
