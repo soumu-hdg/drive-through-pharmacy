@@ -15,6 +15,8 @@
     <a data-nav="lookup">予約の確認・キャンセル</a>
   </nav>
 </header>
+<!-- 予約データベースへ接続できないときの警告（黙ってローカル保存せず、必ず知らせる） -->
+<div id="connBar" style="display:none;margin:10px auto 0;max-width:900px;padding:11px 16px;border:1px solid #fca5a5;border-left:5px solid #dc2626;background:#fef2f2;color:#7f1d1d;font-size:14px;font-weight:700;border-radius:6px"></div>
 <div id="lineBar" class="line-bar" style="display:none"></div>
 <main id="app"></main>
 
@@ -23,7 +25,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- LINE LIFF SDK（LINEログインで予約者のuserIdを取得し、予約確定をLINE通知） -->
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="store.js?v=20260729note"></script>
+<script src="store.js?v=20260812w1"></script>
 <script>
 /* =========================================================
    患者向けSPA
@@ -366,7 +368,32 @@ function confirmConsent(){ form.consent = true; consentOpen = false; renderForm(
 function weekPrev(){ if(weekOffset>0){ weekOffset--; render(); } }
 function weekNext(){ weekOffset++; render(); }
 function editInput(){ formStep = "input"; renderForm(); }
-function err(msg){ document.getElementById("formErr").innerHTML = `<div class="alert">${esc(msg)}</div>`; }
+function err(msg, extraHtml){ document.getElementById("formErr").innerHTML = `<div class="alert">${esc(msg)}${extraHtml||""}</div>`; }
+
+/* ---------------- 保存失敗の伝え方（患者向けの平易な文言） ----------------
+   store.js は失敗の種類を reason で返す（DUPLICATE=DBが二重予約を拒否／
+   OFFLINE=予約DBに接続できない／NETWORK=通信不達／DB=その他DBエラー）。
+   患者向けサイトでは、どの失敗でも「完了」と表示せず、入力内容を残したまま再試行できる状態に戻す。 */
+const PATIENT_MSG = {
+  DUPLICATE: "申し訳ありません。ちょうど今、別の方が同じ時間帯を予約されました。お手数ですが別の時間をお選びください。",
+  FAILED:    "ただ今、予約を受け付けできませんでした。お手数ですが、しばらく経ってからもう一度お試しいただくか、お電話でご連絡ください。",
+  CANCEL:    "ただ今、キャンセルの手続きができませんでした。お手数ですが、しばらく経ってからもう一度お試しいただくか、お電話でご連絡ください。",
+};
+function patientMsg(res, fallbackKey){
+  if(res && res.reason === "DUPLICATE") return PATIENT_MSG.DUPLICATE;
+  if(res && ["OFFLINE","NETWORK","DB","COL_MISSING"].includes(res.reason)) return PATIENT_MSG[fallbackKey||"FAILED"];
+  return (res && res.error) || PATIENT_MSG[fallbackKey||"FAILED"];   // 画面側の事前チェック（満員 等）はその文言のまま
+}
+// 接続できていないときの警告バー（予約を受け付けられないことを最初から知らせる）
+function renderConnBar(){
+  const bar = document.getElementById("connBar"); if(!bar) return;
+  if(Store.isOffline()){
+    bar.innerHTML = "⚠ ただ今、予約システムに接続できておりません。恐れ入りますが、しばらく経ってからもう一度お試しいただくか、お電話でご連絡ください。";
+    bar.style.display = "block";
+  } else {
+    bar.style.display = "none";
+  }
+}
 
 function goConfirm(){
   readForm();
@@ -387,7 +414,16 @@ async function submitReservation(){
     menuId: state.menuId, note: form.note.trim(), channel: "WEB",
     lineUserId: (window.__lineUser && window.__lineUser.id) || null,
   });
-  if(!res.ok){ formStep="confirm"; renderForm(); err(res.error); return; }
+  // ★保存に失敗したら「完了」にしない。入力内容（form）は消さず、確認画面のまま再試行できる状態に戻す。
+  if(!res.ok){
+    formStep="confirm"; renderForm();
+    const link = (res.reason === "DUPLICATE")
+      ? `<div style="margin-top:8px"><a class="back" onclick="go({view:'service',slotId:null})">別の日時を選び直す →</a></div>` : "";
+    err(patientMsg(res, "FAILED"), link);
+    window.scrollTo(0,0);
+    return;
+  }
+  // ここまで来たら保存成功。予約番号はこの時点で確定・表示する。
   state.doneCode = res.reservation.code;
   form = null;
   go({ view:"done" });
@@ -465,8 +501,10 @@ function doLookup(){
 async function doCancel(code, phone){
   if(!confirm("この予約をキャンセルします。よろしいですか？")) return;
   const res = await Store.cancelReservation(code, phone);
-  if(res.ok){ document.getElementById("lookResult").innerHTML = `<div class="success">予約をキャンセルしました。受付ボードにも即時反映されます。</div>`; }
-  else alert(res.error);
+  if(res.ok){ document.getElementById("lookResult").innerHTML = `<div class="success">予約をキャンセルしました。受付ボードにも即時反映されます。</div>`; return; }
+  // 失敗は必ず画面に出す（キャンセルできたように見せない）
+  document.getElementById("lookErr").innerHTML = `<div class="alert">${esc(patientMsg(res, "CANCEL"))}</div>`;
+  window.scrollTo(0,0);
 }
 
 /* ---------------- 他タブ（受付側）からの変更を受信して再描画 ---------------- */
@@ -477,7 +515,11 @@ render();
 Store.ready.then(()=>{
   const b = Store.getBackend();
   const badge = document.querySelector(".sync-badge");
-  if(badge) badge.innerHTML = `<span class="sync-dot"></span>${b==="supabase"?"Supabase リアルタイム同期":"リアルタイム同期（ローカル）"}`;
+  const label = b==="supabase" ? "Supabase リアルタイム同期"
+              : b==="offline"  ? "⚠ 予約システムに接続できていません"
+              : "リアルタイム同期（ローカル）";
+  if(badge){ badge.innerHTML = `<span class="sync-dot"></span>${label}`; if(b==="offline") badge.style.color = "#fecaca"; }
+  renderConnBar();
   render();
 });
 </script>
