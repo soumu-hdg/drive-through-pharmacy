@@ -169,7 +169,12 @@
   .res-add input{ flex:1; padding:8px 10px; border:1px solid var(--border); border-radius:7px; font-size:14px; }
   .res-plus{ flex:0 0 auto; background:var(--green); color:#fff; border:none; border-radius:7px; padding:8px 14px; font-weight:700; font-size:13px; cursor:pointer; }
   .res-plus:hover{ filter:brightness(1.05); }
-  /* 会計欄（Wave5） */
+  /* 会計欄・未収（Wave5） */
+  .banner-due{ background:#fff7ed; border:1px solid #fed7aa; border-left:4px solid #c9821f; border-radius:8px; padding:10px 14px; font-size:13px; margin:10px 0; }
+  .badge.pay-unpaid{ background:#fef3c7; color:#92400e; }
+  .badge.pay-paid{ background:#dcfce7; color:#166534; }
+  .badge.pay-none{ background:#f1f5f9; color:#475569; }
+
   .pay-in{ font:inherit; font-size:12.5px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; background:#fff; width:100%; }
   /* メニュー台帳（Wave4） */
   .scroll-x{ overflow-x:auto; }
@@ -294,7 +299,7 @@
 
 <script>window.__RSV_SUPABASE__ = true;</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="store.js?v=20260813w7"></script>
+<script src="store.js?v=20260813w8"></script>
 <script>
 /* 受付ライブボード（タブ切替式）：患者予約が入った瞬間に日別ボード・予約一覧へ即反映 */
 function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -464,6 +469,7 @@ function openBooking(code){
         <div class="bk-row"><span class="k">電話</span><span class="v">${esc(r.phone)}</span></div>
         ${r.email?`<div class="bk-row"><span class="k">メール</span><span class="v">${esc(r.email)}</span></div>`:""}
         <div class="bk-row"><span class="k">LINE通知</span><span class="v" style="color:${r.lineUserId?'#06c755':'var(--sub)'}">${r.lineUserId?'連携済み（予約確定時に自動送信）':'未連携'}</span></div>
+        <div class="bk-row"><span class="k">同意</span><span class="v" style="color:${r.consentAt?'var(--green)':'var(--sub)'}">${r.consentAt?`取得済み（${new Date(r.consentAt).toLocaleString('ja-JP')}・規約 ${esc(r.consentVersion||'-')}）`:'記録なし（この予約は同意記録の追加前に作成されました）'}</span></div>
       </div>
       <div class="bk-sec"><h3>予約内容</h3>
         <div class="bk-row"><span class="k">クリニック</span><span class="v">${esc(clinic.name)}（${esc(svc.name)}）</span></div>
@@ -1154,7 +1160,8 @@ function listRowsHtml(){
   let all = Store.loadReservations()
     .filter(r=>inCurClinic(r.csId) && !Store.isBlock(r))
     .sort((a,b)=> (b.date+b.time).localeCompare(a.date+a.time));
-  if(listFilter!=="ALL") all = all.filter(r=>r.status===listFilter);
+  if(listFilter==="UNPAID") all = all.filter(r=>r.paymentStatus==="UNPAID"||r.paymentStatus==="PARTIAL");
+  else if(listFilter!=="ALL") all = all.filter(r=>r.status===listFilter);
   all = all.filter(r=>listMatch(r, listQuery));
   listCount = all.length;
   const STATUS = LIST_STATUS;
@@ -1168,17 +1175,34 @@ function listRowsHtml(){
       <td><span class="pt-link ${r.status==='CANCELLED'?'struck':''}" onclick="openBooking('${esc(r.code)}')">${esc(r.name)} 様</span>${r.visitType==="FIRST"?'<span class="badge first" style="margin-left:4px">初診</span>':""}<div class="muted t-num" style="font-size:12px">${esc(r.phone)}</div></td>
       <td>${r.channel==="WEB"?'<span class="badge web">Web</span>':'<span class="badge phone">電話</span>'}</td>
       <td><span class="badge ${st[1]}">${st[0]}</span></td>
+      <td>${payCell(r)}</td>
       <td>${r.status==="CONFIRMED"?`<button class="small secondary" onclick="markVisited('${esc(r.code)}')">来院</button> <button class="small danger" onclick="cancelRes('${esc(r.code)}')">取消</button>`:'<span class="muted" style="font-size:12px">—</span>'}</td>
     </tr>`;
   }).join("");
-  return rows || `<tr><td colspan="6" style="text-align:center;color:var(--sub);padding:24px">${listQuery?'「'+esc(listQuery)+'」に一致する予約はありません。':'該当する予約はありません。'}</td></tr>`;
+  return rows || `<tr><td colspan="7" style="text-align:center;color:var(--sub);padding:24px">${listQuery?'「'+esc(listQuery)+'」に一致する予約はありません。':'該当する予約はありません。'}</td></tr>`;
+}
+/* 会計セル：金額と支払状態を一覧でも見えるようにする（受付が「誰が未収か」を探せる） */
+const PAY_LABEL = { UNPAID:['未収','pay-unpaid'], PAID:['支払済','pay-paid'], PARTIAL:['一部','pay-unpaid'], REFUNDED:['返金','pay-none'] };
+function payCell(r){
+  const amt = (r.amount!=null && r.amount!=="") ? '¥'+Number(r.amount).toLocaleString() : '';
+  const p = PAY_LABEL[r.paymentStatus];
+  if(!p && !amt) return '<span class="muted" style="font-size:12px">—</span>';
+  return `${p?`<span class="badge ${p[1]}">${p[0]}</span>`:''}${amt?`<div class="t-num" style="font-size:12px;margin-top:2px">${amt}</div>`:''}`;
+}
+/* 未収の集計（この院・取消を除く） */
+function unpaidSummary(){
+  const rows = Store.loadReservations().filter(r=>inCurClinic(r.csId) && !Store.isBlock(r)
+    && r.status!=="CANCELLED" && (r.paymentStatus==="UNPAID"||r.paymentStatus==="PARTIAL"));
+  return { count: rows.length, total: rows.reduce((s,r)=>s+(Number(r.amount)||0),0) };
 }
 function renderList(){
-  const chips = [['ALL','すべて'],['CONFIRMED','予約確定'],['VISITED','来院済'],['CANCELLED','キャンセル']]
+  const chips = [['ALL','すべて'],['CONFIRMED','予約確定'],['VISITED','来院済'],['CANCELLED','キャンセル'],['UNPAID','未収のみ']]
     .map(([v,l])=>`<span class="chip ${listFilter===v?'active':''}" onclick="setListFilter('${v}')">${l}</span>`).join("");
   const body = listRowsHtml();
+  const due = unpaidSummary();
   document.getElementById("view-list").innerHTML = `
     <h1>予約一覧<span class="muted" style="font-size:15px;font-weight:400;margin-left:8px">${esc(curClinicObj().name)}クリニック</span></h1>
+    ${due.count?`<div class="banner-due">未収 <b>${due.count}件</b>／合計 <b>¥${due.total.toLocaleString()}</b>　<span class="muted" style="font-weight:400">「未収のみ」で絞り込めます。金額は予約詳細の「会計」で記録します。</span></div>`:""}
     <div class="list-tools">
       <input id="listSearch" class="list-search" type="search" placeholder="氏名・フリガナ・電話・予約番号で検索" value="${esc(listQuery)}" oninput="setListQuery(this.value)">
       <span class="hint">「/」キーで検索へ移動</span>
@@ -1186,7 +1210,7 @@ function renderList(){
     </div>
     <div class="chips" style="margin-bottom:6px">${chips}</div>
     <div class="card" style="padding:0;overflow:auto">
-      <table><thead><tr><th style="width:120px">日時</th><th>クリニック／区分</th><th>患者</th><th style="width:60px">経路</th><th style="width:96px">状態</th><th style="width:130px">操作</th></tr></thead>
+      <table><thead><tr><th style="width:120px">日時</th><th>クリニック／区分</th><th>患者</th><th style="width:60px">経路</th><th style="width:96px">状態</th><th style="width:110px">会計</th><th style="width:130px">操作</th></tr></thead>
       <tbody id="listBody">${body}</tbody></table>
     </div>`;
   const s=document.getElementById('listSearch');

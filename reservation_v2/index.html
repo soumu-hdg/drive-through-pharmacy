@@ -27,7 +27,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- LINE LIFF SDK（LINEログインで予約者のuserIdを取得し、予約確定をLINE通知） -->
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="store.js?v=20260813w7"></script>
+<script src="store.js?v=20260813w8"></script>
 <script>
 /* =========================================================
    患者向けSPA
@@ -298,6 +298,9 @@ function startForm(){
 }
 let formStep = "input";
 let consentOpen = false;
+/* 同意文面のバージョン。文面を変えたら必ず上げる（いつ何に同意したかを後から辿れるようにするため）。 */
+const CONSENT_VERSION = "2026-08-13";
+let consentAt = null;                       // 同意した日時（ISO文字列）
 
 /* 担当スタッフのご指名（Wave2 / 仕様書v2 §3.2-C・欠陥D-5）
    Web予約は担当が未設定（NULL）で入るため、DBの部分一意インデックス（担当×枠）の
@@ -405,7 +408,16 @@ function consentModal(){
         <h4>2. リスク・副作用について</h4><p>赤み・腫れ・内出血・乾燥などが生じる場合があります。気になる症状が続く場合は速やかにご連絡ください。</p>
         <h4>3. 施術をお受けいただけない場合</h4><p>妊娠中・授乳中の方、特定の疾患・服薬状況のある方は施術をお受けいただけない場合があります。</p>
         <h4>4. 個人情報の取り扱い</h4><p>ご入力いただいた個人情報は診療・予約管理・ご連絡の目的にのみ使用します。</p>
+        <h4>5. ご予約の変更・キャンセルについて</h4>
+        <p>ご都合が悪くなった場合は、<b>できるだけ早めに</b>予約サイトの「予約の確認・キャンセル」またはお電話でご連絡ください。
+           ご連絡のないキャンセル（無断キャンセル）や当日キャンセルが重なった場合、以降のご予約をお受けできないことがあります。</p>
+        <p><b>キャンセル料が発生する施術については、ご予約時に個別にご案内します。</b>
+           ご案内がない場合、キャンセル料はいただきません。</p>
+        <h4>6. お支払いについて</h4>
+        <p>お支払いは<b>ご来院時</b>にお願いしております。現金・カード等のお取り扱いは院により異なりますので、
+           ご不明な場合は事前にお問い合わせください。</p>
       </div>
+      <p class="muted" style="font-size:11.5px;margin:10px 0 0">同意された日時を記録させていただきます（規約 ${esc(CONSENT_VERSION)}）。</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
         <button onclick="confirmConsent()">内容を確認し、同意します</button>
         <button class="secondary" onclick="closeConsent()">閉じる</button>
@@ -431,7 +443,7 @@ function readForm(){
 // input要素の form プロパティ等に化けて壊れるため、必ずグローバル関数経由にする）
 function openConsent(){ readForm(); consentOpen = true; renderForm(); }
 function closeConsent(){ consentOpen = false; renderForm(); }
-function confirmConsent(){ form.consent = true; consentOpen = false; renderForm(); }
+function confirmConsent(){ form.consent = true; consentAt = new Date().toISOString(); consentOpen = false; renderForm(); }
 function weekPrev(){ if(weekOffset>0){ weekOffset--; render(); } }
 function weekNext(){ weekOffset++; render(); }
 function editInput(){ formStep = "input"; renderForm(); }
@@ -483,6 +495,8 @@ async function submitReservation(){
     menuId: state.menuId, note: form.note.trim(), channel: "WEB",
     staffId: form.staffId ? Number(form.staffId) : null,   // ご指名（未指名はnull＝受付が後で割当）
     lineUserId: (window.__lineUser && window.__lineUser.id) || null,
+    // 同意した事実と日時を残す（キャンセル規定の明示・将来の決済導入の前提工事）
+    consentAt: consentAt, consentVersion: CONSENT_VERSION,
   });
   // ★保存に失敗したら「完了」にしない。入力内容（form）は消さず、確認画面のまま再試行できる状態に戻す。
   if(!res.ok){
