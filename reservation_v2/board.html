@@ -169,6 +169,8 @@
   .res-add input{ flex:1; padding:8px 10px; border:1px solid var(--border); border-radius:7px; font-size:14px; }
   .res-plus{ flex:0 0 auto; background:var(--green); color:#fff; border:none; border-radius:7px; padding:8px 14px; font-weight:700; font-size:13px; cursor:pointer; }
   .res-plus:hover{ filter:brightness(1.05); }
+  /* 会計欄（Wave5） */
+  .pay-in{ font:inherit; font-size:12.5px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; background:#fff; width:100%; }
   /* メニュー台帳（Wave4） */
   .scroll-x{ overflow-x:auto; }
   .mn-table{ width:100%; border-collapse:collapse; font-size:13px; background:#fff; }
@@ -292,7 +294,7 @@
 
 <script>window.__RSV_SUPABASE__ = true;</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="store.js?v=20260813w6"></script>
+<script src="store.js?v=20260813w7"></script>
 <script>
 /* 受付ライブボード（タブ切替式）：患者予約が入った瞬間に日別ボード・予約一覧へ即反映 */
 function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -461,7 +463,7 @@ function openBooking(code){
         ${r.birthDate?`<div class="bk-row"><span class="k">生年月日</span><span class="v">${esc(r.birthDate)}${age!=null?`（${age}歳）`:""}</span></div>`:""}
         <div class="bk-row"><span class="k">電話</span><span class="v">${esc(r.phone)}</span></div>
         ${r.email?`<div class="bk-row"><span class="k">メール</span><span class="v">${esc(r.email)}</span></div>`:""}
-        <div class="bk-row"><span class="k">LINE通知</span><span class="v" style="color:${r.lineUserId?'#06c755':'var(--sub)'}">${r.lineUserId?'連携済み（確定/リマインドを自動送信）':'未連携'}</span></div>
+        <div class="bk-row"><span class="k">LINE通知</span><span class="v" style="color:${r.lineUserId?'#06c755':'var(--sub)'}">${r.lineUserId?'連携済み（予約確定時に自動送信）':'未連携'}</span></div>
       </div>
       <div class="bk-sec"><h3>予約内容</h3>
         <div class="bk-row"><span class="k">クリニック</span><span class="v">${esc(clinic.name)}（${esc(svc.name)}）</span></div>
@@ -475,6 +477,17 @@ function openBooking(code){
           <div><label>診察室</label><select onchange="bkSet('${esc(r.code)}','room',this.value)">${roomOpts}</select></div>
           <div><label>担当スタッフ</label><select onchange="bkSet('${esc(r.code)}','staff',this.value)">${staffOpts}</select></div>
           <div><label>使用機材</label><select onchange="bkSet('${esc(r.code)}','device',this.value)">${devOpts}</select></div>
+        </div>
+      </div>
+      <div class="bk-sec"><h3>会計</h3>
+        <div class="bk-assign">
+          <div><label>金額（円）</label><input id="bkAmount" class="pay-in" type="number" min="0" step="100" value="${r.amount??(menu&&menu.price?menu.price:'')}" placeholder="0"></div>
+          <div><label>支払方法</label><select id="bkMethod" class="pay-in"><option value="">未設定</option>${Store.PAY_METHOD.map(m=>`<option value="${m.v}" ${r.paymentMethod===m.v?'selected':''}>${esc(m.label)}</option>`).join("")}</select></div>
+          <div><label>支払状態</label><select id="bkPayStatus" class="pay-in"><option value="">未設定</option>${Store.PAY_STATUS.map(s=>`<option value="${s.v}" ${r.paymentStatus===s.v?'selected':''}>${esc(s.label)}</option>`).join("")}</select></div>
+        </div>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <button class="secondary" onclick="bkSavePayment('${esc(r.code)}')">会計を記録する</button>
+          <span class="muted" style="font-size:11.5px">カード番号は入力しません。オンライン決済は費用のご承認後に接続します。</span>
         </div>
       </div>
     </div>
@@ -491,6 +504,16 @@ async function bkSet(code, kind, val){
   const res = (kind==='room') ? await Store.setRoom(code, val) : await Store.assignResource(code, kind, val||null);
   if(!res.ok){ boardFail(res, "割当を保存できませんでした。"); }
   afterMutate(); openBooking(code);   // 再描画で実データの割当に戻る
+}
+/* 会計の記録（①カード決済の承認前準備）。Stripe接続前でも受付が金額と支払状態を残せる。 */
+async function bkSavePayment(code){
+  const amount=(document.getElementById('bkAmount')||{}).value;
+  const method=(document.getElementById('bkMethod')||{}).value;
+  const status=(document.getElementById('bkPayStatus')||{}).value;
+  const res=await Store.setPayment(code, { amount, method: method||null, status: status||null });
+  if(!res.ok){ boardFail(res, "会計を記録できませんでした。"); }
+  else toast("会計を記録しました。");
+  afterMutate(); openBooking(code);
 }
 async function bkStatus(code, status){
   if(status==="CANCELLED" && !confirm("この予約を取り消しますか？")) return;

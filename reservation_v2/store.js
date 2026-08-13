@@ -259,8 +259,21 @@ const Store = (() => {
     if (blocks.some(b => b.roomId == null && b.staffId == null && b.deviceId == null))
       return { capacity: cap, used: cap, remaining: 0, blocked: true };
     const rooms = new Set(blocks.filter(b => b.roomId != null).map(b => Number(b.roomId)));
-    const used = patients + rooms.size;
-    return { capacity: cap, used, remaining: Math.max(0, cap - used), blocked: rooms.size > 0 };
+    // ★カルテ側の来院予定も同じ部屋を使う＝予約枠から差し引く（台帳を1つにする）
+    const karte = karteBusy(Math.floor(Number(csId) / 10), date, time);
+    const used = patients + rooms.size + karte;
+    return { capacity: cap, used, remaining: Math.max(0, cap - used),
+             blocked: rooms.size > 0, karte };
+  }
+
+  /* ---------- カルテ（visits）の来院予定 ----------
+     ビュー rsv2_karte_busy は「院ID × 日付 × 時刻 × 件数」だけを返す。
+     患者名・患者ID・診療内容は一切含まない（カルテ本体は authenticated 限定のまま）。
+     取得できない環境（テーブル未作成・オフライン）では 0 件として扱い、従来どおり動く。 */
+  function karteBusy(clinicId, date, time) {
+    const hit = _karteBusy.find(k => Number(k.clinicId) === Number(clinicId)
+      && k.date === date && k.time === time);
+    return hit ? Number(hit.busy) : 0;
   }
 
   /* ---------- スタッフ/機材の割当（被り防止） ---------- */
@@ -304,6 +317,7 @@ const Store = (() => {
   let _resources = [];   // 院ごとのリソース（部屋/スタッフ/機材）。管理画面で編集
   let _menus = [];       // メニュー（rsv2_menus）。0件の診療区分は FALLBACK_MENUS
   let _menuRes = [];     // メニューが使う機材・担当の候補（rsv2_menu_resources）
+  let _karteBusy = [];   // カルテ(visits)の来院予定＝院×日付×時刻の件数だけ（氏名は含まない）
   let _hours = [];       // 診療時間（rsv2_hours）。0件の診療区分は TEMPLATES にフォールバック
   let _closures = [];    // 休診日（rsv2_closures）。臨時休診はここに入る
 
@@ -578,6 +592,11 @@ const Store = (() => {
       channel: r.channel || "WEB", createdAt: r.created_at, sentAt: r.sent_at,
       lineUserId: r.line_user_id || null,
       kind: r.kind || "PATIENT", blockGroup: r.block_group || null,
+      // 会計の記録（①の準備。Stripe接続前でも受付が手入力で使える）
+      paymentStatus: r.payment_status || null, paymentMethod: r.payment_method || null,
+      amount: r.amount ?? null, paymentNote: r.payment_note || null,
+      // カルテ連携（②の土台。名寄せは受付ボードの認証実装後に行う）
+      origin: r.origin || "RSV", patientId: r.patient_id || null, matchStatus: r.match_status || null,
     });
     const toRow = res => ({
       code: res.code, cs_id: res.csId, slot_id: res.slotId, rdate: res.date, rtime: res.time,
@@ -709,6 +728,21 @@ const Store = (() => {
         if (error) return [];
         return (data || []).map(x => ({ menuId:x.menu_id, resourceId:x.resource_id }));
       },
+      /* --- カルテの来院予定（件数のみ・氏名なし） --- */
+      async loadKarteBusy() {
+        const { data, error } = await client.from("rsv2_karte_busy").select("*");
+        if (error) return [];   // ビュー未作成・権限なしでも予約本体は動かす
+        return (data || []).map(k => ({ clinicId:k.clinic_id, date:k.rdate, time:k.rtime, busy:k.busy }));
+      },
+      /* --- 会計の記録（①の準備。Stripe接続なしでも使える） --- */
+      async setPayment(code, p) {
+        const row = { payment_status:p.status ?? null, payment_method:p.method ?? null,
+                      amount:(p.amount===""||p.amount==null)?null:Number(p.amount),
+                      payment_note:p.note ?? null };
+        row.paid_at = (p.status === "PAID") ? new Date().toISOString() : null;
+        const { error } = await client.from("rsv2_reservations").update(row).eq("code", code);
+        if (error) throw error;
+      },
       async addMenu(m) {
         const { error } = await client.from("rsv2_menus").insert({ cs_id:m.csId, name:m.name, price:m.price ?? null,
           first_visit_price:m.firstVisitPrice ?? null, duration_min:m.durationMin || 30, concerns:m.concerns || null,
@@ -823,6 +857,11 @@ const Store = (() => {
       async renameResource(id,name){ const l=JSON.parse(localStorage.getItem(RES_KEY)||"[]"); const r=l.find(x=>x.id===id); if(r){r.name=name; localStorage.setItem(RES_KEY,JSON.stringify(l));} },
       async removeResource(id){ let l=JSON.parse(localStorage.getItem(RES_KEY)||"[]"); l=l.filter(x=>x.id!==id); localStorage.setItem(RES_KEY,JSON.stringify(l)); },
       /* --- メニュー台帳（localStorage） --- */
+      async loadKarteBusy(){ return []; },
+      async setPayment(code,p){ const l=load(); const r=l.find(x=>x.code===code);
+        if(r){ r.paymentStatus=p.status??null; r.paymentMethod=p.method??null;
+               r.amount=(p.amount===""||p.amount==null)?null:Number(p.amount); r.paymentNote=p.note??null;
+               save(l); _cache=l; fire({type:"reservation",at:Date.now()}); } },
       async loadMenus(){ return lsList(MN_KEY); },
       async loadMenuResources(){ return lsList(MR_KEY); },
       async addMenu(m){ const l=lsList(MN_KEY); const id=Math.max(1000,...l.map(x=>x.id||0))+1;
@@ -872,6 +911,8 @@ const Store = (() => {
       async addResource() { fail(); },
       async renameResource() { fail(); },
       async removeResource() { fail(); },
+      async loadKarteBusy() { return []; },
+      async setPayment() { fail(); },
       async loadMenus() { return []; },
       async loadMenuResources() { return []; },
       async addMenu() { fail(); },
@@ -920,11 +961,44 @@ const Store = (() => {
       await backend.init(); backendName = "local";
     }
     try { _resources = await backend.loadResources(); } catch { _resources = []; }
+    try { _karteBusy = await backend.loadKarteBusy(); } catch { _karteBusy = []; }
     try { _menus    = await backend.loadMenus(); }    catch { _menus = []; }
     try { _menuRes  = await backend.loadMenuResources(); } catch { _menuRes = []; }
     try { _hours    = await backend.loadHours(); }    catch { _hours = []; }
     try { _closures = await backend.loadClosures(); } catch { _closures = []; }
   })();
+
+  /* ---------- 会計の記録（①カード決済の承認前準備） ----------
+     Stripe を繋ぐ前でも、受付が「いくらを・どの方法で・受け取ったか」を残せるようにする。
+     ここに入れた金額と支払方法は、決済を繋いだあともそのまま使う受け皿になる。
+     ★カード番号の類は入力させない・保存しない。 */
+  const PAY_STATUS = [
+    { v: "UNPAID",     label: "未収" },
+    { v: "PAID",       label: "支払済" },
+    { v: "PARTIAL",    label: "一部支払" },
+    { v: "REFUNDED",   label: "返金済" },
+  ];
+  const PAY_METHOD = [
+    { v: "CASH",     label: "現金" },
+    { v: "CARD",     label: "カード" },
+    { v: "TRANSFER", label: "振込" },
+    { v: "DIGISMA",  label: "デジスマ" },
+    { v: "OTHER",    label: "その他" },
+  ];
+  async function setPayment(code, p) {
+    try { await backend.setPayment(code, p); }
+    catch (e) { return await failResult("会計の記録", e, ERR_MSG.saveFail); }
+    const r = _cache.find(x => x.code === code);
+    if (r) { r.paymentStatus = p.status ?? null; r.paymentMethod = p.method ?? null;
+             r.amount = (p.amount === "" || p.amount == null) ? null : Number(p.amount);
+             r.paymentNote = p.note ?? null; }
+    dispatch({ type: "reservation", at: Date.now() });
+    return { ok: true };
+  }
+  async function refreshKarteBusy() {
+    try { _karteBusy = await backend.loadKarteBusy(); } catch { _karteBusy = []; }
+    dispatch({ type: "reservation", at: Date.now() });
+  }
 
   /* ---------- メニューCRUD（受付ボードの「メニュー」タブから呼ぶ） ---------- */
   async function refreshMenus() {
@@ -1174,6 +1248,8 @@ const Store = (() => {
     // メニュー台帳（rsv2_menus が正・0件の区分は FALLBACK_MENUS）と、使う機材／担当の紐づけ
     hasMenus, menuResources, refreshMenus, addMenu, updateMenu, removeMenu, setMenuResources, importDefaultMenus,
     freeResourceFor,
+    // カルテの来院予定（件数のみ）と会計の記録
+    karteBusy, refreshKarteBusy, setPayment, PAY_STATUS, PAY_METHOD,
     // 非患者ブロック（休憩・機材メンテ・院内業務）
     isBlock, blockLabel, blockKindLabel, createBlock, removeBlock,
     // 診療時間・休診日
