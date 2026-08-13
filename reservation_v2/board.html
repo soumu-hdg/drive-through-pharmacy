@@ -169,6 +169,26 @@
   .res-add input{ flex:1; padding:8px 10px; border:1px solid var(--border); border-radius:7px; font-size:14px; }
   .res-plus{ flex:0 0 auto; background:var(--green); color:#fff; border:none; border-radius:7px; padding:8px 14px; font-weight:700; font-size:13px; cursor:pointer; }
   .res-plus:hover{ filter:brightness(1.05); }
+  /* メニュー台帳（Wave4） */
+  .scroll-x{ overflow-x:auto; }
+  .mn-table{ width:100%; border-collapse:collapse; font-size:13px; background:#fff; }
+  .mn-table th{ background:#f1f5f9; text-align:left; font-size:11.5px; color:#475569; padding:8px 9px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  .mn-table td{ padding:8px 9px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  .mn-table td.c{ text-align:center; }
+  .mn-in{ font:inherit; font-size:12.5px; padding:5px 7px; border:1px solid var(--border); border-radius:6px; background:#fff; width:88px; }
+  .mn-in:disabled{ background:#f8fafc; color:#64748b; }
+  .mn-chips{ display:flex; flex-wrap:wrap; gap:5px; }
+  .mn-chip{ display:inline-flex; align-items:center; gap:4px; font-size:11.5px; border:1px solid var(--border); border-radius:6px; padding:3px 7px; background:#fff; cursor:pointer; white-space:nowrap; }
+  .mn-chip.on{ border-color:var(--green); background:#ecfdf5; color:#065f46; font-weight:700; }
+  .mn-chip input{ margin:0; }
+  .mn-add{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px; }
+  .mn-add input{ font:inherit; font-size:13px; padding:8px 10px; border:1px solid var(--border); border-radius:7px; background:#fff; }
+  .mn-add input:first-child{ min-width:220px; }
+  .banner-info{ background:#eff6ff; border:1px solid #bfdbfe; border-left:4px solid var(--blue); border-radius:8px; padding:12px 14px; font-size:13px; margin:12px 0; }
+  .primary{ background:var(--blue); color:#fff; border:none; border-radius:7px; padding:9px 16px; font-weight:700; font-size:13px; cursor:pointer; }
+  .primary:hover{ filter:brightness(1.05); }
+  .ghost-del{ background:#fff; color:#b3402e; border:1px solid #e7c3bc; border-radius:6px; padding:4px 9px; font-size:12px; cursor:pointer; }
+  .ghost-del:hover{ background:#fdf2f0; }
   /* 担当/機材 割当セレクト（日別ボード） */
   .assign-cell{ white-space:nowrap; }
   .assign-sel{ font:inherit; font-size:11.5px; padding:3px 5px; border:1px solid var(--border); border-radius:6px; background:#fff; cursor:pointer; max-width:118px; margin:1px 0; display:block; }
@@ -272,7 +292,7 @@
 
 <script>window.__RSV_SUPABASE__ = true;</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="store.js?v=20260813w5"></script>
+<script src="store.js?v=20260813w6"></script>
 <script>
 /* 受付ライブボード（タブ切替式）：患者予約が入った瞬間に日別ボード・予約一覧へ即反映 */
 function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -356,7 +376,7 @@ function renderTab(id){
   else if(id==="slots") renderSlots();
   else if(id==="resources") renderResources();
   else if(id==="hours") renderHours();
-  else if(id==="menus") renderPlaceholder("menus");
+  else if(id==="menus") renderMenus();
   else if(id==="import") renderPlaceholder("import");
 }
 
@@ -995,6 +1015,96 @@ async function resAdd(kind){
 }
 async function resRename(id,name){ name=(name||'').trim(); if(!name){ renderResources(); return; } try{ await Store.renameResource(id,name); }catch(e){ alert('保存できませんでした'); renderResources(); } }
 async function resDelete(id,name){ if(!confirm(`「${name}」を削除しますか？`)) return; try{ await Store.removeResource(id); }catch(e){ alert('削除できませんでした'); } renderResources(); }
+
+/* ---------------- メニュー（rsv2_menus）＋「使う機材・担当」の紐づけ ----------------
+   ここで登録した「使う機材／担当」が、患者がWeb予約した瞬間の自動割当に使われる。
+   同型機を2台登録しておけば、1台が埋まっていてももう1台で予約を受けられる。 */
+function menuCsOf(clinic){
+  // メニューを持つ診療区分（いまは美容）。無ければその院の先頭区分を対象にする
+  const biyou = clinic.services.find(s=>s.name==="美容");
+  return biyou ? biyou.id : (clinic.services[0] ? clinic.services[0].id : null);
+}
+function renderMenus(){
+  const clinic=curClinicObj();
+  const csId=menuCsOf(clinic);
+  const svc=csId?Store.serviceOfCs(csId):null;
+  const box=document.getElementById("view-menus");
+  if(!csId){ box.innerHTML=`<h1>メニュー</h1><div class="card">この院には診療区分が登録されていません。</div>`; return; }
+  const list=Store.menusOfCs(csId);
+  const inDb=Store.hasMenus(csId);
+  const devices=Store.resourcesOf(clinic.id,'device');
+  const staffs =Store.resourcesOf(clinic.id,'staff');
+
+  const rows=list.map(m=>{
+    const picked=inDb?Store.menuResources(m.id).map(r=>Number(r.id)):[];
+    const chip=(r)=>`<label class="mn-chip ${picked.includes(Number(r.id))?'on':''}">
+        <input type="checkbox" value="${r.id}" data-menu="${m.id}" ${picked.includes(Number(r.id))?'checked':''}
+               ${inDb?'':'disabled'} onchange="menuResChanged(${m.id})">${esc(r.name)}</label>`;
+    const ro=inDb?'':'disabled';
+    return `<tr>
+      <td><input class="mn-in" style="width:96%" value="${esc(m.name)}" ${ro} onchange="menuSet(${m.id},'name',this.value)"></td>
+      <td><input class="mn-in" type="number" min="0" step="100" value="${m.price??''}" ${ro} onchange="menuSet(${m.id},'price',this.value)"> 円</td>
+      <td><input class="mn-in" type="number" min="0" step="100" value="${m.firstVisitPrice??''}" ${ro} onchange="menuSet(${m.id},'firstVisitPrice',this.value)"> 円</td>
+      <td><input class="mn-in" type="number" min="5" max="480" step="5" value="${m.durationMin??30}" ${ro} onchange="menuSet(${m.id},'durationMin',this.value)"> 分</td>
+      <td><input class="mn-in" style="width:94%" value="${esc(m.staffType||'')}" ${ro} placeholder="例：看護師" onchange="menuSet(${m.id},'staffType',this.value)"></td>
+      <td><div class="mn-chips">${devices.length?devices.map(chip).join(""):'<span class="muted">機材が未登録</span>'}</div></td>
+      <td><div class="mn-chips">${staffs.length?staffs.map(chip).join(""):'<span class="muted">スタッフが未登録</span>'}</div></td>
+      <td class="c">${inDb?`<button class="ghost-del" onclick="menuDelete(${m.id}, ${JSON.stringify(m.name)})">削除</button>`:''}</td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="8" class="muted">メニューがありません。</td></tr>`;
+
+  box.innerHTML=`
+    <h1>メニュー<span class="muted" style="font-size:15px;font-weight:400;margin-left:8px">${esc(clinic.name)}クリニック／${esc(svc?svc.name:'')}</span></h1>
+    <p class="muted">料金・所要時間を編集できます。<b>「使う機材」「担当できるスタッフ」にチェックを入れると、患者さんがWebから予約した時点で、空いているものを自動で確保します</b>（同じ機械が2台あれば、1台が埋まっていてももう1台で受けられます）。チェックが無い場合は、その院の全リソースから空いているものを選びます。</p>
+    ${inDb?'':`<div class="banner-info">いまは<b>初期設定のメニュー</b>を表示しています。「編集できるようにする」を押すと、この内容がそのまま登録され、料金や機材の紐づけを変更できるようになります（患者さんの見え方は変わりません）。
+        <div style="margin-top:10px"><button class="primary" onclick="menuImport(${csId})">編集できるようにする（${list.length}件を取り込む）</button></div></div>`}
+    <div class="scroll-x"><table class="mn-table">
+      <thead><tr><th style="min-width:150px">メニュー名</th><th style="min-width:110px">料金</th><th style="min-width:110px">初回料金</th><th style="min-width:100px">所要</th><th style="min-width:120px">担当職種</th><th style="min-width:170px">使う機材</th><th style="min-width:170px">担当できるスタッフ</th><th style="width:60px"></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    ${inDb?`<div class="mn-add">
+      <input id="mnName" placeholder="新しいメニュー名" onkeydown="if(event.key==='Enter')menuAdd(${csId})">
+      <input id="mnPrice" type="number" placeholder="料金" style="width:110px">
+      <input id="mnDur" type="number" placeholder="所要(分)" value="30" style="width:110px">
+      <button class="res-plus" onclick="menuAdd(${csId})">＋ 追加</button>
+    </div>`:''}
+    <p class="muted" style="margin-top:14px">機材・スタッフの名前は「リソース設定」タブで編集できます。
+      <a onclick="showAdminTab('resources')" style="color:var(--blue);cursor:pointer;font-weight:700">リソース設定を開く</a></p>`;
+}
+async function menuImport(csId){
+  const res=await Store.importDefaultMenus(csId);
+  if(!res.ok) boardFail(res, res.error||"取り込めませんでした。"); else toast(`${res.count}件のメニューを登録しました。`);
+  renderMenus();
+}
+async function menuSet(id, field, value){
+  const patch={};
+  if(field==="price"||field==="firstVisitPrice") patch[field]= value===""?null:Number(value);
+  else if(field==="durationMin") patch[field]=Math.max(5,Math.min(480,Number(value)||30));
+  else patch[field]=(value||"").trim();
+  const res=await Store.updateMenu(id, patch);
+  if(!res.ok){ boardFail(res,"保存できませんでした。"); renderMenus(); } else toast("保存しました。");
+}
+async function menuAdd(csId){
+  const name=(document.getElementById('mnName').value||'').trim();
+  if(!name){ document.getElementById('mnName').focus(); return; }
+  const price=document.getElementById('mnPrice').value, dur=document.getElementById('mnDur').value;
+  const res=await Store.addMenu(csId,{ name, price: price===""?null:Number(price), durationMin: Number(dur)||30 });
+  if(!res.ok) boardFail(res,"追加できませんでした。"); else toast("メニューを追加しました。");
+  renderMenus();
+}
+async function menuDelete(id,name){
+  if(!confirm(`「${name}」を削除しますか？（過去の予約の表示には影響しません）`)) return;
+  const res=await Store.removeMenu(id);
+  if(!res.ok) boardFail(res,"削除できませんでした。"); else toast("削除しました。");
+  renderMenus();
+}
+async function menuResChanged(menuId){
+  const ids=[...document.querySelectorAll(`.mn-chips input[data-menu="${menuId}"]:checked`)].map(x=>Number(x.value));
+  const res=await Store.setMenuResources(menuId, ids);
+  if(!res.ok){ boardFail(res,"設定を保存できませんでした。"); }
+  else toast(ids.length?`使う機材・担当を${ids.length}件に設定しました。`:"自動割当は院内の空きから選びます。");
+  renderMenus();
+}
 
 /* ---------------- 予約一覧（全日・全ステータス） ---------------- */
 let listFilter = "ALL";

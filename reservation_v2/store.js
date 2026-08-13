@@ -62,7 +62,10 @@ const Store = (() => {
     { id: 41, name: "外来", clinicId: 4, retiredAt: "2026-08-12" },  // 中川の外来
   ];
 
-  const MENUS = [
+  /* メニューの既定値（rsv2_menus に1件も無い診療区分だけ、これを使う）。
+     2026-08-13 Wave4 で rsv2_menus をメニューの正本にした。DBに行があればそちらが優先される
+     ＝管理画面から料金・所要時間・使う機材／担当を編集できる。行が無ければ従来どおり動く。 */
+  const FALLBACK_MENUS = [
     /* 美容は千葉クリニックの取り扱いに一本化（2026-08-12）。
        もとは西春(csId 13)と横浜(csId 21)に分かれていたメニューを千葉(csId 34)へ集約し、
        重複していた「ダーマペン4」は西春の内容を残した。 */
@@ -150,8 +153,25 @@ const Store = (() => {
     const r = RETIRED_SERVICES.find(x => x.id === csId);
     return r ? { id: r.id, name: r.name, retired: true } : null;   // 表示用（新規予約には出さない）
   }
-  function menusOfCs(csId) { return MENUS.filter(m => m.csId === csId); }
-  function menuById(id) { return MENUS.find(m => m.id === id); }
+  /* ---------- メニュー（rsv2_menus が正・0件の区分だけ FALLBACK_MENUS） ----------
+     状態は下の「予約キャッシュ」節でまとめて宣言している（_menus / _menuRes）。
+     読み込みは ready() 内で行うため、ここの関数が呼ばれる時点では必ず初期化済み。 */
+  function menusOfCs(csId) {
+    const fromDb = _menus.filter(m => m.csId === csId);
+    if (fromDb.length) return fromDb.slice().sort((a, b) => (a.sortOrder - b.sortOrder) || (a.id - b.id));
+    return FALLBACK_MENUS.filter(m => m.csId === csId);
+  }
+  function menuById(id) {
+    return _menus.find(m => Number(m.id) === Number(id))
+        || FALLBACK_MENUS.find(m => Number(m.id) === Number(id));
+  }
+  function hasMenus(csId) { return _menus.some(m => m.csId === csId); }
+  // このメニューが使う「候補」リソース（機材・担当）。管理画面で登録する
+  function menuResources(menuId, kind) {
+    const ids = _menuRes.filter(x => Number(x.menuId) === Number(menuId)).map(x => Number(x.resourceId));
+    const list = _resources.filter(r => ids.includes(Number(r.id)));
+    return kind ? list.filter(r => r.kind === kind) : list;
+  }
 
   /* ---------- 診察室の割り当て（部屋＝リソース台帳） ----------
      ・部屋の一覧は院ごとの登録リソース（kind='room'・active）。並びは sort_order→id。
@@ -264,9 +284,26 @@ const Store = (() => {
     });
   }
 
+  /* ---------- 担当・機材の自動割当（要望③「機材被りがなく最大の予約が取れる」） ----------
+     ・候補＝メニューに登録された「使う機材／担当できるスタッフ」。未登録ならその院の全リソース。
+     ・候補の中から、その時間帯に空いているものを先着で1つ確保する。
+     ・同型機を2台登録しておけば、1台が埋まっていてももう1台で受けられる＝取れる予約が最大になる。
+     ・空きが無ければ何も割り当てない（＝予約は通し「未割当」に出す）。従来より予約が減ることはない。 */
+  function freeResourceFor(kind, csId, date, startMin, endMin, menuId) {
+    const clinicId = Math.floor(Number(csId) / 10);
+    let cands = menuId ? menuResources(menuId, kind) : [];
+    if (!cands.length) cands = resourcesOf(clinicId, kind);
+    for (const c of cands) {
+      if (!resourceConflict(kind, c.id, date, startMin, endMin)) return c.id;
+    }
+    return null;
+  }
+
   /* ---------- 予約キャッシュ（getDays等が同期参照） ---------- */
   let _cache = [];       // 予約の正本（メモリ）。ローカル=localStorageと同期／Supabase=DBと同期
   let _resources = [];   // 院ごとのリソース（部屋/スタッフ/機材）。管理画面で編集
+  let _menus = [];       // メニュー（rsv2_menus）。0件の診療区分は FALLBACK_MENUS
+  let _menuRes = [];     // メニューが使う機材・担当の候補（rsv2_menu_resources）
   let _hours = [];       // 診療時間（rsv2_hours）。0件の診療区分は TEMPLATES にフォールバック
   let _closures = [];    // 休診日（rsv2_closures）。臨時休診はここに入る
 
@@ -659,6 +696,47 @@ const Store = (() => {
       async addResource(r) { const { error } = await client.from("rsv2_resources").insert({ clinic_id:r.clinicId, kind:r.kind, name:r.name, sort_order:r.sortOrder||0 }); if (error) throw error; },
       async renameResource(id, name) { const { error } = await client.from("rsv2_resources").update({ name }).eq("id", id); if (error) throw error; },
       async removeResource(id) { const { error } = await client.from("rsv2_resources").delete().eq("id", id); if (error) throw error; },
+      /* --- メニュー台帳と「使う機材／担当」の紐づけ（Wave4） --- */
+      async loadMenus() {
+        const { data, error } = await client.from("rsv2_menus").select("*").eq("active", true);
+        if (error) return [];   // テーブル未作成でも従来の固定メニューで動く
+        return (data || []).map(m => ({ id:m.id, csId:m.cs_id, name:m.name, price:m.price,
+          firstVisitPrice:m.first_visit_price, durationMin:m.duration_min, concerns:m.concerns,
+          catch:m.catch, downtime:m.downtime, staffType:m.staff_type, popular:m.popular, sortOrder:m.sort_order }));
+      },
+      async loadMenuResources() {
+        const { data, error } = await client.from("rsv2_menu_resources").select("*");
+        if (error) return [];
+        return (data || []).map(x => ({ menuId:x.menu_id, resourceId:x.resource_id }));
+      },
+      async addMenu(m) {
+        const { error } = await client.from("rsv2_menus").insert({ cs_id:m.csId, name:m.name, price:m.price ?? null,
+          first_visit_price:m.firstVisitPrice ?? null, duration_min:m.durationMin || 30, concerns:m.concerns || null,
+          catch:m.catch || null, downtime:m.downtime || null, staff_type:m.staffType || null,
+          popular:!!m.popular, sort_order:m.sortOrder || 0 });
+        if (error) throw error;
+      },
+      async updateMenu(id, patch) {
+        const row = {};
+        if ("name" in patch) row.name = patch.name;
+        if ("price" in patch) row.price = patch.price;
+        if ("firstVisitPrice" in patch) row.first_visit_price = patch.firstVisitPrice;
+        if ("durationMin" in patch) row.duration_min = patch.durationMin;
+        if ("staffType" in patch) row.staff_type = patch.staffType;
+        if ("concerns" in patch) row.concerns = patch.concerns;
+        if ("popular" in patch) row.popular = patch.popular;
+        const { error } = await client.from("rsv2_menus").update(row).eq("id", id);
+        if (error) throw error;
+      },
+      async removeMenu(id) { const { error } = await client.from("rsv2_menus").update({ active:false }).eq("id", id); if (error) throw error; },
+      async setMenuResources(menuId, resourceIds) {
+        const del = await client.from("rsv2_menu_resources").delete().eq("menu_id", menuId);
+        if (del.error) throw del.error;
+        if (!resourceIds.length) return;
+        const { error } = await client.from("rsv2_menu_resources")
+          .insert(resourceIds.map(rid => ({ menu_id: menuId, resource_id: rid })));
+        if (error) throw error;
+      },
       /* --- 非患者ブロック（グループ単位で削除） --- */
       async removeBlock(group) {
         const { error } = await client.from(TABLE).delete().eq("block_group", group);
@@ -696,6 +774,8 @@ const Store = (() => {
     const RES_KEY = "rsv2.resources";
     const HR_KEY  = "rsv2.hours";        // 診療時間（既定は空＝TEMPLATESを使う）
     const CL_KEY  = "rsv2.closures";     // 休診日
+    const MN_KEY  = "rsv2.menus";        // メニュー（既定は空＝FALLBACK_MENUSを使う）
+    const MR_KEY  = "rsv2.menuResources";// メニューが使う機材・担当の候補
     const lsList = (k) => { try { return JSON.parse(localStorage.getItem(k) || "[]"); } catch { return []; } };
     const load = () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); } catch { return []; } };
     const save = (l) => localStorage.setItem(LS_KEY, JSON.stringify(l));
@@ -742,6 +822,18 @@ const Store = (() => {
       async addResource(r) { resSeed(); const l=JSON.parse(localStorage.getItem(RES_KEY)||"[]"); const id=Math.max(0,...l.map(x=>x.id||0))+1; l.push({id,clinicId:r.clinicId,kind:r.kind,name:r.name,sortOrder:r.sortOrder||0}); localStorage.setItem(RES_KEY,JSON.stringify(l)); },
       async renameResource(id,name){ const l=JSON.parse(localStorage.getItem(RES_KEY)||"[]"); const r=l.find(x=>x.id===id); if(r){r.name=name; localStorage.setItem(RES_KEY,JSON.stringify(l));} },
       async removeResource(id){ let l=JSON.parse(localStorage.getItem(RES_KEY)||"[]"); l=l.filter(x=>x.id!==id); localStorage.setItem(RES_KEY,JSON.stringify(l)); },
+      /* --- メニュー台帳（localStorage） --- */
+      async loadMenus(){ return lsList(MN_KEY); },
+      async loadMenuResources(){ return lsList(MR_KEY); },
+      async addMenu(m){ const l=lsList(MN_KEY); const id=Math.max(1000,...l.map(x=>x.id||0))+1;
+        l.push(Object.assign({id, durationMin:30, sortOrder:0, popular:false}, m)); localStorage.setItem(MN_KEY,JSON.stringify(l)); },
+      async updateMenu(id, patch){ const l=lsList(MN_KEY); const m=l.find(x=>Number(x.id)===Number(id));
+        if(m){ Object.assign(m, patch); localStorage.setItem(MN_KEY,JSON.stringify(l)); } },
+      async removeMenu(id){ localStorage.setItem(MN_KEY, JSON.stringify(lsList(MN_KEY).filter(x=>Number(x.id)!==Number(id)))); },
+      async setMenuResources(menuId, resourceIds){
+        const l = lsList(MR_KEY).filter(x=>Number(x.menuId)!==Number(menuId));
+        resourceIds.forEach(rid=>l.push({menuId:Number(menuId), resourceId:Number(rid)}));
+        localStorage.setItem(MR_KEY, JSON.stringify(l)); },
       /* --- 非患者ブロック（localStorage） --- */
       async removeBlock(group){ const l=load().filter(x=>x.blockGroup!==group); save(l); _cache=l; fire({type:"reservation",at:Date.now()}); },
       /* --- 診療時間・休診日（localStorage。既定は空＝ハードコードのTEMPLATESを使う） --- */
@@ -780,6 +872,12 @@ const Store = (() => {
       async addResource() { fail(); },
       async renameResource() { fail(); },
       async removeResource() { fail(); },
+      async loadMenus() { return []; },
+      async loadMenuResources() { return []; },
+      async addMenu() { fail(); },
+      async updateMenu() { fail(); },
+      async removeMenu() { fail(); },
+      async setMenuResources() { fail(); },
       async removeBlock() { fail(); },
       async loadHours() { return []; },
       async loadClosures() { return []; },
@@ -822,9 +920,50 @@ const Store = (() => {
       await backend.init(); backendName = "local";
     }
     try { _resources = await backend.loadResources(); } catch { _resources = []; }
+    try { _menus    = await backend.loadMenus(); }    catch { _menus = []; }
+    try { _menuRes  = await backend.loadMenuResources(); } catch { _menuRes = []; }
     try { _hours    = await backend.loadHours(); }    catch { _hours = []; }
     try { _closures = await backend.loadClosures(); } catch { _closures = []; }
   })();
+
+  /* ---------- メニューCRUD（受付ボードの「メニュー」タブから呼ぶ） ---------- */
+  async function refreshMenus() {
+    try { _menus   = await backend.loadMenus(); } catch { _menus = []; }
+    try { _menuRes = await backend.loadMenuResources(); } catch { _menuRes = []; }
+  }
+  async function addMenu(csId, m) {
+    const last = menusOfCs(csId).slice(-1)[0];
+    try { await backend.addMenu(Object.assign({ csId, sortOrder: (last && last.sortOrder ? last.sortOrder : 0) + 1 }, m)); }
+    catch (e) { return await failResult("メニューの追加", e, ERR_MSG.saveFail); }
+    await refreshMenus(); dispatch({ type: "menus", at: Date.now() }); return { ok: true };
+  }
+  async function updateMenu(id, patch) {
+    try { await backend.updateMenu(id, patch); }
+    catch (e) { return await failResult("メニューの変更", e, ERR_MSG.saveFail); }
+    await refreshMenus(); dispatch({ type: "menus", at: Date.now() }); return { ok: true };
+  }
+  async function removeMenu(id) {
+    try { await backend.removeMenu(id); }
+    catch (e) { return await failResult("メニューの削除", e, ERR_MSG.saveFail); }
+    await refreshMenus(); dispatch({ type: "menus", at: Date.now() }); return { ok: true };
+  }
+  // このメニューが使う機材・担当の候補を差し替える（空配列＝自動割当はその院の全リソースから選ぶ）
+  async function setMenuResources(menuId, resourceIds) {
+    try { await backend.setMenuResources(Number(menuId), (resourceIds || []).map(Number)); }
+    catch (e) { return await failResult("メニューの機材・担当の設定", e, ERR_MSG.saveFail); }
+    await refreshMenus(); dispatch({ type: "menus", at: Date.now() }); return { ok: true };
+  }
+  // 既定メニュー（FALLBACK_MENUS）をDBに取り込む。取り込んでも患者側の見え方は変わらない
+  async function importDefaultMenus(csId) {
+    const src = FALLBACK_MENUS.filter(m => m.csId === csId);
+    if (!src.length) return { ok: false, error: "この診療区分に既定のメニューはありません。" };
+    if (hasMenus(csId)) return { ok: false, error: "すでにメニューが登録されています。" };
+    for (const m of src) {
+      try { await backend.addMenu(m); }
+      catch (e) { await refreshMenus(); return await failResult("既定メニューの取り込み", e, ERR_MSG.saveFail); }
+    }
+    await refreshMenus(); dispatch({ type: "menus", at: Date.now() }); return { ok: true, count: src.length };
+  }
 
   // リソースCRUD（管理画面から呼ぶ）。編集後は再取得して同期通知。
   async function refreshResources() { try { _resources = await backend.loadResources(); } catch { _resources = []; } }
@@ -948,6 +1087,9 @@ const Store = (() => {
       return { ok: false, error: "選択したスタッフはその時間帯に別の予約があります。" };
     if (input.deviceId && resourceConflict("device", Number(input.deviceId), input.date, st, en))
       return { ok: false, error: "選択した機材はその時間帯に別の予約で使用中です。" };
+    // 指定が無ければ、空いている担当・機材を自動で確保する（Wave4）
+    if (input.staffId == null)  input.staffId  = freeResourceFor("staff",  input.csId, input.date, st, en, input.menuId);
+    if (input.deviceId == null) input.deviceId = freeResourceFor("device", input.csId, input.date, st, en, input.menuId);
     const r = mkRes(input);
     // ★予約番号は「保存が成功してから」確定・表示する（失敗したのに番号は出さない）
     try { await backend.insert(r); }
@@ -1028,7 +1170,10 @@ const Store = (() => {
   }
 
   return {
-    CLINICS, MENUS, WD, BLOCK_KINDS, BLOCK_STEP,
+    CLINICS, WD, BLOCK_KINDS, BLOCK_STEP,
+    // メニュー台帳（rsv2_menus が正・0件の区分は FALLBACK_MENUS）と、使う機材／担当の紐づけ
+    hasMenus, menuResources, refreshMenus, addMenu, updateMenu, removeMenu, setMenuResources, importDefaultMenus,
+    freeResourceFor,
     // 非患者ブロック（休憩・機材メンテ・院内業務）
     isBlock, blockLabel, blockKindLabel, createBlock, removeBlock,
     // 診療時間・休診日
