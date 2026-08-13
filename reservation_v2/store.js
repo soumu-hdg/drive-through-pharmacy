@@ -716,7 +716,8 @@ const Store = (() => {
       save([
         mkRes({ code:"SEED0001", csId: 11, date: t, time: "09:00", name: "佐藤 一郎", kana: "サトウ イチロウ", phone: "090-1111-2222", visitType: "REVISIT", channel: "WEB" }),
         mkRes({ code:"SEED0002", csId: 11, date: t, time: "09:00", name: "鈴木 花子", kana: "スズキ ハナコ", phone: "090-3333-4444", visitType: "FIRST", channel: "PHONE" }),
-        mkRes({ code:"SEED0003", csId: 13, date: addDays(t,1), time: "10:30", name: "田中 美咲", kana: "タナカ ミサキ", phone: "080-5555-6666", visitType: "FIRST", menuId: 101, channel: "WEB" }),
+        // 美容は千葉(csId 34)の取り扱い。旧・西春の美容(csId 13)は 2026-08-12 に廃止。
+        mkRes({ code:"SEED0003", csId: 34, date: addDays(t,1), time: "10:30", name: "田中 美咲", kana: "タナカ ミサキ", phone: "080-5555-6666", visitType: "FIRST", menuId: 101, channel: "WEB" }),
       ]);
     }
     return {
