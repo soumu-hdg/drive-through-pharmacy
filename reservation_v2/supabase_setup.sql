@@ -307,8 +307,10 @@ values
    (select id from public.rsv2_resources where clinic_id=1 and kind='room' and active order by sort_order, id limit 1), 'WEB'),
  ('SEED0002', 11, '11_'||to_char(current_date,  'YYYY-MM-DD')||'_09:00', to_char(current_date,  'YYYY-MM-DD'), '09:00', '鈴木 花子', 'スズキ ハナコ',   '090-3333-4444', 'FIRST',   null,
    (select id from public.rsv2_resources where clinic_id=1 and kind='room' and active order by sort_order, id offset 1 limit 1), 'PHONE'),
- ('SEED0003', 13, '13_'||to_char(current_date+1,'YYYY-MM-DD')||'_10:30', to_char(current_date+1,'YYYY-MM-DD'), '10:30', '田中 美咲', 'タナカ ミサキ',   '080-5555-6666', 'FIRST',   101,
-   (select id from public.rsv2_resources where clinic_id=1 and kind='room' and active order by sort_order, id limit 1), 'WEB')
+ -- ★美容は千葉クリニック(cs_id=34)の取り扱い。旧・西春の美容(cs_id=13)は 2026-08-12 に廃止したため、
+ --   サンプルも千葉に置く（部屋も千葉 clinic_id=3 から引く）。
+ ('SEED0003', 34, '34_'||to_char(current_date+1,'YYYY-MM-DD')||'_10:30', to_char(current_date+1,'YYYY-MM-DD'), '10:30', '田中 美咲', 'タナカ ミサキ',   '080-5555-6666', 'FIRST',   101,
+   (select id from public.rsv2_resources where clinic_id=3 and kind='room' and active order by sort_order, id limit 1), 'WEB')
 on conflict do nothing;
 
 
