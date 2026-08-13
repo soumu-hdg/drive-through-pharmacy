@@ -429,6 +429,7 @@ const Store = (() => {
       };
     }
     return {
+      consentAt: o.consentAt || null, consentVersion: o.consentVersion || null,
       code: o.code || genCode(),
       kind,
       blockGroup: null,
@@ -597,6 +598,7 @@ const Store = (() => {
       amount: r.amount ?? null, paymentNote: r.payment_note || null,
       // カルテ連携（②の土台。名寄せは受付ボードの認証実装後に行う）
       origin: r.origin || "RSV", patientId: r.patient_id || null, matchStatus: r.match_status || null,
+      consentAt: r.consent_at || null, consentVersion: r.consent_version || null,
     });
     const toRow = res => ({
       code: res.code, cs_id: res.csId, slot_id: res.slotId, rdate: res.date, rtime: res.time,
@@ -605,6 +607,7 @@ const Store = (() => {
       visit_type: res.visitType, menu_id: res.menuId, note: res.note, status: res.status,
       channel: res.channel, sent_at: res.sentAt, line_user_id: res.lineUserId || null,
       kind: res.kind || "PATIENT", block_group: res.blockGroup || null,
+      consent_at: res.consentAt || null, consent_version: res.consentVersion || null,
     });
     return {
       async init() {
