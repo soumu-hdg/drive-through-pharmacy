@@ -10,7 +10,10 @@
 // Vercel API (常時稼働) を使用。localhostは不要
 const WHISPER_API = (function() {
   // Vercelデプロイ時: 同一ドメインの /api
-  if (location.hostname.includes('vercel.app') || location.hostname.includes('hdg-holdings.com')) return '/api';
+  // ※ karte.hdg-holdings.com(karte_v08) は ANTHROPIC_API_KEY / GROQ_API_KEY が未設定のため
+  //   同一ドメインの /api を使うと 500 "…not configured" になる。キーを設定するまで外部を使う。
+  //   (2026-08-14 障害対応: hdg-holdings.com を条件から外した)
+  if (location.hostname.includes('vercel.app')) return '/api';
   // GitHub Pages等の外部デプロイ: Vercel URLを直接指定
   return 'https://kartev06whisper.vercel.app/api';
 })();
