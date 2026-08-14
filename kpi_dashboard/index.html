@@ -122,7 +122,10 @@ tr:hover td{background:#f8f9fb}
   <button class="tab-btn" onclick="showTab('inventory')">在庫状況</button>
   <button class="tab-btn" onclick="showTab('sns')">SNS分析</button>
   <button class="tab-btn" onclick="showTab('seo')">SEO分析</button>
+  <button class="tab-btn" onclick="showTab('channel')">媒体別分析</button>
+  <button class="tab-btn" onclick="showTab('compare')">媒体比較</button>
   <button class="tab-btn" onclick="showTab('history')">最新履歴</button>
+  <button class="tab-btn" onclick="showTab('sync')">同期管理</button>
 </div>
 
 <div class="tab-content active" id="tab-dashboard"></div>
@@ -135,19 +138,61 @@ tr:hover td{background:#f8f9fb}
 <div class="tab-content" id="tab-inventory"></div>
 <div class="tab-content" id="tab-sns"></div>
 <div class="tab-content" id="tab-seo"></div>
+<div class="tab-content" id="tab-channel"></div>
+<div class="tab-content" id="tab-compare"></div>
 <div class="tab-content" id="tab-history"></div>
+<div class="tab-content" id="tab-sync"></div>
 
 <script>
 const SB='https://vypwgxkqtxuzqfaaeamf.supabase.co',SK='sb_publishable_WVbE1jJE6sBDli7qO-xSJA_GqDqu4OE',H={'apikey':SK};
 let D=[],O=[],G=[],S=[],I=[],SY=[],SEO=[],SEO_ART=[],SEO_QRY=[];
 let dS=null,dE=null,charts={};
 
+// ===== 転送量の自己計測（2026-08-07 Phase1 Task1.3）=====
+// どのクエリが何バイト転送したかを画面で見えるようにする。推測でEgressを語らないため。
+let _bytes=0,_calls=0;
 async function sbGet(t,q='',maxRows=0){
-  if(maxRows<=1000){const r=await fetch(`${SB}/rest/v1/${t}?${q}`,{headers:H,cache:'no-store'});if(!r.ok)throw new Error(`${t}:${r.status}`);return r.json();}
+  if(maxRows<=1000){
+    const r=await fetch(`${SB}/rest/v1/${t}?${q}`,{headers:H,cache:'no-store'});
+    if(!r.ok)throw new Error(`${t}: HTTP ${r.status}`);
+    const txt=await r.text();_bytes+=txt.length;_calls++;return JSON.parse(txt);
+  }
   let all=[],from=0;const pgSize=1000;
-  while(from<maxRows){const hdrs={...H,'Range':from+'-'+(from+pgSize-1)};const r=await fetch(`${SB}/rest/v1/${t}?${q}`,{headers:hdrs,cache:'no-store'});if(!r.ok&&r.status!==206)throw new Error(`${t}:${r.status}`);const d=await r.json();all=all.concat(d);if(d.length<pgSize)break;from+=pgSize;}
+  while(from<maxRows){
+    const hdrs={...H,'Range':from+'-'+(from+pgSize-1)};
+    const r=await fetch(`${SB}/rest/v1/${t}?${q}`,{headers:hdrs,cache:'no-store'});
+    if(!r.ok&&r.status!==206)throw new Error(`${t}: HTTP ${r.status}`);
+    const txt=await r.text();_bytes+=txt.length;_calls++;
+    const d=JSON.parse(txt);all=all.concat(d);if(d.length<pgSize)break;from+=pgSize;
+  }
   return all;
 }
+
+// ===== 取得する列を明示する（select=* をやめる）=====
+// 未使用の列（id / created_at / site_name / bounce_rate 等）まで毎回運んでいたのを止める。
+const Q={
+  // 旧 kpi_daily_summary は「手動の集計更新ボタンでしか更新されない」構造で 2026-07-29 から
+  // 停滞していた。DB内で kpi_orders から再計算される v_kpi_dash_daily に切替える。
+  // これにより概要タブの数字が商品/売上報告/利益タブ（kpi_orders基準）と一致する。
+  daily:   ['v_kpi_dash_daily','select=date,channel,order_count,revenue,discount&order=date.desc&limit=2000',2000],
+  orders:  ['kpi_orders','select=order_id,channel,order_date,order_datetime,product_name,sku,quantity,total,discount,is_subscription,subscription_count,prefecture&order=order_date.desc&limit=5000',5000],
+  ga4:     ['kpi_ga4_metrics','select=date,metric_type,dimension,sessions,users,pageviews,conversions,revenue&order=date.desc&limit=500',0],
+  sns:     ['kpi_sns_metrics','select=date,platform,followers,posts,likes,comments,shares,impressions,reach,extra_json&order=date.desc&limit=300',0],
+  inv:     ['kpi_inventory','select=snapshot_date,sku,product_name,quantity,threshold,is_alert&order=snapshot_date.desc&limit=500',0],
+  seo:     ['kpi_seo_daily','select=date,site_key,active_users,sessions,clicks,impressions,ctr,position,created_at&order=date.asc&limit=5000',5000],
+  // SEOタブを開いたときだけ取得する（合計1.4MBあり、初期表示には不要）
+  seoArt:  ['kpi_seo_articles','select=site_key,url,slug,title,clicks,impressions,ctr,position,period_start,period_end&order=clicks.desc&limit=3000',3000],
+  seoQry:  ['kpi_seo_queries','select=site_key,query,clicks,impressions,ctr,position,period_start,period_end&order=clicks.desc&limit=3000',3000],
+  excl:    ['kpi_excluded_orders','select=order_id',0],
+  sync:    ['kpi_sync_status','select=sync_type,last_sync,record_count,status',0],
+  fresh:   ['kpi_freshness','select=source,last_success,last_attempt,last_status,last_rows,stale_after_minutes',0],
+  // 同期管理タブ用（このタブを開いた時だけ取得。合計でも数十KB）
+  cfg:     ['kpi_source_config','select=source,schedule,enabled,mode,notes,updated_at&order=source',0],
+  usage:   ['kpi_usage_monthly','select=month,budget_bytes,used_bytes_out,api_calls,backoff_level,updated_at&order=month.desc&limit=3',0],
+  joblog:  ['kpi_job_log','select=started_at,finished_at,job,status,rows_written,bytes_out,api_calls,duration_ms,error_msg&order=started_at.desc&limit=40',0],
+};
+let FR=[];   // kpi_freshness（鮮度ストリップ用）。SY は従来どおり kpi_sync_status（最新履歴タブが参照）
+const sbQ=k=>sbGet(Q[k][0],Q[k][1],Q[k][2]);
 function fmt(n){return n!=null?Number(n).toLocaleString('ja-JP'):'-'}
 function yen(n){return n!=null?'¥'+Number(n).toLocaleString('ja-JP'):'-'}
 function pct(a,b){return b>0?((a/b)*100).toFixed(1)+'%':'-'}
@@ -172,10 +217,31 @@ function normProd(n){
 
 function showTab(id){
   document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',b.textContent.includes(
-    {dashboard:'ダッシュボード',charts:'グラフ',product:'商品',analytics:'アナリティクス',report:'売上報告',profit:'利益',kpi:'KPI',inventory:'在庫',sns:'SNS',seo:'SEO',history:'最新履歴'}[id]||''
+    {dashboard:'ダッシュボード',charts:'グラフ',product:'商品',analytics:'アナリティクス',report:'売上報告',profit:'利益',kpi:'KPI',inventory:'在庫',sns:'SNS',seo:'SEO',channel:'媒体別分析',compare:'媒体比較',history:'最新履歴',sync:'同期管理'}[id]||''
   )));
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
+  // SEO記事別・検索クエリ別（合計約1.4MB）は、SEOタブを開いたときに初めて取得する。
+  // 概要しか見ない大多数のロードで運ばなくて済む。
+  if(id==='seo'&&!_seoLoaded){
+    const host=document.getElementById('tab-seo');
+    if(host&&!document.getElementById('seoLoading')){
+      const n=document.createElement('div');n.id='seoLoading';
+      n.style.cssText='padding:10px 14px;margin:8px 0;background:#e9f1ee;border-left:4px solid #0e7c66;font-size:13px;color:#0b5344';
+      n.textContent='SEO記事別・検索クエリ別データを読み込み中…';
+      host.insertBefore(n,host.firstChild);
+    }
+    loadSeoDetail().then(()=>{
+      const n=document.getElementById('seoLoading');if(n)n.remove();
+      renderSEO(filt(SEO),SEO_ART,SEO_QRY);
+    }).catch(()=>{const n=document.getElementById('seoLoading');if(n)n.remove();});
+  }
+  // 同期管理タブも開いたときに取得する（設定・使用量・ジョブログ・鮮度で数十KB）
+  if(id==='sync'){
+    const host=document.getElementById('tab-sync');
+    if(host&&!_syncLoaded)host.innerHTML='<div style="padding:14px;color:#0b5344">同期状況を読み込み中…</div>';
+    loadSync().then(renderSync).catch(e=>showError('同期管理の読み込みに失敗しました → '+e.message));
+  }
 }
 
 function filt(arr,df='date'){return arr.filter(d=>{const v=d[df];if(!v)return false;if(dS&&v<dS)return false;if(dE&&v>dE)return false;return true})}
@@ -183,28 +249,704 @@ function applyFilter(){dS=document.getElementById('startDate').value||null;dE=do
 function resetFilter(){dS=null;dE=null;const ds=D.map(d=>d.date).sort();if(ds.length){document.getElementById('startDate').value=ds[0];document.getElementById('endDate').value=ds[ds.length-1]}renderAll()}
 function destroyC(id){if(charts[id]){charts[id].destroy();delete charts[id]}}
 
+// ===== エラーバナー（2026-08-07）=====
+// これまで取得失敗は console.log か .catch(()=>[]) で握りつぶされ、画面上は
+// 「データが無い」ようにしか見えなかった。何がどう失敗したかを必ず画面に出す。
+function showError(msg){
+  let el=document.getElementById('kpiErrBanner');
+  if(!el){
+    el=document.createElement('div');el.id='kpiErrBanner';
+    el.style.cssText='background:#fbf1ec;border:1px solid #b5502f;border-left:5px solid #b5502f;color:#8f3d22;padding:10px 14px;margin:10px 0;border-radius:4px;font-size:13px;line-height:1.6';
+    const host=document.getElementById('syncTs');
+    if(host&&host.parentNode)host.parentNode.insertBefore(el,host.nextSibling);
+    else document.body.insertBefore(el,document.body.firstChild);
+  }
+  el.innerHTML='<b>⚠ データ取得エラー</b><br>'+msg+
+    '<br><span style="font-size:11px;color:#a06a55">この表示が出ている間、画面の数字は最新ではありません。</span>';
+  el.style.display='';
+}
+function clearError(){const el=document.getElementById('kpiErrBanner');if(el)el.style.display='none'}
+
+// ===== データ鮮度ストリップ（2026-08-07）=====
+// どのデータがいつ時点かを常に見せる。stale_after を超えたソースは琥珀で警告。
+const FRESH_LABEL={ec_orders:'EC注文',ga4:'GA4',search_console:'Search Console',
+  seo_articles:'SEO記事',seo_queries:'SEO クエリ',sns:'SNS',inventory:'在庫',daily_summary:'日次集計'};
+function renderFreshness(rows){
+  const host=document.getElementById('syncTs');if(!host)return;
+  let el=document.getElementById('kpiFresh');
+  if(!el){el=document.createElement('div');el.id='kpiFresh';
+    el.style.cssText='display:flex;flex-wrap:wrap;gap:0;border:1px solid #e2ddd2;background:#fff;margin:8px 0;border-radius:4px;overflow:hidden';
+    host.parentNode.insertBefore(el,host.nextSibling);}
+  const now=Date.now();
+  el.innerHTML='<div style="padding:6px 12px;font-size:10px;font-weight:700;color:#8a8578;letter-spacing:.08em;border-right:1px solid #e2ddd2;display:flex;align-items:center">データ鮮度</div>'+
+    (rows||[]).map(r=>{
+      const t=r.last_success?new Date(r.last_success).getTime():null;
+      const mins=t?Math.floor((now-t)/60000):null;
+      const stale=(mins===null)||(mins>(r.stale_after_minutes||1440));
+      const ago=mins===null?'未実行':(mins<60?mins+'分前':(mins<1440?Math.floor(mins/60)+'時間前':Math.floor(mins/1440)+'日前'));
+      return `<div style="padding:6px 12px;border-right:1px solid #e2ddd2;${stale?'background:#f6ecda':''}">
+        <div style="font-size:10px;color:#8a8578;font-weight:700">${FRESH_LABEL[r.source]||r.source}</div>
+        <div style="font-size:12px;font-weight:800;color:${stale?'#c9821f':'#0e7c66'}">${ago}${stale?' ⚠':''}</div></div>`;
+    }).join('');
+}
+
+// ===== 共通のデータ取得 =====
+// 初期表示に不要な SEO記事/SEOクエリ（合計約1.4MB）は、SEOタブを開いたときに取得する。
+let _seoLoaded=false;
+function applyOrderFilters(EX){
+  const exSet=new Set(EX.map(e=>e.order_id));
+  if(exSet.size){const b=O.length;O=O.filter(o=>!exSet.has(o.order_id));if(b-O.length)console.log(`[除外]${b-O.length}件の社員テスト購入を除外`)}
+  // order_id+channel+skuで重複除去（完全一致行のみ除去、商品別明細は維持）
+  O=(()=>{const seen=new Set();return O.filter(o=>{const k=o.order_id+"|"+o.channel+"|"+(o.sku||o.product_name||"");if(seen.has(k))return false;seen.add(k);return true})})();
+  // 数値ID×#名前の二重登録を除去（同一 channel+order_datetime+sku+total で #名前があれば数値IDを捨てる。Shopify二重計上対策）
+  O=(()=>{const nk=new Set(O.filter(o=>/^#/.test(String(o.order_id))).map(o=>o.channel+"|"+o.order_datetime+"|"+(o.sku||"")+"|"+o.total));return O.filter(o=>!(/^[0-9]+$/.test(String(o.order_id))&&nk.has(o.channel+"|"+o.order_datetime+"|"+(o.sku||"")+"|"+o.total)))})();
+}
+async function loadCore(){
+  var EX=[];
+  [D,O,G,S,I,SEO,EX,SY,FR]=await Promise.all([
+    sbQ('daily'),sbQ('orders'),sbQ('ga4'),sbQ('sns'),sbQ('inv'),sbQ('seo'),sbQ('excl'),sbQ('sync'),sbQ('fresh'),
+  ]);
+  applyOrderFilters(EX);
+  renderFreshness(FR);
+}
+async function loadSeoDetail(){
+  if(_seoLoaded)return;
+  try{
+    [SEO_ART,SEO_QRY]=await Promise.all([sbQ('seoArt'),sbQ('seoQry')]);
+    _seoLoaded=true;
+  }catch(e){
+    // 握りつぶさない。SEOタブに何が失敗したかを出す。
+    showError('SEO詳細データの取得に失敗しました → '+e.message);
+    throw e;
+  }
+}
+
+// ============================================================
+//  媒体別分析タブ（2026-08-07）
+//  Shopify / 楽天 / Amazon / Amazon FBA / Qoo10 / 卸売 を1媒体ずつ掘り下げる。
+//
+//  【実データ】売上・注文数・AOV・定期購入比率・割引額・商品別・曜日別・
+//              時間帯別・都道府県別  … すべて kpi_orders から算出
+//  【サンプル】セッション・CVR・カート投入・広告費・ACOS・BuyBox獲得率・
+//              レビュー評価・返品率 … 各媒体のAPI接続後に実データへ差し替わる
+//
+//  サンプル値は必ず斜線ハッチ＋「サンプル」バッジを付け、実データと見分けられるようにする。
+//  乱数は媒体名から決まる固定シードで生成するので、開き直しても数字は変わらない。
+// ============================================================
+const CH_META={
+  shopify:   {name:'Shopify（自社EC）', color:'#96bf48', src:'GA4で計測可（推計）',      srcTag:'ga4'},
+  rakuten:   {name:'楽天市場',           color:'#bf0000', src:'楽天RMS API（要申請）',   srcTag:'apply'},
+  amazon:    {name:'Amazon（自社出荷）', color:'#ff9900', src:'Amazon SP-API（要申請）', srcTag:'apply'},
+  amazon_fba:{name:'Amazon FBA',         color:'#ffb84d', src:'Amazon SP-API（要申請）', srcTag:'apply'},
+  qoo10:     {name:'Qoo10',              color:'#e31937', src:'API提供なし（取得不可）', srcTag:'none'},
+  wholesale: {name:'卸売',               color:'#6366f1', src:'対象外（EC流入なし）',    srcTag:'na'},
+  employee:  {name:'社割',               color:'#f59e0b', src:'対象外',                  srcTag:'na'},
+};
+let curChannel='shopify';
+
+// 媒体ごとに固定の疑似乱数（開き直しても同じ数字＝はりぼてでも比較して議論できる）
+function chRnd(key){
+  let h=2166136261;
+  for(let i=0;i<key.length;i++){h^=key.charCodeAt(i);h=Math.imul(h,16777619)}
+  return function(){h^=h<<13;h^=h>>>17;h^=h<<5;return ((h>>>0)%100000)/100000}
+}
+function sampleBox(inner){
+  return `<span style="display:inline-block;background:repeating-linear-gradient(45deg,#fff7e6,#fff7e6 6px,#fdf0d5 6px,#fdf0d5 12px);border:1px dashed #d9a441;border-radius:4px;padding:0 6px">${inner}</span>`;
+}
+const SAMPLE_BADGE='<span style="display:inline-block;background:#d9a441;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;vertical-align:middle">サンプル</span>';
+
+function chDaysArr(o,ch,days){
+  const end=new Date(); const map={};
+  o.filter(x=>x.channel===ch).forEach(x=>{ map[x.order_date]=(map[x.order_date]||0)+Number(x.total||0) });
+  const out=[];
+  for(let i=days-1;i>=0;i--){
+    const d=new Date(end); d.setDate(d.getDate()-i);
+    const k=d.toISOString().slice(0,10);
+    out.push({date:k, v:map[k]||0});
+  }
+  return out;
+}
+
+function renderChannel(o){
+  const el=document.getElementById('tab-channel'); if(!el)return;
+  const keys=Object.keys(CH_META).filter(k=>o.some(x=>x.channel===k));
+  if(!keys.includes(curChannel)) curChannel=keys[0]||'shopify';
+  const ch=curChannel, meta=CH_META[ch]||{name:ch,color:'#888'};
+  const rnd=chRnd(ch);
+
+  // ---- 期間: 直近30日 / その前30日 ----
+  const today=new Date(); const d30=new Date(today); d30.setDate(d30.getDate()-29);
+  const d60=new Date(today); d60.setDate(d60.getDate()-59);
+  const s30=d30.toISOString().slice(0,10), s60=d60.toISOString().slice(0,10);
+  const rows=o.filter(x=>x.channel===ch);
+  const cur=rows.filter(x=>x.order_date>=s30);
+  const prev=rows.filter(x=>x.order_date>=s60&&x.order_date<s30);
+  const sumT=a=>a.reduce((s,x)=>s+Number(x.total||0),0);
+  const uniq=a=>new Set(a.map(x=>x.order_id)).size;
+  const rev=sumT(cur), ord=uniq(cur), qty=cur.reduce((s,x)=>s+Number(x.quantity||0),0);
+  const aov=ord?rev/ord:0;
+  const prevRev=sumT(prev), mom=prevRev?rev/prevRev-1:0;
+  const disc=cur.reduce((s,x)=>s+Number(x.discount||0),0);
+  const subOrders=new Set(cur.filter(x=>x.is_subscription).map(x=>x.order_id)).size;
+
+  // ---- サンプル指標（API接続後に実データへ） ----
+  const spo=[38,60,45,35,0,0,0][keys.indexOf(ch)]||45;
+  const sessions=Math.round(ord*(38+rnd()*30));
+  const cvr=sessions?ord/sessions:0;
+  const cart=Math.round(ord*(2.2+rnd()*1.2));
+  const adCost=Math.round(rev*(0.06+rnd()*0.09));
+  const acos=rev?adCost/rev:0;
+  const buybox=0.82+rnd()*0.16;
+  const review=(3.9+rnd()*0.9);
+  const retRate=0.008+rnd()*0.02;
+  const noSession=(meta.srcTag==='none'||meta.srcTag==='na');
+
+  const up=v=>v>=0?'var(--green)':'var(--red)';
+  const arr=v=>v>=0?'▲':'▼';
+
+  let h='';
+
+  // ===== 説明バナー =====
+  h+=`<div style="background:#fff7e6;border:1px solid #d9a441;border-left:5px solid #d9a441;border-radius:8px;padding:12px 16px;margin-bottom:16px">
+    <div style="font-size:13px;font-weight:700;color:#8a5a12;margin-bottom:4px">この画面の見方 ${SAMPLE_BADGE}</div>
+    <div style="font-size:12px;color:#6b4a12;line-height:1.7">
+      <b>売上・注文数・客単価・商品別・曜日別・時間帯別・都道府県別は実データ</b>です（注文明細から集計）。<br>
+      <b>斜線の枠</b>が付いている数字（セッション・CVR・カート投入・広告費・ACOS・BuyBox獲得率・レビュー・返品率）は
+      <b>まだ取得できていないためのサンプル値</b>です。各媒体のAPIを接続すると、そのまま実データに差し替わります。
+    </div></div>`;
+
+  // ===== 媒体タブ =====
+  h+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">`+
+    keys.map(k=>{
+      const m=CH_META[k], on=k===ch;
+      return `<button onclick="curChannel='${k}';renderChannel(O)" style="padding:8px 16px;font-size:13px;font-weight:700;border-radius:8px;cursor:pointer;
+        border:2px solid ${m.color};background:${on?m.color:'#fff'};color:${on?'#fff':m.color}">${m.name}</button>`;
+    }).join('')+`</div>`;
+
+  // ===== 数値バンド =====
+  const band=(label,val,sub,sample)=>`<div class="card">
+    <h2>${label}${sample?' '+SAMPLE_BADGE:''}</h2>
+    <div class="metric" style="color:${sample?'#b8860b':meta.color}">${sample?sampleBox(val):val}</div>
+    <div class="metric-sub">${sub}</div></div>`;
+  h+=`<div class="grid grid-4">`+
+    band('売上（直近30日）',yen(Math.round(rev)),`前30日比 <b style="color:${up(mom)}">${arr(mom)} ${(mom*100).toFixed(1)}%</b>`,false)+
+    band('注文数',fmt(ord)+'<span style="font-size:14px">件</span>',`販売数量 ${fmt(qty)}個`,false)+
+    band('客単価 AOV',yen(Math.round(aov)),`売上 ÷ 注文数`,false)+
+    band('定期購入の比率',(ord?(subOrders/ord*100).toFixed(1):'0.0')+'<span style="font-size:14px">%</span>',`定期 ${fmt(subOrders)}件 / 全${fmt(ord)}件`,false)+
+    `</div>`;
+  h+=`<div class="grid grid-4">`+
+    band('セッション',noSession?'—':fmt(sessions),noSession?meta.src:`${meta.src}`,!noSession)+
+    band('CVR',noSession?'—':(cvr*100).toFixed(2)+'<span style="font-size:14px">%</span>',noSession?'この媒体はセッションを取得する手段がない':'注文数 ÷ セッション',!noSession)+
+    band('広告費 / ACOS',noSession?'—':yen(Math.round(adCost))+` <span style="font-size:14px">/ ${(acos*100).toFixed(1)}%</span>`,noSession?'—':'広告経由売上に対する広告費比率',!noSession)+
+    band(ch.startsWith('amazon')?'BuyBox獲得率':'値引き総額',
+         ch.startsWith('amazon')?(buybox*100).toFixed(1)+'<span style="font-size:14px">%</span>':yen(disc),
+         ch.startsWith('amazon')?'SP-APIで取得（要申請）':'実データ・30日合計',
+         ch.startsWith('amazon'))+
+    `</div>`;
+
+  // ===== 売上推移 ＋ ファネル =====
+  h+=`<div class="grid grid-2">
+    <div class="card"><h2>日次売上の推移（30日）と7日移動平均 ／ 実データ</h2>
+      <div class="chart-box" style="height:260px"><canvas id="cChDaily"></canvas></div></div>
+    <div class="card"><h2>セッション → カート → 注文 ${SAMPLE_BADGE}</h2>
+      ${noSession
+        ? `<div style="padding:26px 10px;color:#b45309;font-size:13px;line-height:1.9">
+             <b>${meta.name}は購買前の行動（セッション・カート投入）を取得する手段がありません。</b><br>
+             ${ch==='qoo10'?'Qoo10はアクセス解析APIを提供していないため、CVRは構造的に算出できません。':'この媒体はEC流入の対象外です。'}<br>
+             注文数と売上のみで評価する必要があります。</div>`
+        : `<div class="chart-box" style="height:260px"><canvas id="cChFunnel"></canvas></div>
+           <div style="font-size:11px;color:#b8860b;margin-top:6px">${meta.src} を接続すると実データになります</div>`}
+    </div></div>`;
+
+  // ===== 商品別 ＋ 曜日別 =====
+  const prodMap={};
+  cur.forEach(x=>{const k=normProd(x.product_name);if(!prodMap[k])prodMap[k]={rev:0,qty:0};prodMap[k].rev+=Number(x.total||0);prodMap[k].qty+=Number(x.quantity||0)});
+  const prods=Object.entries(prodMap).sort((a,b)=>b[1].rev-a[1].rev).slice(0,10);
+  h+=`<div class="grid grid-2">
+    <div class="card"><h2>商品別売上 Top10（30日）／ 実データ</h2>
+      <div class="chart-box" style="height:${Math.max(220,prods.length*30)}px"><canvas id="cChProd"></canvas></div></div>
+    <div class="card"><h2>曜日別の売上傾向（30日）／ 実データ</h2>
+      <div class="chart-box" style="height:260px"><canvas id="cChDow"></canvas></div></div>
+  </div>`;
+
+  // ===== 時間帯別 ＋ 都道府県別 =====
+  const hasTime=cur.some(x=>x.order_datetime);
+  const prefMap={};
+  cur.forEach(x=>{const p=(x.prefecture||'').trim();if(p){prefMap[p]=(prefMap[p]||0)+Number(x.total||0)}});
+  const prefs=Object.entries(prefMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  h+=`<div class="grid grid-2">
+    <div class="card"><h2>時間帯別の注文件数（30日）／ 実データ</h2>
+      ${hasTime?`<div class="chart-box" style="height:240px"><canvas id="cChHour"></canvas></div>`
+               :`<div style="padding:24px;color:#888;font-size:13px">この媒体は注文日時（時刻）を保持していないため表示できません。<br>時刻まで取り込めるようになると、広告の配信時間や在庫補充のタイミング判断に使えます。</div>`}</div>
+    <div class="card"><h2>都道府県別売上 Top10（30日）／ 実データ</h2>
+      ${prefs.length?`<div class="chart-box" style="height:240px"><canvas id="cChPref"></canvas></div>`
+                    :`<div style="padding:24px;color:#888;font-size:13px">この媒体は配送先の都道府県を保持していません。<br>楽天/AmazonのAPIを接続すると取得できるようになります。</div>`}</div>
+  </div>`;
+
+  // ===== 媒体横断の比較表 =====
+  h+=`<div class="card"><h2>媒体比較（直近30日）／ 白地は実データ・斜線はサンプル</h2>
+    <table><tr><th>媒体</th><th class="num">売上</th><th class="num">注文</th><th class="num">AOV</th>
+      <th class="num">セッション</th><th class="num">CVR</th><th>CVRの取得元</th><th class="num">前30日比</th></tr>`;
+  keys.forEach(k=>{
+    const m=CH_META[k];
+    const c=o.filter(x=>x.channel===k&&x.order_date>=s30);
+    const p=o.filter(x=>x.channel===k&&x.order_date>=s60&&x.order_date<s30);
+    const r=sumT(c), n=uniq(c), pr=sumT(p), mm=pr?r/pr-1:0;
+    const rr=chRnd(k);
+    const ss=Math.round(n*(38+rr()*30)), cv=ss?n/ss:0;
+    const none=(m.srcTag==='none'||m.srcTag==='na');
+    const tag=m.srcTag==='ga4'?'<span class="badge badge-ok">GA4で取得可</span>'
+      :m.srcTag==='apply'?'<span style="display:inline-block;border:1.5px solid #b45309;color:#b45309;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px">要API申請</span>'
+      :m.srcTag==='none'?'<span style="display:inline-block;background:#9ca3af;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px">取得不可</span>'
+      :'<span style="font-size:11px;color:#888">対象外</span>';
+    h+=`<tr${k===ch?' style="background:#f0f4ff"':''}>
+      <td><span class="badge badge-${k.replace('_fba','')}" style="background:${m.color}">${m.name}</span></td>
+      <td class="num">${yen(Math.round(r))}</td><td class="num">${fmt(n)}</td><td class="num">${n?yen(Math.round(r/n)):'-'}</td>
+      <td class="num">${none?'<span style="color:#bbb">—</span>':sampleBox(fmt(ss))}</td>
+      <td class="num">${none?'<span style="color:#bbb">—</span>':sampleBox((cv*100).toFixed(2)+'%')}</td>
+      <td>${tag}</td>
+      <td class="num" style="color:${up(mm)};font-weight:700">${arr(mm)} ${(mm*100).toFixed(1)}%</td></tr>`;
+  });
+  h+=`</table>
+    <div style="font-size:11px;color:#888;margin-top:10px;line-height:1.8">
+      ※ セッションとCVRが取れると「売上は伸びたが人が増えただけなのか、買われやすくなったのか」を分けて判断できます。
+      現在この2列が実データなのは Shopify のみ（GA4）で、楽天とAmazonはAPI申請が必要、Qoo10はAPI自体が提供されていません。
+    </div></div>`;
+
+  el.innerHTML=h;
+
+  // ===== グラフ描画 =====
+  ['cChDaily','cChFunnel','cChProd','cChDow','cChHour','cChPref'].forEach(destroyC);
+  const cOpt={responsive:true,maintainAspectRatio:false,plugins:{datalabels:{display:false},legend:{labels:{font:{size:11}}}}};
+
+  // 日次＋移動平均
+  const series=chDaysArr(o,ch,30);
+  const ma=series.map((_,i)=>{const w=series.slice(Math.max(0,i-6),i+1);return w.reduce((s,x)=>s+x.v,0)/w.length});
+  charts.cChDaily=new Chart(document.getElementById('cChDaily'),{
+    data:{labels:series.map(x=>x.date.slice(5)),datasets:[
+      {type:'bar',label:'日次売上',data:series.map(x=>x.v),backgroundColor:meta.color+'66',borderColor:meta.color,borderWidth:1},
+      {type:'line',label:'7日移動平均',data:ma,borderColor:meta.color,borderWidth:2,pointRadius:0,tension:.3}
+    ]},options:{...cOpt,scales:{y:{beginAtZero:true,ticks:{callback:v=>'¥'+(v/1000).toFixed(0)+'k'}},x:{ticks:{maxTicksLimit:10,font:{size:9}}}}}});
+
+  // ファネル
+  if(!noSession&&document.getElementById('cChFunnel')){
+    charts.cChFunnel=new Chart(document.getElementById('cChFunnel'),{type:'bar',
+      data:{labels:['セッション','カート投入','注文'],datasets:[{data:[sessions,cart,ord],
+        backgroundColor:['#d9a441aa','#d9a441cc','#d9a441']}]},
+      options:{...cOpt,indexAxis:'y',plugins:{...cOpt.plugins,legend:{display:false},
+        datalabels:{display:true,anchor:'end',align:'right',color:'#8a5a12',font:{weight:'bold',size:11},
+          formatter:(v,c)=>fmt(v)+(c.dataIndex>0?`（${(v/sessions*100).toFixed(1)}%）`:'')}},
+        scales:{x:{beginAtZero:true}}}});
+  }
+
+  // 商品別
+  if(prods.length&&document.getElementById('cChProd')){
+    charts.cChProd=new Chart(document.getElementById('cChProd'),{type:'bar',
+      data:{labels:prods.map(p=>p[0]),datasets:[{data:prods.map(p=>p[1].rev),backgroundColor:meta.color+'cc'}]},
+      options:{...cOpt,indexAxis:'y',plugins:{...cOpt.plugins,legend:{display:false},
+        datalabels:{display:true,anchor:'end',align:'right',color:'#555',font:{size:10},formatter:v=>yen(Math.round(v))}},
+        scales:{x:{beginAtZero:true,ticks:{callback:v=>'¥'+(v/1000).toFixed(0)+'k'}},y:{ticks:{font:{size:10}}}}}});
+  }
+
+  // 曜日別
+  const dowName=['日','月','火','水','木','金','土'], dowSum=[0,0,0,0,0,0,0], dowCnt=[0,0,0,0,0,0,0];
+  cur.forEach(x=>{const d=new Date((x.order_datetime||x.order_date)+'');if(!isNaN(d)){dowSum[d.getDay()]+=Number(x.total||0);dowCnt[d.getDay()]++}});
+  charts.cChDow=new Chart(document.getElementById('cChDow'),{type:'bar',
+    data:{labels:dowName,datasets:[{label:'売上',data:dowSum,backgroundColor:meta.color+'cc'}]},
+    options:{...cOpt,plugins:{...cOpt.plugins,legend:{display:false},
+      datalabels:{display:true,anchor:'end',align:'top',color:'#555',font:{size:10},formatter:v=>v?'¥'+(v/1000).toFixed(0)+'k':''}},
+      scales:{y:{beginAtZero:true,ticks:{callback:v=>'¥'+(v/1000).toFixed(0)+'k'}}}}});
+
+  // 時間帯別
+  if(hasTime&&document.getElementById('cChHour')){
+    const hrs=Array(24).fill(0);
+    cur.forEach(x=>{if(x.order_datetime){const d=new Date(x.order_datetime);if(!isNaN(d))hrs[d.getHours()]++}});
+    charts.cChHour=new Chart(document.getElementById('cChHour'),{type:'bar',
+      data:{labels:hrs.map((_,i)=>i+'時'),datasets:[{label:'注文件数',data:hrs,backgroundColor:meta.color+'cc'}]},
+      options:{...cOpt,plugins:{...cOpt.plugins,legend:{display:false}},
+        scales:{y:{beginAtZero:true},x:{ticks:{maxTicksLimit:12,font:{size:9}}}}}});
+  }
+
+  // 都道府県別
+  if(prefs.length&&document.getElementById('cChPref')){
+    charts.cChPref=new Chart(document.getElementById('cChPref'),{type:'bar',
+      data:{labels:prefs.map(p=>p[0]),datasets:[{data:prefs.map(p=>p[1]),backgroundColor:meta.color+'cc'}]},
+      options:{...cOpt,indexAxis:'y',plugins:{...cOpt.plugins,legend:{display:false},
+        datalabels:{display:true,anchor:'end',align:'right',color:'#555',font:{size:10},formatter:v=>yen(Math.round(v))}},
+        scales:{x:{beginAtZero:true,ticks:{callback:v=>'¥'+(v/1000).toFixed(0)+'k'}},y:{ticks:{font:{size:10}}}}}});
+  }
+}
+
+// ============================================================
+//  媒体比較タブ（2026-08-07）
+//  「媒体別分析」が1媒体ずつ掘り下げるのに対し、こちらは全媒体を同じ軸に載せて
+//  色分けして比べる。どの媒体が伸びていて、構成がどう変わったかを1画面で見る。
+//  ここは全て実データ（kpi_orders）で、サンプル値は使っていない。
+// ============================================================
+function renderCompare(o){
+  const el=document.getElementById('tab-compare'); if(!el)return;
+  const keys=Object.keys(CH_META).filter(k=>o.some(x=>x.channel===k));
+  const col=k=>(CH_META[k]||{}).color||'#888';
+  const nm =k=>(CH_META[k]||{}).name||k;
+  const sumT=a=>a.reduce((s,x)=>s+Number(x.total||0),0);
+  const uniq=a=>new Set(a.map(x=>x.order_id)).size;
+  const today=new Date();
+  const dayStr=n=>{const d=new Date(today);d.setDate(d.getDate()-n);return d.toISOString().slice(0,10)};
+  const s30=dayStr(29), s60=dayStr(59), s90=dayStr(89);
+
+  // ---- 集計 ----
+  const cur={},prev={},curN={},prevN={};
+  keys.forEach(k=>{
+    const c=o.filter(x=>x.channel===k&&x.order_date>=s30);
+    const p=o.filter(x=>x.channel===k&&x.order_date>=s60&&x.order_date<s30);
+    cur[k]=sumT(c); prev[k]=sumT(p); curN[k]=uniq(c); prevN[k]=uniq(p);
+  });
+  const totalCur=keys.reduce((s,k)=>s+cur[k],0), totalPrev=keys.reduce((s,k)=>s+prev[k],0);
+
+  // 月次（13ヶ月）
+  const months=[...new Set(o.map(x=>(x.order_date||'').slice(0,7)).filter(Boolean))].sort().slice(-13);
+  const byMonth={}; keys.forEach(k=>byMonth[k]=months.map(m=>sumT(o.filter(x=>x.channel===k&&(x.order_date||'').startsWith(m)))));
+
+  // 日次90日（7日移動平均）
+  const days=[]; for(let i=89;i>=0;i--)days.push(dayStr(i));
+  const byDay={}; keys.forEach(k=>{
+    const map={}; o.filter(x=>x.channel===k).forEach(x=>{map[x.order_date]=(map[x.order_date]||0)+Number(x.total||0)});
+    const raw=days.map(d=>map[d]||0);
+    byDay[k]=raw.map((_,i)=>{const w=raw.slice(Math.max(0,i-6),i+1);return w.reduce((s,v)=>s+v,0)/w.length});
+  });
+
+  // 日次30日 積み上げ
+  const d30=days.slice(-30);
+  const stack={}; keys.forEach(k=>{
+    const map={}; o.filter(x=>x.channel===k).forEach(x=>{map[x.order_date]=(map[x.order_date]||0)+Number(x.total||0)});
+    stack[k]=d30.map(d=>map[d]||0);
+  });
+
+  // 曜日×媒体
+  const dowName=['日','月','火','水','木','金','土'];
+  const dow={}; keys.forEach(k=>{dow[k]=[0,0,0,0,0,0,0]});
+  o.filter(x=>x.order_date>=s90).forEach(x=>{
+    if(!dow[x.channel])return;
+    const d=new Date((x.order_datetime||x.order_date)+'');
+    if(!isNaN(d))dow[x.channel][d.getDay()]+=Number(x.total||0);
+  });
+
+  const up=v=>v>=0?'var(--green)':'var(--red)';
+  const arr=v=>v>=0?'▲':'▼';
+  let h='';
+
+  // ===== 凡例（全グラフ共通の色） =====
+  h+=`<div class="card" style="margin-bottom:16px">
+    <h2>この画面の色分け（全グラフ共通）／ すべて実データ</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center">`+
+    keys.map(k=>`<span style="display:inline-flex;align-items:center;gap:6px;font-size:13px">
+      <span style="width:14px;height:14px;background:${col(k)};border-radius:3px;display:inline-block"></span>${nm(k)}</span>`).join('')+
+    `</div>
+    <div style="font-size:11px;color:#888;margin-top:8px">媒体別分析タブと同じ色を使っています。この画面にサンプル値はありません。</div></div>`;
+
+  // ===== 数値サマリー =====
+  const mom=totalPrev?totalCur/totalPrev-1:0;
+  const top=keys.slice().sort((a,b)=>cur[b]-cur[a])[0];
+  const growth=keys.filter(k=>prev[k]>0).map(k=>({k,g:cur[k]/prev[k]-1}));
+  const best=growth.slice().sort((a,b)=>b.g-a.g)[0], worst=growth.slice().sort((a,b)=>a.g-b.g)[0];
+  h+=`<div class="grid grid-4">
+    <div class="card"><h2>全媒体 合計売上（30日）</h2><div class="metric">${yen(Math.round(totalCur))}</div>
+      <div class="metric-sub">前30日比 <b style="color:${up(mom)}">${arr(mom)} ${(mom*100).toFixed(1)}%</b></div></div>
+    <div class="card"><h2>最大の媒体</h2><div class="metric" style="color:${col(top)}">${nm(top)}</div>
+      <div class="metric-sub">${yen(Math.round(cur[top]))}（構成比 ${totalCur?(cur[top]/totalCur*100).toFixed(1):0}%）</div></div>
+    <div class="card"><h2>もっとも伸びた媒体</h2><div class="metric" style="color:${col(best&&best.k)}">${best?nm(best.k):'—'}</div>
+      <div class="metric-sub">${best?`前30日比 <b style="color:var(--green)">▲ ${(best.g*100).toFixed(1)}%</b>`:''}</div></div>
+    <div class="card"><h2>もっとも落ちた媒体</h2><div class="metric" style="color:${col(worst&&worst.k)}">${worst?nm(worst.k):'—'}</div>
+      <div class="metric-sub">${worst?`前30日比 <b style="color:var(--red)">▼ ${(worst.g*100).toFixed(1)}%</b>`:''}</div></div>
+  </div>`;
+
+  // ===== 積み上げ棒 ＋ ドーナツ =====
+  h+=`<div class="grid grid-2">
+    <div class="card"><h2>日次売上の内訳（30日・積み上げ）— 全体の山と、その中身が同時に見えます</h2>
+      <div class="chart-box" style="height:300px"><canvas id="cCmpStack"></canvas></div></div>
+    <div class="card"><h2>売上構成比（直近30日）</h2>
+      <div class="chart-box" style="height:300px"><canvas id="cCmpDonut"></canvas></div></div>
+  </div>`;
+
+  // ===== 月次積み上げ ＋ 構成比推移 =====
+  h+=`<div class="grid grid-2">
+    <div class="card"><h2>月次売上の推移（${months.length}ヶ月・積み上げ）</h2>
+      <div class="chart-box" style="height:300px"><canvas id="cCmpMonth"></canvas></div>
+      <div style="font-size:11px;color:#b45309;margin-top:6px">※ 右端の ${months[months.length-1]} は<b>まだ月の途中</b>です。前月までと同じ高さで比べないでください。</div></div>
+    <div class="card"><h2>構成比の推移（月次・100%積み上げ）— どの媒体のシェアが伸びたか</h2>
+      <div class="chart-box" style="height:300px"><canvas id="cCmpShare"></canvas></div>
+      <div style="font-size:11px;color:#b45309;margin-top:6px">※ 右端の ${months[months.length-1]} は月の途中のため、まだ数日分の偏りが強く出ます。</div></div>
+  </div>`;
+
+  // ===== 重ね折れ線 ＋ バブル =====
+  h+=`<div class="grid grid-2">
+    <div class="card"><h2>媒体別の勢い（90日・7日移動平均を重ねて比較）</h2>
+      <div class="chart-box" style="height:300px"><canvas id="cCmpLines"></canvas></div></div>
+    <div class="card"><h2>ポジショニング（横=注文数 / 縦=客単価 / 円の大きさ=売上）</h2>
+      <div class="chart-box" style="height:300px"><canvas id="cCmpBubble"></canvas></div></div>
+  </div>`;
+
+  // ===== 成長率 横棒 =====
+  h+=`<div class="grid grid-2">
+    <div class="card"><h2>前30日比の伸び（媒体別）</h2>
+      <div class="chart-box" style="height:260px"><canvas id="cCmpGrowth"></canvas></div></div>
+    <div class="card"><h2>曜日 × 媒体の売上（直近90日）— 濃いほど売れている</h2>
+      <div id="cmpHeat" style="overflow-x:auto"></div></div>
+  </div>`;
+
+  el.innerHTML=h;
+
+  // ===== 描画 =====
+  ['cCmpStack','cCmpDonut','cCmpMonth','cCmpShare','cCmpLines','cCmpBubble','cCmpGrowth'].forEach(destroyC);
+  const base={responsive:true,maintainAspectRatio:false,plugins:{datalabels:{display:false},legend:{position:'bottom',labels:{font:{size:10},boxWidth:12,padding:8}}}};
+  const yenTick={ticks:{callback:v=>'¥'+(v/1000).toFixed(0)+'k'}};
+
+  // 日次積み上げ
+  charts.cCmpStack=new Chart(document.getElementById('cCmpStack'),{type:'bar',
+    data:{labels:d30.map(d=>d.slice(5)),datasets:keys.map(k=>({label:nm(k),data:stack[k],backgroundColor:col(k)}))},
+    options:{...base,scales:{x:{stacked:true,ticks:{maxTicksLimit:10,font:{size:9}}},y:{stacked:true,beginAtZero:true,...yenTick}}}});
+
+  // ドーナツ
+  charts.cCmpDonut=new Chart(document.getElementById('cCmpDonut'),{type:'doughnut',
+    data:{labels:keys.map(nm),datasets:[{data:keys.map(k=>cur[k]),backgroundColor:keys.map(col)}]},
+    options:{...base,plugins:{...base.plugins,datalabels:{display:true,color:'#fff',font:{weight:'bold',size:11},
+      formatter:(v)=>totalCur&&v/totalCur>0.04?((v/totalCur)*100).toFixed(0)+'%':''}}}});
+
+  // 月次積み上げ
+  charts.cCmpMonth=new Chart(document.getElementById('cCmpMonth'),{type:'bar',
+    data:{labels:months,datasets:keys.map(k=>({label:nm(k),data:byMonth[k],backgroundColor:col(k)}))},
+    options:{...base,scales:{x:{stacked:true,ticks:{font:{size:9}}},y:{stacked:true,beginAtZero:true,...yenTick}}}});
+
+  // 構成比推移（100%積み上げ）
+  const monthTotals=months.map((_,i)=>keys.reduce((s,k)=>s+byMonth[k][i],0));
+  charts.cCmpShare=new Chart(document.getElementById('cCmpShare'),{type:'bar',
+    data:{labels:months,datasets:keys.map(k=>({label:nm(k),
+      data:byMonth[k].map((v,i)=>monthTotals[i]?v/monthTotals[i]*100:0),backgroundColor:col(k)}))},
+    options:{...base,scales:{x:{stacked:true,ticks:{font:{size:9}}},
+      y:{stacked:true,beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}}}}});
+
+  // 重ね折れ線
+  charts.cCmpLines=new Chart(document.getElementById('cCmpLines'),{type:'line',
+    data:{labels:days.map(d=>d.slice(5)),datasets:keys.map(k=>({label:nm(k),data:byDay[k],
+      borderColor:col(k),backgroundColor:col(k),borderWidth:2,pointRadius:0,tension:.3}))},
+    options:{...base,scales:{x:{ticks:{maxTicksLimit:12,font:{size:9}}},y:{beginAtZero:true,...yenTick}}}});
+
+  // バブル
+  const maxRev=Math.max(...keys.map(k=>cur[k]),1);
+  charts.cCmpBubble=new Chart(document.getElementById('cCmpBubble'),{type:'bubble',
+    data:{datasets:keys.filter(k=>curN[k]>0).map(k=>({label:nm(k),backgroundColor:col(k)+'cc',borderColor:col(k),
+      data:[{x:curN[k],y:Math.round(cur[k]/curN[k]),r:8+26*Math.sqrt(cur[k]/maxRev)}]}))},
+    options:{...base,plugins:{...base.plugins,tooltip:{callbacks:{label:c=>
+      `${c.dataset.label}: 注文${fmt(c.raw.x)}件 / AOV ${yen(c.raw.y)}`}}},
+      layout:{padding:{right:24,top:16}},
+      scales:{x:{title:{display:true,text:'注文数（30日）',font:{size:10}},beginAtZero:true,
+                 suggestedMax:Math.max(...keys.map(k=>curN[k]))*1.18},
+              y:{title:{display:true,text:'客単価 AOV',font:{size:10}},beginAtZero:true,
+                 suggestedMax:Math.max(...keys.filter(k=>curN[k]>0).map(k=>cur[k]/curN[k]))*1.25,...yenTick}}}});
+
+  // 成長率
+  const gs=keys.map(k=>({k,g:prev[k]>0?cur[k]/prev[k]-1:null})).filter(x=>x.g!==null).sort((a,b)=>b.g-a.g);
+  charts.cCmpGrowth=new Chart(document.getElementById('cCmpGrowth'),{type:'bar',
+    data:{labels:gs.map(x=>nm(x.k)),datasets:[{data:gs.map(x=>x.g*100),backgroundColor:gs.map(x=>col(x.k))}]},
+    options:{...base,indexAxis:'y',plugins:{...base.plugins,legend:{display:false},
+      datalabels:{display:true,anchor:'end',align:(c)=>c.dataset.data[c.dataIndex]>=0?'right':'left',
+        color:'#555',font:{size:11,weight:'bold'},formatter:v=>(v>=0?'+':'')+v.toFixed(1)+'%'}},
+      layout:{padding:{left:12,right:44}},
+      scales:{x:{ticks:{callback:v=>v+'%'}},y:{ticks:{font:{size:11}}}}}});
+
+  // 曜日×媒体 ヒートマップ（CSS）
+  const maxDow=Math.max(...keys.map(k=>Math.max(...dow[k])),1);
+  let ht='<table style="width:100%;border-collapse:collapse;font-size:12px"><tr><th style="text-align:left">媒体</th>'+
+    dowName.map(d=>`<th class="num" style="text-align:center">${d}</th>`).join('')+'<th class="num">最も強い曜日</th></tr>';
+  keys.forEach(k=>{
+    const mx=Math.max(...dow[k]);
+    const bestD=dow[k].indexOf(mx);
+    ht+=`<tr><td><span class="badge" style="background:${col(k)}">${nm(k)}</span></td>`+
+      dow[k].map(v=>{
+        const a=maxDow?v/maxDow:0;
+        return `<td class="num" style="text-align:center;background:${col(k)}${Math.round(a*220+15).toString(16).padStart(2,'0')};color:${a>0.45?'#fff':'#555'};font-weight:${a>0.45?700:400}">${v?'¥'+Math.round(v/1000)+'k':'-'}</td>`;
+      }).join('')+
+      `<td class="num" style="font-weight:700;color:${col(k)}">${mx?dowName[bestD]+'曜':'—'}</td></tr>`;
+  });
+  ht+='</table><div style="font-size:11px;color:#888;margin-top:8px">同じ行（媒体）の中で濃さを比べてください。媒体をまたいだ濃さの比較はできません（規模が違うため）。</div>';
+  document.getElementById('cmpHeat').innerHTML=ht;
+}
+
+// ===== 同期管理タブ（2026-08-07 Phase2 Task2.4）=====
+// 更新頻度の変更・DB使用量・ジョブ実行ログ・データ鮮度を1画面に集約する。
+// 頻度の書き込みには service_role キーが要るため、ローカルの sync_server(:3457) 経由で行う。
+// ローカルサーバーが起動していない場合は読み取り専用で表示する（値は隠さない）。
+const LOCAL_SYNC='http://127.0.0.1:3457';
+const SCHEDULE_CHOICES=[
+  ['15m','15分'],['30m','30分'],['hourly','1時間'],['3h','3時間'],['6h','6時間'],['12h','12時間'],
+  ['daily@06:30','日次 06:30'],['daily@07:00','日次 07:00'],['daily@21:00','日次 21:00'],
+  ['weekly@mon 07:00','週次 月07:00'],['weekly@mon 07:10','週次 月07:10'],['manual','手動のみ']
+];
+const SRC_LABEL={ec_orders:'EC注文（Shopify/統合一覧）',ga4:'GA4（セッション・流入）',
+  search_console:'Search Console（日次）',seo_articles:'SEO 記事別',seo_queries:'SEO 検索クエリ別',
+  sns:'SNS（IG/TikTok/LINE/Threads）',inventory:'在庫（スプレッドシート）',
+  rakuten_api:'楽天RMS 受注API',amazon_spapi:'Amazon SP-API'};
+let CFG=[],USAGE=[],JOBLOG=[],_localOk=null,_syncLoaded=false;
+
+async function checkLocal(){
+  try{
+    const c=new AbortController();const t=setTimeout(()=>c.abort(),2500);
+    const r=await fetch(LOCAL_SYNC+'/health',{signal:c.signal});clearTimeout(t);
+    _localOk=r.ok;
+  }catch(e){_localOk=false}
+  return _localOk;
+}
+async function loadSync(){
+  [CFG,USAGE,JOBLOG,FR]=await Promise.all([sbQ('cfg'),sbQ('usage'),sbQ('joblog'),sbQ('fresh')]);
+  await checkLocal();
+  _syncLoaded=true;
+}
+async function setSchedule(source,schedule){
+  if(!_localOk){alert('ローカルの同期サーバー(127.0.0.1:3457)が起動していないため変更できません。\nrun_sync_server.bat を起動してください。');return}
+  try{
+    const r=await fetch(`${LOCAL_SYNC}/config?source=${encodeURIComponent(source)}&schedule=${encodeURIComponent(schedule)}`);
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.error||'不明なエラー');
+    CFG=await sbQ('cfg'); renderSync();
+    toast(`${SRC_LABEL[source]||source} の更新頻度を「${schedule}」に保存しました`);
+  }catch(e){ showError(`更新頻度の保存に失敗しました → ${e.message}`); }
+}
+async function runNow(source){
+  if(!_localOk){alert('ローカルの同期サーバー(127.0.0.1:3457)が起動していないため実行できません。');return}
+  toast(`${SRC_LABEL[source]||source} を実行中…`);
+  try{
+    const r=await fetch(`${LOCAL_SYNC}/run?source=${encodeURIComponent(source)}`);
+    const j=await r.json();
+    await loadSync(); renderSync();
+    const res=(j.results||{})[source]||{};
+    toast(j.ok?`${SRC_LABEL[source]||source} 完了（${res.count||0}件）`:`失敗: ${res.error||j.error||''}`);
+  }catch(e){ showError(`即時実行に失敗しました → ${e.message}`); }
+}
+function toast(msg){
+  let el=document.getElementById('kpiToast');
+  if(!el){el=document.createElement('div');el.id='kpiToast';
+    el.style.cssText='position:fixed;right:24px;bottom:24px;background:#1a1c1e;color:#fff;padding:11px 18px;font-size:13px;border-left:4px solid #5fc2ab;border-radius:3px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2)';
+    document.body.appendChild(el);}
+  el.textContent=msg;el.style.display='';
+  clearTimeout(el._t);el._t=setTimeout(()=>el.style.display='none',3200);
+}
+function renderSync(){
+  const el=document.getElementById('tab-sync');if(!el)return;
+  const now=Date.now();
+  const u=USAGE[0]||{budget_bytes:4294967296,used_bytes_out:0,api_calls:0,backoff_level:0};
+  const budget=Number(u.budget_bytes||4294967296), used=Number(u.used_bytes_out||0);
+  const ratio=budget?used/budget:0;
+  const day=new Date().getDate(), dim=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();
+  const pace=day?used/day*dim:used;
+  const col=ratio<0.6?'#0e7c66':(ratio<0.85?'#c9821f':'#b5502f');
+  const BO=['通常運転','間隔2倍（節約中）','優先度lowを停止','high以外を停止'];
+
+  let h=`<div style="background:#fff;border:1px solid #e2ddd2;padding:14px 18px;margin-bottom:14px">
+    <div style="font-size:12px;font-weight:800;margin-bottom:8px">ローカル同期サーバー</div>
+    <div style="font-size:12px;color:#555">${_localOk
+      ? '<span style="color:#0e7c66;font-weight:700">接続OK</span>（127.0.0.1:3457）— 頻度の変更と即時実行ができます'
+      : '<span style="color:#b5502f;font-weight:700">未接続</span>（127.0.0.1:3457）— 表示は最新ですが、変更・実行にはローカルの <code>run_sync_server.bat</code> の起動が必要です'}</div></div>`;
+
+  // (b) 使用量メーター
+  h+=`<div style="background:#fff;border:1px solid #e2ddd2;padding:16px 18px;margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:10px">
+      <div><div style="font-size:11px;color:#8a8578;font-weight:700">今月のSupabase転送量 ／ 月間予算</div>
+        <div style="font-size:30px;font-weight:900;line-height:1.1;color:${col}">
+          ${(used/1048576).toFixed(1)}<span style="font-size:14px;color:#8a8578">MB</span>
+          <span style="font-size:15px;color:#8a8578;font-weight:700"> / ${(budget/1073741824).toFixed(1)}GB</span>
+          <span style="font-size:19px">（${(ratio*100).toFixed(1)}%）</span></div></div>
+      <div style="text-align:right"><div style="font-size:11px;color:#8a8578;font-weight:700">運転状態</div>
+        <span style="display:inline-block;background:${u.backoff_level?'#c9821f':'#0e7c66'};color:#fff;font-size:12px;font-weight:700;padding:4px 12px;border-radius:2px">${BO[u.backoff_level||0]}</span>
+        <div style="font-size:11px;color:#8a8578;margin-top:5px">今月ペース予測 <b style="color:#c9821f">${(pace/1048576).toFixed(0)}MB</b></div></div></div>
+    <div style="height:22px;background:#eceadf;border:1px solid #e2ddd2;position:relative">
+      <div style="height:100%;width:${Math.min(100,ratio*100).toFixed(2)}%;background:${col}"></div>
+      <div style="position:absolute;left:60%;top:0;bottom:0;border-left:1px dashed #a8a294"></div>
+      <div style="position:absolute;left:85%;top:0;bottom:0;border-left:1px dashed #a8a294"></div></div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:#a8a294;margin-top:3px">
+      <span>0</span><span>60% 節約開始</span><span>85% 抑制</span><span>100%</span></div>
+    <div style="font-size:11px;color:#8a8578;margin-top:8px">今月のAPI呼出 ${fmt(u.api_calls||0)} 回。この値は同期処理が自分で計測して記録しています（推測値ではありません）。</div>
+  </div>`;
+
+  // (a) 更新頻度設定 ＋ (d) 鮮度
+  const frMap={};(FR||[]).forEach(x=>frMap[x.source]=x);
+  h+=`<div style="background:#fff;border:1px solid #e2ddd2;padding:14px 18px;margin-bottom:14px">
+    <div style="font-size:13px;font-weight:800;margin-bottom:4px">更新頻度とデータ鮮度</div>
+    <div style="font-size:11px;color:#8a8578;margin-bottom:10px">頻度を変えるとローカルのスケジューラが次の巡回（60秒以内）から反映します。コード修正は不要です。</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+    <tr style="background:#1a1c1e;color:#fff"><th style="text-align:left;padding:7px 9px">ソース</th>
+      <th style="text-align:left;padding:7px 9px;width:170px">更新頻度</th>
+      <th style="text-align:left;padding:7px 9px;width:110px">最終成功</th>
+      <th style="text-align:left;padding:7px 9px;width:80px">前回結果</th>
+      <th style="text-align:right;padding:7px 9px;width:70px">件数</th>
+      <th style="padding:7px 9px;width:90px"></th></tr>`;
+  // 頻度の高い順・接続済みを先に並べる（アルファベット順だと計画中のAmazonが先頭に来て読みにくい）
+  const ORDER=['ec_orders','ga4','inventory','search_console','seo_queries','seo_articles','sns','rakuten_api','amazon_spapi'];
+  const cfgSorted=(CFG||[]).slice().sort((a,b)=>{
+    const ia=ORDER.indexOf(a.source), ib=ORDER.indexOf(b.source);
+    return (ia<0?99:ia)-(ib<0?99:ib);
+  });
+  cfgSorted.forEach(c=>{
+    const f=frMap[c.source]||{};
+    const t=f.last_success?new Date(f.last_success).getTime():null;
+    const mins=t?Math.floor((now-t)/60000):null;
+    const stale=(mins===null)||(mins>(f.stale_after_minutes||1440));
+    const ago=mins===null?'未実行':(mins<60?mins+'分前':(mins<1440?Math.floor(mins/60)+'時間前':Math.floor(mins/1440)+'日前'));
+    const st=f.last_status==='ok'?'<span style="background:#0e7c66;color:#fff;padding:2px 7px;border-radius:2px;font-size:10px;font-weight:700">OK</span>'
+      :f.last_status==='error'?'<span style="background:#b5502f;color:#fff;padding:2px 7px;border-radius:2px;font-size:10px;font-weight:700">ERROR</span>'
+      :f.last_status==='skip'?'<span style="border:1.5px solid #8a8578;color:#8a8578;padding:1px 6px;border-radius:2px;font-size:10px;font-weight:700">SKIP</span>'
+      :'<span style="border:1.5px solid #0b5344;color:#0b5344;padding:1px 6px;border-radius:2px;font-size:10px;font-weight:700">未接続</span>';
+    const opts=SCHEDULE_CHOICES.map(([v,l])=>`<option value="${v}"${v===c.schedule?' selected':''}>${l}</option>`).join('');
+    const planned=(c.enabled===false);
+    h+=`<tr${stale&&!planned?' style="background:#f6ecda"':''}>
+      <td style="padding:7px 9px;border-bottom:1px solid #e2ddd2"><b>${SRC_LABEL[c.source]||c.source}</b>
+        <div style="font-size:10px;color:#8a8578">${c.source}${c.notes?' — '+c.notes:''}</div></td>
+      <td style="padding:7px 9px;border-bottom:1px solid #e2ddd2">
+        <select ${(!_localOk||planned)?'disabled':''} onchange="setSchedule('${c.source}',this.value)"
+          style="font-size:12px;padding:3px 6px;border:1px solid #a8a294;border-radius:2px;background:#fff;width:100%">${opts}</select></td>
+      <td style="padding:7px 9px;border-bottom:1px solid #e2ddd2;color:${stale&&!planned?'#c9821f':'#0e7c66'};font-weight:700">${planned?'—':ago}${stale&&!planned?' ⚠':''}</td>
+      <td style="padding:7px 9px;border-bottom:1px solid #e2ddd2">${planned?'<span style="font-size:10px;color:#8a8578">計画</span>':st}</td>
+      <td style="padding:7px 9px;border-bottom:1px solid #e2ddd2;text-align:right">${f.last_rows!=null?fmt(f.last_rows):'—'}</td>
+      <td style="padding:7px 9px;border-bottom:1px solid #e2ddd2;text-align:center">
+        ${planned?'':`<button ${_localOk?'':'disabled'} onclick="runNow('${c.source}')" style="font-size:11px;padding:3px 10px;border:1px solid #0e7c66;background:${_localOk?'#0e7c66':'#ccc'};color:#fff;border-radius:2px;cursor:pointer">今すぐ</button>`}</td></tr>`;
+  });
+  h+=`</table></div>`;
+
+  // (c) ジョブ実行ログ
+  h+=`<div style="background:#fff;border:1px solid #e2ddd2;padding:14px 18px">
+    <div style="font-size:13px;font-weight:800;margin-bottom:4px">ジョブ実行ログ（直近40件）</div>
+    <div style="font-size:11px;color:#8a8578;margin-bottom:10px">成否・件数・所要時間・転送量を毎回記録しています。失敗は握りつぶさず必ずここに残ります。</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+    <tr style="background:#1a1c1e;color:#fff"><th style="text-align:left;padding:6px 9px;width:135px">時刻</th>
+      <th style="text-align:left;padding:6px 9px;width:130px">ジョブ</th><th style="text-align:left;padding:6px 9px;width:70px">結果</th>
+      <th style="text-align:right;padding:6px 9px;width:70px">件数</th><th style="text-align:right;padding:6px 9px;width:70px">所要</th>
+      <th style="text-align:right;padding:6px 9px;width:80px">転送</th><th style="text-align:left;padding:6px 9px">エラー内容</th></tr>`;
+  if(!(JOBLOG||[]).length){
+    h+=`<tr><td colspan="7" style="padding:14px;color:#8a8578">まだ記録がありません（ジョブが1回も走っていません）。</td></tr>`;
+  }
+  (JOBLOG||[]).forEach(j=>{
+    const bad=j.status==='error';
+    const badge=j.status==='ok'?'<span style="background:#0e7c66;color:#fff;padding:2px 7px;border-radius:2px;font-size:10px;font-weight:700">ok</span>'
+      :bad?'<span style="background:#b5502f;color:#fff;padding:2px 7px;border-radius:2px;font-size:10px;font-weight:700">error</span>'
+      :j.status==='skip'?'<span style="border:1.5px solid #8a8578;color:#8a8578;padding:1px 6px;border-radius:2px;font-size:10px">skip</span>'
+      :'<span style="border:1.5px solid #c9821f;color:#c9821f;padding:1px 6px;border-radius:2px;font-size:10px">running</span>';
+    h+=`<tr${bad?' style="background:#fbf1ec"':''}>
+      <td style="padding:6px 9px;border-bottom:1px solid #e2ddd2">${new Date(j.started_at).toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
+      <td style="padding:6px 9px;border-bottom:1px solid #e2ddd2"><code style="font-size:11px">${j.job}</code></td>
+      <td style="padding:6px 9px;border-bottom:1px solid #e2ddd2">${badge}</td>
+      <td style="padding:6px 9px;border-bottom:1px solid #e2ddd2;text-align:right">${j.rows_written?fmt(j.rows_written):'—'}</td>
+      <td style="padding:6px 9px;border-bottom:1px solid #e2ddd2;text-align:right">${j.duration_ms!=null?(j.duration_ms/1000).toFixed(1)+'秒':'—'}</td>
+      <td style="padding:6px 9px;border-bottom:1px solid #e2ddd2;text-align:right">${j.bytes_out?Math.round(j.bytes_out/1024)+' KB':'—'}</td>
+      <td style="padding:6px 9px;border-bottom:1px solid #e2ddd2;font-size:11px;color:${bad?'#b5502f':'#8a8578'};font-weight:${bad?700:400}">${j.error_msg||'正常終了'}</td></tr>`;
+  });
+  h+=`</table></div>`;
+  el.innerHTML=h;
+}
+
 async function init(){
   try{
-    var EX=[];
-    [D,O,G,S,I,SY,SEO,SEO_ART,SEO_QRY,EX]=await Promise.all([
-      sbGet('kpi_daily_summary','select=*&order=date.desc&limit=2000',2000),
-      sbGet('kpi_orders','select=*&order=order_date.desc&limit=5000',5000),
-      sbGet('kpi_ga4_metrics','select=*&order=date.desc&limit=500'),
-      sbGet('kpi_sns_metrics','select=*&order=date.desc&limit=300'),
-      sbGet('kpi_inventory','select=*&order=snapshot_date.desc&limit=500'),
-      sbGet('kpi_sync_status','select=*'),
-      sbGet('kpi_seo_daily','select=*&order=date.asc&limit=5000',5000),
-      sbGet('kpi_seo_articles','select=*&order=clicks.desc&limit=3000',3000),
-      sbGet('kpi_seo_queries','select=*&order=clicks.desc&limit=3000',3000).catch(()=>[]),
-      sbGet('kpi_excluded_orders','select=order_id'),
-    ]);
-    // 社員テスト購入を除外
-    const exSet=new Set(EX.map(e=>e.order_id));
-    if(exSet.size){const b=O.length;O=O.filter(o=>!exSet.has(o.order_id));if(b-O.length)console.log(`[除外]${b-O.length}件の社員テスト購入を除外`)}
-    // order_id+channel+skuで重複除去（完全一致行のみ除去、商品別明細は維持）
-    O=(()=>{const seen=new Set();return O.filter(o=>{const k=o.order_id+"|"+o.channel+"|"+(o.sku||o.product_name||"");if(seen.has(k))return false;seen.add(k);return true})})();
-    // 数値ID×#名前の二重登録を除去（同一 channel+order_datetime+sku+total で #名前があれば数値IDを捨てる。Shopify二重計上対策）
-    O=(()=>{const nk=new Set(O.filter(o=>/^#/.test(String(o.order_id))).map(o=>o.channel+"|"+o.order_datetime+"|"+(o.sku||"")+"|"+o.total));return O.filter(o=>!(/^[0-9]+$/.test(String(o.order_id))&&nk.has(o.channel+"|"+o.order_datetime+"|"+(o.sku||"")+"|"+o.total)))})();
+    _bytes=0;_calls=0;
+    await loadCore();
+    clearError();
     const ds=D.map(d=>d.date).sort();
     if(ds.length){
       const el=id=>document.getElementById(id);
@@ -213,13 +955,15 @@ async function init(){
       el('endDate').value=maxD;el('endDate').min=ds[0];el('endDate').max=maxD;
       el('dateRangeInfo').textContent=`データ範囲: ${ds[0]} ~ ${maxD}`;
     }
-    const allSyncs=SY.filter(s=>s.last_sync).map(s=>new Date(s.last_sync).getTime());
-    const latestSync=allSyncs.length?new Date(Math.max(...allSyncs)):null;
-    const lt=latestSync?latestSync.toLocaleString('ja-JP'):'未同期';
-    const nextSync=latestSync?new Date(latestSync.getTime()+60*60*1000).toLocaleString('ja-JP',{hour:'2-digit',minute:'2-digit'}):'---';
-    document.getElementById('syncTs').textContent=`最終更新: ${lt}（自動刷新: 30分毎・画面表示中のみ / 次回同期: ${nextSync}頃）`;
+    const ec=(FR||[]).find(s=>s.source==='ec_orders');
+    const lt=ec&&ec.last_success?new Date(ec.last_success).toLocaleString('ja-JP'):'未同期';
+    document.getElementById('syncTs').textContent=
+      `最終更新: ${lt}（自動刷新: 30分毎・画面表示中のみ / 今回の転送 ${(_bytes/1024).toFixed(0)}KB・${_calls}クエリ）`;
     renderAll();
-  }catch(e){document.getElementById('syncTs').textContent='読み込みエラー: '+e.message}
+  }catch(e){
+    showError('初期読み込みに失敗しました → '+e.message);
+    document.getElementById('syncTs').textContent='読み込みエラー: '+e.message;
+  }
 }
 
 // ===== 自動リフレッシュ（Egress節約版: 30分毎＋画面を開いている間のみ） =====
@@ -228,35 +972,41 @@ async function init(){
 var _autoRefreshId = null;
 var _refreshBusy = false;
 var REFRESH_MS = 30 * 60 * 1000; // 30分
-async function doRefresh() {
+// 条件付きリフレッシュ（2026-08-07 Phase1 Task1.3）
+// まず kpi_freshness（約1KB）だけ取得し、前回から更新が無ければ本体を取りに行かない。
+// 30分毎のポーリングが毎回3MBを運んでいたのを、変化が無い限り1KBで済ませる。
+let _lastFreshSig = null;
+async function doRefresh(force) {
   if (_refreshBusy || document.hidden) return;   // 非表示中は通信しない
   _refreshBusy = true;
   try {
-    console.log('[自動リフレッシュ] データ再取得中...');
+    _bytes=0;_calls=0;
+    const fresh = await sbQ('fresh');
+    const sig = (fresh||[]).map(r=>r.source+':'+(r.last_success||'')).sort().join('|');
+    FR = fresh; renderFreshness(FR);
+    if (!force && _lastFreshSig !== null && sig === _lastFreshSig) {
+      document.getElementById('syncTs').textContent =
+        `最終確認: ${new Date().toLocaleString('ja-JP')}（更新なし・${(_bytes/1024).toFixed(1)}KBのみ確認）`;
+      clearError();
+      return;                                    // ← 本体は取りに行かない
+    }
+    _lastFreshSig = sig;
+    console.log('[自動リフレッシュ] 更新を検出。データ再取得中...');
     var EX=[];
-    [D,O,G,S,I,SY,SEO,SEO_ART,SEO_QRY,EX]=await Promise.all([
-      sbGet('kpi_daily_summary','select=*&order=date.desc&limit=2000',2000),
-      sbGet('kpi_orders','select=*&order=order_date.desc&limit=5000',5000),
-      sbGet('kpi_ga4_metrics','select=*&order=date.desc&limit=500'),
-      sbGet('kpi_sns_metrics','select=*&order=date.desc&limit=300'),
-      sbGet('kpi_inventory','select=*&order=snapshot_date.desc&limit=500'),
-      sbGet('kpi_sync_status','select=*'),
-      sbGet('kpi_seo_daily','select=*&order=date.asc&limit=5000',5000),
-      sbGet('kpi_seo_articles','select=*&order=clicks.desc&limit=3000',3000),
-      sbGet('kpi_seo_queries','select=*&order=clicks.desc&limit=3000',3000).catch(()=>[]),
-      sbGet('kpi_excluded_orders','select=order_id'),
+    [D,O,G,S,I,SEO,EX,SY]=await Promise.all([
+      sbQ('daily'),sbQ('orders'),sbQ('ga4'),sbQ('sns'),sbQ('inv'),sbQ('seo'),sbQ('excl'),sbQ('sync'),
     ]);
-    const exSet=new Set(EX.map(e=>e.order_id));
-    if(exSet.size){O=O.filter(o=>!exSet.has(o.order_id))}
-    O=(()=>{const seen=new Set();return O.filter(o=>{const k=o.order_id+"|"+o.channel+"|"+(o.sku||o.product_name||"");if(seen.has(k))return false;seen.add(k);return true})})();
-    // 数値ID×#名前の二重登録を除去（同一 channel+order_datetime+sku+total で #名前があれば数値IDを捨てる。Shopify二重計上対策）
-    O=(()=>{const nk=new Set(O.filter(o=>/^#/.test(String(o.order_id))).map(o=>o.channel+"|"+o.order_datetime+"|"+(o.sku||"")+"|"+o.total));return O.filter(o=>!(/^[0-9]+$/.test(String(o.order_id))&&nk.has(o.channel+"|"+o.order_datetime+"|"+(o.sku||"")+"|"+o.total)))})();
+    applyOrderFilters(EX);
+    if(_seoLoaded){ _seoLoaded=false; await loadSeoDetail(); }  // 既に開いていた時だけ再取得
     renderAll();
+    clearError();
     var now=new Date().toLocaleString('ja-JP');
-    document.getElementById('syncTs').textContent=`最終更新: ${now}（自動刷新: 30分毎・画面表示中のみ）`;
+    document.getElementById('syncTs').textContent=
+      `最終更新: ${now}（自動刷新: 30分毎・画面表示中のみ / 今回の転送 ${(_bytes/1024).toFixed(0)}KB・${_calls}クエリ）`;
     console.log('[自動リフレッシュ] 完了 ' + now);
   } catch(e) {
     console.error('[自動リフレッシュ] エラー:', e);
+    showError('自動更新に失敗しました → '+e.message);   // 握りつぶさない
   } finally { _refreshBusy = false; }
 }
 function startAutoRefresh() { if (!_autoRefreshId && !document.hidden) _autoRefreshId = setInterval(doRefresh, REFRESH_MS); }
@@ -274,7 +1024,7 @@ setTimeout(startAutoRefresh, 10000);
 function renderAll(){
   const d=filt(D),o=filt(O,'order_date'),g=filt(G);
   renderDash(d,o);renderCharts(d,o);renderProduct(o);renderGA4(g);
-  renderReport(d,o);renderProfit(d,o);renderKPI(d,o,g,S);renderInv(I);renderSNS(S);renderSEO(filt(SEO),SEO_ART,SEO_QRY);renderHistory(O,SY);
+  renderReport(d,o);renderProfit(d,o);renderKPI(d,o,g,S);renderInv(I);renderSNS(S);renderSEO(filt(SEO),SEO_ART,SEO_QRY);renderHistory(O,SY);renderChannel(O);renderCompare(O);
 }
 
 // ===== 1. ダッシュボード =====
@@ -1915,48 +2665,65 @@ function renderHistory(orders,syncStatus){
 
   // --- システム同期ステータスパネル ---
   const now=new Date();
-  function fmtSyncTime(dt){
+  function fmtSyncTime(dt,limitMin){
     if(!dt)return'<span style="color:#bbb">未同期</span>';
     const d=new Date(dt);if(isNaN(d))return dt;
     const mm=d.getMonth()+1,dd=d.getDate(),dow=dayNames[d.getDay()];
     const hh=String(d.getHours()).padStart(2,'0'),mi=String(d.getMinutes()).padStart(2,'0');
     const diffMin=Math.floor((now-d)/60000);
     let ago=diffMin<1?'たった今':diffMin<60?diffMin+'分前':diffMin<1440?Math.floor(diffMin/60)+'時間前':Math.floor(diffMin/1440)+'日前';
-    return mm+'/'+dd+'('+dow+') '+hh+':'+mi+' <span style="font-size:11px;color:'+(diffMin<30?'#16a34a':'#999')+'">'+ago+'</span>';
+    return mm+'/'+dd+'('+dow+') '+hh+':'+mi+' <span style="font-size:11px;color:'+(diffMin<=(limitMin||60)?'#16a34a':'#999')+'">'+ago+'</span>';
   }
-  function dotColor(dt){
+  // 信号はソースごとの想定間隔で判定する。以前は全ソース一律で1時間/24時間を見ていたため、
+  // 30日周期のSNSは常に赤、逆に6時間周期のGA4が丸1日死んでいても黄色のままだった。
+  // しきい値は kpi_freshness.stale_after_minutes（同期管理タブで設定する想定間隔）を正とする。
+  function dotColor(dt,limitMin){
     if(!dt)return'#ccc';
     const d=new Date(dt);if(isNaN(d))return'#ccc';
     const m=Math.floor((now-d)/60000);
-    return m<60?'#22c55e':m<1440?'#f59e0b':'#ef4444';
+    const lim=limitMin||60;
+    return m<=lim?'#22c55e':m<=lim*2?'#f59e0b':'#ef4444';
+  }
+  function fmtLimit(min){
+    if(!min)return'';
+    return min<1440?'想定'+Math.round(min/60)+'時間毎':'想定'+Math.round(min/1440)+'日毎';
   }
   // kpi_sync_statusからsync_typeごとのlast_syncを取得
   const syMap={};
   (syncStatus||[]).forEach(s=>{syMap[s.sync_type]={last_sync:s.last_sync,status:s.status,count:s.record_count,error:s.error_msg}});
+  // 表示行 → kpi_freshness のソース名。Shopify系とAmazon系は取込ジョブとしては
+  // ec_orders 1本（Sheetsを一括で読む）なので同じソースを参照する。
+  const frMapSync={};(FR||[]).forEach(x=>frMapSync[x.source]=x);
   // 表示する同期項目
   const syncItems=[
-    {key:'_dashboard',label:'\u{1F4CA} ダッシュボード読込',color:'#667eea',time:now.toISOString()},
-    {key:'shopify',label:'\u{1F6D2} Shopify/社割/卸売 同期',color:'#96bf48',time:syMap.shopify?.last_sync},
-    {key:'amazon_qoo10',label:'\u{1F4E6} Amazon/Qoo10/楽天 同期',color:'#ff9900',time:syMap.amazon_qoo10?.last_sync},
-    {key:'ga4',label:'\u{1F4C8} GA4 同期',color:'#4285f4',time:syMap.ga4?.last_sync},
-    {key:'inventory',label:'\u{1F4DD} 在庫 同期',color:'#10b981',time:syMap.inventory?.last_sync},
-    {key:'sns',label:'\u{1F4F1} SNS 同期',color:'#e1306c',time:syMap.sns?.last_sync},
+    {key:'_dashboard',label:'\u{1F4CA} ダッシュボード読込',color:'#667eea',time:now.toISOString(),limit:60},
+    {key:'shopify',label:'\u{1F6D2} Shopify/社割/卸売 同期',color:'#96bf48',time:syMap.shopify?.last_sync,src:'ec_orders'},
+    {key:'amazon_qoo10',label:'\u{1F4E6} Amazon/Qoo10/楽天 同期',color:'#ff9900',time:syMap.amazon_qoo10?.last_sync,src:'ec_orders'},
+    {key:'ga4',label:'\u{1F4C8} GA4 同期',color:'#4285f4',time:syMap.ga4?.last_sync,src:'ga4'},
+    {key:'inventory',label:'\u{1F4DD} 在庫 同期',color:'#10b981',time:syMap.inventory?.last_sync,src:'inventory'},
+    {key:'sns',label:'\u{1F4F1} SNS 同期',color:'#e1306c',time:syMap.sns?.last_sync,src:'sns'},
   ];
   const syncRows=syncItems.map(it=>{
     const st=syMap[it.key];
-    const hasErr=st&&st.status==='error';
-    const errMsg=hasErr?'<div style="font-size:11px;color:#ef4444;margin-top:2px">'+st.error+'</div>':'';
+    const fr=it.src?frMapSync[it.src]:null;
+    const lim=it.limit||(fr&&fr.stale_after_minutes)||60;
+    // 直近の実行が失敗していると last_success は古いまま止まるだけで、
+    // 「何時間前」の表示からは落ちていることが分からない。両方のテーブルを見る。
+    const err=(st&&st.status==='error'&&st.error)||((fr&&fr.last_status==='error')?'直近の同期が失敗しています':'');
+    const errMsg=err?'<div style="font-size:11px;color:#ef4444;margin-top:2px">\u26A0 '+err+'</div>':'';
     const countStr=st&&st.count?'<span style="font-size:11px;color:#999;margin-left:6px">'+st.count+'件</span>':'';
+    const limStr=it.limit?'':fmtLimit(lim);
     return'<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid #f5f5f5">'+
-      '<span style="width:8px;height:8px;border-radius:50%;background:'+dotColor(it.time)+';display:inline-block;margin-top:5px;flex-shrink:0"></span>'+
+      '<span style="width:8px;height:8px;border-radius:50%;background:'+(err?'#ef4444':dotColor(it.time,lim))+';display:inline-block;margin-top:5px;flex-shrink:0"></span>'+
       '<div style="min-width:180px;font-size:13px;font-weight:500;border-left:3px solid '+it.color+';padding-left:8px">'+it.label+countStr+'</div>'+
-      '<div style="font-size:13px;color:#444">'+fmtSyncTime(it.time)+errMsg+'</div>'+
+      '<div style="font-size:13px;color:#444">'+fmtSyncTime(it.time,lim)+
+        (limStr?'<span style="font-size:11px;color:#bbb;margin-left:8px">'+limStr+'</span>':'')+errMsg+'</div>'+
     '</div>';
   }).join('');
   const syncPanel='<div class="card" style="margin-bottom:12px">'+
     '<h3 style="font-size:14px;margin-bottom:8px">\u{1F504} システム同期ステータス</h3>'+
     syncRows+
-    '<p style="font-size:11px;color:#bbb;margin:8px 0 0">\u{1F7E2} 1時間以内\u3000\u{1F7E1} 24時間以内\u3000\u{1F534} 24時間超\u3000\u{26AA} 未同期</p></div>';
+    '<p style="font-size:11px;color:#bbb;margin:8px 0 0">\u{1F7E2} 想定間隔内\u3000\u{1F7E1} 遅延\u3000\u{1F534} 停止の疑い／直近が失敗\u3000\u{26AA} 未同期</p></div>';
 
   const chIcon={shopify:'\u{1F6D2}',amazon:'\u{1F4E6}',qoo10:'\u{1F3EA}',rakuten:'\u{1F3EF}',employee:'\u{1F464}',wholesale:'\u{1F3E5}'};
 
