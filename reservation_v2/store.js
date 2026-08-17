@@ -218,21 +218,20 @@ const Store = (() => {
   }
   // 診療区分ID（csId）からその区分で使う部屋一覧を引く
   function roomsOfCs(csId) { return resourcesOfCs(csId, "room"); }
-  /* 枠の定員。基本はその区分で使う部屋の数。未登録（0室）の院は従来どおり1件は受けられる
-     （この場合 roomId は null のまま＝部屋の一意インデックスの対象外になる点に注意）。
-     ★人手の上限（rsv2_service_limits）が設定されていればそちらで頭打ちにする。
-       千葉の美容は部屋が7室あるがスタッフの都合で同時3枠まで＝部屋を減らさずに上限だけ下げる
-       （部屋を減らすと、実際に使っている部屋がタイムラインの列から消えてしまうため）。 */
+  /* ---------- 1枠あたりの同時予約数（＝枠の定員） ----------
+     現場の指定（2026-08-17）で「**既定は3件**。状況に応じて各院のスタッフが受付ボードから変える」とした。
+     ・部屋の数では縛らない。実際の制約は人手（スタッフ）で、部屋数とは一致しないため
+       （千葉の美容＝処置室4＋医師施術室2＋CSルーム＝7室あるが、同時に回せるのは3枠）。
+     ・上限が部屋数より多いときは、あふれた予約は**部屋が付かないまま＝「未割当」**として入る。
+       受付が空いた部屋へ割り当てる（予約を取りこぼさない従来どおりの挙動）。
+     ・設定は rsv2_service_limits（診療区分ごと）。行が無ければ DEFAULT_CONCURRENT。 */
+  const DEFAULT_CONCURRENT = 3;
   function limitOfCs(csId) {
     const row = _limits.find(x => Number(x.csId) === Number(csId));
     const n = row ? Number(row.maxConcurrent) : 0;
     return (n > 0) ? n : null;
   }
-  function capacityOfCs(csId) {
-    const base = Math.max(1, roomsOfCs(csId).length);
-    const lim = limitOfCs(csId);
-    return lim ? Math.min(base, lim) : base;
-  }
+  function capacityOfCs(csId) { return limitOfCs(csId) || DEFAULT_CONCURRENT; }
 
   function sameSlotPeers(res) {
     // ★ブロック（非患者）は含めない。ブロックは必ず明示のリソースを持つ／持たないかのどちらかで、
@@ -1392,7 +1391,7 @@ const Store = (() => {
     getDays, createReservation, setRoom, assignResource, moveReservation, findReservation, cancelReservation, updateStatus,
     dayReservations, loadReservations,
     resourcesOf, resourcesOfCs, resourceServicesOf, setResourceServices,
-    limitOfCs, setServiceLimit,
+    limitOfCs, setServiceLimit, DEFAULT_CONCURRENT,
     refreshResources, addResource, renameResource, removeResource, getNote, saveNote,
     isHoliday, hoursWeekday,
     onSync, ready,
