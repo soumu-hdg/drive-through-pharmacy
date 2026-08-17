@@ -187,7 +187,8 @@ create table if not exists public.rsv2_hours (
   slot_min   integer     not null default 30,
   active     boolean     not null default true,
   created_at timestamptz not null default now(),
-  constraint rsv2_hours_weekday_check check (weekday between 0 and 6),
+  -- 0=日 … 6=土 / 7=祝日（2026-08-17 Wave6。祝日は weekday=7 の行だけを見る）
+  constraint rsv2_hours_weekday_check check (weekday between 0 and 7),
   constraint rsv2_hours_slot_check    check (slot_min between 5 and 240)
 );
 create unique index if not exists uq_rsv2_hours_row on public.rsv2_hours (clinic_id, cs_id, weekday, open_time);
@@ -242,6 +243,19 @@ create table if not exists public.rsv2_menu_resources (
 );
 create index if not exists ix_rsv2_menu_res_menu on public.rsv2_menu_resources (menu_id);
 
+-- 3.8 リソース × 診療区分 public.rsv2_resource_services（2026-08-17 Wave6）
+--     「この部屋（機材・スタッフ）はどの診療区分で使うか」。
+--     ★行が1件も無いリソースは全区分で使える（設定しない院は挙動が変わらない）。
+--     部屋をここで絞ると、その区分の「1枠あたりの定員」もその部屋数になる
+--     （千葉に実名で8室登録したとき、外来の定員まで8になってしまうのを防ぐ）。
+create table if not exists public.rsv2_resource_services (
+  resource_id bigint      not null references public.rsv2_resources(id) on delete cascade,
+  cs_id       integer     not null,
+  created_at  timestamptz not null default now(),
+  primary key (resource_id, cs_id)
+);
+create index if not exists ix_rsv2_res_svc_cs on public.rsv2_resource_services (cs_id);
+
 
 -- =============================================================
 -- 4. 二重予約の拒否（部分一意インデックス3本 / 2026-08-12 追加）
@@ -287,6 +301,7 @@ alter table public.rsv2_hours        enable row level security;
 alter table public.rsv2_closures     enable row level security;
 alter table public.rsv2_menus          enable row level security;
 alter table public.rsv2_menu_resources enable row level security;
+alter table public.rsv2_resource_services enable row level security;
 
 -- 予約本体: role=anon に対する全許可（実物のポリシー名は anon_all）
 drop policy if exists rsv2_anon_all on public.rsv2_reservations;  -- 旧名の残骸があれば掃除
@@ -321,6 +336,10 @@ create policy rsv2_menus_all on public.rsv2_menus
 
 drop policy if exists rsv2_menu_res_all on public.rsv2_menu_resources;
 create policy rsv2_menu_res_all on public.rsv2_menu_resources
+  for all to public using (true) with check (true);
+
+drop policy if exists rsv2_res_svc_all on public.rsv2_resource_services;
+create policy rsv2_res_svc_all on public.rsv2_resource_services
   for all to public using (true) with check (true);
 
 

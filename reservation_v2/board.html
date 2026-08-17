@@ -165,6 +165,11 @@
   .res-name{ flex:1; padding:8px 10px; border:1px solid var(--border); border-radius:7px; font-size:14px; }
   .res-del{ width:32px; height:32px; flex:0 0 auto; border:1px solid var(--red); color:var(--red); background:#fff; border-radius:7px; font-size:18px; font-weight:700; cursor:pointer; line-height:1; }
   .res-del:hover{ background:var(--red-light); }
+  /* リソース × 診療区分（Wave6）。無選択＝全区分で使う */
+  .res-cs{ display:flex; flex-wrap:wrap; gap:5px; align-items:center; margin:-4px 0 10px 2px; }
+  .res-cs .cs-chip{ border:1px solid var(--border); background:#fff; color:var(--muted); border-radius:3px; font-size:11.5px; padding:2px 7px; cursor:pointer; }
+  .res-cs .cs-chip.on{ border-color:var(--green); background:#eaf3ee; color:#0b5344; font-weight:700; }
+  .res-cs .cs-note{ font-size:11px; color:var(--muted); }
   .res-add{ display:flex; gap:8px; margin-top:10px; border-top:1px dashed var(--border); padding-top:12px; }
   .res-add input{ flex:1; padding:8px 10px; border:1px solid var(--border); border-radius:7px; font-size:14px; }
   .res-plus{ flex:0 0 auto; background:var(--green); color:#fff; border:none; border-radius:7px; padding:8px 14px; font-weight:700; font-size:13px; cursor:pointer; }
@@ -299,7 +304,7 @@
 
 <script>window.__RSV_SUPABASE__ = true;</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="store.js?v=20260813w8"></script>
+<script src="store.js?v=20260817w6"></script>
 <script>
 /* 受付ライブボード（タブ切替式）：患者予約が入った瞬間に日別ボード・予約一覧へ即反映 */
 function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -1012,10 +1017,18 @@ function renderResources(){
   const clinic=curClinicObj();
   const sections=RES_KIND.map(([kind,label,eg])=>{
     const items=Store.resourcesOf(clinic.id, kind);
-    const rows=items.map(r=>`<div class="res-row">
+    const rows=items.map(r=>{
+      /* どの診療区分で使うか。1つも選ばなければ全区分で使う＝これまでどおり。
+         部屋をここで絞ると「その区分の1枠あたりの定員」もこの数になる（過剰予約を防ぐ肝）。 */
+      const on=(Store.resourceServicesOf ? Store.resourceServicesOf(r.id) : []);
+      const chips=clinic.services.map(s=>
+        `<button class="cs-chip${on.includes(s.id)?' on':''}" onclick="resToggleCs(${r.id},${s.id})">${esc(s.name)}</button>`).join("");
+      return `<div class="res-row">
         <input class="res-name" value="${esc(r.name)}" onchange="resRename(${r.id}, this.value)">
         <button class="res-del" title="削除" onclick="resDelete(${r.id}, ${JSON.stringify(r.name)})">−</button>
-      </div>`).join("") || `<div class="muted" style="padding:6px 2px">未登録</div>`;
+      </div>
+      <div class="res-cs">${chips}<span class="cs-note">${on.length?"":"すべての区分で使用"}</span></div>`;
+    }).join("") || `<div class="muted" style="padding:6px 2px">未登録</div>`;
     return `<div class="res-card">
       <h3 style="margin-top:0">${label}<span class="muted" style="font-weight:400;font-size:12px;margin-left:8px">${items.length}件</span></h3>
       ${rows}
@@ -1027,7 +1040,7 @@ function renderResources(){
   }).join("");
   document.getElementById("view-resources").innerHTML=`
     <h1>リソース設定<span class="muted" style="font-size:15px;font-weight:400;margin-left:8px">${esc(clinic.name)}クリニック</span></h1>
-    <p class="muted">この院の「部屋・スタッフ・機材」を管理します。<b>＋で追加・−で削除</b>、名称は直接編集できます。ここで登録したものが<b>タイムラインの列</b>になります（クリニック切替で院ごとに設定）。</p>
+    <p class="muted">この院の「部屋・スタッフ・機材」を管理します。<b>＋で追加・−で削除</b>、名称は直接編集できます。ここで登録したものが<b>タイムラインの列</b>になります（クリニック切替で院ごとに設定）。名前の下のタグで<b>どの診療区分で使うか</b>を指定できます（<b>無選択＝すべての区分で使用</b>）。<b>部屋を区分ごとに分けると、その区分の「1枠あたりの定員」もその部屋数になります</b>（例：外来に診察室1室だけを割り当てると、同じ時間に受けられる外来予約は1件）。</p>
     <div class="res-grid">${sections}</div>
     <!-- 全データ破壊系の操作は、画面で最も目立つ位置・最も押したくなる色から外す（UI調査 B-2） -->
     <div class="danger-zone">
@@ -1044,6 +1057,15 @@ async function resAdd(kind){
 }
 async function resRename(id,name){ name=(name||'').trim(); if(!name){ renderResources(); return; } try{ await Store.renameResource(id,name); }catch(e){ alert('保存できませんでした'); renderResources(); } }
 async function resDelete(id,name){ if(!confirm(`「${name}」を削除しますか？`)) return; try{ await Store.removeResource(id); }catch(e){ alert('削除できませんでした'); } renderResources(); }
+/* このリソースを使う診療区分の切り替え（無選択＝全区分） */
+async function resToggleCs(id,csId){
+  const on=Store.resourceServicesOf(id);
+  const next=on.includes(csId)?on.filter(x=>x!==csId):on.concat(csId);
+  const res=await Store.setResourceServices(id,next);
+  if(res&&res.ok===false){ failBar(res.error); return; }
+  renderResources();
+  toast(next.length?`使用する診療区分を${next.length}件に設定しました。`:"すべての診療区分で使えます。");
+}
 
 /* ---------------- メニュー（rsv2_menus）＋「使う機材・担当」の紐づけ ----------------
    ここで登録した「使う機材／担当」が、患者がWeb予約した瞬間の自動割当に使われる。
@@ -1088,7 +1110,7 @@ function renderMenus(){
     ${inDb?'':`<div class="banner-info">いまは<b>初期設定のメニュー</b>を表示しています。「編集できるようにする」を押すと、この内容がそのまま登録され、料金や機材の紐づけを変更できるようになります（患者さんの見え方は変わりません）。
         <div style="margin-top:10px"><button class="primary" onclick="menuImport(${csId})">編集できるようにする（${list.length}件を取り込む）</button></div></div>`}
     <div class="scroll-x"><table class="mn-table">
-      <thead><tr><th style="min-width:150px">メニュー名</th><th style="min-width:110px">料金</th><th style="min-width:110px">初回料金</th><th style="min-width:100px">所要</th><th style="min-width:120px">担当職種</th><th style="min-width:170px">使う機材</th><th style="min-width:170px">担当できるスタッフ</th><th style="width:60px"></th></tr></thead>
+      <thead><tr><th style="min-width:300px">メニュー名</th><th style="min-width:100px">料金</th><th style="min-width:100px">初回料金</th><th style="min-width:92px">所要</th><th style="min-width:120px">担当職種</th><th style="min-width:210px">使う機材</th><th style="min-width:290px">担当できるスタッフ</th><th style="width:60px"></th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>
     ${inDb?`<div class="mn-add">
@@ -1348,7 +1370,9 @@ function renderSlots(){
 /* ---------------- 診療時間・休診日（院ごと） ----------------
    競合機能調査 §F#2：臨時休診にしてもWeb予約の枠が開いたままで新規予約が入ってくる＝事故。
    設定が1件も無い診療区分は「既定（コード内の診療時間）」で今までどおり動く。 */
-const WD_LABEL=["日","月","火","水","木","金","土"];
+/* 7 = 祝日。祝日は「祝」の行だけを見るので、祝の行が無い区分は祝日が自動的に休診になる
+   （例：外来＝火・日・祝休 なら祝の行を作らない／夜間休日＝日・祝10:00-17:00 なら祝の行を作る）。 */
+const WD_LABEL=["日","月","火","水","木","金","土","祝"];
 function renderHours(){
   const clinic=curClinicObj();
   const cards=clinic.services.map(s=>{
@@ -1364,7 +1388,7 @@ function renderHours(){
     return `<div class="hours-card">
       <h3>${esc(clinic.name)}／${esc(s.name)}
         <span class="src-tag ${useDb?'db':'def'}">${useDb?'この院の設定を使用中':'既定（コード内の診療時間）'}</span></h3>
-      <p class="muted" style="font-size:12.5px;margin:4px 0 0">終了時刻ちょうどの枠は作りません（例 09:00〜12:00／30分刻み → 最終枠は11:30）。曜日の行が無い曜日は休診です。</p>
+      <p class="muted" style="font-size:12.5px;margin:4px 0 0">終了時刻ちょうどの枠は作りません（例 09:00〜12:00／30分刻み → 最終枠は11:30）。曜日の行が無い曜日は休診です。<b>「祝」の行</b>は国民の祝日に使われ、無ければ祝日は休診になります（お盆・年末年始は下の臨時休診で登録してください）。深夜0時までは終了「24:00」で登録します（この欄からは入力できないためシステム側で設定します）。</p>
       <table class="hours-table"><thead><tr><th>曜日</th><th>診療時間</th><th>刻み</th><th></th></tr></thead><tbody>${trs}</tbody></table>
       <div class="hours-add">
         <div><label>曜日</label><select id="hr_wd_${s.id}">${wdOpts}</select></div>
