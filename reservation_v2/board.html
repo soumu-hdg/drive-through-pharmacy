@@ -308,7 +308,7 @@
 
 <script>window.__RSV_SUPABASE__ = true;</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="store.js?v=20260817w7"></script>
+<script src="store.js?v=20260817w8"></script>
 <script>
 /* 受付ライブボード（タブ切替式）：患者予約が入った瞬間に日別ボード・予約一覧へ即反映 */
 function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -1389,15 +1389,17 @@ function renderHours(){
         <td style="text-align:right">${useDb?`<button class="small danger" onclick="hoursDel(${h.id})">削除</button>`:'<span class="muted" style="font-size:12px">既定</span>'}</td>
       </tr>`).join("") || `<tr><td colspan="4" class="muted" style="padding:10px 8px">診療時間が1件もありません＝この区分は<b>終日休診</b>になります。</td></tr>`;
     const wdOpts=WD_LABEL.map((w,i)=>`<option value="${i}">${w}</option>`).join("");
-    /* 同時に受けられる予約の上限。既定は「その区分で使う部屋の数」。
-       部屋があっても人手が足りない場合（千葉の美容＝7室あるがスタッフの都合で3枠）に下げる。 */
+    /* 同じ時間に受けられる予約の数。既定は3件で、各院のスタッフがここで増減できる。
+       部屋数では縛らない（実際の制約は人手）。上限が部屋数より多い分は「未割当」で入る。 */
     const nRooms=Store.roomsOfCs(s.id).length, cap=Store.limitOfCs(s.id), nowCap=Store.capacityOfCs(s.id);
+    const def=Store.DEFAULT_CONCURRENT||3;
     const capBox=`<div class="hours-cap">
-        <label>同時に受けられる予約の上限</label>
-        <input id="hr_cap_${s.id}" type="number" min="1" max="99" value="${cap||''}" placeholder="${nRooms||1}" style="width:76px">
+        <label>同じ時間に受けられる予約の数</label>
+        <input id="hr_cap_${s.id}" type="number" min="1" max="99" value="${cap||''}" placeholder="${def}" style="width:76px">
         <button class="res-plus" onclick="capSave(${s.id})">保存</button>
-        <span class="cap-note">この区分で使う部屋は<b>${nRooms}室</b>。空欄なら部屋数がそのまま上限になります。
-          人手の都合で減らしたいときに使います。<b>いまの上限：1枠あたり${nowCap}件</b></span>
+        <span class="cap-note"><b>いま：1枠あたり${nowCap}件</b>${cap?'（この区分で設定）':`（既定の${def}件）`}。
+          スタッフの人数に合わせて増減してください（空欄で保存すると既定の${def}件に戻ります）。
+          この区分で使う部屋は${nRooms}室で、部屋より多く受けた分は<b>「未割当」</b>として入ります。</span>
       </div>`;
     return `<div class="hours-card">
       <h3>${esc(clinic.name)}／${esc(s.name)}
@@ -1469,7 +1471,7 @@ async function capSave(csId){
   const res=await Store.setServiceLimit(csId, v, v?'受付ボードで設定（人手の都合）':'');
   if(res&&res.ok===false){ failBar(res.error); return; }
   renderHours();
-  toast(v?`同時に受けられる予約を${v}件までにしました。`:'上限を外しました（部屋数どおりになります）。');
+  toast(v?`同じ時間に受けられる予約を${v}件にしました。`:`既定（${Store.DEFAULT_CONCURRENT||3}件）に戻しました。`);
 }
 async function hoursReset(csId){
   if(!confirm("この診療区分の診療時間の設定をすべて削除し、既定（コード内の診療時間）に戻します。よろしいですか？")) return;

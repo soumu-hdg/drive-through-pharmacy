@@ -259,7 +259,8 @@ create index if not exists ix_rsv2_res_svc_cs on public.rsv2_resource_services (
 -- 3.9 診療区分ごとの同時予約の上限 public.rsv2_service_limits（2026-08-17 Wave7）
 --     枠の定員は「その区分で使う部屋の数」が基本だが、部屋があっても人手が足りない場合がある。
 --     例）千葉の美容は処置室4＋医師施術室2＋CSルーム＝7室あるが、スタッフの都合で同時3枠まで。
---     ★行が無い区分はこれまでどおり部屋数がそのまま定員。定員 = min(部屋数, max_concurrent)。
+--     ★既定は3件（store.js の DEFAULT_CONCURRENT）。この表に行がある区分だけ max_concurrent で上書き。
+--       部屋数では縛らない（部屋より多く受けた分は「未割当」として入り、受付が割り当てる）。
 create table if not exists public.rsv2_service_limits (
   cs_id          integer     primary key,
   max_concurrent integer     not null check (max_concurrent between 1 and 99),
