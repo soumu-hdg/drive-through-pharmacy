@@ -41,12 +41,14 @@ const Store = (() => {
        西春=外来・在宅・夜間休日 ／ 横浜=外来・在宅 ／ 千葉=外来・在宅・美容 ／ 中川=在宅・夜間休日
      ★ id（cs_id）は既存の予約データが参照しているため、区分を入れ替えるときも
        「使わなくなったidを別の区分に再利用しない」こと。再利用すると過去の予約の区分が書き換わる。 */
+  /* 住所・電話は 2026-08-17 に現地の実値へ差し替え（記入シート④）。
+     中川は開業前のため仮のまま。住所は Google マップの検索クエリにも使う。 */
   const CLINICS = [
-    { id: 1, name: "西春", area: "愛知", address: "愛知県北名古屋市徳重", phone: "0568-00-0000",
+    { id: 1, name: "西春", area: "愛知", address: "〒481-0041 愛知県北名古屋市九之坪北浦31番地", phone: "0568-25-5080",
       services: [ { id: 11, name: "外来" }, { id: 12, name: "在宅" }, { id: 14, name: "夜間休日" } ] },
-    { id: 2, name: "横浜", area: "神奈川", address: "神奈川県横浜市西区", phone: "045-000-0000",
+    { id: 2, name: "横浜", area: "神奈川", address: "〒224-0012 神奈川県横浜市都筑区牛久保1丁目2-9 メディコーポ都筑 202", phone: "045-482-6781",
       services: [ { id: 22, name: "外来" }, { id: 23, name: "在宅" } ] },
-    { id: 3, name: "千葉", area: "千葉", address: "千葉県千葉市中央区", phone: "043-000-0000",
+    { id: 3, name: "千葉", area: "千葉", address: "〒263-0051 千葉県千葉市稲毛区園生町169-1", phone: "043-301-5705",
       services: [ { id: 31, name: "外来" }, { id: 33, name: "在宅" }, { id: 34, name: "美容" } ] },
     { id: 4, name: "中川", area: "愛知", address: "愛知県名古屋市中川区", phone: "052-000-0000",
       openingNote: "11月開業予定",
@@ -141,6 +143,26 @@ const Store = (() => {
     return new Date(y,m-1,d).getDay();
   }
 
+  /* ---------- 国民の祝日 ----------
+     現場からの定休日の指定が「火・日・祝」「日・祝10:00-17:00」のように祝日を含むため、
+     曜日（0〜6）だけでは表現できない。診療時間 rsv2_hours は weekday=7 を「祝日」として持ち、
+     祝日はその 7 の行だけを見る（7の行が無い区分は祝日が自動的に休診になる）。
+     ★春分・秋分は前年2月の官報で確定する。年に一度ここを更新すること（2027年分は暫定）。
+     ★年末年始・お盆など法定外の休みは「臨時休診（rsv2_closures）」で登録する。 */
+  const HOLIDAYS = new Set([
+    // 2026
+    "2026-01-01","2026-01-12","2026-02-11","2026-02-23","2026-03-20","2026-04-29",
+    "2026-05-03","2026-05-04","2026-05-05","2026-05-06","2026-07-20","2026-08-11",
+    "2026-09-21","2026-09-22","2026-09-23","2026-10-12","2026-11-03","2026-11-23",
+    // 2027（暫定）
+    "2027-01-01","2027-01-11","2027-02-11","2027-02-23","2027-03-21","2027-03-22",
+    "2027-04-29","2027-05-03","2027-05-04","2027-05-05","2027-07-19","2027-08-11",
+    "2027-09-20","2027-09-23","2027-10-11","2027-11-03","2027-11-23",
+  ]);
+  function isHoliday(dateStr) { return HOLIDAYS.has(dateStr); }
+  // 診療時間の引き当てに使う曜日。祝日は 7（＝祝日の行だけを見る）
+  function hoursWeekday(dateStr) { return isHoliday(dateStr) ? 7 : weekday(dateStr); }
+
   function clinicOfCs(csId) {
     const c = CLINICS.find(x => x.services.some(s => s.id === csId));
     if (c) return c;
@@ -178,8 +200,24 @@ const Store = (() => {
      ・予約は診察室IDを保存（roomId＝rsv2_resources.id）。受付が任意に切り替えられる。
      ・roomId未設定の旧データは、同枠(csId×date×time)の空き室を先着順で埋めて導出（互換）。 */
   function roomsOf(clinicId) { return resourcesOf(clinicId, "room"); }
-  // 診療区分ID（csId）からその院の部屋一覧を引く
-  function roomsOfCs(csId) { const c = clinicOfCs(csId); return c ? roomsOf(c.id) : []; }
+
+  /* ---------- リソース × 診療区分（rsv2_resource_services・2026-08-17 Wave6） ----------
+     千葉のように「診察室は外来、処置室・医師施術室は美容」と部屋の用途が分かれる院がある。
+     院単位でしか持てないと、部屋を実名で8室登録した瞬間に【外来の1枠の定員も8になる】＝過剰予約。
+     ★割り当ての行が1件も無いリソースは、従来どおり全区分で使える（設定しない院は挙動が変わらない）。 */
+  function resourceServicesOf(resourceId) {
+    return _resSvc.filter(x => Number(x.resourceId) === Number(resourceId)).map(x => Number(x.csId));
+  }
+  function resourcesOfCs(csId, kind) {
+    const c = clinicOfCs(csId);
+    if (!c) return [];
+    return resourcesOf(c.id, kind).filter(r => {
+      const ids = resourceServicesOf(r.id);
+      return ids.length === 0 || ids.includes(Number(csId));
+    });
+  }
+  // 診療区分ID（csId）からその区分で使う部屋一覧を引く
+  function roomsOfCs(csId) { return resourcesOfCs(csId, "room"); }
   // 枠の定員＝その院の有効な部屋数。未登録（0室）の院は従来どおり1件は受けられるようにする
   //（この場合 roomId は null のまま＝部屋の一意インデックスの対象外になる点に注意）
   function capacityOfCs(csId) { return Math.max(1, roomsOfCs(csId).length); }
@@ -303,9 +341,13 @@ const Store = (() => {
      ・同型機を2台登録しておけば、1台が埋まっていてももう1台で受けられる＝取れる予約が最大になる。
      ・空きが無ければ何も割り当てない（＝予約は通し「未割当」に出す）。従来より予約が減ることはない。 */
   function freeResourceFor(kind, csId, date, startMin, endMin, menuId) {
-    const clinicId = Math.floor(Number(csId) / 10);
     let cands = menuId ? menuResources(menuId, kind) : [];
-    if (!cands.length) cands = resourcesOf(clinicId, kind);
+    /* ★メニュー台帳が整備されている区分では「候補が未登録＝その種別は自動で押さえない」。
+       ここを従来どおり院内の全リソースにすると、機材を使わない施術（ボトックス等）が
+       空いている機械を勝手に押さえてしまい、機材の予約が取れなくなる。
+       メニューが1件も無い区分は、これまでどおり院内の空きから選ぶ（挙動を変えない）。 */
+    if (!cands.length && hasMenus(Number(csId))) return null;
+    if (!cands.length) cands = resourcesOfCs(csId, kind);
     for (const c of cands) {
       if (!resourceConflict(kind, c.id, date, startMin, endMin)) return c.id;
     }
@@ -317,6 +359,7 @@ const Store = (() => {
   let _resources = [];   // 院ごとのリソース（部屋/スタッフ/機材）。管理画面で編集
   let _menus = [];       // メニュー（rsv2_menus）。0件の診療区分は FALLBACK_MENUS
   let _menuRes = [];     // メニューが使う機材・担当の候補（rsv2_menu_resources）
+  let _resSvc  = [];     // リソースを使う診療区分（rsv2_resource_services）。0件＝全区分
   let _karteBusy = [];   // カルテ(visits)の来院予定＝院×日付×時刻の件数だけ（氏名は含まない）
   let _hours = [];       // 診療時間（rsv2_hours）。0件の診療区分は TEMPLATES にフォールバック
   let _closures = [];    // 休診日（rsv2_closures）。臨時休診はここに入る
@@ -388,9 +431,9 @@ const Store = (() => {
   // その日の枠の開始時刻一覧（休診日・時間外は空配列）
   function daySlotTimes(csId, date) {
     if (closureOn(csId, date)) return [];
-    const wd = weekday(date);
     if (hasHours(csId)) {
-      const rows = hoursOf(csId).filter(h => Number(h.weekday) === wd);
+      // 祝日は weekday=7 の行だけを見る。7の行が無ければ枠は0＝その区分は祝日休診
+      const rows = hoursOf(csId).filter(h => Number(h.weekday) === hoursWeekday(date));
       const set = [];
       rows.forEach(h => {
         const step = Math.max(5, Number(h.slotMin) || 30);
@@ -401,12 +444,12 @@ const Store = (() => {
       return set.sort();
     }
     const tpl = templateOfCs(csId);
-    return tpl.weekdays.includes(wd) ? tpl.times.slice() : [];
+    return tpl.weekdays.includes(weekday(date)) ? tpl.times.slice() : [];
   }
   // 枠1つの長さ（分）。ブロックとの重なり判定に使う
   function slotStepOf(csId, date) {
     if (hasHours(csId)) {
-      const rows = hoursOf(csId).filter(h => Number(h.weekday) === weekday(date));
+      const rows = hoursOf(csId).filter(h => Number(h.weekday) === hoursWeekday(date));
       if (rows.length) return Math.max(5, Number(rows[0].slotMin) || 30);
     }
     const tpl = templateOfCs(csId);
@@ -715,6 +758,20 @@ const Store = (() => {
       },
       async getNote(clinicId, date) { const { data } = await client.from("rsv2_daily_notes").select("note").eq("clinic_id", clinicId).eq("ndate", date).maybeSingle(); return data ? (data.note||"") : ""; },
       async saveNote(clinicId, date, note) { const { error } = await client.from("rsv2_daily_notes").upsert({ clinic_id:clinicId, ndate:date, note, updated_at:new Date().toISOString() }, { onConflict:"clinic_id,ndate" }); if (error) throw error; },
+      /* --- リソース × 診療区分（Wave6）。テーブルが無い環境でも予約本体は動かす --- */
+      async loadResourceServices() {
+        const { data, error } = await client.from("rsv2_resource_services").select("*");
+        if (error) return [];
+        return (data || []).map(x => ({ resourceId:x.resource_id, csId:x.cs_id }));
+      },
+      async setResourceServices(resourceId, csIds) {
+        const del = await client.from("rsv2_resource_services").delete().eq("resource_id", resourceId);
+        if (del.error) throw del.error;
+        if (!csIds.length) return;
+        const { error } = await client.from("rsv2_resource_services")
+          .insert(csIds.map(cs => ({ resource_id:resourceId, cs_id:cs })));
+        if (error) throw error;
+      },
       async addResource(r) { const { error } = await client.from("rsv2_resources").insert({ clinic_id:r.clinicId, kind:r.kind, name:r.name, sort_order:r.sortOrder||0 }); if (error) throw error; },
       async renameResource(id, name) { const { error } = await client.from("rsv2_resources").update({ name }).eq("id", id); if (error) throw error; },
       async removeResource(id) { const { error } = await client.from("rsv2_resources").delete().eq("id", id); if (error) throw error; },
@@ -813,6 +870,7 @@ const Store = (() => {
     const CL_KEY  = "rsv2.closures";     // 休診日
     const MN_KEY  = "rsv2.menus";        // メニュー（既定は空＝FALLBACK_MENUSを使う）
     const MR_KEY  = "rsv2.menuResources";// メニューが使う機材・担当の候補
+    const RS_KEY  = "rsv2.resourceServices"; // リソースを使う診療区分（0件＝全区分）
     const lsList = (k) => { try { return JSON.parse(localStorage.getItem(k) || "[]"); } catch { return []; } };
     const load = () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); } catch { return []; } };
     const save = (l) => localStorage.setItem(LS_KEY, JSON.stringify(l));
@@ -867,6 +925,11 @@ const Store = (() => {
                save(l); _cache=l; fire({type:"reservation",at:Date.now()}); } },
       async loadMenus(){ return lsList(MN_KEY); },
       async loadMenuResources(){ return lsList(MR_KEY); },
+      async loadResourceServices(){ return lsList(RS_KEY); },
+      async setResourceServices(resourceId, csIds){
+        const l=lsList(RS_KEY).filter(x=>Number(x.resourceId)!==Number(resourceId));
+        (csIds||[]).forEach(cs=>l.push({resourceId:Number(resourceId), csId:Number(cs)}));
+        localStorage.setItem(RS_KEY, JSON.stringify(l)); },
       async addMenu(m){ const l=lsList(MN_KEY); const id=Math.max(1000,...l.map(x=>x.id||0))+1;
         l.push(Object.assign({id, durationMin:30, sortOrder:0, popular:false}, m)); localStorage.setItem(MN_KEY,JSON.stringify(l)); },
       async updateMenu(id, patch){ const l=lsList(MN_KEY); const m=l.find(x=>Number(x.id)===Number(id));
@@ -918,6 +981,8 @@ const Store = (() => {
       async setPayment() { fail(); },
       async loadMenus() { return []; },
       async loadMenuResources() { return []; },
+      async loadResourceServices() { return []; },
+      async setResourceServices() { fail(); },
       async addMenu() { fail(); },
       async updateMenu() { fail(); },
       async removeMenu() { fail(); },
@@ -967,6 +1032,7 @@ const Store = (() => {
     try { _karteBusy = await backend.loadKarteBusy(); } catch { _karteBusy = []; }
     try { _menus    = await backend.loadMenus(); }    catch { _menus = []; }
     try { _menuRes  = await backend.loadMenuResources(); } catch { _menuRes = []; }
+    try { _resSvc   = await backend.loadResourceServices(); } catch { _resSvc = []; }
     try { _hours    = await backend.loadHours(); }    catch { _hours = []; }
     try { _closures = await backend.loadClosures(); } catch { _closures = []; }
   })();
@@ -1043,7 +1109,18 @@ const Store = (() => {
   }
 
   // リソースCRUD（管理画面から呼ぶ）。編集後は再取得して同期通知。
-  async function refreshResources() { try { _resources = await backend.loadResources(); } catch { _resources = []; } }
+  async function refreshResources() {
+    try { _resources = await backend.loadResources(); } catch { _resources = []; }
+    try { _resSvc    = await backend.loadResourceServices(); } catch { _resSvc = []; }
+  }
+  // このリソースを使う診療区分を差し替える（空配列＝全区分で使う）
+  async function setResourceServices(resourceId, csIds) {
+    try { await backend.setResourceServices(Number(resourceId), (csIds || []).map(Number)); }
+    catch (e) { return { ok: false, error: e.message || "保存に失敗しました。" }; }
+    await refreshResources();
+    dispatch({ type: "resources", at: Date.now() });
+    return { ok: true };
+  }
   async function addResource(clinicId, kind, name) {
     const last = resourcesOf(clinicId, kind).slice(-1)[0];
     await backend.addResource({ clinicId, kind, name, sortOrder: (last ? last.sortOrder : 0) + 1 });
@@ -1268,7 +1345,9 @@ const Store = (() => {
     roomsOf, roomsOfCs, capacityOfCs, roomOf, roomName, roomIndex, freeRoom, durMin, resourceConflict,
     getDays, createReservation, setRoom, assignResource, moveReservation, findReservation, cancelReservation, updateStatus,
     dayReservations, loadReservations,
-    resourcesOf, refreshResources, addResource, renameResource, removeResource, getNote, saveNote,
+    resourcesOf, resourcesOfCs, resourceServicesOf, setResourceServices,
+    refreshResources, addResource, renameResource, removeResource, getNote, saveNote,
+    isHoliday, hoursWeekday,
     onSync, ready,
     async resetDemo() {
       try { await backend.resetDemo(); return { ok:true }; }
