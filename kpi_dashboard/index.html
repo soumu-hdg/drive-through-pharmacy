@@ -1034,15 +1034,24 @@ function renderDash(d,o){
   const qty=o.reduce((s,x)=>s+(x.quantity||0),0);
   const aov=ords>0?rev/ords:0;
 
+  // 無償サンプル（Qoo10サンプルマーケット / Amazon Vine など金額0の配布分）を件数から切り分ける。
+  // 売上金額は元々0なので金額側には影響しないが、件数・平均単価は実売と大きく乖離するため併記する。
+  const isFree=x=>Number(x.total||0)===0;
+  const freeByCh={};let freeCnt=0,freeQty=0;
+  o.forEach(x=>{if(isFree(x)){freeCnt++;freeQty+=(x.quantity||0);freeByCh[x.channel]=(freeByCh[x.channel]||0)+1;}});
+  const paidOrds=Math.max(ords-freeCnt,0);
+  const aovPaid=paidOrds>0?rev/paidOrds:0;
+  const freeNote=n=>n>0?`<span style="color:var(--sub);font-size:11px"> (無償${fmt(n)})</span>`:'';
+
   // Channel
   const ch={};d.forEach(x=>{if(!ch[x.channel])ch[x.channel]={rev:0,ord:0};ch[x.channel].rev+=Number(x.revenue||0);ch[x.channel].ord+=(x.order_count||0)});
   const chArr=Object.entries(ch).sort((a,b)=>b[1].rev-a[1].rev);
-  let chRows=chArr.map(([c,v])=>`<tr><td>${chBadge(c)}</td><td class="num">${yen(v.rev)}</td><td class="num">${fmt(v.ord)}件</td></tr>`).join('');
+  let chRows=chArr.map(([c,v])=>`<tr><td>${chBadge(c)}</td><td class="num">${yen(v.rev)}</td><td class="num">${fmt(v.ord)}件${freeNote(freeByCh[c]||0)}</td></tr>`).join('');
 
   // Product TOP10
-  const prods={};o.forEach(x=>{const n=normProd(x.product_name);if(!prods[n])prods[n]={rev:0,qty:0};prods[n].rev+=Number(x.total||0);prods[n].qty+=(x.quantity||0)});
+  const prods={};o.forEach(x=>{const n=normProd(x.product_name);if(!prods[n])prods[n]={rev:0,qty:0,free:0};prods[n].rev+=Number(x.total||0);prods[n].qty+=(x.quantity||0);if(isFree(x))prods[n].free+=(x.quantity||0)});
   const pArr=Object.entries(prods).sort((a,b)=>b[1].rev-a[1].rev).slice(0,10);
-  let pRows=pArr.map(([n,v])=>`<tr><td>${n}</td><td class="num">${yen(v.rev)}</td><td class="num">${fmt(v.qty)}個</td></tr>`).join('');
+  let pRows=pArr.map(([n,v])=>`<tr><td>${n}</td><td class="num">${yen(v.rev)}</td><td class="num">${fmt(v.qty)}個${freeNote(v.free)}</td></tr>`).join('');
 
   // Subscription
   const subs=o.filter(x=>x.is_subscription);
@@ -1061,7 +1070,7 @@ function renderDash(d,o){
   document.getElementById('tab-dashboard').innerHTML=`
     <div class="grid grid-4">
       <div class="card"><h2>売上合計</h2><div class="metric">${yen(rev)}</div><div class="metric-sub">フィルター期間内</div></div>
-      <div class="card"><h2>注文件数</h2><div class="metric" style="color:var(--blue)">${fmt(ords)}</div><div class="metric-sub">平均単価: ${yen(Math.round(aov))}</div></div>
+      <div class="card"><h2>注文件数</h2><div class="metric" style="color:var(--blue)">${fmt(ords)}</div><div class="metric-sub">${freeCnt>0?`うち無償 ${fmt(freeCnt)}件 / 実売 ${fmt(paidOrds)}件<br>平均単価: ${yen(Math.round(aov))}（実売ベース ${yen(Math.round(aovPaid))}）`:`平均単価: ${yen(Math.round(aov))}`}</div></div>
       <div class="card"><h2>商品販売数</h2><div class="metric" style="color:var(--purple)">${fmt(qty)}<span style="font-size:14px;color:var(--sub)">個</span></div></div>
       <div class="card"><h2>注文明細数</h2><div class="metric" style="color:var(--employee)">${fmt(o.length)}<span style="font-size:12px;color:var(--sub)"> 行</span></div><div class="metric-sub">ユニーク注文: ${fmt(uniqOrders)}</div></div>
     </div>
@@ -1078,11 +1087,15 @@ function renderDash(d,o){
       <div class="card"><h2>顧客分析</h2>
         <table>
           <tr><td>注文件数（全チャネル）</td><td class="num"><strong>${fmt(ords)}</strong></td></tr>
+          <tr><td>　うち無償サンプル</td><td class="num" style="color:var(--sub)">${fmt(freeCnt)}件</td></tr>
+          <tr><td>　実売注文件数</td><td class="num"><strong>${fmt(paidOrds)}</strong>件</td></tr>
           <tr><td>注文明細（Shopify/社割/卸売）</td><td class="num">${fmt(uniqOrders)}件</td></tr>
           <tr><td>平均注文額(AOV)</td><td class="num">${yen(Math.round(aov))}</td></tr>
+          <tr><td>　AOV（実売ベース）</td><td class="num"><strong>${yen(Math.round(aovPaid))}</strong></td></tr>
           <tr><td>総販売数量</td><td class="num">${fmt(qty)}個</td></tr>
+          <tr><td>　うち無償配布数</td><td class="num" style="color:var(--sub)">${fmt(freeQty)}個</td></tr>
         </table>
-        <div style="font-size:11px;color:var(--sub);margin-top:8px">※注文明細はShopify/社割/卸売のみ。Amazon/Qoo10はサマリー集計のみ対応。</div>
+        <div style="font-size:11px;color:var(--sub);margin-top:8px">※注文明細はShopify/社割/卸売のみ。Amazon/Qoo10はサマリー集計のみ対応。<br>※「無償」＝金額0の配布分（Qoo10サンプルマーケット／Amazon Vine等）。売上金額には元々含まれないため、金額指標には影響しません。</div>
       </div>
     </div>`;
 }
