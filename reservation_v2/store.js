@@ -218,9 +218,21 @@ const Store = (() => {
   }
   // 診療区分ID（csId）からその区分で使う部屋一覧を引く
   function roomsOfCs(csId) { return resourcesOfCs(csId, "room"); }
-  // 枠の定員＝その院の有効な部屋数。未登録（0室）の院は従来どおり1件は受けられるようにする
-  //（この場合 roomId は null のまま＝部屋の一意インデックスの対象外になる点に注意）
-  function capacityOfCs(csId) { return Math.max(1, roomsOfCs(csId).length); }
+  /* 枠の定員。基本はその区分で使う部屋の数。未登録（0室）の院は従来どおり1件は受けられる
+     （この場合 roomId は null のまま＝部屋の一意インデックスの対象外になる点に注意）。
+     ★人手の上限（rsv2_service_limits）が設定されていればそちらで頭打ちにする。
+       千葉の美容は部屋が7室あるがスタッフの都合で同時3枠まで＝部屋を減らさずに上限だけ下げる
+       （部屋を減らすと、実際に使っている部屋がタイムラインの列から消えてしまうため）。 */
+  function limitOfCs(csId) {
+    const row = _limits.find(x => Number(x.csId) === Number(csId));
+    const n = row ? Number(row.maxConcurrent) : 0;
+    return (n > 0) ? n : null;
+  }
+  function capacityOfCs(csId) {
+    const base = Math.max(1, roomsOfCs(csId).length);
+    const lim = limitOfCs(csId);
+    return lim ? Math.min(base, lim) : base;
+  }
 
   function sameSlotPeers(res) {
     // ★ブロック（非患者）は含めない。ブロックは必ず明示のリソースを持つ／持たないかのどちらかで、
@@ -360,6 +372,7 @@ const Store = (() => {
   let _menus = [];       // メニュー（rsv2_menus）。0件の診療区分は FALLBACK_MENUS
   let _menuRes = [];     // メニューが使う機材・担当の候補（rsv2_menu_resources）
   let _resSvc  = [];     // リソースを使う診療区分（rsv2_resource_services）。0件＝全区分
+  let _limits  = [];     // 区分ごとの同時予約の上限（rsv2_service_limits）。行が無ければ部屋数どおり
   let _karteBusy = [];   // カルテ(visits)の来院予定＝院×日付×時刻の件数だけ（氏名は含まない）
   let _hours = [];       // 診療時間（rsv2_hours）。0件の診療区分は TEMPLATES にフォールバック
   let _closures = [];    // 休診日（rsv2_closures）。臨時休診はここに入る
@@ -772,6 +785,21 @@ const Store = (() => {
           .insert(csIds.map(cs => ({ resource_id:resourceId, cs_id:cs })));
         if (error) throw error;
       },
+      /* --- 区分ごとの同時予約の上限（Wave7） --- */
+      async loadServiceLimits() {
+        const { data, error } = await client.from("rsv2_service_limits").select("*");
+        if (error) return [];
+        return (data || []).map(x => ({ csId:x.cs_id, maxConcurrent:x.max_concurrent, note:x.note||"" }));
+      },
+      async setServiceLimit(csId, max, note) {
+        if (!max) {
+          const { error } = await client.from("rsv2_service_limits").delete().eq("cs_id", csId);
+          if (error) throw error; return;
+        }
+        const { error } = await client.from("rsv2_service_limits")
+          .upsert({ cs_id:csId, max_concurrent:max, note:note||null, updated_at:new Date().toISOString() }, { onConflict:"cs_id" });
+        if (error) throw error;
+      },
       async addResource(r) { const { error } = await client.from("rsv2_resources").insert({ clinic_id:r.clinicId, kind:r.kind, name:r.name, sort_order:r.sortOrder||0 }); if (error) throw error; },
       async renameResource(id, name) { const { error } = await client.from("rsv2_resources").update({ name }).eq("id", id); if (error) throw error; },
       async removeResource(id) { const { error } = await client.from("rsv2_resources").delete().eq("id", id); if (error) throw error; },
@@ -871,6 +899,7 @@ const Store = (() => {
     const MN_KEY  = "rsv2.menus";        // メニュー（既定は空＝FALLBACK_MENUSを使う）
     const MR_KEY  = "rsv2.menuResources";// メニューが使う機材・担当の候補
     const RS_KEY  = "rsv2.resourceServices"; // リソースを使う診療区分（0件＝全区分）
+    const SL_KEY  = "rsv2.serviceLimits";    // 区分ごとの同時予約の上限
     const lsList = (k) => { try { return JSON.parse(localStorage.getItem(k) || "[]"); } catch { return []; } };
     const load = () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); } catch { return []; } };
     const save = (l) => localStorage.setItem(LS_KEY, JSON.stringify(l));
@@ -926,6 +955,11 @@ const Store = (() => {
       async loadMenus(){ return lsList(MN_KEY); },
       async loadMenuResources(){ return lsList(MR_KEY); },
       async loadResourceServices(){ return lsList(RS_KEY); },
+      async loadServiceLimits(){ return lsList(SL_KEY); },
+      async setServiceLimit(csId, max, note){
+        const l=lsList(SL_KEY).filter(x=>Number(x.csId)!==Number(csId));
+        if(max) l.push({csId:Number(csId), maxConcurrent:Number(max), note:note||""});
+        localStorage.setItem(SL_KEY, JSON.stringify(l)); },
       async setResourceServices(resourceId, csIds){
         const l=lsList(RS_KEY).filter(x=>Number(x.resourceId)!==Number(resourceId));
         (csIds||[]).forEach(cs=>l.push({resourceId:Number(resourceId), csId:Number(cs)}));
@@ -982,6 +1016,8 @@ const Store = (() => {
       async loadMenus() { return []; },
       async loadMenuResources() { return []; },
       async loadResourceServices() { return []; },
+      async loadServiceLimits() { return []; },
+      async setServiceLimit() { fail(); },
       async setResourceServices() { fail(); },
       async addMenu() { fail(); },
       async updateMenu() { fail(); },
@@ -1033,6 +1069,7 @@ const Store = (() => {
     try { _menus    = await backend.loadMenus(); }    catch { _menus = []; }
     try { _menuRes  = await backend.loadMenuResources(); } catch { _menuRes = []; }
     try { _resSvc   = await backend.loadResourceServices(); } catch { _resSvc = []; }
+    try { _limits   = await backend.loadServiceLimits(); } catch { _limits = []; }
     try { _hours    = await backend.loadHours(); }    catch { _hours = []; }
     try { _closures = await backend.loadClosures(); } catch { _closures = []; }
   })();
@@ -1112,6 +1149,15 @@ const Store = (() => {
   async function refreshResources() {
     try { _resources = await backend.loadResources(); } catch { _resources = []; }
     try { _resSvc    = await backend.loadResourceServices(); } catch { _resSvc = []; }
+    try { _limits    = await backend.loadServiceLimits(); } catch { _limits = []; }
+  }
+  // 同時予約の上限を保存（0/空＝上限なし＝部屋数どおり）
+  async function setServiceLimit(csId, max, note) {
+    try { await backend.setServiceLimit(Number(csId), Number(max) || 0, note || ""); }
+    catch (e) { return { ok: false, error: e.message || "保存に失敗しました。" }; }
+    await refreshResources();
+    dispatch({ type: "resources", at: Date.now() });
+    return { ok: true };
   }
   // このリソースを使う診療区分を差し替える（空配列＝全区分で使う）
   async function setResourceServices(resourceId, csIds) {
@@ -1346,6 +1392,7 @@ const Store = (() => {
     getDays, createReservation, setRoom, assignResource, moveReservation, findReservation, cancelReservation, updateStatus,
     dayReservations, loadReservations,
     resourcesOf, resourcesOfCs, resourceServicesOf, setResourceServices,
+    limitOfCs, setServiceLimit,
     refreshResources, addResource, renameResource, removeResource, getNote, saveNote,
     isHoliday, hoursWeekday,
     onSync, ready,

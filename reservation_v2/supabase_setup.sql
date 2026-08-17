@@ -256,6 +256,17 @@ create table if not exists public.rsv2_resource_services (
 );
 create index if not exists ix_rsv2_res_svc_cs on public.rsv2_resource_services (cs_id);
 
+-- 3.9 診療区分ごとの同時予約の上限 public.rsv2_service_limits（2026-08-17 Wave7）
+--     枠の定員は「その区分で使う部屋の数」が基本だが、部屋があっても人手が足りない場合がある。
+--     例）千葉の美容は処置室4＋医師施術室2＋CSルーム＝7室あるが、スタッフの都合で同時3枠まで。
+--     ★行が無い区分はこれまでどおり部屋数がそのまま定員。定員 = min(部屋数, max_concurrent)。
+create table if not exists public.rsv2_service_limits (
+  cs_id          integer     primary key,
+  max_concurrent integer     not null check (max_concurrent between 1 and 99),
+  note           text,
+  updated_at     timestamptz not null default now()
+);
+
 
 -- =============================================================
 -- 4. 二重予約の拒否（部分一意インデックス3本 / 2026-08-12 追加）
@@ -302,6 +313,7 @@ alter table public.rsv2_closures     enable row level security;
 alter table public.rsv2_menus          enable row level security;
 alter table public.rsv2_menu_resources enable row level security;
 alter table public.rsv2_resource_services enable row level security;
+alter table public.rsv2_service_limits    enable row level security;
 
 -- 予約本体: role=anon に対する全許可（実物のポリシー名は anon_all）
 drop policy if exists rsv2_anon_all on public.rsv2_reservations;  -- 旧名の残骸があれば掃除
@@ -340,6 +352,9 @@ create policy rsv2_menu_res_all on public.rsv2_menu_resources
 
 drop policy if exists rsv2_res_svc_all on public.rsv2_resource_services;
 create policy rsv2_res_svc_all on public.rsv2_resource_services
+  for all to public using (true) with check (true);
+drop policy if exists rsv2_svc_limits_all on public.rsv2_service_limits;
+create policy rsv2_svc_limits_all on public.rsv2_service_limits
   for all to public using (true) with check (true);
 
 
