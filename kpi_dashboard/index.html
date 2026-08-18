@@ -196,8 +196,8 @@ const sbQ=k=>sbGet(Q[k][0],Q[k][1],Q[k][2]);
 function fmt(n){return n!=null?Number(n).toLocaleString('ja-JP'):'-'}
 function yen(n){return n!=null?'¥'+Number(n).toLocaleString('ja-JP'):'-'}
 function pct(a,b){return b>0?((a/b)*100).toFixed(1)+'%':'-'}
-function chBadge(ch){const m={shopify:'badge-shopify',employee:'badge-employee',wholesale:'badge-wholesale',amazon:'badge-amazon',amazon_fba:'badge-amazon',qoo10:'badge-qoo10',rakuten:'badge-rakuten'};return `<span class="badge ${m[ch]||'badge-info'}">${chName(ch)}</span>`}
-function chName(ch){return{shopify:'Shopify',employee:'社割',wholesale:'卸売',amazon:'Amazon',amazon_fba:'Amazon(FBA)',qoo10:'Qoo10',rakuten:'楽天'}[ch]||ch}
+function chBadge(ch){const m={shopify:'badge-shopify',employee:'badge-employee',wholesale:'badge-wholesale',amazon:'badge-amazon',amazon_fba:'badge-amazon',qoo10:'badge-qoo10',rakuten:'badge-rakuten',tiktok:'badge-info'};return `<span class="badge ${m[ch]||'badge-info'}">${chName(ch)}</span>`}
+function chName(ch){return{shopify:'Shopify',employee:'社割',wholesale:'卸売',amazon:'Amazon',amazon_fba:'Amazon(FBA)',qoo10:'Qoo10',rakuten:'楽天',tiktok:'TikTok'}[ch]||ch}
 function normProd(n){
   if(!n)return'不明';
   n=n.replace(/\s*\(Shopify\)|\s*\(卸売\)|\s*\(社割\)/g,'').trim();
@@ -1156,7 +1156,7 @@ function renderProduct(o){
   o.forEach(x=>{const c=x.channel||'不明';if(!chTotals[c])chTotals[c]={rev:0,qty:0};chTotals[c].rev+=Number(x.total||0);chTotals[c].qty+=(x.quantity||0)});
   const totalRev=o.reduce((s,x)=>s+Number(x.total||0),0);
   const totalQty=o.reduce((s,x)=>s+(x.quantity||0),0);
-  const chOrder=['shopify','employee','wholesale','amazon','amazon_fba','qoo10','rakuten'];
+  const chOrder=['shopify','employee','wholesale','amazon','amazon_fba','qoo10','rakuten','tiktok'];
   let chCards=chOrder.map(c=>{const v=chTotals[c]||{rev:0,qty:0};return`
     <div class="card" style="text-align:center"><h2>${chBadge(c)}</h2>
       <div style="font-size:18px;font-weight:700">${fmt(v.qty)}個</div>
@@ -1223,7 +1223,7 @@ function renderReport(d,o){
     prods[n][c].qty+=(x.quantity||0);prods[n][c].rev+=Number(x.total||0);
   });
 
-  const chIcons={shopify:'🛒 ECサイト',employee:'👥 社割購入',wholesale:'🏥 クリニック卸売',amazon:'🅰️ Amazon',amazon_fba:'📦 Amazon(FBA)',qoo10:'🔵 Qoo10',rakuten:'🔴 楽天'};
+  const chIcons={shopify:'🛒 ECサイト',employee:'👥 社割購入',wholesale:'🏥 クリニック卸売',amazon:'🅰️ Amazon',amazon_fba:'📦 Amazon(FBA)',qoo10:'🔵 Qoo10',rakuten:'🔴 楽天',tiktok:'🎵 TikTok'};
   const startD=dS||D.map(x=>x.date).sort()[0]||'';
   const endD=dE||D.map(x=>x.date).sort().pop()||'';
   let report=`売上報告(${startD} ~ ${endD})\n${'='.repeat(40)}\n\n`;
@@ -1232,12 +1232,12 @@ function renderReport(d,o){
     report+=`■ ${name}\n`;
     report+='【売上数量】\n';
     let totalQty=0,totalRev=0;
-    ['shopify','employee','wholesale','amazon','amazon_fba','qoo10','rakuten'].forEach(c=>{
+    ['shopify','employee','wholesale','amazon','amazon_fba','qoo10','rakuten','tiktok'].forEach(c=>{
       if(chs[c]){report+=`${chIcons[c]||c}: ${chs[c].qty}個\n`;totalQty+=chs[c].qty}
     });
     report+=`📊 合計: ${totalQty}個\n\n`;
     report+='【売上金額】\n';
-    ['shopify','employee','wholesale','amazon','amazon_fba','qoo10','rakuten'].forEach(c=>{
+    ['shopify','employee','wholesale','amazon','amazon_fba','qoo10','rakuten','tiktok'].forEach(c=>{
       if(chs[c]){report+=`${chIcons[c]||c}: ¥${chs[c].rev.toLocaleString()}\n`;totalRev+=chs[c].rev}
     });
     report+=`📊 合計: ¥${totalRev.toLocaleString()}\n\n`;
