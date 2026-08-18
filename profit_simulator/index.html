@@ -128,8 +128,27 @@ th .src{vertical-align:baseline}
 .invoice-sheet td.num{text-align:right;font-variant-numeric:tabular-nums}
 .invoice-sheet .inv-total-row td{font-weight:700;background:#f0f0ec}
 .invoice-sheet .inv-note{margin-top:20px;font-size:11px;color:#555;line-height:1.6;border-top:1px solid #ccc;padding-top:12px}
+/* 支払通知書 枠付きデザイン(Image#2準拠) */
+.invoice-sheet .inv-title-boxed{border:2.5px solid #222;text-align:center;font-size:26px;font-weight:700;letter-spacing:.35em;padding:14px 0;margin-bottom:18px}
+.invoice-sheet .inv-parties{display:flex;gap:20px;align-items:flex-start;margin-bottom:20px}
+.invoice-sheet .inv-to-col{flex:1}
+.invoice-sheet .inv-to-name{font-size:17px;font-weight:700;border-bottom:1.5px solid #222;padding:2px 8px 6px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.invoice-sheet .inv-to-name .suffix{font-size:13px;font-weight:400}
+.invoice-sheet .inv-bank-box{border:1px solid #222;padding:8px 10px;margin-top:14px;font-size:12px;line-height:1.7}
+.invoice-sheet .inv-bank-box .bk-label{font-weight:700;margin-bottom:2px}
+.invoice-sheet .inv-from-box{flex:0 0 46%;border:1px solid #222;padding:10px 12px;font-size:11.5px;line-height:1.75}
+.invoice-sheet .inv-from-box .company{font-weight:700;font-size:13px;margin-top:2px}
+.invoice-sheet .inv-amount-line{border-bottom:2px solid #222;padding:6px 4px 8px;margin-bottom:22px;display:flex;align-items:baseline;gap:14px;max-width:380px}
+.invoice-sheet .inv-amount-line .label{font-size:14px;font-weight:700}
+.invoice-sheet .inv-amount-line .amount{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.invoice-sheet .inv-amount-line .tax-note{font-size:11px;color:#555}
+.invoice-sheet .inv-caption{text-align:left;font-weight:600;font-size:10.5px;background:#fff;border:none;border-bottom:1px solid #999;padding:3px 4px;color:#333}
+.invoice-sheet thead{display:table-header-group}
+.invoice-sheet tfoot{display:table-row-group}
 
 @media print{
+  .invoice-sheet tr,.invoice-sheet tfoot,.invoice-sheet .inv-note{page-break-inside:avoid;break-inside:avoid}
+  .invoice-sheet thead{display:table-header-group}
   @page{size:A4 portrait;margin:0}
   body{background:#fff;font-size:11px;margin:0;padding:0}
   .header,.tabs,.ctrl,.no-print,.period-bar,.legend-box,.main>.legend-box{display:none !important}
@@ -503,6 +522,8 @@ th .src{vertical-align:baseline}
     <select id="invoiceDoctor" onchange="fetchInvoiceData()"></select>
     <label>対象月:</label>
     <input type="month" id="invoiceMonth" onchange="fetchInvoiceData()">
+    <label style="margin-left:8px">発行日:</label>
+    <input type="date" id="invoiceDate" onchange="renderInvoice()" title="支払通知書の日付（空欄なら翌月20日を自動表示）">
     <button class="btn-fetch" onclick="fetchInvoiceData()" style="margin-left:8px">データ取得</button>
     <button class="btn-p" onclick="printInvoice()" style="margin-left:auto">印刷 / PDF</button>
     <button class="btn-p" onclick="showCalcBreakdown()" style="margin-left:6px">内訳計算</button>
@@ -579,6 +600,52 @@ function findPI(name){
   if(l.includes('メンズ')||l.includes('mens')){if(l.includes('セット'))return 6;if(l.includes('セラム')||l.includes('serum'))return 5;if(l.includes('ローション')||l.includes('lotion'))return 4;}
   if(l.includes('セット'))return 3;if(l.includes('セラム')||l.includes('serum'))return 2;if(l.includes('ローション')||l.includes('lotion'))return 1;if(l.includes('わき')||l.includes('ワキ')||l.includes('脇'))return 0;return-1;
 }
+/* ===== SKU名寄せ（在庫管理マスタ「商品マスタ」の各コード列をミラー） =====
+   商品名がチャネルごとに違っても、SKU/JAN/ASIN/Qoo10コード/楽天番号で正しい商品に統合する。
+   値: 0=わき 1=ローション 2=セラム 3=スキンケアセット 4=メンズローション 5=メンズセラム 6=メンズセット -2=トライアル(別計算) */
+const SKU_ALIASES={
+  /* わき用クリーム */
+  'BC0010UDESK06':0,'BC0010UDESK07':0,'EP-ROF2-SJ2Q':0,'25HD0010UCRSK06':0,'25HD0010UCRSK06-001':0,
+  '4595559438016':0,'B0G4RHWYHG':0,'1196132160':0,'HD-DC-001':0,'hd-deo-cream-60g':0,
+  /* スキンローション */
+  'SK0022FLOFR15':1,'4595559438030':1,'B0GHR9CMNW':1,'1191256388':1,'HD-SL-001':1,'hd-skin-lotion-150ml':1,
+  /* スキンセラム */
+  'SK0023FSEFR05':2,'4595559438023':2,'B0G4VW32JJ':2,'1193338540':2,'HD-SS-001':2,'hd-skin-serum-50g':2,
+  /* スキンケアセット */
+  'SK0020FSTFR20':3,'4595559438085':3,'B0GK66FCKF':3,'1194510716':3,
+  /* メンズスキンローション */
+  'MS0062MLORT15':4,'MC0062MLORT15':4,'4595559438139':4,'B0GK144N15':4,'1193406011':4,'HD-ML-001':4,'hd-mens-lotion-150ml':4,
+  /* メンズスキンセラム */
+  'MS0063MSERT05':5,'MC0063MSERT05':5,'4595559438122':5,'B0GJZZ7YBW':5,'1193405110':5,'HD-MS-001':5,'hd-mens-serum-50g':5,
+  /* メンズスキンケアセット */
+  'MS0060MSTRT20':6,'4595559438115':6,'B0GK679S77':6,
+  /* トライアルセット（専用計算 = -2） */
+  'SK0050FTSFR24':-2,'4595559438092':-2,
+};
+function findPISku(sku){
+  if(sku===undefined||sku===null)return undefined;
+  const s=String(sku).trim();
+  if(!s)return undefined;
+  if(SKU_ALIASES[s]!==undefined)return SKU_ALIASES[s];
+  const base=s.replace(/-FBA$/i,'').trim(); /* AmazonのFBA用サフィックスを除去して再照合 */
+  if(base!==s&&SKU_ALIASES[base]!==undefined)return SKU_ALIASES[base];
+  return undefined;
+}
+/* 注文をSKU優先で商品へ名寄せ。SKU不明時のみ商品名フォールバック（findPI） */
+function findPIByOrder(o){
+  if(o){
+    const bySku=findPISku(o.sku);
+    if(bySku!==undefined){
+      /* 誤トライアルSKU対策: SKUがトライアル判定でも、商品名に「トライアル」が無ければ商品名優先。
+         （統合一覧のQoo10 SKUが誤ってトライアル(SK0050FTSFR24)になっている等。トライアルは商品名がトライアルセットのもののみ） */
+      if(bySku===-2 && !/トライアル|trial/i.test(String(o.product_name||''))){
+        return findPI(String(o.product_name||''));
+      }
+      return bySku;
+    }
+  }
+  return findPI(o?o.product_name:'');
+}
 let C=[
   {id:'shopify',name:'Shopify',fee:.04,color:'var(--c-shopify)',hasShipping:true,hasBox:true,allowsDiscount:true,allows50off:true},
   {id:'amazon',name:'Amazon',fee:.10,color:'var(--c-amazon)',hasShipping:true,hasBox:true,allowsDiscount:true,allows50off:true},
@@ -588,13 +655,46 @@ let C=[
   {id:'clinic',name:'クリニック',fee:0,color:'var(--c-clinic)',hasShipping:false,hasBox:false,allowsDiscount:false,allows50off:false},
   {id:'enko',name:'縁故',fee:0,color:'var(--c-enko)',hasShipping:false,hasBox:false,allowsDiscount:false,allows50off:false},
   {id:'mega',name:'Qoo10メガポ',fee:.059,color:'var(--c-mega)',hasShipping:true,hasBox:true,allowsDiscount:true,allows50off:true},
+  {id:'amazon_fba',name:'Amazon(FBA)',fee:.10,color:'var(--c-amazon)',hasShipping:false,hasBox:false,allowsDiscount:true,allows50off:true},
 ];
-const CHANNEL_MAP={'shopify':0,'Shopify':0,'amazon':1,'Amazon':1,'qoo10':2,'Qoo10':2,'楽天':3,'rakuten':3,'Rakuten':3,'tiktok':4,'TikTok':4,'TikTokショップ':4,'クリニック':5,'clinic':5,'直販':5,'wholesale':5,'卸':5,'縁故':6,'enko':6,'知人':6,'employee':6,'社員':6,'Qoo10メガポ':7,'メガポ':7};
-function findCI(ch){
-  if(!ch)return-1;const n=String(ch).trim();
+/* ===== チャネル解決 =====
+   ⚠ C[]の添字を直書きしてはいけない。C[]はSupabase kpi_channel_master の sort_order 順で
+   組み直されるため、チャネルを1つ追加しただけで添字が全部ズレる。
+   （2026-07-31 amazon_fba 追加で実際にズレ、楽天がQoo10欄に化けた）
+   チャネルは必ず「ID文字列」で扱い、添字が要る場面では CI('rakuten') で都度引く。 */
+const CHANNEL_MAP={'shopify':'shopify','Shopify':'shopify','amazon':'amazon','Amazon':'amazon','qoo10':'qoo10','Qoo10':'qoo10','楽天':'rakuten','rakuten':'rakuten','Rakuten':'rakuten','tiktok':'tiktok','TikTok':'tiktok','TikTokショップ':'tiktok','クリニック':'clinic','clinic':'clinic','直販':'clinic','wholesale':'clinic','卸':'clinic','縁故':'enko','enko':'enko','知人':'enko','employee':'enko','社員':'enko','Qoo10メガポ':'mega','メガポ':'mega','mega':'mega','amazon_fba':'amazon_fba','Amazon(FBA)':'amazon_fba','AmazonFBA':'amazon_fba'};
+/* チャネルID → 現在のC[]添字（存在しなければ-1） */
+function CI(id){return C.findIndex(c=>c.id===id)}
+/* チャネル名/IDの表記ゆれ → チャネルID */
+function findCID(ch){
+  if(!ch)return null;const n=String(ch).trim();
   if(CHANNEL_MAP[n]!==undefined)return CHANNEL_MAP[n];
   const l=n.toLowerCase();
-  if(l.includes('shopify'))return 0;if(l.includes('amazon'))return 1;if(l.includes('メガポ'))return 7;if(l.includes('qoo10'))return 2;if(l.includes('楽天')||l.includes('rakuten'))return 3;if(l.includes('tiktok'))return 4;if(l.includes('クリニック'))return 5;if(l.includes('縁故')||l.includes('employee')||l.includes('社員'))return 6;return-1;
+  if(l.includes('shopify'))return'shopify';if(l.includes('amazon_fba')||l.includes('fba'))return'amazon_fba';if(l.includes('amazon'))return'amazon';if(l.includes('メガポ'))return'mega';if(l.includes('qoo10'))return'qoo10';if(l.includes('楽天')||l.includes('rakuten'))return'rakuten';if(l.includes('tiktok'))return'tiktok';if(l.includes('クリニック'))return'clinic';if(l.includes('縁故')||l.includes('employee')||l.includes('社員'))return'enko';return null;
+}
+function findCI(ch){const id=findCID(ch);return id?CI(id):-1}
+/* 注文単位のチャネル解決。SKU末尾 -FBA はAmazon FBA扱い（送料・梱包箱が自社負担でないため）。
+   取込側で channel='amazon_fba' が入るようになっても二重にならない。 */
+function findCIDByOrder(o){
+  let id=findCID(o?o.channel:null);
+  if(id==='amazon'&&/-FBA$/i.test(String(o.sku||''))&&CI('amazon_fba')>=0) id='amazon_fba';
+  return id;
+}
+function findCIByOrder(o){const id=findCIDByOrder(o);return id?CI(id):-1}
+/* Vine等の無償提供判定（売上0・手数料0・送料/梱包/クーポンなし・医師報酬0で扱う） */
+function isFreeSample(o){
+  if(!o)return false;
+  const fs=String(o.fulfillment_status||'');
+  if(/vine/i.test(fs)||fs.includes('無償'))return true;
+  return Number(o.unit_price)===0&&Number(o.total)===0;
+}
+/* チャネル色（Chart.js用に実際の色値へ解決。CSS変数指定でもcanvasで描けるようにする） */
+function chColor(c){
+  const v=c&&c.color?String(c.color).trim():'';
+  if(v.startsWith('#'))return v;
+  const m=v.match(/var\((--[\w-]+)\)/);
+  if(m){const cv=getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim();if(cv)return cv;}
+  return '#666';
 }
 const DISC=[{name:'定価',calc:p=>p},{name:'10%OFF',calc:p=>Math.floor(p*.9)},{name:'20%OFF',calc:p=>Math.floor(p*.8)},{name:'30%OFF',calc:p=>Math.floor(p*.7)},{name:'50%OFF',calc:p=>Math.floor(p*.5)},{name:'1000円OFF',calc:p=>p-1000},{name:'メガポ',calc:p=>Math.floor(p*.9)}];
 let SHIP=600,TRIAL={price:980,cost:874,ship:185};
@@ -746,7 +846,14 @@ function calc(pi,ci,di,qty=1){
   return{rev,sp,fee,ship,box,amzCoupon,costGoods:unitCost*qty,costTotal,gp,gm,docFee,hdFee,feeRate};
 }
 function calcOrder(o){
-  const pi=findPI(o.product_name),ci=findCI(o.channel);
+  const pi=findPIByOrder(o),ci=findCIByOrder(o);
+  /* Vine等の無償提供: 売上0・手数料0・送料0・梱包0・クーポン0、原価のみを販促費として計上。
+     医師報酬は0（無償提供でマイナス報酬を出さない）→ HD負担 */
+  if(isFreeSample(o)&&pi>=0&&ci>=0){
+    const p=P[pi],qty=o.quantity||1,cog=getCost(p,C[ci])*qty;
+    return{pi,ci,rev:0,fee:0,ship:0,box:0,amzCoupon:0,costGoods:cog,costTotal:cog,gp:-cog,gm:0,
+      docFee:0,hdFee:-cog,qty,date:o.order_date,discount:0,autoDisc:0,unitPrice:0,unitRev:0,docFee1:0,isFree:true};
+  }
   if(pi===-2){
     /* トライアルセット: 専用計算 */
     const qty=o.quantity||1,rev=Number(o.total)||TRIAL.price*qty;
@@ -757,7 +864,10 @@ function calcOrder(o){
   if(pi<0||ci<0)return null;
   const p=P[pi],c=C[ci],qty=o.quantity||1;
   // unit_price解釈: qty>1の場合unit_priceがライン合計の可能性あり
-  let unitPrice=Number(o.unit_price)||p.price;
+  // ⚠ 単価0を定価にフォールバックしない（無償提供が定価で売れたことになるため）。
+  //    未取得(null/undefined/空)のときだけ定価で補う。
+  const _up=o.unit_price;
+  let unitPrice=(_up===null||_up===undefined||_up==='')?p.price:Number(_up)||0;
   if(qty>1&&unitPrice>p.price*1.1) unitPrice=Math.round(unitPrice/qty);
   // 割引自動判定: 実単価と定価を比較（明示的discount優先）
   let disc=Number(o.discount)||0;
@@ -833,7 +943,7 @@ async function fetchAndApply(){
   setStatus('取得中...','');
   try{
     const [rawOrders,excludedList]=await Promise.all([
-      sbGetAll('kpi_orders',`order_date=gte.${from}&order_date=lte.${to}&select=order_id,channel,order_date,product_name,sku,quantity,unit_price,total,discount,is_subscription`),
+      sbGetAll('kpi_orders',`order_date=gte.${from}&order_date=lte.${to}&select=order_id,channel,order_date,product_name,sku,quantity,unit_price,total,discount,is_subscription,fulfillment_status`),
       sbGetAll('kpi_excluded_orders','select=order_id')
     ]);
     const excludedIds=new Set(excludedList.map(e=>e.order_id));
@@ -841,11 +951,13 @@ async function fetchAndApply(){
     if(excludedIds.size)console.log(`[除外] ${rawOrders.length-filteredOrders.length}件の社員テスト購入を除外（除外リスト${excludedIds.size}件）`);
     const orders=dedupOrders(filteredOrders);
     // 計算
-    G={loaded:true,orders,calc:[],from,to,byPI:{},byCI:{},byDate:{},byPC:{},unmatched:{prod:{},ch:{}}};
+    G={loaded:true,orders,calc:[],from,to,byPI:{},byCI:{},byDate:{},byPC:{},unmatched:{prod:{},ch:{}},
+       free:{qty:0,cost:0,n:0,byCI:{}}};
     orders.forEach(o=>{
       const r=calcOrder(o);
       if(r){
         G.calc.push(r);
+        if(r.isFree){G.free.qty+=r.qty;G.free.cost+=r.costGoods;G.free.n++;G.free.byCI[r.ci]=(G.free.byCI[r.ci]||0)+r.qty;}
         // byPI
         if(!G.byPI[r.pi])G.byPI[r.pi]={rev:0,cost:0,gp:0,docFee:0,hdFee:0,qty:0,n:0};
         const bp=G.byPI[r.pi];bp.rev+=r.rev;bp.cost+=r.costTotal;bp.gp+=r.gp;bp.docFee+=r.docFee;bp.hdFee+=r.hdFee;bp.qty+=r.qty;bp.n++;
@@ -860,8 +972,8 @@ async function fetchAndApply(){
         if(!G.byPC[k])G.byPC[k]={rev:0,gp:0,qty:0,n:0};
         const bpc=G.byPC[k];bpc.rev+=r.rev;bpc.gp+=r.gp;bpc.qty+=r.qty;bpc.n++;
       } else {
-        if(findPI(o.product_name)<0&&o.product_name)G.unmatched.prod[o.product_name]=(G.unmatched.prod[o.product_name]||0)+1;
-        if(findCI(o.channel)<0&&o.channel)G.unmatched.ch[o.channel]=(G.unmatched.ch[o.channel]||0)+1;
+        if(findPIByOrder(o)<0&&o.product_name)G.unmatched.prod[o.product_name]=(G.unmatched.prod[o.product_name]||0)+1;
+        if(findCIByOrder(o)<0&&o.channel)G.unmatched.ch[o.channel]=(G.unmatched.ch[o.channel]||0)+1;
       }
     });
     setStatus(`${orders.length}件取得 (${from} 〜 ${to})`,'ok');
@@ -900,6 +1012,16 @@ function renderActualMatrix(){
   h+=kpiCard('期間売上 <span class="src src-a">確定</span><span class="src-ref src-sb">SB</span>',yen(t.rev),true)+kpiCard('期間粗利 <span class="src src-b">推計</span><span class="src-ref src-sb">SB</span>',yenS(t.gp),t.gp>=0)+kpiCard('期間粗利率 <span class="src src-b">推計</span><span class="src-ref src-sb">SB</span>',pct(t.gm),t.gm>=30);
   h+=kpiCard('期間HD報酬 <span class="src src-b">推計</span><span class="src-ref src-sb">SB</span>',yenS(t.hdFee),t.hdFee>=0)+kpiCard('注文行数 <span class="src src-a">確定</span><span class="src-ref src-sb">SB</span>',t.n.toLocaleString()+'<span class="unit">件</span>',true);
   h+='</div>';
+  // Vine等の無償提供（売上0・販促費として別掲）
+  if(G.free&&G.free.qty>0){
+    const byCh=Object.entries(G.free.byCI).map(([ci,q])=>(C[ci]?C[ci].name:'?')+' '+q+'個').join(' / ');
+    h+='<div class="card" style="margin-bottom:14px;border-left-color:#c9821f">';
+    h+='<h2>Vine等の無償提供 <span class="src src-a">確定</span><span class="src-ref src-sb">SB</span> '+periodLabel()+'</h2>';
+    h+='<div style="font-size:13px;line-height:1.8">';
+    h+='無償提供 <strong>'+G.free.qty+'個</strong>（'+G.free.n+'件・'+byCh+'）／ 販促費（原価） <strong>'+yen(G.free.cost)+'</strong>';
+    h+='<div style="font-size:11px;color:var(--nezumi);margin-top:4px">売上0・手数料0・送料0・梱包0・医師報酬0で計上。上の期間粗利にはこの販促費が含まれます。</div>';
+    h+='</div></div>';
+  }
   // 日次チャート
   h+='<div class="card" style="margin-bottom:14px"><h2>日次売上・粗利推移 <span class="src src-a">確定</span><span class="src src-b">推計</span> <span class="src-ref src-sb">SB</span> '+periodLabel()+'</h2><div class="chart-wrap"><canvas id="chartMatrix"></canvas></div></div>';
   // 商品別・チャネル別チャート（横並び）
@@ -981,11 +1103,10 @@ function renderByProductChart(){
 function renderByChannelChart(){
   const cv=document.getElementById('chartByChannel');if(!cv)return;
   const items=[];
-  const chColors=['var(--c-shopify)','var(--c-amazon)','var(--c-qoo10)','var(--c-rakuten)','var(--c-tiktok)','var(--c-clinic)','var(--c-enko)','var(--c-mega)'];
-  const rawColors=['#5c8a3e','#d48a1a','#c93545','#a01010','#333333','#457b9d','#8b7355','#e06080'];
+  /* 色はC[]のcolor（Supabaseマスタ由来）を使う。添字固定の配色表はチャネル追加でズレるため廃止 */
   C.forEach((c,ci)=>{
     const d=G.byCI[ci];
-    if(d&&d.rev>0) items.push({name:c.name,rev:d.rev,gp:d.gp,qty:d.qty,color:rawColors[ci]||'#666'});
+    if(d&&(d.rev>0||d.gp!==0)) items.push({name:c.name,rev:d.rev,gp:d.gp,qty:d.qty,color:chColor(c)});
   });
   items.sort((a,b)=>b.gp-a.gp);
   if(charts.byChannel)charts.byChannel.destroy();
@@ -1023,10 +1144,9 @@ function renderProductGMChart(){
 function renderChannelPieChart(){
   const cv=document.getElementById('chartChannelPie');if(!cv)return;
   const items=[];
-  const rawColors=['#5c8a3e','#d48a1a','#c93545','#a01010','#333333','#457b9d','#8b7355','#e06080'];
   C.forEach((c,ci)=>{
     const d=G.byCI[ci];
-    if(d&&d.rev>0) items.push({name:c.name,rev:d.rev,color:rawColors[ci]||'#666'});
+    if(d&&d.rev>0) items.push({name:c.name,rev:d.rev,color:chColor(c)});
   });
   items.sort((a,b)=>b.rev-a.rev);
   if(charts.channelPie)charts.channelPie.destroy();
@@ -1408,10 +1528,12 @@ function initSelects(){
 let invoiceData={loaded:false, orders:[], month:'', doctor:''};
 
 /* 医師→宛先情報マッピング */
+/* 振込先(bank)は {name銀行名, branch支店, type種別, number口座番号, holder名義} 。
+   未登録の項目は空文字でよい（通知書には「未登録」と表示）。口座情報が来たらここに追記する。 */
 const INVOICE_RECIPIENTS={
-  '東山':{company:'株式会社ヒトノリノベーション',suffix:'御中',bank:'カ）ヒトノリノベーション'},
-  '朝岡':{company:'朝岡医師',suffix:'御中',bank:''},
-  '辺土名':{company:'辺土名医師',suffix:'御中',bank:''},
+  '東山':{company:'株式会社ヒトノリノベーション',suffix:'御中',bank:{name:'',branch:'',type:'普通',number:'',holder:'カ）ヒトノリノベーション'}},
+  '朝岡':{company:'株式会社ペニーライフ',suffix:'御中',bank:{name:'GMOあおぞらネット銀行',branch:'法人営業部',type:'普通',number:'1455598',holder:'カ）ペニーライフ'}},
+  '辺土名':{company:'辺土名医師',suffix:'御中',bank:{name:'',branch:'',type:'普通',number:'',holder:''}},
 };
 const INVOICE_SENDER={
   company:'HUNDRED DOCTOR JAPAN株式会社',
@@ -1446,9 +1568,10 @@ async function fetchInvoiceData(){
   const lastDay=new Date(y,m,0).getDate();
   const to=monthVal+'-'+String(lastDay).padStart(2,'0');
   statusEl.textContent='取得中...';statusEl.className='status';
+  {const _di=document.getElementById('invoiceDate'); if(_di)_di.value='';}  // 新しい月取得時は発行日を既定(翌月20日)へリセット
   try{
     const [rawOrders,excludedList2]=await Promise.all([
-      sbGetAll('kpi_orders',`order_date=gte.${from}&order_date=lte.${to}&select=order_id,channel,order_date,product_name,sku,quantity,unit_price,total,discount,is_subscription`),
+      sbGetAll('kpi_orders',`order_date=gte.${from}&order_date=lte.${to}&select=order_id,channel,order_date,product_name,sku,quantity,unit_price,total,discount,is_subscription,fulfillment_status`),
       sbGetAll('kpi_excluded_orders','select=order_id')
     ]);
     const exIds2=new Set(excludedList2.map(e=>e.order_id));
@@ -1457,7 +1580,7 @@ async function fetchInvoiceData(){
     const docProducts=P.filter(p=>p.doc===docName);
     const docProdNames=new Set(docProducts.map(p=>p.name));
     const filtered=orders.filter(o=>{
-      const pi=findPI(o.product_name);
+      const pi=findPIByOrder(o);
       return pi>=0 && P[pi].doc===docName;
     });
     invoiceData={loaded:true, orders:filtered, month:monthVal, doctor:docName, from, to, allOrders:orders};
@@ -1473,30 +1596,40 @@ function renderInvoice(){
   if(!invoiceData.loaded){area.innerHTML='<div class="no-data-msg">医師を選択し「データ取得」を押してください</div>';return}
   const docName=invoiceData.doctor;
   const[y,m]=invoiceData.month.split('-').map(Number);
-  const recipient=INVOICE_RECIPIENTS[docName]||{company:docName+'医師',suffix:'御中',bank:''};
+  const recipient=INVOICE_RECIPIENTS[docName]||{company:docName+'医師',suffix:'御中',bank:{}};
   const sender=INVOICE_SENDER;
 
   // 商品×チャネル別に集計して明細行を作成
-  const {items:lineItems, hasBundleOrders}=buildInvoiceLines(invoiceData.orders, docName);
+  const {items:lineItems, hasBundleOrders, freeSampleQty}=buildInvoiceLines(invoiceData.orders, docName);
   const subtotal=lineItems.reduce((s,l)=>s+l.amount,0);
   const tax=Math.round(subtotal*10/110);
   const total=subtotal;
 
   // 売上・数量集計（サマリー用）
-  let summaryRev=0, summaryQty=0, summaryDocFee=0;
+  let summaryRev=0, summaryQty=0, summaryDocFee=0, summaryFreeQty=0, summaryFreeCost=0;
   const chSummary={};
   invoiceData.orders.forEach(o=>{
     const r=calcOrder(o);
     if(!r)return;
+    /* Vine等の無償提供は販売実績に含めない（売上0・報酬0。原価は販促費として別掲） */
+    if(r.isFree){summaryFreeQty+=r.qty;summaryFreeCost+=r.costGoods;return;}
     summaryRev+=r.rev;summaryQty+=r.qty;summaryDocFee+=r.docFee;
     const ci=r.ci;const cName=ci>=0?C[ci].name:'不明';
     if(!chSummary[cName])chSummary[cName]={rev:0,qty:0,docFee:0};
     chSummary[cName].rev+=r.rev;chSummary[cName].qty+=r.qty;chSummary[cName].docFee+=r.docFee;
   });
 
-  // 支払日: 翌月20日
-  const payDate=new Date(y,m,20);
-  const payDateStr=payDate.getFullYear()+'年'+(payDate.getMonth()+1)+'月'+payDate.getDate()+'日';
+  // 支払日: 発行日入力があればそれを使用。空欄なら翌月20日を既定表示（inputにもセット）
+  let payDateStr;
+  const _di=document.getElementById('invoiceDate');
+  if(_di && _di.value){
+    const d=new Date(_di.value);
+    payDateStr=d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日';
+  } else {
+    const payDate=new Date(y,m,20);
+    payDateStr=payDate.getFullYear()+'年'+(payDate.getMonth()+1)+'月'+payDate.getDate()+'日';
+    if(_di) _di.value=payDate.getFullYear()+'-'+String(payDate.getMonth()+1).padStart(2,'0')+'-'+String(payDate.getDate()).padStart(2,'0');
+  }
 
   let h='';
 
@@ -1508,6 +1641,11 @@ function renderInvoice(){
   h+=kpiCard('売上金額合計',yen(summaryRev),true);
   h+=kpiCard('医師報酬合計 <small>(報酬率'+Math.round(P.find(p=>p.doc===docName)?.dr*100||0)+'%)</small>',yen(summaryDocFee),true);
   h+='</div>';
+  if(summaryFreeQty>0){
+    h+='<div style="margin:8px 0;padding:8px 10px;background:#fff8e8;border-left:3px solid var(--kohaku,#c9821f);font-size:12px">';
+    h+='<strong>Vine等の無償提供 '+summaryFreeQty+'個</strong>（原価 '+yen(summaryFreeCost)+'）は売上・医師報酬に含めていません。販促費としてHD負担です。';
+    h+='</div>';
+  }
   // チャネル別サマリー
   h+='<h3>チャネル別サマリー</h3>';
   h+='<div class="g5" style="margin:8px 0">';
@@ -1532,33 +1670,45 @@ function renderInvoice(){
   h+='<tr style="font-weight:700;background:var(--kinari)"><td colspan="3">合計</td><td class="num">'+summaryQty+'</td><td class="num">'+yen(summaryRev)+'</td><td class="num">'+yen(summaryDocFee)+'</td></tr>';
   h+='</tbody></table></div></div>';
 
-  // ===== 支払通知書本体 =====
+  // ===== 支払通知書本体（枠付きデザイン Image#2準拠） =====
   h+='<div class="invoice-sheet" id="invoiceSheet">';
-  // タイトル
-  h+='<div class="inv-title">支払通知書</div>';
+  // タイトル（枠付き）
+  h+='<div class="inv-title-boxed">支払通知書</div>';
   // 日付
   h+='<div class="inv-date">'+payDateStr+'</div>';
-  // ヘッダ（宛先 / 差出人）
-  h+='<div class="inv-header">';
-  h+='<div class="inv-to"><span class="company">'+recipient.company+'</span><span class="suffix">'+recipient.suffix+'</span>';
-  if(recipient.bank) h+='<div style="font-size:12px;margin-top:4px">振込先：'+recipient.bank+'</div>';
-  h+='</div>';
-  h+='<div class="inv-from">';
+  // 宛先（左）／差出人（右）
+  h+='<div class="inv-parties">';
+  h+='<div class="inv-to-col">';
+  h+='<div class="inv-to-name"><span>'+recipient.company+'</span><span class="suffix">'+recipient.suffix+'</span></div>';
+  // 振込先ボックス
+  const bk=recipient.bank||{};
+  h+='<div class="inv-bank-box"><div class="bk-label">振込先</div>';
+  if(bk.name||bk.number||bk.holder){
+    if(bk.name) h+='<div>'+bk.name+(bk.branch?'　'+bk.branch:'')+'</div>';
+    if(bk.type||bk.number) h+='<div>'+(bk.type||'普通')+'　'+(bk.number||'')+'</div>';
+    if(bk.holder) h+='<div>'+bk.holder+'</div>';
+  } else {
+    h+='<div style="color:#999">（口座情報 未登録）</div>';
+  }
+  h+='</div></div>';
+  // 差出人ボックス
+  h+='<div class="inv-from-box">';
   h+='<div>'+sender.zip+'</div>';
   h+='<div>'+sender.address+'</div>';
-  h+='<div style="font-weight:700;font-size:13px;margin-top:4px">'+sender.company+'</div>';
+  h+='<div class="company">'+sender.company+'</div>';
   h+='<div>'+sender.representative+'</div>';
   h+='<div>'+sender.tel+'</div>';
   h+='<div>'+sender.registration+'</div>';
-  h+='</div></div>';
-  // 支払金額
-  h+='<div class="inv-amount-box">';
-  h+='<span class="label">支払金額</span>';
-  h+='<span class="amount">¥'+total.toLocaleString('ja-JP')+'</span>';
-  h+='<span class="tax-note">（税込み）</span>';
   h+='</div>';
+  h+='</div>';
+  // 支払金額（下線）
+  h+='<div class="inv-amount-line"><span class="label">支払金額</span><span class="amount">¥'+total.toLocaleString('ja-JP')+'</span><span class="tax-note">（税込み）</span></div>';
   // 明細テーブル
-  h+='<table><thead><tr><th style="width:70px">取引年月日</th><th>取引内容</th><th style="width:50px">数量</th><th style="width:60px">単価</th><th style="width:80px">金額</th></tr></thead><tbody>';
+  // thead＝各ページ先頭に繰り返す（継続ページにも宛先＋列見出しが出る）
+  h+='<table><thead>';
+  h+='<tr><th colspan="5" class="inv-caption">'+recipient.company+' '+recipient.suffix+'　／　支払通知書（'+(m+'月分')+'）</th></tr>';
+  h+='<tr><th style="width:70px">取引年月日</th><th>取引内容</th><th style="width:50px">数量</th><th style="width:60px">単価</th><th style="width:80px">金額</th></tr>';
+  h+='</thead><tbody>';
   const monthLabel=m+'月分';
   lineItems.forEach((l,i)=>{
     h+='<tr>';
@@ -1575,11 +1725,12 @@ function renderInvoice(){
   for(let i=0;i<emptyRows;i++){
     h+='<tr><td></td><td></td><td></td><td></td><td></td></tr>';
   }
-  // 小計・消費税・合計
+  // 小計・消費税・合計（tfootで1ブロック化＝ページ跨ぎで分断・孤立させない）
+  h+='</tbody><tfoot class="inv-foot">';
   h+='<tr class="inv-total-row"><td colspan="3"></td><td class="num">小計</td><td class="num">'+subtotal.toLocaleString()+'</td></tr>';
   h+='<tr class="inv-total-row"><td colspan="3"></td><td class="num">消費税</td><td class="num">'+tax.toLocaleString()+'</td></tr>';
   h+='<tr class="inv-total-row"><td colspan="3"></td><td class="num">合計</td><td class="num" style="font-size:14px">'+total.toLocaleString()+'</td></tr>';
-  h+='</tbody></table>';
+  h+='</tfoot></table>';
   // 備考
   h+='<div class="inv-note">';
   h+='<strong>備考</strong><br>';
@@ -1607,7 +1758,7 @@ function buildInvoiceLines(orders, docName){
   // === Step 1: Pre-process orders ===
   // 1a: Shopify orders — #始まりのみ（定期contract IDを除外）
   let processed=orders.filter(o=>{
-    if(findCI(o.channel)===0) return String(o.order_id).startsWith('#');
+    if(findCIDByOrder(o)==='shopify') return String(o.order_id).startsWith('#');
     return true;
   });
 
@@ -1617,29 +1768,28 @@ function buildInvoiceLines(orders, docName){
   const serumProduct=docProds.find(p=>p.name.includes('セラム')&&!p.isSet);
   if(setProduct && lotionProduct && serumProduct){
     const lotionPI=P.indexOf(lotionProduct), serumPI=P.indexOf(serumProduct);
-    // ペア化対象チャネル: EC(0),Amazon(1),Qoo10(2),楽天(3),TikTok(4),Qoo10メガポ(7)
-    const pairableChannels=new Set([0,1,2,3,4,7]);
+    // ペア化対象チャネル（IDで指定。クリニック/縁故は対象外）
+    const pairableChannels=new Set(['shopify','amazon','amazon_fba','qoo10','rakuten','tiktok','mega']);
     const byOrder={};
     processed.forEach(o=>{
-      const ci=findCI(o.channel);
-      if(!pairableChannels.has(ci)){return;} // クリニック/縁故はペア化対象外→後で直接追加
+      if(!pairableChannels.has(findCIDByOrder(o))){return;} // クリニック/縁故はペア化対象外→後で直接追加
       const oid=o.order_id;if(!byOrder[oid])byOrder[oid]=[];byOrder[oid].push(o);
     });
     const paired=[];
     // ペア化対象外の注文をそのまま追加
     processed.forEach(o=>{
-      const ci=findCI(o.channel);
-      if(!pairableChannels.has(ci)) paired.push(o);
+      if(!pairableChannels.has(findCIDByOrder(o))) paired.push(o);
     });
     Object.entries(byOrder).forEach(([oid,items])=>{
-      const lotions=items.filter(o=>findPI(o.product_name)===lotionPI);
-      const serums=items.filter(o=>findPI(o.product_name)===serumPI);
-      const others=items.filter(o=>{const pi=findPI(o.product_name);return pi!==lotionPI&&pi!==serumPI;});
+      const lotions=items.filter(o=>findPIByOrder(o)===lotionPI);
+      const serums=items.filter(o=>findPIByOrder(o)===serumPI);
+      const others=items.filter(o=>{const pi=findPIByOrder(o);return pi!==lotionPI&&pi!==serumPI;});
       const pairCount=Math.min(lotions.length, serums.length);
       for(let i=0;i<pairCount;i++){
         const lo=lotions[i],se=serums[i];
         paired.push({
           order_id:oid, channel:lo.channel, order_date:lo.order_date,
+          sku:lo.sku, fulfillment_status:lo.fulfillment_status,
           product_name:setProduct.name, quantity:1,
           unit_price:Number(lo.unit_price)+Number(se.unit_price),
           total:(Number(lo.total)||Number(lo.unit_price))+(Number(se.total)||Number(se.unit_price)),
@@ -1666,28 +1816,28 @@ function buildInvoiceLines(orders, docName){
   //  クリニック: {product}クリニック販売
   //  縁故:     {product}縁故販売
   const tiers=[
-    {ci:0, prefix:'',       discIdx:0, suffix:'定価販売'},
-    {ci:0, prefix:'',       discIdx:1, suffix:'10%OFFキャンペーン販売'},
-    {ci:1, prefix:'Amazon', discIdx:0, suffix:'定価販売'},
-    {ci:1, prefix:'Amazon', discIdx:2, suffix:'20%OFFキャンペーン販売'},
-    {ci:2, prefix:'Qoo10',  discIdx:0, suffix:'定価販売'},
-    {ci:5, prefix:'',       discIdx:null, suffix:'クリニック販売'},
-    {ci:6, prefix:'',       discIdx:null, suffix:'縁故販売'},
-  ];
+    {cid:'shopify', prefix:'',       discIdx:0, suffix:'定価販売'},
+    {cid:'shopify', prefix:'',       discIdx:1, suffix:'10%OFFキャンペーン販売'},
+    {cid:'amazon',  prefix:'Amazon', discIdx:0, suffix:'定価販売'},
+    {cid:'amazon',  prefix:'Amazon', discIdx:2, suffix:'20%OFFキャンペーン販売'},
+    {cid:'qoo10',   prefix:'Qoo10',  discIdx:0, suffix:'定価販売'},
+    {cid:'clinic',  prefix:'',       discIdx:null, suffix:'クリニック販売'},
+    {cid:'enko',    prefix:'',       discIdx:null, suffix:'縁故販売'},
+  ].map(t=>({...t, ci:CI(t.cid)})).filter(t=>t.ci>=0);
   const items=[];
   tiers.forEach(t=>{
     sortedProds.forEach(p=>{
       const pi=P.indexOf(p);
       // クリニック/縁故: 価格未設定 or セット商品はスキップ
-      if(t.ci===5&&(!p.clinicPrice||p.isSet)) return;
-      if(t.ci===6&&(!p.enkoPrice||p.isSet)) return;
+      if(t.cid==='clinic'&&(!p.clinicPrice||p.isSet)) return;
+      if(t.cid==='enko'&&(!p.enkoPrice||p.isSet)) return;
       // 医師報酬単価
       let docFeePerUnit=0;
       if(t.discIdx!==null){
         const r=calc(pi, t.ci, t.discIdx, 1);
         docFeePerUnit=Math.round(r.gp*p.dr);
       } else {
-        const rev=(t.ci===5)?p.clinicPrice:p.enkoPrice;
+        const rev=(t.cid==='clinic')?p.clinicPrice:p.enkoPrice;
         const unitCost=getCost(p, C[t.ci]);
         docFeePerUnit=Math.round((rev-unitCost)*p.dr);
       }
@@ -1699,14 +1849,17 @@ function buildInvoiceLines(orders, docName){
 
   // === Step 3: 前処理済み注文をテンプレート行にマッチング ===
   const unmatched=[];
+  let freeSampleQty=0;
   processed.forEach(o=>{
-    const pi=findPI(o.product_name);
+    const pi=findPIByOrder(o);
     if(pi<0) return;
-    const ci=findCI(o.channel);
+    const cid=findCIDByOrder(o), ci=cid?CI(cid):-1;
     if(ci<0) return;
     const qty=o.quantity||1;
+    // Vine等の無償提供は売上・報酬とも0 → 支払通知書には載せない（件数のみ控える）
+    if(isFreeSample(o)){freeSampleQty+=qty;return;}
     // クリニック/縁故: 直接マッチ
-    if(ci===5||ci===6){
+    if(cid==='clinic'||cid==='enko'){
       const row=items.find(it=>it._pi===pi&&it._ci===ci);
       if(row){row.qty+=qty;row.amount=row.unitPrice*row.qty;}
       else unmatched.push(o);
@@ -1747,14 +1900,25 @@ function buildInvoiceLines(orders, docName){
       const r=calcOrder(o);
       if(r){
         const docFee1=r.docFee1!==undefined?r.docFee1:(qty>0?Math.floor(r.docFee/qty):0);
-        unmatched.push({description:'(その他) '+P[pi].name+' '+C[ci].name, qty, unitPrice:docFee1, amount:r.docFee});
+        // 「その他」ではなく、チャネル＋割引内容まで明記（例: Amazonわき用クリーム10%OFFキャンペーン販売）
+        const _pfx={amazon:'Amazon',amazon_fba:'Amazon(FBA)',qoo10:'Qoo10',rakuten:'楽天',tiktok:'TikTok',mega:'Qoo10メガポ'}[cid]||'';
+        const _sfx=(discIdx===0)?'定価販売':((DISC[discIdx]?DISC[discIdx].name:'割引')+'キャンペーン販売');
+        unmatched.push({description:_pfx+P[pi].name+_sfx, qty, unitPrice:docFee1, amount:r.docFee});
       }
     }
   });
 
   // 金額再計算 + unmatched追加
   items.forEach(it=>{it.amount=it.unitPrice*it.qty});
-  unmatched.forEach(u=>{if(u.description)items.push(u);});
+  // unmatchedを「取引内容(description)」単位で集約（楽天など1注文=1行の分裂を防ぎ1行にまとめる）
+  const _uagg={};
+  unmatched.forEach(u=>{
+    if(!u.description)return;
+    if(!_uagg[u.description]) _uagg[u.description]={description:u.description, qty:0, unitPrice:u.unitPrice, amount:0};
+    _uagg[u.description].qty+=u.qty;
+    _uagg[u.description].amount+=u.amount;
+  });
+  Object.values(_uagg).forEach(u=>items.push(u));
 
   // 原価行: 開発投資医師(dr>=0.5)のみ
   let totalQty=0;
@@ -1767,7 +1931,7 @@ function buildInvoiceLines(orders, docName){
     });
   }
   items.forEach(it=>{delete it._pi;delete it._ci;delete it._discIdx});
-  return {items, hasBundleOrders:false};
+  return {items, hasBundleOrders:false, freeSampleQty};
 }
 
 function buildLineDesc(product, channel, order, bundleCount){
@@ -1825,6 +1989,79 @@ function buildLineDesc(product, channel, order, bundleCount){
   return chTag+' '+name+saleType+qtyLabel;
 }
 
+/* ===== 注文別 計算内訳テーブル: 並べ替え・絞り込み ===== */
+let calcState={rows:[],channel:'all',sortKey:'date',sortDir:'asc'};
+const CALC_COLS=[
+  {l:'日付',k:'date'},{l:'注文ID',k:'order_id'},{l:'商品',k:'product'},{l:'CH',k:'channel'},
+  {l:'数量',k:'qty',num:1},{l:'①売上',k:'rev',num:1},{l:'割引',k:'disc',num:1},{l:'原価×数',k:'costGoods',num:1},
+  {l:'②手数料',k:'fee',num:1},{l:'送料',k:'ship',num:1},{l:'梱包',k:'box',num:1},{l:'③原価計',k:'costTotal',num:1},
+  {l:'④粗利',k:'gp',num:1},{l:'率',k:'dr',num:1},{l:'⑤医師報酬',k:'docFee',num:1},{l:'⑥HD',k:'hdFee',num:1},
+  {l:'計算式',k:null},
+];
+const CALC_STRKEYS=new Set(['date','order_id','product','channel']);
+function renderCalcTable(){
+  const wrap=document.getElementById('calcTableWrap'); if(!wrap)return;
+  let rows=calcState.rows.slice();
+  if(calcState.channel!=='all') rows=rows.filter(r=>r.channel===calcState.channel);
+  const k=calcState.sortKey, dir=calcState.sortDir==='desc'?-1:1;
+  if(k){
+    rows.sort((a,b)=>{
+      let x=a[k],y=b[k];
+      if(CALC_STRKEYS.has(k)){x=String(x);y=String(y);return x<y?-dir:x>y?dir:0;}
+      return ((x||0)-(y||0))*dir;
+    });
+  }
+  // thead（クリックで並べ替え）
+  let th='<thead><tr>';
+  CALC_COLS.forEach(c=>{
+    if(c.k){
+      const active=calcState.sortKey===c.k;
+      const arrow=active?(calcState.sortDir==='asc'?' ▲':' ▼'):'';
+      th+='<th'+(c.num?' class="num"':'')+' style="cursor:pointer;user-select:none;white-space:nowrap'+(active?';color:var(--ai)':'')+'" onclick="calcSortBy(\''+c.k+'\')" title="クリックで並べ替え">'+c.l+arrow+'</th>';
+    } else { th+='<th>'+c.l+'</th>'; }
+  });
+  th+='</tr></thead>';
+  // tbody
+  let tb='<tbody>';
+  let tDoc=0,tHd=0,tRev=0,tQty=0;
+  rows.forEach(r=>{
+    tDoc+=r.docFee;tHd+=r.hdFee;tRev+=r.rev;tQty+=r.qty;
+    const drPct=(r.dr*100)+'%';
+    const formula=r.isTrial?'トライアル: 報酬=0':('粗利'+Math.floor(r.gp)+'×'+drPct+'='+r.docFee);
+    tb+='<tr>'
+      +'<td>'+r.date+'</td>'
+      +'<td style="font-size:10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+r.order_id+'">'+r.order_id+'</td>'
+      +'<td>'+r.product+'</td><td>'+r.channel+'</td>'
+      +'<td class="num">'+r.qty+'</td>'
+      +'<td class="num">'+yen(r.rev)+'</td>'
+      +'<td class="num">'+(r.disc>0?yen(r.disc):'−')+'</td>'
+      +'<td class="num">'+yen(r.costGoods)+'</td>'
+      +'<td class="num">'+yen(r.fee)+'</td>'
+      +'<td class="num">'+(r.ship>0?yen(r.ship):'−')+'</td>'
+      +'<td class="num">'+(r.box>0?yen(r.box):'−')+'</td>'
+      +'<td class="num">'+yen(r.costTotal)+'</td>'
+      +'<td class="num">'+yenS(r.gp)+'</td>'
+      +'<td class="num">'+drPct+'</td>'
+      +'<td class="num" style="font-weight:700">'+yen(r.docFee)+'</td>'
+      +'<td class="num">'+yen(r.hdFee)+'</td>'
+      +'<td style="font-size:10px;color:var(--nezumi)">'+formula+'</td>'
+      +'</tr>';
+  });
+  tb+='<tr style="font-weight:700;background:var(--kinari)"><td colspan="4">合計（'+rows.length+'件）</td>'
+    +'<td class="num">'+tQty+'</td><td class="num">'+yen(tRev)+'</td>'
+    +'<td colspan="8"></td>'
+    +'<td class="num">'+yen(tDoc)+'</td><td class="num">'+yen(tHd)+'</td><td></td></tr>';
+  tb+='</tbody>';
+  wrap.innerHTML='<table style="font-size:11px">'+th+tb+'</table>';
+  const cnt=document.getElementById('calcCount'); if(cnt)cnt.textContent=rows.length+'件';
+}
+function calcSortBy(key){
+  if(calcState.sortKey===key) calcState.sortDir=(calcState.sortDir==='asc'?'desc':'asc');
+  else { calcState.sortKey=key; calcState.sortDir='asc'; }
+  renderCalcTable();
+}
+function calcSetChannel(v){ calcState.channel=v; renderCalcTable(); }
+
 function showCalcBreakdown(){
   const area=document.getElementById('calcBreakdownArea');
   if(!invoiceData.loaded){alert('先にデータを取得してください');return}
@@ -1869,60 +2106,27 @@ function showCalcBreakdown(){
   h+='</tbody></table>';
   h+='</div>';
 
-  // 注文別明細
-  h+='<strong>注文別 計算内訳（全'+orders.length+'件）</strong>';
-  h+='<div style="overflow-x:auto;margin-top:6px"><table style="font-size:11px">';
-  h+='<thead><tr><th>日付</th><th>注文ID</th><th>商品</th><th>CH</th><th class="num">数量</th>';
-  h+='<th class="num">①売上</th><th class="num">割引</th>';
-  h+='<th class="num">原価×数</th><th class="num">②手数料</th><th class="num">送料</th><th class="num">梱包</th>';
-  h+='<th class="num">③原価計</th><th class="num">④粗利</th><th class="num">率</th><th class="num">⑤医師報酬</th><th class="num">⑥HD</th>';
-  h+='<th>計算式</th></tr></thead><tbody>';
-
-  let totalDoc=0, totalHd=0;
-  orders.forEach(o=>{
-    const r=calcOrder(o);
-    if(!r)return;
-    const pi=r.pi,ci=r.ci;
-    const p=pi>=0?P[pi]:null;
-    const c=ci>=0?C[ci]:null;
-    const qty=r.qty||1;
-    const disc=r.discount||0;
-    const pName=p?p.name:(pi===-2?'トライアルセット':'?');
-    const cName=c?c.name:'?';
-    const drPct=p?(p.dr*100)+'%':'0%';
-    totalDoc+=r.docFee; totalHd+=r.hdFee;
-
-    // 計算式テキスト
-    let formula='';
-    if(pi===-2){
-      formula='トライアル: 報酬=0';
-    } else {
-      formula='粗利'+Math.floor(r.gp)+'×'+drPct+'='+r.docFee;
-    }
-
-    h+='<tr>';
-    h+='<td>'+o.order_date+'</td>';
-    h+='<td style="font-size:10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+o.order_id+'">'+o.order_id+'</td>';
-    h+='<td>'+pName+'</td>';
-    h+='<td>'+cName+'</td>';
-    h+='<td class="num">'+qty+'</td>';
-    h+='<td class="num">'+yen(r.rev)+'</td>';
-    h+='<td class="num">'+(disc>0?yen(disc):'−')+'</td>';
-    h+='<td class="num">'+yen(r.costGoods)+'</td>';
-    h+='<td class="num">'+yen(r.fee)+'</td>';
-    h+='<td class="num">'+(r.ship>0?yen(r.ship):'−')+'</td>';
-    h+='<td class="num">'+(r.box>0?yen(r.box):'−')+'</td>';
-    h+='<td class="num">'+yen(r.costTotal)+'</td>';
-    h+='<td class="num">'+yenS(r.gp)+'</td>';
-    h+='<td class="num">'+drPct+'</td>';
-    h+='<td class="num" style="font-weight:700">'+yen(r.docFee)+'</td>';
-    h+='<td class="num">'+yen(r.hdFee)+'</td>';
-    h+='<td style="font-size:10px;color:var(--nezumi)">'+formula+'</td>';
-    h+='</tr>';
-  });
-  h+='<tr style="font-weight:700;background:var(--kinari)"><td colspan="14">合計</td>';
-  h+='<td class="num">'+yen(totalDoc)+'</td><td class="num">'+yen(totalHd)+'</td><td></td></tr>';
-  h+='</tbody></table></div>';
+  // 注文別明細（並べ替え・絞り込み対応）
+  calcState.rows=orders.map(o=>{
+    const r=calcOrder(o); if(!r)return null;
+    const pi=r.pi,ci=r.ci; const p=pi>=0?P[pi]:null; const c=ci>=0?C[ci]:null;
+    return {date:o.order_date||'',order_id:String(o.order_id||''),
+      product:p?p.name:(pi===-2?'トライアルセット':'?'),channel:c?c.name:'?',
+      qty:r.qty||1,rev:r.rev,disc:r.discount||0,costGoods:r.costGoods,fee:r.fee,ship:r.ship,box:r.box,
+      costTotal:r.costTotal,gp:r.gp,dr:p?p.dr:0,docFee:r.docFee,hdFee:r.hdFee,isTrial:pi===-2};
+  }).filter(Boolean);
+  calcState.channel='all'; calcState.sortKey='date'; calcState.sortDir='asc';
+  const totalDoc=calcState.rows.reduce((s,r)=>s+r.docFee,0);
+  const calcChannels=[...new Set(calcState.rows.map(r=>r.channel))];
+  h+='<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:4px 0 8px">';
+  h+='<strong>注文別 計算内訳</strong>';
+  h+='<span style="font-size:12px;color:var(--nezumi)">表示 <span id="calcCount">'+calcState.rows.length+'件</span> / 全'+orders.length+'件</span>';
+  h+='<label style="font-size:12px">チャネル絞り込み: <select onchange="calcSetChannel(this.value)" style="font-size:12px;padding:2px 6px"><option value="all">すべて</option>';
+  calcChannels.forEach(ch=>{h+='<option value="'+ch+'">'+ch+'</option>';});
+  h+='</select></label>';
+  h+='<span style="font-size:11px;color:var(--hai)">※ 列見出しクリックで並べ替え（再クリックで昇順⇄降順）</span>';
+  h+='</div>';
+  h+='<div id="calcTableWrap" style="overflow-x:auto"></div>';
 
   // 支払通知書との照合
   h+='<div style="margin-top:12px;padding:10px;background:#f0f7ff;border:1px solid var(--wasu);font-size:12px">';
@@ -1940,6 +2144,7 @@ function showCalcBreakdown(){
 
   h+='</div>';
   area.innerHTML=h;
+  renderCalcTable();  // 注文別内訳を並べ替え・絞り込み対応で描画
 }
 
 /* ===== Amazon取引CSVインポート ===== */
@@ -2040,20 +2245,55 @@ function parseCSVLine(line){
   result.push(cur.trim());return result;
 }
 
-function printInvoice(){
+/* 支払通知書の自己完結CSS（PDF出力＝ブラウザ印刷用。画面と同じ見た目を再現） */
+const INVOICE_CSS=`
+.invoice-sheet{max-width:720px;margin:0 auto;background:#fff;padding:24px 40px;font-size:13px;color:#222;line-height:1.8}
+.invoice-sheet .inv-date{text-align:right;font-size:12px;margin-bottom:16px}
+.invoice-sheet table{width:100%;border-collapse:collapse;margin:16px 0;font-size:12px}
+.invoice-sheet th,.invoice-sheet td{border:1px solid #999;padding:6px 10px}
+.invoice-sheet th{background:#f0f0ec;font-weight:600;text-align:center;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.invoice-sheet td.num{text-align:right;font-variant-numeric:tabular-nums}
+.invoice-sheet .inv-total-row td{font-weight:700;background:#f0f0ec;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.invoice-sheet .inv-note{margin-top:20px;font-size:11px;color:#555;line-height:1.6;border-top:1px solid #ccc;padding-top:12px}
+.invoice-sheet .inv-title-boxed{border:2.5px solid #222;text-align:center;font-size:26px;font-weight:700;letter-spacing:.35em;padding:14px 0;margin-bottom:18px}
+.invoice-sheet .inv-parties{display:flex;gap:20px;align-items:flex-start;margin-bottom:20px}
+.invoice-sheet .inv-to-col{flex:1}
+.invoice-sheet .inv-to-name{font-size:17px;font-weight:700;border-bottom:1.5px solid #222;padding:2px 8px 6px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.invoice-sheet .inv-to-name .suffix{font-size:13px;font-weight:400}
+.invoice-sheet .inv-bank-box{border:1px solid #222;padding:8px 10px;margin-top:14px;font-size:12px;line-height:1.7}
+.invoice-sheet .inv-bank-box .bk-label{font-weight:700;margin-bottom:2px}
+.invoice-sheet .inv-from-box{flex:0 0 46%;border:1px solid #222;padding:10px 12px;font-size:11.5px;line-height:1.75}
+.invoice-sheet .inv-from-box .company{font-weight:700;font-size:13px;margin-top:2px}
+.invoice-sheet .inv-amount-line{border-bottom:2px solid #222;padding:6px 4px 8px;margin-bottom:22px;display:flex;align-items:baseline;gap:14px;max-width:380px}
+.invoice-sheet .inv-amount-line .label{font-size:14px;font-weight:700}
+.invoice-sheet .inv-amount-line .amount{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.invoice-sheet .inv-amount-line .tax-note{font-size:11px;color:#555}
+.invoice-sheet .inv-caption{text-align:left;font-weight:600;font-size:10.5px;background:#fff;border:none;border-bottom:1px solid #999;padding:3px 4px;color:#333}
+.invoice-sheet thead{display:table-header-group}
+.invoice-sheet tfoot{display:table-row-group;page-break-inside:avoid;break-inside:avoid}
+.invoice-sheet tr{page-break-inside:avoid;break-inside:avoid}
+.invoice-sheet .inv-note{page-break-inside:avoid;break-inside:avoid}
+`;
+async function printInvoice(){
   if(!invoiceData.loaded){alert('先にデータを取得してください');return}
-  // 支払通知書パネルのみ印刷対象に
+  const sheet=document.getElementById('invoiceSheet');
+  if(!sheet){alert('先に支払通知書を表示してください');return}
+  const doc='<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>支払通知書</title>'
+    +'<style>@page{size:A4;margin:10mm}body{margin:0;font-family:"Yu Mincho","Hiragino Mincho ProN",serif;color:#222}'
+    +INVOICE_CSS+'.invoice-sheet{border:none}</style></head>'
+    +'<body onload="setTimeout(function(){window.print();},350)">'+sheet.outerHTML+'</body></html>';
+  // 1) pywebviewブリッジ経由: 既定ブラウザで開いて印刷/PDF保存（WebView2のprint不具合を回避）
+  try{
+    if(window.pywebview&&window.pywebview.api&&window.pywebview.api.save_pdf){
+      await window.pywebview.api.save_pdf(doc);
+      return;
+    }
+  }catch(e){ console.warn('save_pdf失敗→window.printにフォールバック',e); }
+  // 2) フォールバック（通常ブラウザで開いている場合）
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('print-target'));
-  document.getElementById('p7').classList.add('print-target');
-  // ヘッダー/フッター対策: タイトルを空にしてURLも隠す
-  const origTitle=document.title;
-  document.title=' ';
+  const p7=document.getElementById('p7'); if(p7)p7.classList.add('print-target');
   window.print();
-  // 印刷後に戻す
-  setTimeout(()=>{
-    document.title=origTitle;
-    document.getElementById('p7').classList.remove('print-target');
-  },1000);
+  setTimeout(()=>{ if(p7)p7.classList.remove('print-target'); },1000);
 }
 
 window.addEventListener('DOMContentLoaded',async()=>{
