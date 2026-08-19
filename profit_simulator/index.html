@@ -245,6 +245,9 @@ th .src{vertical-align:baseline}
     <h2>商品 x チャネル 粗利マトリクス <span class="src src-c">理論値</span><span class="src-ref src-sb">SB</span></h2>
     <p style="font-size:11px;color:var(--nezumi);margin:2px 0 8px;letter-spacing:.02em">※ 1個あたりの理論粗利額です。実売データではありません。実績は下部「実績クロス集計」を参照してください。</p>
     <div style="overflow-x:auto"><table id="matrixTable"></table></div>
+    <p style="font-size:11px;color:var(--nezumi);margin:8px 0 0;line-height:1.7">※ <b>TikTokショップの1商品あたり負担内訳</b>：販売手数料<b>10%</b>（Shopifyは4%）＋送料<b>600円</b>＋梱包箱<b>125〜140円</b>＋<b>TikTok専用原価</b>（通常原価より252〜715円高い設定。例：メンズスキンローション 868→1,120円）。<br>
+    　例）メンズスキンローション ¥3,980 → 手数料398＋送料600＋箱125＋原価1,120＝負担2,243／粗利1,737（43.6%）。<br>
+    　売上は<b>TikTok Shop Discount 適用前の注文金額</b>で計上しています（値引の負担元がTikTok側か自社かが未確認のため）。</p>
   </div>
   <!-- 実績セクション -->
   <div class="actual-section" id="matrixActual"></div>
@@ -300,6 +303,7 @@ th .src{vertical-align:baseline}
       <h2>シミュレーション結果 <span class="src src-c">理論値</span><span class="src-ref src-sb">SB</span></h2>
       <div class="sim-result" id="simResult"></div>
       <div style="margin-top:16px"><h3>明細</h3><table id="simDetail"></table></div>
+      <div id="simTikTokNote"></div>
     </div>
   </div>
   <div class="card" style="margin-top:16px">
@@ -1452,6 +1456,10 @@ function runSim(){
   const fee=Math.floor(rev*c.fee),ship=c.hasShipping?SHIP:0,box=c.hasBox?p.box:0;
   const cog=unitCost*qty,total=cog+fee+ship+box,gp=rev-total,gm=rev>0?gp/rev*100:0,docFee=Math.floor(gp*p.dr),hdFee=gp-docFee;
   document.getElementById('simResult').innerHTML=simBox('販売価格',yen(sp))+simBox('粗利額',yenS(gp),gp>=0)+simBox('粗利率',pct(gm),gm>=20)+simBox('HD報酬',yenS(hdFee),hdFee>=0);
+  {const _n=document.getElementById('simTikTokNote');
+   if(_n) _n.innerHTML = (c.id==='tiktok')?`<p style="font-size:11px;color:var(--nezumi);margin-top:10px;line-height:1.7">
+     ※ TikTokショップの1商品あたり負担内訳：手数料<b>10%</b>（Shopifyは4%）＋送料<b>${yen(SHIP)}</b>＋梱包箱<b>${yen(p.box)}</b>＋<b>TikTok専用原価 ${yen(unitCost)}</b>（通常原価${yen(p.cost)}より${yen(unitCost-p.cost)}高い設定）。<br>
+     　売上はTikTok Shop Discount適用前の注文金額で計上しています（値引の負担元が未確認のため）。</p>`:'';}
   let t='<thead><tr><th>項目</th><th style="text-align:right">金額</th></tr></thead><tbody>';
   t+=row2('定価',yen(p.price))+row2('割引率',discPct+'%')+row2('販売価格',yen(sp))+row2('数量',qty+'個')+row2('売上',yen(rev));
   t+='<tr><td colspan="2" style="background:var(--kinari);font-weight:600;color:var(--ai)">コスト</td></tr>';
@@ -2126,6 +2134,9 @@ function showCalcBreakdown(){
   h+='</select></label>';
   h+='<span style="font-size:11px;color:var(--hai)">※ 列見出しクリックで並べ替え（再クリックで昇順⇄降順）</span>';
   h+='</div>';
+  if(calcChannels.includes('TikTokショップ')){
+    h+='<div style="font-size:11px;color:var(--nezumi);line-height:1.7;margin:0 0 8px">※ <b>TikTokショップの1商品あたり負担内訳</b>：手数料<b>10%</b>（Shopifyは4%）＋送料<b>600円</b>＋梱包箱<b>125〜140円</b>＋<b>TikTok専用原価</b>（通常原価より252〜715円高い設定）。売上はTikTok Shop Discount適用前の注文金額で計上（値引の負担元が未確認のため）。</div>';
+  }
   h+='<div id="calcTableWrap" style="overflow-x:auto"></div>';
 
   // 支払通知書との照合
