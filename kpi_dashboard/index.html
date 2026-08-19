@@ -1047,6 +1047,13 @@ function renderDash(d,o){
   const ch={};d.forEach(x=>{if(!ch[x.channel])ch[x.channel]={rev:0,ord:0};ch[x.channel].rev+=Number(x.revenue||0);ch[x.channel].ord+=(x.order_count||0)});
   const chArr=Object.entries(ch).sort((a,b)=>b[1].rev-a[1].rev);
   let chRows=chArr.map(([c,v])=>`<tr><td>${chBadge(c)}</td><td class="num">${yen(v.rev)}</td><td class="num">${fmt(v.ord)}件${freeNote(freeByCh[c]||0)}</td></tr>`).join('');
+  // TikTokショップは手数料率・原価が他チャネルと異なるため、1商品あたりの負担内訳を注記する
+  const hasTikTok=chArr.some(([c])=>c==='tiktok');
+  const tiktokNote=hasTikTok?`<div style="font-size:11px;color:var(--sub);margin-top:8px;line-height:1.6">
+    ※TikTokショップの1商品あたり負担内訳：<b>販売手数料10%</b>（Shopifyは4%）＋<b>送料600円</b>＋<b>梱包箱125〜140円</b>＋<b>TikTok専用原価</b>（通常原価より252〜715円高い設定）。<br>
+    例）メンズスキンローション ¥3,980 → 手数料398＋送料600＋箱125＋原価1,120＝負担2,243／粗利1,737（43.6%）。<br>
+    ※売上は注文金額（例¥3,980）で計上。TikTok側の販促値引（TikTok Shop Discount）は顧客支払額を下げるが、自社負担かTikTok負担かが未確認のため現時点では売上から差し引いていません。
+  </div>`:'';
 
   // Product TOP10
   const prods={};o.forEach(x=>{const n=normProd(x.product_name);if(!prods[n])prods[n]={rev:0,qty:0,free:0};prods[n].rev+=Number(x.total||0);prods[n].qty+=(x.quantity||0);if(isFree(x))prods[n].free+=(x.quantity||0)});
@@ -1076,7 +1083,7 @@ function renderDash(d,o){
     </div>
     <div class="grid grid-2">
       <div class="card"><h2>チャネル別売上</h2>
-        <table><thead><tr><th>チャネル</th><th class="num">売上</th><th class="num">注文数</th></tr></thead><tbody>${chRows||'<tr><td colspan="3">データなし</td></tr>'}</tbody></table>
+        <table><thead><tr><th>チャネル</th><th class="num">売上</th><th class="num">注文数</th></tr></thead><tbody>${chRows||'<tr><td colspan="3">データなし</td></tr>'}</tbody></table>${tiktokNote}
       </div>
       <div class="card"><h2>商品別売上 TOP10</h2>
         <table><thead><tr><th>商品名</th><th class="num">売上</th><th class="num">数量</th></tr></thead><tbody>${pRows||'<tr><td colspan="3">データなし</td></tr>'}</tbody></table>
@@ -1173,8 +1180,14 @@ function renderProduct(o){
       <table><thead><tr><th>チャネル</th><th class="num">売上</th><th class="num">数量</th></tr></thead><tbody>${chRows}</tbody></table></div>`;
   }).join('');
 
+  const ttNote=(chTotals['tiktok']&&chTotals['tiktok'].rev>0)?`<div class="card" style="font-size:11px;color:var(--sub);line-height:1.6">
+    ※TikTokショップの1商品あたり負担内訳：<b>販売手数料10%</b>（Shopifyは4%）＋<b>送料600円</b>＋<b>梱包箱125〜140円</b>＋<b>TikTok専用原価</b>（通常原価より252〜715円高い）。
+    例）メンズスキンローション ¥3,980 → 負担2,243／粗利1,737（43.6%）。
+    売上はTikTok Shop Discount適用前の注文金額で計上（値引の負担元が未確認のため）。
+  </div>`:'';
   document.getElementById('tab-product').innerHTML=`
     <div class="grid" style="grid-template-columns:repeat(6,1fr)">${chCards}</div>
+    ${ttNote}
     <div class="grid grid-2">${prodHtml}</div>`;
 }
 
@@ -1245,6 +1258,12 @@ function renderReport(d,o){
 
   const totalAll=o.reduce((s,x)=>s+Number(x.total||0),0);
   report+=`${'='.repeat(40)}\n総売上合計: ¥${totalAll.toLocaleString()}\n`;
+  if(o.some(x=>x.channel==='tiktok')){
+    report+=`\n※TikTokショップの1商品あたり負担内訳\n`;
+    report+=`　販売手数料10%（Shopifyは4%）＋送料600円＋梱包箱125〜140円＋TikTok専用原価（通常原価より252〜715円高い）\n`;
+    report+=`　例) メンズスキンローション ¥3,980 → 手数料398＋送料600＋箱125＋原価1,120＝負担2,243 / 粗利1,737 (43.6%)\n`;
+    report+=`　売上はTikTok Shop Discount適用前の注文金額で計上（値引の負担元が未確認のため）\n`;
+  }
 
   document.getElementById('tab-report').innerHTML=`
     <div class="card" style="margin-bottom:16px">
