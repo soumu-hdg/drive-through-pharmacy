@@ -996,14 +996,32 @@ function renderSetOrders() {
   '<button class="set-order-btn set-order-save" onclick="saveCurrentAsSet()" title="現在の処方をセットとして保存">&#128190; 保存</button>' +
   '<button class="set-order-btn set-order-manage" onclick="openSetOrderManager()" title="セット整理・削除">&#9881; 管理</button>';
 }
-function applySetOrder(i) { const s = setOrders[i]; const k = karteData[currentPatientId]; k.prescriptions = []; s.items.forEach(item => { const d = drugs.find(x => x.id === item.drugId); if (d) { const savedNote = getDrugSavedNote(item.drugId); k.prescriptions.push({drug:d,qty:item.qty,days:s.days,note:savedNote||''}); } }); k.rxDays = s.days; document.getElementById('rxDays').value = s.days; renderRxList(); recalcBilling(); showToast(s.name + 'を適用'); }
+function applySetOrder(i) {
+  const s = setOrders[i]; const k = karteData[currentPatientId]; k.prescriptions = [];
+  // ★2026-08-20: 薬品マスタの行挿入でIDがずれると、以前は黙って薬が消える／別の薬に化ける恐れがあった。
+  //   解決できなかった項目は必ず知らせる（無言で減らさない）。
+  const unresolved = [];
+  s.items.forEach(item => {
+    let d = drugs.find(x => x.id === item.drugId);
+    if (!d && item.drugName) d = drugs.find(x => x.name === item.drugName);   // 名前での救済
+    if (d) { const savedNote = getDrugSavedNote(d.id) || getDrugSavedNote(item.drugId); k.prescriptions.push({drug:d,qty:item.qty,days:s.days,note:savedNote||''}); }
+    else { unresolved.push(item.drugName || item.drugId); }
+  });
+  k.rxDays = s.days; document.getElementById('rxDays').value = s.days; renderRxList(); recalcBilling();
+  if (unresolved.length) {
+    showSaveError('セット「' + s.name + '」の薬品照合', unresolved.length + '件が薬品マスタに見つかりません（' + unresolved.join(', ') + '）。手動で追加してください', null);
+  } else {
+    showToast(s.name + 'を適用');
+  }
+}
 function doRx() { const p = patients.find(x => x.id === currentPatientId); const k = karteData[currentPatientId]; k.prescriptions = []; p.prevRx.forEach(rx => { const d = drugs.find(x => x.id === rx.drugId); if (d) { const savedNote = getDrugSavedNote(rx.drugId); k.prescriptions.push({drug:d,qty:rx.qty,days:p.prevDays,note:savedNote||''}); } }); k.rxDays = p.prevDays; document.getElementById('rxDays').value = p.prevDays; renderRxList(); recalcBilling(); showToast('Do処方を適用'); }
 function deleteSetOrder(i) { if (!confirm(setOrders[i].name + ' を削除しますか？')) return; setOrders.splice(i,1); saveSetOrders(); renderSetOrders(); showToast('セットを削除'); }
 function saveCurrentAsSet() {
   const k = karteData[currentPatientId]; if (!k || !k.prescriptions.length) { showToast('処方がありません'); return; }
   const name = prompt('セット名を入力:', '新規セット');
   if (!name) return;
-  const items = k.prescriptions.map(rx => ({drugId:rx.drug.id,qty:rx.qty}));
+  // ★2026-08-20: 薬品IDだけだとマスタ変更で参照が壊れるため、薬品名も一緒に残して復元できるようにする
+  const items = k.prescriptions.map(rx => ({drugId:rx.drug.id, drugName:rx.drug.name, qty:rx.qty}));
   const days = parseInt(document.getElementById('rxDays').value) || 7;
   setOrders.push({name:name,items:items,days:days,builtin:false});
   saveSetOrders(); renderSetOrders(); showToast(name + ' を保存');

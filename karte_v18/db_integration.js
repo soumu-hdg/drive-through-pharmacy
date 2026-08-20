@@ -261,7 +261,11 @@ async function loadDbHeavyBackground() {
     if (data.drugs && data.drugs.length) {
       dbDrugs = data.drugs;
       const existingNames = drugs.map(d => d.name);
-      data.drugs.forEach(dd => { if (!existingNames.includes(dd.name)) drugs.push({ id: dd.id, name: dd.name, price: 0, unit: guessUnit(dd.name), category: dd.category || '内服' }); });
+      // ★2026-08-20修正: GASが返す id は 'db_' + 行番号 で、薬品マスタの途中に行を挿入すると
+      //   それ以降の薬品IDが全部ずれる（実際にレスプレン錠20mgの追加で33件がずれた）。
+      //   セット処方(karte_setOrders)と薬剤メモ(karte_drugNotes)は薬品IDで保存しているため、
+      //   ずれると「別の薬が入る」という危険な取り違えになる。薬品名から安定IDを作って行位置に依存させない。
+      data.drugs.forEach(dd => { if (!existingNames.includes(dd.name)) drugs.push({ id: stableDrugId(dd.name), name: dd.name, price: 0, unit: guessUnit(dd.name), category: dd.category || '内服' }); });
     }
     if (data.stock && data.stock.length) data.stock.forEach(s => { dbStock[s.name] = s.qty; });
     if (data.prescriptions && data.prescriptions.length) mergePrescriptionHistory(data.prescriptions);
@@ -279,6 +283,16 @@ async function loadDbDataForDate(targetIso) {
 }
 
 // ===== 薬品ユーティリティ =====
+// 薬品名から行位置に依存しない安定IDを作る（表記ゆれ対策として全角半角・空白を正規化）
+function stableDrugId(name) {
+  var s = String(name || '');
+  try { s = s.normalize('NFKC'); } catch (e) {}
+  s = s.replace(/[\s　]/g, '');
+  var h = 0;
+  for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; }
+  return 'dbn_' + h.toString(36);
+}
+
 function guessUnit(name) {
   if (/錠|カプセル/.test(name)) return 'T';
   if (/散|顆粒|細粒|DS/.test(name)) return '包';
