@@ -1948,17 +1948,103 @@ function showSaveError(context, detail, retryFn) {
   showToast('⚠ ' + context + 'に失敗しました');
 }
 
+// ===== 保存失敗時のローカル退避キュー (2026-08-20) =====
+// 背景: Supabaseへの保存が失敗すると、新規登録患者の氏名を復元する手段が一切なかった。
+//   （患者マスタへのミラーも届いておらず、2026-03〜08で氏名不明のカルテが6件発生した）
+//   保存できなかった内容をブラウザに退避し、再送できるようにして同じ欠落を防ぐ。
+var PENDING_SAVE_KEY = 'karte_pendingSaves';
+
+function readPendingSaves() {
+  try { return JSON.parse(localStorage.getItem(PENDING_SAVE_KEY) || '[]'); } catch (e) { return []; }
+}
+function writePendingSaves(list) {
+  try { localStorage.setItem(PENDING_SAVE_KEY, JSON.stringify(list)); }
+  catch (e) { console.error('[退避] 保存できません（容量超過の可能性）', e); }
+}
+
+// 退避用に、容量を食う項目（保険証写真など）を落とした複製を作る
+function slimForBackup(obj) {
+  var c;
+  try { c = JSON.parse(JSON.stringify(obj)); } catch (e) { return null; }
+  if (c && typeof c === 'object') {
+    delete c.insurancePhoto;
+    if (c.questionnaire && typeof c.questionnaire === 'object') delete c.questionnaire._raw;
+  }
+  return c;
+}
+
+function queuePendingSave(context, p, k) {
+  var list = readPendingSaves();
+  var key = (p && p.id) + '|' + selectedDate;
+  list = list.filter(function (x) { return x.key !== key; });   // 同一カルテは最新だけ残す
+  list.push({
+    key: key, context: context, savedAt: new Date().toISOString(),
+    patientId: p && p.id, patientName: p && p.name, visitDate: selectedDate,
+    patient: slimForBackup(p), karte: slimForBackup(k)
+  });
+  writePendingSaves(list);
+  console.warn('[退避] 未送信データを保存しました:', key, '（未送信 ' + list.length + '件）');
+  return list.length;
+}
+
+// 退避分をまとめて再送する
+function retryPendingSaves() {
+  var list = readPendingSaves();
+  if (!list.length) { showToast('未送信データはありません'); return Promise.resolve(0); }
+  var remain = [], done = 0;
+  return list.reduce(function (chain, item) {
+    return chain.then(function () {
+      return saveToSupabase(item.patient, item.karte, drugs).then(function (r) {
+        if (r && r.success) { done++; } else { remain.push(item); }
+      }).catch(function () { remain.push(item); });
+    });
+  }, Promise.resolve()).then(function () {
+    writePendingSaves(remain);
+    showToast('未送信データ: ' + done + '件を送信、' + remain.length + '件が残っています');
+    renderPendingSaveBanner();
+    return done;
+  });
+}
+
+// 未送信が残っていることを常時知らせる帯
+function renderPendingSaveBanner() {
+  var list = readPendingSaves();
+  var bar = document.getElementById('pendingSaveBar');
+  if (!list.length) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'pendingSaveBar';
+    bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99998;background:#8a5a00;color:#fff;'
+      + 'padding:8px 16px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:12px';
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = '';
+  var msg = document.createElement('span');
+  msg.style.flex = '1';
+  msg.textContent = '未送信のカルテが ' + list.length + ' 件あります（サーバに保存できていません）';
+  bar.appendChild(msg);
+  var btn = document.createElement('button');
+  btn.textContent = '再送信';
+  btn.style.cssText = 'background:#fff;color:#8a5a00;border:0;border-radius:2px;padding:5px 12px;font-weight:700;cursor:pointer';
+  btn.onclick = function () { retryPendingSaves(); };
+  bar.appendChild(btn);
+}
+
 // saveToSupabase の結果を必ず検査する共通ラッパ。
-// 成功時のみ静かに通し、失敗・例外はどちらも画面に出す。
+// 成功時のみ静かに通し、失敗・例外はどちらも画面に出したうえでローカルへ退避する。
 function saveToSupabaseChecked(context, p, k, drugsArg, retryFn) {
   return saveToSupabase(p, k, drugsArg).then(function (r) {
     if (r && r.success) {
       console.log('[Supabase] ' + context + 'OK' + (r.visitId ? ' visitId=' + r.visitId : ''));
+      var list = readPendingSaves().filter(function (x) { return x.key !== (p && p.id) + '|' + selectedDate; });
+      writePendingSaves(list); renderPendingSaveBanner();
       return r;
     }
+    queuePendingSave(context, p, k); renderPendingSaveBanner();
     showSaveError(context, (r && r.error) ? String(r.error) : '原因不明', retryFn);
     return r;
   }).catch(function (e) {
+    queuePendingSave(context, p, k); renderPendingSaveBanner();
     showSaveError(context, (e && e.message) ? e.message : String(e), retryFn);
     return { success: false, error: e };
   });
@@ -2458,6 +2544,8 @@ renderDiseaseQuickBtns();
 renderPatientList();
 // loadDbData() is called after auth completes (inside initSupabase → showApp)
 initSupabase().then(ok => { if (ok) console.log('[v0.8] Supabase二重書き込みモード有効'); });
+// 前回サーバに保存できなかったカルテが残っていれば起動時に知らせる（氏名の消失防止）
+try { renderPendingSaveBanner(); } catch (e) { console.error(e); }
 updateRevisionBadge();
 applyExamCollapse();
 
