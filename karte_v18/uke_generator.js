@@ -204,7 +204,7 @@ function buildUkeText(patientList, reviewOrg, instCode, instName, prefCode, bill
       const num = k.prescriptions.length;
       const maxDays = Math.max.apply(null, k.prescriptions.map(function (rx) { return rx.days || k.rxDays || 7; }));
       if (isExternal) {
-        if (!exr.shohou) si.push({ cat: '80', code: num >= 7 ? '120002710' : '120002910', points: num >= 7 ? 40 : 68 }); // 処方箋料
+        if (!exr.shohou) si.push({ cat: '80', code: num >= 7 ? '120002710' : '120002910', points: num >= 7 ? 32 : 60 }); // 処方箋料（s_procedures.json準拠: 120002710=32 / 120002910=60）
       } else {
         if (!exr.shohou) si.push({ cat: '80', code: num >= 7 ? '120002610' : '120001210', points: num >= 7 ? 29 : 42 }); // 処方料
         if (!exr.chouzai) si.push({ cat: '80', code: '120000710', points: maxDays <= 7 ? 11 : maxDays <= 14 ? 19 : maxDays <= 21 ? 25 : maxDays <= 28 ? 30 : 33 }); // 調剤料(内服)
