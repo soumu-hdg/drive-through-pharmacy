@@ -1470,7 +1470,8 @@ function recalcBilling() {
   if (numDrugs > 0) {
     if (isExternal) {
       // 院外処方: 処方箋料のみ（薬剤料・調剤料は算定しない）
-      shohouTen = numDrugs >= 7 ? 40 : 68;
+      // 点数は master/s_procedures.json 準拠（120002710=32点 / 120002910=60点）
+      shohouTen = numDrugs >= 7 ? 32 : 60;
     } else {
       // 院内処方: 従来通り
       shohouTen = numDrugs >= 7 ? 29 : 42;
@@ -1599,8 +1600,8 @@ function saveKarteDraft() {
   postToApi('saveKarteBundle', Object.assign({
     'カルテ': { 'カルテID': karteId, '患者ID': currentPatientId, '受診日': selectedDate, '診察開始時刻': examStartTime ? examStartTime.toLocaleTimeString('ja-JP') : '', '主訴': k.chiefComplaint, '所見': plainText, '体温': k.vitals.t, '収縮期血圧': k.vitals.bps, '拡張期血圧': k.vitals.bpd, 'SpO2': k.vitals.spo2, '脈拍': k.vitals.pulse, '初診フラグ': k.isFirstVisit ? 'TRUE' : 'FALSE', '時間区分': timeSlotLabel, 'ステータス': '一時保存' }
   }, draftRows));
-  // Supabase二重書き込み（スプシと並行）
-  saveToSupabase(p, k, drugs).then(r => { if (r.success) console.log('[Supabase] 一時保存OK'); });
+  // Supabase保存（失敗は赤バナー＋再試行導線で必ず可視化する）
+  saveToSupabaseChecked('一時保存', p, k, drugs, function () { saveKarteDraft(); });
   saveKarteSnapshot();          // 要望#9: 「直前保存に戻す」用のスナップショット
   showToast('カルテを一時保存しました');
 }
@@ -1632,11 +1633,11 @@ function confirmBilling() {
     'カルテ': { 'カルテID': karteId, '患者ID': currentPatientId, '受診日': selectedDate, '診察開始時刻': examStartTime ? examStartTime.toLocaleTimeString('ja-JP') : '', '診察終了時刻': new Date().toLocaleTimeString('ja-JP'), '主訴': k.chiefComplaint, '所見': plainText, '体温': k.vitals.t, '収縮期血圧': k.vitals.bps, '拡張期血圧': k.vitals.bpd, 'SpO2': k.vitals.spo2, '脈拍': k.vitals.pulse, '初診フラグ': k.isFirstVisit ? 'TRUE' : 'FALSE', '時間区分': timeSlotLabel, 'ステータス': '確定' },
     '算定': { 'カルテID': karteId, '患者ID': currentPatientId, '項目名': billingItemsList.join(', '), '合計点数': totalPoints, '負担額': burdenAmount, '負担割合': p.ratio }
   }, confRows));
-  // Supabase二重書き込み（確定版）
-  saveToSupabase(p, k, drugs).then(r => {
-    if (r.success) console.log('[Supabase] 確定保存OK visitId=' + r.visitId);
-    else console.warn('[Supabase] 確定保存失敗:', r.error);
-  });
+  // Supabase保存（確定版）。失敗は赤バナー＋再試行導線で必ず可視化する。
+  // 再試行は confirmBilling 全体ではなく保存だけを再実行する（確認ダイアログや状態変更を二重に走らせないため）
+  (function retryableConfirmSave() {
+    saveToSupabaseChecked('確定保存', p, k, drugs, retryableConfirmSave);
+  })();
   p.status = 'done';
   examStartTime = null;
   document.getElementById('examStartBtn').textContent = '診察開始';
@@ -1898,7 +1899,70 @@ function updateLateClaimBadge() {
   }
 }
 
-function postToApi(action, data) { try { fetch(API_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({action, data}) }); } catch(e) { console.warn('API error:', e); } }
+// ===== 「新カルテ用DB」スプレッドシートへのミラー送信 =====
+// 2026-08-20: 正はSupabase側で、当シートは参照されていないため送信を停止した。
+// 現場から参照要望が出た場合は、この定数を true に戻すだけで復旧する（コード削除はしていない）。
+const ENABLE_SHEET_MIRROR = false;
+
+function postToApi(action, data) {
+  if (!ENABLE_SHEET_MIRROR) { console.info('[sheet-mirror] 停止中のため送信せず:', action); return; }
+  try {
+    // no-cors のため応答は読めない。最低限ネットワーク層の失敗だけは拾う。
+    fetch(API_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({action, data}) })
+      .catch(function(e){ console.warn('API error:', action, e); });
+  } catch(e) { console.warn('API error:', action, e); }
+}
+
+// ===== 保存失敗の可視化 (2026-08-20) =====
+// 旧実装は console.log / console.warn のみで、保存が全滅しても画面には何も出なかった。
+// （過去に数週間ほど保存失敗に誰も気づけなかった事象の再発防止）
+function showSaveError(context, detail, retryFn) {
+  console.error('[保存失敗] ' + context, detail);
+  var bar = document.getElementById('saveErrorBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'saveErrorBar';
+    bar.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99999;background:#b3261e;color:#fff;'
+      + 'padding:10px 16px;font-size:14px;font-weight:700;display:flex;align-items:center;gap:12px;'
+      + 'box-shadow:0 2px 6px rgba(0,0,0,.3)';
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = '';
+  var msg = document.createElement('span');
+  msg.style.flex = '1';
+  msg.textContent = '⚠ ' + context + 'に失敗しました。データは保存されていません。'
+    + (detail ? '（' + detail + '）' : '');
+  bar.appendChild(msg);
+  if (retryFn) {
+    var btn = document.createElement('button');
+    btn.textContent = '再試行';
+    btn.style.cssText = 'background:#fff;color:#b3261e;border:0;border-radius:2px;padding:6px 14px;font-weight:700;cursor:pointer';
+    btn.onclick = function () { bar.remove(); retryFn(); };
+    bar.appendChild(btn);
+  }
+  var close = document.createElement('button');
+  close.textContent = '閉じる';
+  close.style.cssText = 'background:transparent;color:#fff;border:1px solid #fff;border-radius:2px;padding:6px 12px;cursor:pointer';
+  close.onclick = function () { bar.remove(); };
+  bar.appendChild(close);
+  showToast('⚠ ' + context + 'に失敗しました');
+}
+
+// saveToSupabase の結果を必ず検査する共通ラッパ。
+// 成功時のみ静かに通し、失敗・例外はどちらも画面に出す。
+function saveToSupabaseChecked(context, p, k, drugsArg, retryFn) {
+  return saveToSupabase(p, k, drugsArg).then(function (r) {
+    if (r && r.success) {
+      console.log('[Supabase] ' + context + 'OK' + (r.visitId ? ' visitId=' + r.visitId : ''));
+      return r;
+    }
+    showSaveError(context, (r && r.error) ? String(r.error) : '原因不明', retryFn);
+    return r;
+  }).catch(function (e) {
+    showSaveError(context, (e && e.message) ? e.message : String(e), retryFn);
+    return { success: false, error: e };
+  });
+}
 function printBilling() { showToast('印刷プレビュー（モック）'); }
 
 // ===== Modals =====

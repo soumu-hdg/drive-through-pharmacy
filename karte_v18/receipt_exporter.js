@@ -979,18 +979,30 @@ const ReceiptExporter = (() => {
         const kouhiType = kouhiInfo.futanshaNumber ? kouhiInfo.futanshaNumber.substring(0, 2) : '';
         const typeLabel = { '12': '生活保護', '21': '精神通院', '51': '特定疾患', '54': '難病',
           '81': 'こども', '82': '障害者', '83': 'ひとり親', '85': 'こども', '89': '福祉給付金' }[kouhiType] || kouhiType;
-        // 金額 = 点数 × 10 × 公費負担割合（概算: 3割負担なら7割公費 = 点数×7）
-        // 簡易計算: 一部負担金がある場合、総額 - 一部負担金
-        const amount = r.totalPoints * 10 - (r.insurance ? r.insurance.copayAmount : 0);
+        // ★2026-08-20修正: 旧実装は「総点数×10 −(保険の)一部負担金」で、
+        //   ①公費対象点数でなく保険の総点数を使い ②保険併用時も公費が全額負担する前提だったため
+        //   併用レセプトで大幅な過大請求になっていた。
+        // 正: 公費が負担するのは「公費対象点数×10」のうち患者負担分。
+        //   ・公費単独(保険なし)      … 公費対象点数×10 − 公費一部負担金
+        //   ・保険併用                … 公費対象点数×10×患者負担割合 − 公費一部負担金
+        //   患者負担割合 = 1 − 給付割合(copayRatio: '70'=7割給付=患者3割)
+        const koPoints = (typeof kouhiInfo.points === 'number' && kouhiInfo.points > 0)
+          ? kouhiInfo.points : r.totalPoints;
+        const koCopay = (typeof kouhiInfo.copayAmount === 'number') ? kouhiInfo.copayAmount : 0;
+        const hasInsurance = !!(r.insurance && r.insurance.insurerNumber);
+        const kyufuRatio = parseInt(r.copayRatio, 10);
+        const patientRatio = (hasInsurance && !isNaN(kyufuRatio))
+          ? (100 - kyufuRatio) / 100 : 1;
+        const amount = Math.round(koPoints * 10 * patientRatio) - koCopay;
 
         rows += `<tr>
           <td>${he(kouhiInfo.jukyushaNumber || '-')}</td>
           <td>${he(r.name)}</td>
           <td>${he(typeLabel)}</td>
-          <td style="text-align:right;">${r.totalPoints.toLocaleString()}</td>
+          <td style="text-align:right;">${koPoints.toLocaleString()}</td>
           <td style="text-align:right;">${amount > 0 ? amount.toLocaleString() + '円' : '-'}</td>
         </tr>`;
-        totalPoints += r.totalPoints;
+        totalPoints += koPoints;
         totalAmount += amount > 0 ? amount : 0;
       }
 
