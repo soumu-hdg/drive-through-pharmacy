@@ -1788,20 +1788,48 @@ function buildInvoiceLines(orders, docName){
     processed.forEach(o=>{
       if(!pairableChannels.has(findCIDByOrder(o))) paired.push(o);
     });
+    /* ⚠ ペア化は「行数」ではなく「個数」で行う。
+       （旧実装は行単位でペアにしたため、ローション×2＋セラム×2の1注文がセット1件に潰れていた）
+       1行を数量分の1個単位に展開してから突き合わせる。 */
+    const unitize=(o,prod)=>{
+      const q=Math.max(1,Number(o.quantity)||1);
+      let up=Number(o.unit_price)||0;
+      /* 統合一覧側で単価欄が「行合計」になっているチャネル対策（calcOrderと同じ判定） */
+      if(q>1&&prod&&prod.price>0&&up>prod.price*1.1) up=up/q;
+      /* ⚠ kpi_orders の discount には桁化けデータが混じる（例: 3,980円の商品に割引39,800／199,000）。
+         売価を超える割引はあり得ないので0扱いにする（誤って割引行へ振り分けないため） */
+      let dc=(Number(o.discount)||0)/q;
+      if(dc>up) dc=0;
+      const out=[];
+      for(let i=0;i<q;i++) out.push({...o, quantity:1, unit_price:up, total:up, discount:dc});
+      return out;
+    };
     Object.entries(byOrder).forEach(([oid,items])=>{
-      const lotions=items.filter(o=>findPIByOrder(o)===lotionPI);
-      const serums=items.filter(o=>findPIByOrder(o)===serumPI);
-      const others=items.filter(o=>{const pi=findPIByOrder(o);return pi!==lotionPI&&pi!==serumPI;});
+      const lotions=[],serums=[],others=[];
+      items.forEach(o=>{
+        if(isFreeSample(o)){others.push(o);return;} // Vine等の無償提供はペア化しない
+        const pi=findPIByOrder(o);
+        if(pi===lotionPI) lotions.push(...unitize(o,lotionProduct));
+        else if(pi===serumPI) serums.push(...unitize(o,serumProduct));
+        else others.push(o);
+      });
       const pairCount=Math.min(lotions.length, serums.length);
       for(let i=0;i<pairCount;i++){
         const lo=lotions[i],se=serums[i];
         paired.push({
-          order_id:oid, channel:lo.channel, order_date:lo.order_date,
-          sku:lo.sku, fulfillment_status:lo.fulfillment_status,
+          order_id:oid,
+          /* ⚠ チャネルはIDに解決して持たせる（skuを空にするためFBA判定がsku依存だと壊れる） */
+          channel:findCIDByOrder(lo)||lo.channel, order_date:lo.order_date,
+          /* ⚠ sku は必ず空にする。ローションのSKUを引き継ぐと findPIByOrder が
+             SKU優先で「スキンローション」と誤認し、セットがローションとして計上される
+             （2026-08-20 修正: 6月EC分がローション定価6件に化けていた） */
+          sku:'', fulfillment_status:lo.fulfillment_status,
           product_name:setProduct.name, quantity:1,
           unit_price:Number(lo.unit_price)+Number(se.unit_price),
           total:(Number(lo.total)||Number(lo.unit_price))+(Number(se.total)||Number(se.unit_price)),
-          discount:0, is_subscription:lo.is_subscription||se.is_subscription
+          /* クーポン割引は合算して引き継ぐ（0固定だと割引セットが定価行に落ちる） */
+          discount:(Number(lo.discount)||0)+(Number(se.discount)||0),
+          is_subscription:lo.is_subscription||se.is_subscription
         });
       }
       for(let i=pairCount;i<lotions.length;i++) paired.push(lotions[i]);
@@ -1831,6 +1859,11 @@ function buildInvoiceLines(orders, docName){
     {cid:'qoo10',   prefix:'Qoo10',  discIdx:0, suffix:'定価販売'},
     {cid:'clinic',  prefix:'',       discIdx:null, suffix:'クリニック販売'},
     {cid:'enko',    prefix:'',       discIdx:null, suffix:'縁故販売'},
+    /* 楽天も固定テンプレート行にする（2026-08-20）。
+       未登録だと unmatched 送りになり、単価が「その注文の実績値」で出るため
+       ペア化の不具合等がそのまま単価に化ける（例: セット化した行が楽天ローション325円で出た）。 */
+    {cid:'rakuten', prefix:'楽天',    discIdx:0, suffix:'定価販売'},
+    {cid:'rakuten', prefix:'楽天',    discIdx:2, suffix:'20%OFFキャンペーン販売'},
   ].map(t=>({...t, ci:CI(t.cid)})).filter(t=>t.ci>=0);
   const items=[];
   tiers.forEach(t=>{
@@ -1879,8 +1912,10 @@ function buildInvoiceLines(orders, docName){
     const price=P[pi].price;
     const discountAmt=Number(o.discount)||0;
     // 方法1: Supabaseのdiscount列にクーポン割引額が入っている場合
+    // ⚠ discount列は「その明細行の合計割引額」。定価と比べる前に数量で割る
+    //    （割らないと数量2以上の注文が割引率を誤判定する）
     if(discountAmt>0&&price>0){
-      const ratio=discountAmt/price;
+      const ratio=(discountAmt/Math.max(1,qty))/price;
       if(Math.abs(ratio-0.5)<0.05) discIdx=4;
       else if(Math.abs(ratio-0.3)<0.05) discIdx=3;
       else if(Math.abs(ratio-0.2)<0.05) discIdx=2;
