@@ -94,9 +94,12 @@ function toSupabaseVisit(p, karteState, clinicId) {
     clinic_id: clinicId || 'nishiharu',
     // patient_id は Supabase側のUUIDで紐付け（後で解決）
     patient_name: p.name,  // 紐付け用（暫定）
-    visit_date: p.visitDate || new Date().toISOString().split('T')[0],
+    // ★2026-08-20: 画面で開いている受診日(selectedDate)を優先する。
+    //   従来は p.visitDate を見ており、過去日のカルテでも当日で保存されることがあった。
+    visit_date: (typeof selectedDate !== 'undefined' && selectedDate) ? selectedDate
+                : (p.visitDate || new Date().toISOString().split('T')[0]),
     visit_time: p.arrivedAt || null,
-    doctor: null,  // シフトから取得
+    doctor: p.doctor || null,
     department: '内科',
     visit_type: karteState?.isFirstVisit ? '新規' : '再診',
     status: p.status || 'waiting',
@@ -104,7 +107,8 @@ function toSupabaseVisit(p, karteState, clinicId) {
     lane: p.vehicle?.lane || null,
     vehicle_plate: p.vehicle?.plate || null,
     self_pay: 0,
-    revenue_points: 0,
+    // ★2026-08-20: 従来は0固定で、カルテで算定した点数がDBに一切残らなかった
+    revenue_points: (karteState && typeof karteState.totalPoints === 'number') ? karteState.totalPoints : 0,
     covid_positive: false,
     flu_positive: false,
     strep_positive: false,
@@ -269,6 +273,24 @@ async function saveToSupabase(patient, karteState, drugsList) {
       }
     }
 
+    // 6. 算定明細を差し替え (2026-08-20追加。従来はどこにも保存されず billing_items_used は0件だった)
+    if (karteState.billingBreakdown && karteState.billingBreakdown.length > 0) {
+      const { data: oldB } = await supabaseClient
+        .from('billing_items_used').select('id').eq('visit_id', visitId);
+      const oldBIds = (oldB || []).map(r => r.id);
+
+      const bRows = karteState.billingBreakdown
+        .filter(x => x && x.name && typeof x.points === 'number')
+        .map(x => ({ visit_id: visitId, item_name: x.name, points: x.points, quantity: 1 }));
+      if (bRows.length) {
+        const { error: bErr } = await supabaseClient.from('billing_items_used').insert(bRows);
+        if (bErr) throw new Error('算定明細の保存失敗: ' + bErr.message);
+      }
+      if (oldBIds.length) {
+        await supabaseClient.from('billing_items_used').delete().in('id', oldBIds);
+      }
+    }
+
     console.log('[Supabase] カルテ保存完了 patient=' + patientId + ' visit=' + visitId);
     return { success: true, patientId, visitId };
 
@@ -312,6 +334,58 @@ async function fetchKarteHistory(patientId) {
     .order('visit_date', { ascending: false });
   if (error) { console.error('[Supabase] カルテ履歴取得エラー:', error); return []; }
   return data || [];
+}
+
+/**
+ * セット処方をSupabaseから取得 (2026-08-20追加)
+ * 従来はブラウザのlocalStorageにしか無く、PCを変えると消える／他端末と共有されなかった。
+ */
+async function fetchSetOrdersFromSupabase(clinicId) {
+  if (!isSupabaseReady()) return { success: false, error: 'Supabase未接続' };
+  try {
+    const { data, error } = await supabaseClient
+      .from('set_orders')
+      .select('id,name,days,items')
+      .eq('clinic_id', clinicId || 'nishiharu')
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(error.message);
+    return { success: true, rows: data || [] };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * セット処方をSupabaseへ保存 (2026-08-20追加)
+ * 挿入が成功してから旧行を消す順序にして、失敗時に既存を失わないようにする。
+ */
+async function saveSetOrdersToSupabase(list, clinicId) {
+  if (!isSupabaseReady()) return { success: false, error: 'Supabase未接続' };
+  clinicId = clinicId || 'nishiharu';
+  try {
+    const { data: oldRows, error: selErr } = await supabaseClient
+      .from('set_orders').select('id').eq('clinic_id', clinicId);
+    if (selErr) throw new Error(selErr.message);
+    const oldIds = (oldRows || []).map(r => r.id);
+
+    const rows = (list || []).map(s => ({
+      clinic_id: clinicId,
+      name: s.name,
+      days: parseInt(s.days) || 7,
+      items: Array.isArray(s.items) ? s.items : []
+    }));
+    if (rows.length) {
+      const { error } = await supabaseClient.from('set_orders').insert(rows);
+      if (error) throw new Error(error.message);
+    }
+    if (oldIds.length) {
+      const { error: delErr } = await supabaseClient.from('set_orders').delete().in('id', oldIds);
+      if (delErr) throw new Error(delErr.message);
+    }
+    return { success: true, count: rows.length };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
 }
 
 /**

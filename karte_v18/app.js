@@ -61,7 +61,34 @@ const defaultSetOrders = [
 ];
 let setOrders = loadSetOrders();
 function loadSetOrders() { try { const s = localStorage.getItem('karte_setOrders'); if (s) return JSON.parse(s); } catch(e) {} return JSON.parse(JSON.stringify(defaultSetOrders)); }
-function saveSetOrders() { localStorage.setItem('karte_setOrders', JSON.stringify(setOrders)); }
+// ★2026-08-20: セット処方はブラウザのlocalStorageにしか無く、PCを変えると消え、他端末と共有されなかった。
+//   Supabaseの set_orders を正とし、localStorage はオフライン用の控えとして残す。
+function saveSetOrders() {
+  localStorage.setItem('karte_setOrders', JSON.stringify(setOrders));   // 控え
+  if (typeof saveSetOrdersToSupabase !== 'function') return;
+  saveSetOrdersToSupabase(setOrders, 'nishiharu').then(function (r) {
+    if (r && r.success) { console.log('[Supabase] セット処方を保存 ' + r.count + '件'); return; }
+    showSaveError('セット処方の保存', (r && r.error) ? r.error : '原因不明',
+      function () { saveSetOrders(); });
+  }).catch(function (e) {
+    showSaveError('セット処方の保存', (e && e.message) ? e.message : String(e), function () { saveSetOrders(); });
+  });
+}
+
+// 起動時にSupabaseの内容で置き換える（0件のときは既存を消さない）
+function syncSetOrdersFromSupabase() {
+  if (typeof fetchSetOrdersFromSupabase !== 'function') return Promise.resolve();
+  return fetchSetOrdersFromSupabase('nishiharu').then(function (r) {
+    if (!r || !r.success) { console.warn('[Supabase] セット処方の取得に失敗:', r && r.error); return; }
+    if (!r.rows.length) { console.log('[Supabase] セット処方は0件のためローカルを維持'); return; }
+    setOrders = r.rows.map(function (x) {
+      return { name: x.name, days: x.days || 7, items: x.items || [], builtin: false };
+    });
+    localStorage.setItem('karte_setOrders', JSON.stringify(setOrders));
+    if (typeof renderSetOrders === 'function') renderSetOrders();
+    console.log('[Supabase] セット処方を取得 ' + setOrders.length + '件');
+  }).catch(function (e) { console.warn('[Supabase] セット処方の取得で例外:', e); });
+}
 
 const diseases = [
   {code:'J069',name:'急性上気道感染症'},{code:'J00',name:'急性鼻咽頭炎（かぜ）'},{code:'J039',name:'急性扁桃炎'},
@@ -1520,6 +1547,20 @@ function recalcBilling() {
   if (er) er.classList.toggle('excluded', !!ex.exam);
   const totalTen = shoshinTen + gairaiTen + surchargeTen + shohouTen + chouzaiTen + yakuzaiTen + examTen + extraTen;
   const burden = Math.round(totalTen * 10 * p.ratio);
+  // ★2026-08-20: 算定結果をカルテに保持し、Supabaseの visits.revenue_points と
+  //   billing_items_used に書けるようにする（従来は0固定で、売上と診療内容が突合できなかった）
+  k.totalPoints = totalTen;
+  k.patientBurden = burden;
+  k.billingBreakdown = [
+    { name: (k.isFirstVisit ? '初診料' : '再診料'), points: shoshinTen },
+    { name: '外来管理加算', points: gairaiTen },
+    { name: surcharge ? surcharge.type + '加算' : '時間加算', points: surchargeTen },
+    { name: (isExternal ? '処方箋料' : '処方料'), points: shohouTen },
+    { name: '調剤料', points: chouzaiTen },
+    { name: '薬剤料', points: yakuzaiTen },
+    { name: '検査', points: examTen }
+  ].filter(function (x) { return x.points > 0; })
+   .concat((k.addedBillingItems || []).map(function (it) { return { name: it.name, points: it.points }; }));
   document.getElementById('billShoshin').textContent = (k.isFirstVisit ? '初診料 ' : '再診料 ') + shoshinTen + '点';
   document.getElementById('billGairai').textContent = gairaiTen > 0 ? gairaiTen + '点' : '---';
   const shohouLabel = isExternal ? '処方箋料' : '処方料';
@@ -2561,7 +2602,11 @@ renderSetOrders();
 renderDiseaseQuickBtns();
 renderPatientList();
 // loadDbData() is called after auth completes (inside initSupabase → showApp)
-initSupabase().then(ok => { if (ok) console.log('[v0.8] Supabase二重書き込みモード有効'); });
+initSupabase().then(ok => {
+  if (ok) console.log('[v0.8] Supabase二重書き込みモード有効');
+  // セット処方はSupabaseを正とする（端末をまたいで共有される）
+  if (ok) syncSetOrdersFromSupabase();
+});
 // 前回サーバに保存できなかったカルテが残っていれば起動時に知らせる（氏名の消失防止）
 try { renderPendingSaveBanner(); } catch (e) { console.error(e); }
 updateRevisionBadge();
