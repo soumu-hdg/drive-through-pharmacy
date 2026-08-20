@@ -260,12 +260,30 @@ async function loadDbHeavyBackground() {
     if (!data || !data.success) return;
     if (data.drugs && data.drugs.length) {
       dbDrugs = data.drugs;
-      const existingNames = drugs.map(d => d.name);
-      // ★2026-08-20修正: GASが返す id は 'db_' + 行番号 で、薬品マスタの途中に行を挿入すると
+      // ★2026-08-20修正その1: GASが返す id は 'db_' + 行番号 で、薬品マスタの途中に行を挿入すると
       //   それ以降の薬品IDが全部ずれる（実際にレスプレン錠20mgの追加で33件がずれた）。
       //   セット処方(karte_setOrders)と薬剤メモ(karte_drugNotes)は薬品IDで保存しているため、
       //   ずれると「別の薬が入る」という危険な取り違えになる。薬品名から安定IDを作って行位置に依存させない。
-      data.drugs.forEach(dd => { if (!existingNames.includes(dd.name)) drugs.push({ id: stableDrugId(dd.name), name: dd.name, price: 0, unit: guessUnit(dd.name), category: dd.category || '内服' }); });
+      //
+      // ★2026-08-20修正その2: 名前の完全一致で突合していたため、内蔵リストの半角表記
+      //   「アセトアミノフェン錠200mg」とマスタの全角表記「アセトアミノフェン錠　２００ｍｇ」が
+      //   別物と見なされ、同じ薬が検索に2つ出ていた（実際に5種）。どちらを選ぶかで記録される表記が
+      //   変わり、処方実績の表記ゆれの原因になっていた。
+      //   薬品マスタ(夜間外来DB)を唯一の正とし、全角半角・空白を無視して突合したうえで
+      //   **表記はマスタ側に合わせる**。IDは既存のセット処方が壊れないよう内蔵側を維持する。
+      const byNorm = {};
+      drugs.forEach(d => { byNorm[normalizeDrugName(d.name)] = d; });
+      data.drugs.forEach(dd => {
+        const key = normalizeDrugName(dd.name);
+        const hit = byNorm[key];
+        if (hit) {
+          hit.name = dd.name;                                  // 表記はマスタを正とする
+          if (dd.category) hit.category = dd.category;
+        } else {
+          const nd = { id: stableDrugId(dd.name), name: dd.name, price: 0, unit: guessUnit(dd.name), category: dd.category || '内服' };
+          drugs.push(nd); byNorm[key] = nd;
+        }
+      });
     }
     if (data.stock && data.stock.length) data.stock.forEach(s => { dbStock[s.name] = s.qty; });
     if (data.prescriptions && data.prescriptions.length) mergePrescriptionHistory(data.prescriptions);
@@ -283,11 +301,16 @@ async function loadDbDataForDate(targetIso) {
 }
 
 // ===== 薬品ユーティリティ =====
-// 薬品名から行位置に依存しない安定IDを作る（表記ゆれ対策として全角半角・空白を正規化）
-function stableDrugId(name) {
+// 薬品名の表記ゆれ（全角/半角・空白）を吸収した比較用キーを作る
+function normalizeDrugName(name) {
   var s = String(name || '');
   try { s = s.normalize('NFKC'); } catch (e) {}
-  s = s.replace(/[\s　]/g, '');
+  return s.replace(/[\s　]/g, '').toLowerCase();
+}
+
+// 薬品名から行位置に依存しない安定IDを作る（表記ゆれ対策として全角半角・空白を正規化）
+function stableDrugId(name) {
+  var s = normalizeDrugName(name);
   var h = 0;
   for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; }
   return 'dbn_' + h.toString(36);
