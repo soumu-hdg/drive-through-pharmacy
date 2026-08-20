@@ -71,7 +71,14 @@ function toSupabasePatient(p, clinicId) {
     medical_history: Array.isArray(p.history) ? p.history : [],
     insurance_type: p.insurance || null,
     copay_rate: p.ratio || null,
-    insurer_number: p.insurerNumber || p.insuranceNumber || null,
+    // ★2026-08-20修正: 保険者番号のフォールバックに insuranceNumber（"12345-678(01)" のような
+    //   記号・番号を連結した表示用の文字列）を使っていたため、保険者番号の欄に別物が入る恐れがあった。
+    insurer_number: p.insurerNumber || null,
+    // ★2026-08-20追加: 記号・番号・枝番はこれまでSupabaseへ一切送られておらず、
+    //   スプレッドシートの「保険証」シートにしか存在しなかった（レセプトに必要な情報）。
+    ins_symbol: p.insSymbol || null,
+    ins_number: p.insNumber || null,
+    ins_edaban: p.insEdaban || null,
     kouhi_number: p.kouhiNumber || null,
     income_level: p.incomeLevel || null,
     memo: p.memo || null,
