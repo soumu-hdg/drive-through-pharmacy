@@ -127,12 +127,15 @@ function toSupabaseKarte(karteState) {
  * 処方配列をSupabaseのprescriptions行に変換
  * app.jsの処方形式: {drug: {id, name, unit, price}, qty}
  */
-function toSupabasePrescriptions(prescriptions) {
+function toSupabasePrescriptions(prescriptions, defaultDays) {
   if (!Array.isArray(prescriptions)) return [];
   return prescriptions.map((rx, i) => ({
     drug_name: rx.drug ? rx.drug.name : 'unknown',
     quantity: rx.qty || 0,
     unit: rx.drug ? rx.drug.unit || 'T' : 'T',
+    // ★2026-08-20追加: days列は存在するのに未マッピングで、投与日数が全件NULLだった。
+    //   app.js側の算出（rx.days || k.rxDays || 7）と同じ規則で埋める。
+    days: rx.days || defaultDays || 7,
     sort_order: i,
     note: rx.note || null,
   }));
@@ -205,29 +208,47 @@ async function saveToSupabase(patient, karteState, drugsList) {
       if (karteErr) throw new Error('カルテ保存失敗: ' + karteErr.message);
     }
 
-    // 4. 処方を差し替え（既存削除→新規挿入）
+    // 4. 処方を差し替え
+    // ★2026-08-20修正: 旧実装は「先に既存を全削除 → 挿入」の順で、挿入が失敗すると
+    //   既に削除済みの処方まで失われた（実際に2026-07以降、note列不在で挿入が全滅していた）。
+    //   そこで「新規を挿入 → 成功したら旧行だけを削除」の順に変更し、失敗しても既存を壊さない。
     if (karteState.prescriptions && karteState.prescriptions.length > 0) {
-      // 既存処方を削除
-      await supabaseClient
+      // 既存行のIDを控える（後で消すのは"この時点で存在した行"だけ）
+      const { data: oldRows } = await supabaseClient
         .from('prescriptions')
-        .delete()
+        .select('id')
         .eq('visit_id', visitId);
+      const oldIds = (oldRows || []).map(r => r.id);
 
-      // 新規挿入
-      const rxRows = toSupabasePrescriptions(karteState.prescriptions);
-      const insertRows = rxRows.map(rx => ({ ...rx, visit_id: visitId }));
-      const { error: rxErr } = await supabaseClient
-        .from('prescriptions')
-        .insert(insertRows);
+      const rxRows = toSupabasePrescriptions(karteState.prescriptions, karteState.rxDays);
+      let insertRows = rxRows.map(rx => ({ ...rx, visit_id: visitId }));
+
+      let { error: rxErr } = await supabaseClient.from('prescriptions').insert(insertRows);
+
+      // note列が存在しない環境（マイグレーション未適用）では note を落として再試行する。
+      // 列が追加されれば自動的に note も保存されるようになる。
+      if (rxErr && /'note' column|column .*note.* does not exist/i.test(rxErr.message || '')) {
+        console.warn('[Supabase] prescriptions.note 列が無いため note を除外して再試行します');
+        insertRows = insertRows.map(function (r) { var c = Object.assign({}, r); delete c.note; return c; });
+        const retry = await supabaseClient.from('prescriptions').insert(insertRows);
+        rxErr = retry.error;
+      }
       if (rxErr) throw new Error('処方保存失敗: ' + rxErr.message);
+
+      // 挿入が成功したときだけ旧行を削除する
+      if (oldIds.length) {
+        await supabaseClient.from('prescriptions').delete().in('id', oldIds);
+      }
     }
 
     // 5. 病名を差し替え
+    // ★2026-08-20修正: 処方と同様、挿入失敗で既存が消えないよう「挿入→成功後に旧行削除」に変更
     if (karteState.selectedDiseases && karteState.selectedDiseases.length > 0) {
-      await supabaseClient
+      const { data: oldD } = await supabaseClient
         .from('diseases_assigned')
-        .delete()
+        .select('id')
         .eq('visit_id', visitId);
+      const oldDIds = (oldD || []).map(r => r.id);
 
       const diseaseRows = toSupabaseDiseases(karteState.selectedDiseases);
       const insertDiseases = diseaseRows.map(d => ({ ...d, visit_id: visitId }));
@@ -235,6 +256,10 @@ async function saveToSupabase(patient, karteState, drugsList) {
         .from('diseases_assigned')
         .insert(insertDiseases);
       if (dErr) throw new Error('病名保存失敗: ' + dErr.message);
+
+      if (oldDIds.length) {
+        await supabaseClient.from('diseases_assigned').delete().in('id', oldDIds);
+      }
     }
 
     console.log('[Supabase] カルテ保存完了 patient=' + patientId + ' visit=' + visitId);
