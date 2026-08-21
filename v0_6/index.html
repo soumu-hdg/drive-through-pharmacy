@@ -1462,6 +1462,13 @@
                     <label>薬価（円）</label>
                     <input type="number" id="newmed-price" step="0.1" min="0" placeholder="例: 15.5">
                 </div>
+                <div class="form-group">
+                    <label>分類 <span style="color:var(--danger)">*</span></label>
+                    <select id="newmed-category" class="form-input">
+                        <option value="">選択してください</option>
+                    </select>
+                    <input type="text" id="newmed-category-custom" class="form-input" placeholder="一覧に無い分類はこちらに入力（例: 成人/降圧剤）" style="margin-top:6px;">
+                </div>
                 <button class="add-medicine-btn" onclick="submitNewMedicine()">➕ 薬品マスタに登録</button>
             </div>
 
@@ -1733,22 +1740,52 @@
             } catch (e) { console.warn('Supabase error:', e.message); return null; }
         }
 
-        async function loadStockFromSupabase() {
-            const data = await sbFetch('pharmacy_medicines?select=code,name,current_stock,unit,threshold,category&order=code');
-            if (!data || data.length === 0) return false;
-            let matched = 0;
-            let hasNonZero = false;
-            stockData.forEach(m => {
-                const sb = data.find(d => d.code === m.code);
-                if (sb) { m.stock = sb.current_stock; matched++; if (sb.current_stock > 0) hasNonZero = true; }
-            });
-            console.log('Supabase在庫同期: ' + matched + '/' + stockData.length + '件マッチ, 非ゼロ=' + hasNonZero);
-            if (matched > 0 && !hasNonZero) {
-                console.log('Supabase全品在庫0（未初期化）→ GASフォールバック');
-                return false;
-            }
-            return matched > 0;
+        const MASTER_CACHE_KEY = 'dtp_v06_master_cache';
+
+        // Supabaseの1行を画面用の薬品オブジェクトへ変換
+        function toStockItem(r) {
+            return {
+                code: r.code,
+                name: r.name || '',
+                stock: r.current_stock || 0,
+                unit: r.unit || '',
+                threshold: r.threshold || 0,
+                category: r.category || '',
+                usage: r.usage_text || '',
+                price: (r.price === null || r.price === undefined || r.price === 0) ? '' : String(r.price),
+                maker: '',
+                target: '',
+                csvGroup: r.csv_group || 'master'
+            };
         }
+
+        // 薬品マスタ本体をSupabaseから読み込む（一覧の生成元）
+        async function loadMasterFromSupabase() {
+            const data = await sbFetch('pharmacy_medicines?select=code,name,current_stock,unit,threshold,category,usage_text,price,csv_group&order=code');
+            if (!data || data.length === 0) return false;
+            stockData = data.map(toStockItem);
+            try {
+                localStorage.setItem(MASTER_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), items: stockData }));
+            } catch (e) { console.warn('マスタキャッシュ保存失敗:', e.message); }
+            console.log('薬品マスタ読込(Supabase): ' + stockData.length + '件');
+            return true;
+        }
+
+        // Supabaseに届かないときの保険。前回読めたマスタを使う
+        function loadMasterFromCache() {
+            try {
+                const raw = localStorage.getItem(MASTER_CACHE_KEY);
+                if (!raw) return false;
+                const cached = JSON.parse(raw);
+                if (!cached || !Array.isArray(cached.items) || cached.items.length === 0) return false;
+                stockData = cached.items;
+                console.log('薬品マスタ読込(キャッシュ): ' + stockData.length + '件');
+                return true;
+            } catch (e) { return false; }
+        }
+
+        // 後方互換: 旧名の呼び出しはマスタ読込へ委譲
+        async function loadStockFromSupabase() { return loadMasterFromSupabase(); }
 
         async function syncToSupabase(items) {
             if (!items || items.length === 0) return;
@@ -1813,11 +1850,29 @@
             }
         }
 
-        // GASから在庫データを取得
-        // マスターはローカル埋め込みstockData (薬品マスタ準拠84品目)。GASは在庫数同期のみ。
-        // コードマッチ優先、不一致時は薬品名マッチでフォールバック。
+        // GASから在庫データを取得。
+        // 通常はSupabaseが正で、これはSupabaseにもキャッシュにも届かないときの最後の保険。
+        // GASの在庫サマリーには区切り行と旧コードの同名重複が混ざっているため、それらを落として使う。
         async function loadStockFromGAS() {
             const result = await gasGet('getStock');
+            if (result && result.success && stockData.length === 0) {
+                const picked = {};
+                result.stock.forEach(s => {
+                    const nm = String(s.name || '').trim();
+                    if (!nm || nm.indexOf('---') >= 0) return;   // 「--- 以下：薬品マスタ外品目 ---」等の区切り行
+                    const cur = picked[nm];
+                    // 同名が複数ある場合は在庫数が多い行（＝実際に使われている行）を採用
+                    if (!cur || (s.currentStock || 0) > (cur.currentStock || 0)) picked[nm] = s;
+                });
+                stockData = Object.keys(picked).map(nm => ({
+                    code: String(picked[nm].code), name: nm, stock: picked[nm].currentStock || 0,
+                    unit: picked[nm].unit || '', threshold: picked[nm].threshold || 0,
+                    category: '', usage: '', price: '', maker: '', target: '', csvGroup: 'master'
+                }));
+                renderStockList();
+                showToast('DBに接続できないため、在庫サマリーから簡易表示しています', 'error');
+                return;
+            }
             if (result && result.success) {
                 const byCode = {};
                 const byName = {};
@@ -1889,97 +1944,11 @@
         // 後方互換: 旧名の呼び出しはSupabase版へ委譲（引数は無視し全件ローカル絞り込み）
         async function loadHistoryFromGAS() { return loadHistoryFromSupabase(); }
 
-        // ===== データ（薬品マスタ準拠 84品目 2026-06-18, M021/M022追加 2026-07-09） =====
-        // コード体系: M001-M020=成人内服薬, M050-M069=外用・坐剤・検査キット, M100-M141=小児内服薬
-        let stockData = [
-            // ===== M001-M020: 成人内服薬 =====
-            { code: 'M001', name: 'アセトアミノフェン錠　２００ｍｇ', stock: 0, unit: '錠', threshold: 100, category: '成人/解熱鎮痛剤', usage: '', price: '6.3', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M002', name: 'アセトアミノフェン錠　５００ｍｇ', stock: 0, unit: '錠', threshold: 200, category: '成人/解熱鎮痛剤', usage: '', price: '11.2', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M003', name: 'ロキソプロフェン錠　６０ｍｇ', stock: 0, unit: '錠', threshold: 100, category: '成人/解熱鎮痛剤', usage: '', price: '10.5', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M004', name: 'カルボシステイン錠　２５０ｍｇ', stock: 0, unit: '錠', threshold: 300, category: '成人/去痰剤', usage: '', price: '10.8', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M005', name: 'トラネキサム酸錠　２５０ｍｇ', stock: 0, unit: '錠', threshold: 300, category: '成人/止血剤', usage: '', price: '10.8', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M006', name: 'ドンペリドン錠　１０ｍｇ', stock: 0, unit: '錠', threshold: 50, category: '成人/吐気止め', usage: '', price: '6.3', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M007', name: 'プリンペラン錠　５ｍｇ', stock: 0, unit: '錠', threshold: 20, category: '成人/吐気止め', usage: '', price: '10.8', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M008', name: 'メジコン錠　１５ｍｇ', stock: 0, unit: '錠', threshold: 300, category: '成人/咳止め', usage: '', price: '8.5', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M009', name: 'レスプレン錠　３０ｍｇ', stock: 0, unit: '錠', threshold: 500, category: '成人/咳止め', usage: '', price: '11.8', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M010', name: 'フェキソフェナジン塩酸塩　６０ｍｇ', stock: 0, unit: '錠', threshold: 100, category: '成人/抗アレルギー剤', usage: '', price: '10.8', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M011', name: 'クラリスロマイシン錠　２００ｍｇ', stock: 0, unit: '錠', threshold: 100, category: '成人/抗生剤', usage: '', price: '19.2', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M012', name: 'ケフレックスカプセル　２５０ｍｇ', stock: 0, unit: '錠', threshold: 100, category: '成人/抗生剤', usage: '', price: '31.5', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M013', name: 'サワシリンカプセル　２５０ｍｇ', stock: 0, unit: '錠', threshold: 100, category: '成人/抗生剤', usage: '', price: '15.3', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M014', name: 'レボフロキサシン錠　２５０ｍｇ', stock: 0, unit: '錠', threshold: 100, category: '成人/抗生剤', usage: '', price: '24.7', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M015', name: 'ビオフェルミン錠剤', stock: 0, unit: '錠', threshold: 100, category: '成人/整腸剤', usage: '', price: '6.1', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M016', name: 'ミヤBM錠', stock: 0, unit: '錠', threshold: 100, category: '成人/整腸剤', usage: '', price: '6.1', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M017', name: 'タケキャブ錠　１０ｍｇ', stock: 0, unit: '錠', threshold: 50, category: '成人/消化性潰瘍用剤', usage: '', price: '91.6', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M018', name: '麻黄湯エキス顆粒', stock: 0, unit: '包', threshold: 42, category: '成人/漢方薬', usage: '', price: '11.4', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M019', name: 'メリスロン錠　６ｍｇ', stock: 0, unit: '錠', threshold: 50, category: '成人/鎮暈剤', usage: '', price: '10.8', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M020', name: 'オセルタミビルカプセル　７５ｍｇ', stock: 0, unit: '錠', threshold: 50, category: '成人/抗インフルエンザ薬', usage: '', price: '108', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M021', name: 'セファレキシン錠　２５０ｍｇ', stock: 0, unit: '錠', threshold: 50, category: '成人/抗生剤', usage: '', price: '', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M022', name: 'メトクロプラミド錠　５ｍｇ', stock: 0, unit: '錠', threshold: 50, category: '成人/吐気止め', usage: '', price: '', maker: '', target: '', csvGroup: 'master' },
-            // ===== M050-M069: 外用薬・坐剤・検査キット =====
-            { code: 'M050', name: 'アンヒバ坐剤　１００ｍｇ', stock: 0, unit: '個', threshold: 50, category: '小児/解熱薬', usage: '', price: '21.6', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M051', name: 'アンヒバ坐剤　２００ｍｇ', stock: 0, unit: '個', threshold: 50, category: '小児/解熱薬', usage: '', price: '21.6', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M052', name: 'ドンペリドン坐剤　１０ｍｇ', stock: 0, unit: '個', threshold: 20, category: '小児/吐気止め', usage: '', price: '33.4', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M053', name: 'ドンペリドン坐剤　３０ｍｇ', stock: 0, unit: '個', threshold: 20, category: '小児/吐気止め', usage: '', price: '52.8', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M054', name: 'ダイアップ　６ｍｇ', stock: 0, unit: '錠', threshold: 5, category: '小児/熱性けいれん緩和剤', usage: '', price: '50.3', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M055', name: 'ツロブテロールテープ　０．５ｍｇ', stock: 0, unit: '枚', threshold: 20, category: '外用/気管支拡張剤', usage: '', price: '13.1', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M056', name: 'ツロブテロールテープ　１ｍｇ', stock: 0, unit: '枚', threshold: 20, category: '外用/気管支拡張剤', usage: '', price: '16.3', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M057', name: 'ツロブテロールテープ　２ｍｇ', stock: 0, unit: '枚', threshold: 20, category: '外用/気管支拡張剤', usage: '', price: '23.7', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M058', name: 'イナビル吸入粉末剤　２０ｍｇ', stock: 0, unit: 'キット', threshold: 10, category: '外用/抗インフルエンザ薬', usage: '', price: '1484.9', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M059', name: 'メプチンエアー１０μg　５ｍｌ', stock: 0, unit: '個', threshold: 3, category: '外用/気管支拡張剤', usage: '', price: '1128.6', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M060', name: 'アドレナリン注０．１％シリンジ「テルモ」　１ｍｌ', stock: 0, unit: '本', threshold: 2, category: '外用/アナフィラキシー', usage: '', price: '354', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M061', name: 'ゲンタシン軟膏', stock: 0, unit: '本', threshold: 3, category: '外用/抗生物質製剤', usage: '', price: '11', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M062', name: 'ロコイド軟膏０．１％', stock: 0, unit: '本', threshold: 3, category: '外用/副腎皮質ホルモン剤', usage: '', price: '14.9', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M063', name: 'リンデロンVG軟膏０．１２％', stock: 0, unit: '本', threshold: 3, category: '外用/ステロイド', usage: '', price: '27.7', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M064', name: 'ヘパリン類似物質ローション３％', stock: 0, unit: '本', threshold: 3, category: '外用/血行促進・皮膚保湿剤', usage: '', price: '6.3', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M065', name: 'ヒルドイドクリーム０．３％　２５ｇ', stock: 0, unit: '本', threshold: 3, category: '外用/血行促進・皮膚保湿剤', usage: '', price: '17.7', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M066', name: 'レボフロキサシン点眼', stock: 0, unit: '本', threshold: 3, category: '外用/抗菌点眼薬', usage: '', price: '20.8', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M067', name: 'アレジオン点眼０．０５％', stock: 0, unit: '本', threshold: 3, category: '外用/抗アレルギー点眼薬', usage: '', price: '168.3', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M068', name: 'アドテスト　ＣＯＶＩＤ１９＋Ｆｌｕ', stock: 0, unit: 'キット', threshold: 50, category: '検査/COVID+インフルエンザ', usage: '', price: '1860.4', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M069', name: 'クイックナビ　ＳｔｒｅｐＡ', stock: 0, unit: 'キット', threshold: 10, category: '検査/溶連菌', usage: '', price: '776.4', maker: '', target: '', csvGroup: 'master' },
-            // ===== M100-M141: 小児内服薬 =====
-            { code: 'M100', name: 'カロナール細粒５０％　０．２ｇ', stock: 0, unit: '包', threshold: 45, category: '小児/解熱薬', usage: '分1', price: '7.2', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M101', name: 'カロナール細粒５０％　０．３ｇ', stock: 0, unit: '包', threshold: 90, category: '小児/解熱薬', usage: '分1', price: '7.2', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M102', name: 'カロナール細粒５０％　０．４ｇ', stock: 0, unit: '包', threshold: 90, category: '小児/解熱薬', usage: '分1', price: '7.2', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M103', name: 'カロナール細粒５０％　０．５ｇ', stock: 0, unit: '包', threshold: 45, category: '小児/解熱薬', usage: '分1', price: '7.2', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M104', name: 'アスベリン散１０％　０．１５ｇ', stock: 0, unit: '包', threshold: 45, category: '小児/咳止め', usage: '分3', price: '16.6', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M105', name: 'アスベリン散１０％　０．２ｇ', stock: 0, unit: '包', threshold: 180, category: '小児/咳止め', usage: '分3', price: '16.6', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M106', name: 'アスベリン散１０％　０．３ｇ', stock: 0, unit: '包', threshold: 180, category: '小児/咳止め', usage: '分3', price: '16.6', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M107', name: 'アスベリン散１０％　０．４ｇ', stock: 0, unit: '包', threshold: 90, category: '小児/咳止め', usage: '分3', price: '16.6', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M108', name: 'アスベリン散１０％　０．５ｇ', stock: 0, unit: '包', threshold: 90, category: '小児/咳止め', usage: '分3', price: '16.6', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M109', name: 'カルボシステインDS５０％　０．４５ｇ', stock: 0, unit: '包', threshold: 45, category: '小児/去痰剤', usage: '分3', price: '12.5', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M110', name: 'カルボシステインDS５０％　０．６ｇ', stock: 0, unit: '包', threshold: 180, category: '小児/去痰剤', usage: '分3', price: '12.5', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M111', name: 'カルボシステインDS５０％　０．９ｇ', stock: 0, unit: '包', threshold: 180, category: '小児/去痰剤', usage: '分3', price: '12.5', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M112', name: 'カルボシステインDS５０％　１．２ｇ', stock: 0, unit: '包', threshold: 90, category: '小児/去痰剤', usage: '分3', price: '12.5', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M113', name: 'カルボシステインDS５０％　１．５ｇ', stock: 0, unit: '包', threshold: 90, category: '小児/去痰剤', usage: '分3', price: '12.5', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M114', name: 'ミヤBM細粒　０．６ｇ', stock: 0, unit: '包', threshold: 45, category: '小児/整腸剤', usage: '分3', price: '6.7', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M115', name: 'ミヤBM細粒　０．７５ｇ', stock: 0, unit: '包', threshold: 180, category: '小児/整腸剤', usage: '分3', price: '6.7', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M116', name: 'ミヤBM細粒　１．０ｇ', stock: 0, unit: '包', threshold: 180, category: '小児/整腸剤', usage: '分3', price: '6.7', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M117', name: 'ミヤBM細粒　１．２５ｇ', stock: 0, unit: '包', threshold: 90, category: '小児/整腸剤', usage: '分3', price: '6.7', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M118', name: 'ミヤBM細粒　１．５ｇ', stock: 0, unit: '包', threshold: 90, category: '小児/整腸剤', usage: '分3', price: '6.7', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M119', name: 'ビオフェルミン配合散　０．７ｇ', stock: 0, unit: '包', threshold: 45, category: '小児/整腸剤', usage: '分3', price: '6.7', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M120', name: 'ビオフェルミン配合散　１．０ｇ', stock: 0, unit: '包', threshold: 180, category: '小児/整腸剤', usage: '分3', price: '6.7', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M121', name: 'ビオフェルミン配合散　１．５ｇ', stock: 0, unit: '包', threshold: 180, category: '小児/整腸剤', usage: '分3', price: '6.7', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M122', name: 'ビオフェルミン配合散　２．０ｇ', stock: 0, unit: '包', threshold: 90, category: '小児/整腸剤', usage: '分3', price: '6.7', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M123', name: 'ビオフェルミン配合散　２．５ｇ', stock: 0, unit: '包', threshold: 90, category: '小児/整腸剤', usage: '分3', price: '6.7', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M124', name: 'フェキソフェナジンDS５%　０．３ｇ', stock: 0, unit: '包', threshold: 30, category: '小児/抗アレルギー剤', usage: '分2', price: '28.2', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M125', name: 'フェキソフェナジンDS５%　０．６ｇ', stock: 0, unit: '包', threshold: 30, category: '小児/抗アレルギー剤', usage: '分2', price: '28.2', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M126', name: 'クラリスロマイシンDS小児用１０%　０．５ｇ', stock: 0, unit: '包', threshold: 60, category: '小児/抗生剤/マクロライド系', usage: '分2', price: '38', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M127', name: 'セファクロル細粒２０%　１．０ｇ', stock: 0, unit: '包', threshold: 45, category: '小児/抗生剤/セフェム系', usage: '分3', price: '44.3', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M128', name: 'セファクロル細粒２０%　１．５ｇ', stock: 0, unit: '包', threshold: 45, category: '小児/抗生剤/セフェム系', usage: '分3', price: '44.3', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M129', name: 'セファクロル細粒２０%　２．３ｇ', stock: 0, unit: '包', threshold: 45, category: '小児/抗生剤/セフェム系', usage: '分3', price: '44.3', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M130', name: 'セファクロル細粒２０%　３．０ｇ', stock: 0, unit: '包', threshold: 45, category: '小児/抗生剤/セフェム系', usage: '分3', price: '44.3', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M131', name: 'セファクロル細粒２０%　３．８ｇ', stock: 0, unit: '包', threshold: 45, category: '小児/抗生剤/セフェム系', usage: '分3', price: '44.3', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M132', name: 'ワイドシリン細粒２０％　１．０ｇ', stock: 0, unit: '包', threshold: 45, category: '小児/抗生剤/ペニシリン系', usage: '分3', price: '11.8', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M133', name: 'ワイドシリン細粒２０％　１．５ｇ', stock: 0, unit: '包', threshold: 45, category: '小児/抗生剤/ペニシリン系', usage: '分3', price: '11.8', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M134', name: 'ワイドシリン細粒２０％　２．３ｇ', stock: 0, unit: '包', threshold: 45, category: '小児/抗生剤/ペニシリン系', usage: '分3', price: '11.8', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M135', name: 'ワイドシリン細粒２０％　３．０ｇ', stock: 0, unit: '包', threshold: 45, category: '小児/抗生剤/ペニシリン系', usage: '分3', price: '11.8', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M136', name: 'ワイドシリン細粒２０％　３．８ｇ', stock: 0, unit: '包', threshold: 45, category: '小児/抗生剤/ペニシリン系', usage: '分3', price: '11.8', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M137', name: 'オセルタミビルDS３％　０．９ｇ', stock: 0, unit: '包', threshold: 30, category: '小児/抗インフルエンザ薬', usage: '分2', price: '75.9', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M138', name: 'オセルタミビルDS３％　１．３ｇ', stock: 0, unit: '包', threshold: 30, category: '小児/抗インフルエンザ薬', usage: '分2', price: '75.9', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M139', name: 'オセルタミビルDS３％　２．０ｇ', stock: 0, unit: '包', threshold: 30, category: '小児/抗インフルエンザ薬', usage: '分2', price: '75.9', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M140', name: 'オセルタミビルDS３％　２．７ｇ', stock: 0, unit: '包', threshold: 30, category: '小児/抗インフルエンザ薬', usage: '分2', price: '75.9', maker: '', target: '', csvGroup: 'master' },
-            { code: 'M141', name: 'オセルタミビルDS３％　３．３ｇ', stock: 0, unit: '包', threshold: 30, category: '小児/抗インフルエンザ薬', usage: '分2', price: '75.9', maker: '', target: '', csvGroup: 'master' },
-        ];
+        // ===== 薬品マスタ =====
+        // 唯一の正は Supabase の pharmacy_medicines テーブル。
+        // 以前はここに84品目をHTML直書きしていたため、DBに薬を足しても画面に出なかった。
+        // 起動時に loadMasterFromSupabase() が全件を読み込んで組み立てる。
+        let stockData = [];
         let historyData = [];
         let historyDeleteMode = false;
         let historySelectedForDelete = new Set();
@@ -2086,6 +2055,25 @@
             document.getElementById('newmed-unit-custom').value = '';
         }
 
+        // 薬品コードの採番。M+3桁の最大値+1。Supabaseの主キーなので重複すれば登録が弾かれる
+        function nextMedicineCode() {
+            let max = 0;
+            stockData.forEach(m => {
+                const hit = /^M(\d+)$/.exec(String(m.code).trim());
+                if (hit) max = Math.max(max, parseInt(hit[1], 10));
+            });
+            return 'M' + String(max + 1).padStart(3, '0');
+        }
+
+        // 分類プルダウンを現在のマスタから作る（分類は色分け・外用薬判定・絞り込みに使う）
+        function populateCategoryOptions() {
+            const sel = document.getElementById('newmed-category');
+            if (!sel) return;
+            const cats = [...new Set(stockData.map(m => m.category).filter(Boolean))].sort();
+            sel.innerHTML = '<option value="">選択してください</option>' +
+                cats.map(c => `<option value="${c}">${c}</option>`).join('');
+        }
+
         async function submitNewMedicine() {
             const name = document.getElementById('newmed-name').value.trim();
             const furigana = document.getElementById('newmed-furigana').value.trim();
@@ -2094,6 +2082,8 @@
             const initialStock = parseInt(document.getElementById('newmed-stock').value) || 0;
             const threshold = parseInt(document.getElementById('newmed-threshold').value) || 10;
             const price = parseFloat(document.getElementById('newmed-price').value) || 0;
+            const customCategory = document.getElementById('newmed-category-custom').value.trim();
+            const category = customCategory || document.getElementById('newmed-category').value;
 
             if (!name) {
                 showToast('薬品名を入力してください', 'error');
@@ -2102,6 +2092,11 @@
             }
             if (!unit) {
                 showToast('単位を選択してください', 'error');
+                return;
+            }
+            if (!category) {
+                showToast('分類を選んでください（例: 成人/解熱鎮痛剤）', 'error');
+                document.getElementById('newmed-category').focus();
                 return;
             }
 
@@ -2113,27 +2108,34 @@
 
             try {
                 if (USE_GAS) {
+                    // 薬品コードはこちらで採番し、Supabase（正）とGAS（在庫サマリー）に同じ番号で登録する。
+                    // 旧実装はGASの採番結果を待っていたが、POSTがopaqueで応答を読めず
+                    // 一覧に反映されないまま消えていた。
+                    const newCode = nextMedicineCode();
+                    const inserted = await sbFetch('pharmacy_medicines', {
+                        method: 'POST',
+                        headers: { 'Prefer': 'return=representation' },
+                        body: JSON.stringify({
+                            code: newCode, name, furigana, unit,
+                            price: price || null, threshold, current_stock: initialStock,
+                            category: category, csv_group: 'master', usage_text: ''
+                        })
+                    });
+                    if (!inserted) {
+                        showToast('薬品マスタ(DB)への登録に失敗しました', 'error');
+                        btn.disabled = false;
+                        btn.textContent = '➕ 薬品マスタに登録';
+                        return;
+                    }
                     const result = await gasPost('addMedicine', {
                         name, furigana, unit, initialStock, threshold, price,
-                        receiptCode: '', code: ''
+                        receiptCode: '', code: newCode
                     });
                     if (result && result.success) {
-                        showToast(`「${name}」を登録しました`, 'success');
-                        // Add to local stockData
-                        if (result.medicine) {
-                            stockData.push({
-                                code: result.medicine.code,
-                                name: result.medicine.name,
-                                stock: result.medicine.stock || initialStock,
-                                unit: unit,
-                                threshold: threshold,
-                                category: '',
-                                usage: '',
-                                price: String(price),
-                                maker: '',
-                                target: ''
-                            });
-                        }
+                        showToast(`「${name}」を ${newCode} で登録しました`, 'success');
+                        stockData.push(toStockItem(Array.isArray(inserted) ? inserted[0] : inserted));
+                        stockData.sort((a, b) => String(a.code).localeCompare(String(b.code)));
+                        renderStockList();
                         // Clear form
                         document.getElementById('newmed-name').value = '';
                         document.getElementById('newmed-furigana').value = '';
@@ -2141,6 +2143,8 @@
                         document.getElementById('newmed-threshold').value = '10';
                         document.getElementById('newmed-price').value = '';
                         document.getElementById('newmed-unit-custom').value = '';
+                        document.getElementById('newmed-category').value = '';
+                        document.getElementById('newmed-category-custom').value = '';
                     } else {
                         showToast('登録に失敗しました: ' + (result?.error || '不明なエラー'), 'error');
                     }
@@ -2814,9 +2818,8 @@
             if (wMap) {
                 titleEl.innerHTML = `📏 体重別選択: ${wMap.label}（${csvItems.length}品目）`;
             } else {
-                const csvCount = stockData.filter(m => m.csvGroup === 'csv').length;
-                const otherCount = stockData.filter(m => m.csvGroup !== 'csv').length;
-                titleEl.innerHTML = `🔍 薬品検索（CSV ${csvCount}品目 ＋ その他 ${otherCount}品目）`;
+                // 旧「CSV○品目＋その他○品目」はCSV取込を廃止した名残で、常に CSV 0品目 と出ていた
+                titleEl.innerHTML = `🔍 薬品検索（薬品マスタ ${stockData.length}品目）`;
             }
 
             container.innerHTML = html;
@@ -3484,29 +3487,17 @@
             });
         });
 
-        async function initialSyncToSupabase() {
-            console.log('Supabase初回在庫同期開始...');
-            let synced = 0;
-            for (const m of stockData) {
-                if (m.stock > 0) {
-                    await sbFetch('pharmacy_medicines?code=eq.' + m.code, {
-                        method: 'PATCH',
-                        body: JSON.stringify({ current_stock: m.stock, last_updated: new Date().toISOString() })
-                    });
-                    synced++;
-                }
-            }
-            console.log('Supabase初回同期完了: ' + synced + '件更新');
-        }
-
         (async function initLoad() {
             showToast('データを読み込み中...', '');
-            const sbOk = await loadStockFromSupabase();
+            // まず前回のマスタで即描画し、待たせない
+            if (loadMasterFromCache()) renderStockList();
+            populateCategoryOptions();
+            const sbOk = await loadMasterFromSupabase();
             if (!sbOk && USE_GAS) {
-                console.log('Supabase失敗、GASフォールバック');
+                console.log('Supabase失敗 → GASの在庫サマリーで簡易表示');
                 await loadStockFromGAS();
-                initialSyncToSupabase();
             }
+            populateCategoryOptions();
             if (USE_GAS) loadHistoryFromGAS();
             renderStockList();
         })();
