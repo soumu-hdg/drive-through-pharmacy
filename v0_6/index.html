@@ -2119,6 +2119,9 @@
             let cached = null;
             try { cached = JSON.parse(localStorage.getItem(DRIFT_CHECK_KEY) || 'null'); } catch (e) { cached = null; }
 
+            // マイナス在庫の警告はカルテ側の取得を待たずに出す
+            renderMasterAlert();
+
             // カルテ側の取得は重い（数十秒）ので1日1回。
             // ただし判定自体は毎回やり直す。そうしないと同じ日の2回目以降に警告が消えてしまう。
             if (cached && Array.isArray(cached.drugs)) recomputeMissing(cached.drugs);
