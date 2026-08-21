@@ -631,7 +631,8 @@ function findPISku(sku){
   const s=String(sku).trim();
   if(!s)return undefined;
   if(SKU_ALIASES[s]!==undefined)return SKU_ALIASES[s];
-  const base=s.replace(/-FBA$/i,'').trim(); /* AmazonのFBA用サフィックスを除去して再照合 */
+  /* AmazonのFBA用サフィックスを除去して再照合。-FBA だけでなく -FBA-02 のような連番付きもある */
+  const base=s.replace(/-FBA(-\d+)?$/i,'').trim();
   if(base!==s&&SKU_ALIASES[base]!==undefined)return SKU_ALIASES[base];
   return undefined;
 }
@@ -681,7 +682,8 @@ function findCI(ch){const id=findCID(ch);return id?CI(id):-1}
    取込側で channel='amazon_fba' が入るようになっても二重にならない。 */
 function findCIDByOrder(o){
   let id=findCID(o?o.channel:null);
-  if(id==='amazon'&&/-FBA$/i.test(String(o.sku||''))&&CI('amazon_fba')>=0) id='amazon_fba';
+  /* -FBA-02 のように連番が付くSKUもある。-FBA$ だけだと素通りしてamazon扱いになり送料600+箱が乗る */
+  if(id==='amazon'&&/-FBA(-\d+)?$/i.test(String(o.sku||''))&&CI('amazon_fba')>=0) id='amazon_fba';
   return id;
 }
 function findCIByOrder(o){const id=findCIDByOrder(o);return id?CI(id):-1}
