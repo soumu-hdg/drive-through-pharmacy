@@ -839,6 +839,39 @@ function getSalePrice(p,c,di){
   return d.calc(p.price);
 }
 
+/* ===== 送料は「1注文=1配送」 =====
+   送料は明細ごと・個数ごとにかかるものではなく、1回の注文＝1回の発送で1回だけかかる。
+   注文ID（＋チャネル）でまとめ、その注文の総個数で1配送分を按分して各明細へ配る。
+   例) 化粧水×2+美容液×2の1注文 → 4個で600円を分ける（1個あたり150円）。
+       従来は 4個×600円=2,400円 を原価に乗せていた。
+   ※クリニック/縁故/AmazonFBAは送料負担が無いチャネルなので対象外。
+     トライアルセットは専用計算(TRIAL.ship)なので触らない。 */
+function buildOrderUnits(orders){
+  const m={};
+  (orders||[]).forEach(o=>{
+    const cid=findCIDByOrder(o); if(!cid)return;
+    const ci=CI(cid); if(ci<0||!C[ci].hasShipping)return;
+    if(isFreeSample(o))return;
+    const pi=findPIByOrder(o); if(pi<0||pi===-2)return;
+    const k=String(o.order_id)+'|'+cid;
+    m[k]=(m[k]||0)+(Number(o.quantity)||1);
+  });
+  return m;
+}
+/* 各注文行へ「その行が負担する送料の実額」を _shipShare として持たせる。
+   calcOrder はこれがあれば優先して使う（無ければ従来どおり1個600円）。 */
+function applyShipShare(orders){
+  const m=buildOrderUnits(orders);
+  (orders||[]).forEach(o=>{
+    const cid=findCIDByOrder(o), ci=cid?CI(cid):-1;
+    const pi=findPIByOrder(o);
+    if(ci<0||!C[ci].hasShipping||isFreeSample(o)||pi<0||pi===-2){delete o._shipShare;return}
+    const N=m[String(o.order_id)+'|'+cid]||0, q=Number(o.quantity)||1;
+    o._shipShare = N>0 ? SHIP*q/N : SHIP*q;
+  });
+  return m;
+}
+
 /* ===== 計算エンジン ===== */
 function calc(pi,ci,di,qty=1){
   const p=P[pi],c=C[ci],sp=getSalePrice(p,c,di),rev=sp*qty;
@@ -890,7 +923,9 @@ function calcOrder(o){
   const amzCoupon=hasAmzCoupon?150:0;
   // 1個単位で独立計算（送料・梱包も1個ごと）
   const unitCost=getCost(p,c);
-  const fee1=unitRev*c.fee,ship1=c.hasShipping?SHIP:0,box1=c.hasBox?p.box:0;
+  /* 送料は1注文1配送。applyShipShare が付けた実額を1個あたりへ割り戻す */
+  const ship1=(o._shipShare!==undefined&&qty>0)?(o._shipShare/qty):(c.hasShipping?SHIP:0);
+  const fee1=unitRev*c.fee,box1=c.hasBox?p.box:0;
   const ct1=unitCost+fee1+ship1+box1+amzCoupon;
   const gp1=unitRev-ct1;
   const docFee1=Math.round(gp1*p.dr);
@@ -956,6 +991,7 @@ async function fetchAndApply(){
     const filteredOrders=rawOrders.filter(o=>!excludedIds.has(o.order_id));
     if(excludedIds.size)console.log(`[除外] ${rawOrders.length-filteredOrders.length}件の社員テスト購入を除外（除外リスト${excludedIds.size}件）`);
     const orders=dedupOrders(filteredOrders);
+    applyShipShare(orders); // 送料を「1注文=1配送」で按分
     // 計算
     G={loaded:true,orders,calc:[],from,to,byPI:{},byCI:{},byDate:{},byPC:{},unmatched:{prod:{},ch:{}},
        free:{qty:0,cost:0,n:0,byCI:{}}};
@@ -1586,6 +1622,7 @@ async function fetchInvoiceData(){
     ]);
     const exIds2=new Set(excludedList2.map(e=>e.order_id));
     const orders=dedupOrders(rawOrders.filter(o=>!exIds2.has(o.order_id)));
+    applyShipShare(orders); // 送料を「1注文=1配送」で按分（医師をまたぐ注文も総個数で分ける）
     // 該当医師の商品のみフィルタ
     const docProducts=P.filter(p=>p.doc===docName);
     const docProdNames=new Set(docProducts.map(p=>p.name));
@@ -1610,7 +1647,7 @@ function renderInvoice(){
   const sender=INVOICE_SENDER;
 
   // 商品×チャネル別に集計して明細行を作成
-  const {items:lineItems, hasBundleOrders, freeSampleQty}=buildInvoiceLines(invoiceData.orders, docName);
+  const {items:lineItems, hasBundleOrders, freeSampleQty, shipBack}=buildInvoiceLines(invoiceData.orders, docName);
   const subtotal=lineItems.reduce((s,l)=>s+l.amount,0);
   const tax=Math.round(subtotal*10/110);
   const total=subtotal;
@@ -1724,8 +1761,8 @@ function renderInvoice(){
     h+='<tr>';
     h+='<td>'+(i===0?monthLabel:'')+'</td>';
     h+='<td>'+l.description+'</td>';
-    h+='<td class="num">'+l.qty+'</td>';
-    h+='<td class="num">'+l.unitPrice.toLocaleString()+'</td>';
+    h+='<td class="num">'+(l.qty===''||l.qty===undefined?'':l.qty)+'</td>';
+    h+='<td class="num">'+(typeof l.unitPrice==='number'?l.unitPrice.toLocaleString():'')+'</td>';
     h+='<td class="num">'+(l.amount?l.amount.toLocaleString():'')+'</td>';
     h+='</tr>';
   });
@@ -1746,6 +1783,10 @@ function renderInvoice(){
   h+='<strong>備考</strong><br>';
   if(hasBundleOrders){
     h+='※ 単価欄に「@」表記のある行は、同一注文内で複数商品をご購入いただいた際の按分単価です。<br>';
+  }
+  if(shipBack>0){
+    h+='※「まとめ配送による送料調整」は、同じご注文でまとめて発送した回数ぶんの送料を戻したものです。<br>'
+     +'　 各行の単価は商品1個ごとに送料を見込んだ金額のため、その差額をこの行で加算しています。<br>';
   }
   h+='記載内容に相違がございましたら、3営業日以内にご連絡ください。<br>';
   h+='期日までにご連絡がない場合は、本通知記載の金額にて<br>';
@@ -1802,8 +1843,13 @@ function buildInvoiceLines(orders, docName){
          売価を超える割引はあり得ないので0扱いにする（誤って割引行へ振り分けないため） */
       let dc=(Number(o.discount)||0)/q;
       if(dc>up) dc=0;
+      const sh=(o._shipShare!==undefined)?o._shipShare/q:undefined; // 送料も1個ぶんへ割る
       const out=[];
-      for(let i=0;i<q;i++) out.push({...o, quantity:1, unit_price:up, total:up, discount:dc});
+      for(let i=0;i<q;i++){
+        const u={...o, quantity:1, unit_price:up, total:up, discount:dc};
+        if(sh!==undefined) u._shipShare=sh;
+        out.push(u);
+      }
       return out;
     };
     Object.entries(byOrder).forEach(([oid,items])=>{
@@ -1831,7 +1877,12 @@ function buildInvoiceLines(orders, docName){
           total:(Number(lo.total)||Number(lo.unit_price))+(Number(se.total)||Number(se.unit_price)),
           /* クーポン割引は合算して引き継ぐ（0固定だと割引セットが定価行に落ちる） */
           discount:(Number(lo.discount)||0)+(Number(se.discount)||0),
-          is_subscription:lo.is_subscription||se.is_subscription
+          is_subscription:lo.is_subscription||se.is_subscription,
+          /* 送料もローション分＋セラム分を引き継ぐ。_units は「セット1件＝実際は2個口」の記録で
+             まとめ配送の調整額を出すときに使う */
+          _shipShare:(lo._shipShare!==undefined||se._shipShare!==undefined)
+            ? (Number(lo._shipShare)||0)+(Number(se._shipShare)||0) : undefined,
+          _units:2
         });
       }
       for(let i=pairCount;i<lotions.length;i++) paired.push(lotions[i]);
@@ -1894,6 +1945,7 @@ function buildInvoiceLines(orders, docName){
   const unmatched=[];
   let freeSampleQty=0;
   processed.forEach(o=>{
+    delete o._matched; // 前回の呼び出しの残りを消す（注文オブジェクトは使い回される）
     const pi=findPIByOrder(o);
     if(pi<0) return;
     const cid=findCIDByOrder(o), ci=cid?CI(cid):-1;
@@ -1904,7 +1956,7 @@ function buildInvoiceLines(orders, docName){
     // クリニック/縁故: 直接マッチ
     if(cid==='clinic'||cid==='enko'){
       const row=items.find(it=>it._pi===pi&&it._ci===ci);
-      if(row){row.qty+=qty;row.amount=row.unitPrice*row.qty;}
+      if(row){row.qty+=qty;row.amount=row.unitPrice*row.qty;o._matched=true;}
       else unmatched.push(o);
       return;
     }
@@ -1940,7 +1992,7 @@ function buildInvoiceLines(orders, docName){
       }
     }
     const row=items.find(it=>it._pi===pi&&it._ci===ci&&it._discIdx===discIdx);
-    if(row){row.qty+=qty;row.amount=row.unitPrice*row.qty;}
+    if(row){row.qty+=qty;row.amount=row.unitPrice*row.qty;o._matched=true;}
     else{
       const r=calcOrder(o);
       if(r){
@@ -1975,8 +2027,33 @@ function buildInvoiceLines(orders, docName){
       if(genka>0) items.push({description:'原価', qty:totalQty, unitPrice:genka, amount:genka*totalQty});
     });
   }
+  /* === まとめ配送による送料調整 ===
+     各行の単価は「1個＝送料600円」で計算した固定単価なので、同じ注文でまとめて発送された
+     ぶんだけ送料を多く引いている。実際の配送は1注文1回なので、その差額を粗利へ戻し、
+     医師配分率を掛けて1行にまとめて加算する。単価表は変えないので照合しやすい。 */
+  let shipBack=0; const adjOrders=new Set();
+  processed.forEach(o=>{
+    /* テンプレート行に載った注文だけが対象。
+       テンプレートに無い区分(unmatched)は実績のまま計算しており送料も按分済みなので、
+       ここで調整するとと二重に戻すことになる。 */
+    if(!o._matched)return;
+    const cid=findCIDByOrder(o), ci=cid?CI(cid):-1;
+    if(ci<0||!C[ci].hasShipping||isFreeSample(o))return;
+    const pi=findPIByOrder(o); if(pi<0||pi===-2)return;
+    const qty=o.quantity||1;
+    const charged=SHIP*qty;                                     // 通知書の単価に含まれる送料
+    const actual=(o._shipShare!==undefined)?Number(o._shipShare):charged; // 按分後の実額
+    const diff=charged-actual;
+    if(diff>0.5){ shipBack+=diff*P[pi].dr; adjOrders.add(String(o.order_id)); }
+  });
+  shipBack=Math.round(shipBack);
+  if(shipBack>0){
+    items.push({description:'まとめ配送による送料調整（'+adjOrders.size+'注文）',
+                qty:'', unitPrice:'', amount:shipBack});
+  }
+
   items.forEach(it=>{delete it._pi;delete it._ci;delete it._discIdx});
-  return {items, hasBundleOrders:false, freeSampleQty};
+  return {items, hasBundleOrders:false, freeSampleQty, shipBack};
 }
 
 function buildLineDesc(product, channel, order, bundleCount){
