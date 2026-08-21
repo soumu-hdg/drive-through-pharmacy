@@ -157,6 +157,27 @@
             opacity: 1;
         }
 
+        /* 薬品マスタの整合性警告（カルテ側との差・マイナス在庫） */
+        .master-alert { display: none; margin: 10px 12px 0; }
+        .master-alert.visible { display: block; }
+        .master-alert-item {
+            border-left: 4px solid var(--warning);
+            background: #fffaf0;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #7a5a12;
+            line-height: 1.6;
+        }
+        .master-alert-item.danger { border-left-color: var(--danger); background: #fef2f2; color: #7f1d1d; }
+        .master-alert-item b { display: block; margin-bottom: 2px; }
+        .master-alert-item .names { color: var(--text-muted); font-size: 12px; margin-top: 4px; word-break: break-all; }
+        .master-alert-btn {
+            margin-top: 8px; padding: 6px 12px; border: 1px solid currentColor;
+            background: transparent; color: inherit; border-radius: 2px;
+            font-size: 12px; font-weight: 600; cursor: pointer;
+        }
+
         /* 薬品追加フォーム */
         .add-medicine-form {
             display: none;
@@ -1404,6 +1425,9 @@
         <div class="header-sub">西春内科・在宅クリニック</div>
     </div>
 
+    <!-- 薬品マスタの整合性警告（カルテ側との差・マイナス在庫） -->
+    <div id="master-alert" class="master-alert"></div>
+
     <!-- スキャンタブ -->
     <div id="tab-scan" class="tab-content active">
         <div class="container">
@@ -2055,6 +2079,116 @@
             document.getElementById('newmed-unit-custom').value = '';
         }
 
+        // ===== 薬品マスタの整合性チェック =====
+        // 電子カルテの薬品マスタ（夜間外来DB）と、この在庫マスタは別々に管理されている。
+        // カルテ側に薬を足しても在庫側には入らず、気づかないまま在庫を記録できない薬が生まれる。
+        // それを取りこぼさないよう、1日1回だけ突合して画面上部に出す。
+        const KARTE_API_URL = 'https://script.google.com/macros/s/AKfycbwWCL1aVy4RcCZsr2Wzrpy5JE8LU8pGWa2u_CY7qo7OGMgXrB0OZGir6rGJZiiV6hRd/exec';
+        const DRIFT_CHECK_KEY = 'dtp_v06_drift_checked_on';
+        let missingDrugs = [];
+
+        function normalizeName(s) {
+            return String(s || '').normalize('NFKC').replace(/[\s　]/g, '').replace(/^後）/, '').toLowerCase();
+        }
+
+        // カルテ側の大まかな分類から、この画面で使う分類を推定する。
+        // 「外用」に振ると出庫しても在庫が減らなくなるため、剤形が明らかなものだけに限る。
+        function guessCategory(name, karteCategory) {
+            const SUB = {
+                '解熱鎮痛': '解熱鎮痛剤', '咳・痰': '咳止め', '胃腸': '整腸剤', 'アレルギー': '抗アレルギー剤',
+                '抗菌': '抗生剤', '抗ウイルス': '抗ウイルス薬', 'めまい': '鎮暈剤', '気管支': '気管支拡張剤',
+                '救急': '救急', '検査キット': '検査キット', '坐剤': '坐剤', '内服': '内服', '外用': '外用'
+            };
+            const sub = SUB[karteCategory] || karteCategory || 'その他';
+            const n = String(name || '');
+            if (karteCategory === '検査キット') return '検査/' + sub;
+            if (/点眼|軟膏|クリーム|ローション|テープ|吸入/.test(n)) return '外用/' + sub;
+            if (/DS|ドライシロップ|細粒|シロップ|小児/.test(n)) return '小児/' + sub;
+            return '成人/' + sub;
+        }
+
+        // カルテ側の薬品一覧と突き合わせて、在庫マスタに無い薬を洗い出す
+        function recomputeMissing(karteDrugs) {
+            const have = new Set(stockData.map(m => normalizeName(m.name)));
+            missingDrugs = (karteDrugs || []).filter(d => !have.has(normalizeName(d.name)));
+            renderMasterAlert();
+        }
+
+        async function checkMasterDrift(force) {
+            const today = new Date().toLocaleDateString('sv-SE');
+            let cached = null;
+            try { cached = JSON.parse(localStorage.getItem(DRIFT_CHECK_KEY) || 'null'); } catch (e) { cached = null; }
+
+            // カルテ側の取得は重い（数十秒）ので1日1回。
+            // ただし判定自体は毎回やり直す。そうしないと同じ日の2回目以降に警告が消えてしまう。
+            if (cached && Array.isArray(cached.drugs)) recomputeMissing(cached.drugs);
+            if (!force && cached && cached.date === today) return;
+
+            try {
+                const url = KARTE_API_URL + '?action=all&token=' + encodeURIComponent(GAS_TOKEN) +
+                    '&date_from=' + today + '&date_to=' + today;
+                const data = await (await fetch(url)).json();
+                if (!data || !Array.isArray(data.drugs)) return;
+                localStorage.setItem(DRIFT_CHECK_KEY, JSON.stringify({
+                    date: today,
+                    drugs: data.drugs.map(d => ({ name: d.name, category: d.category }))
+                }));
+                recomputeMissing(data.drugs);
+                console.log('マスタ突合: カルテ' + data.drugs.length + '件中、在庫マスタに無い薬 ' + missingDrugs.length + '件');
+            } catch (e) {
+                console.warn('マスタ突合に失敗:', e.message);
+            }
+        }
+
+        function renderMasterAlert() {
+            const el = document.getElementById('master-alert');
+            if (!el) return;
+            const blocks = [];
+            if (missingDrugs.length) {
+                blocks.push('<div class="master-alert-item">' +
+                    '<b>⚠ 電子カルテにあって、在庫マスタに無い薬が ' + missingDrugs.length + ' 件あります</b>' +
+                    'このままではその薬の在庫を記録できません。' +
+                    '<div class="names">' + missingDrugs.map(d => d.name).join('、') + '</div>' +
+                    '<button class="master-alert-btn" onclick="startRegisterMissing()">1件ずつ登録する</button>' +
+                    '</div>');
+            }
+            const negatives = stockData.filter(m => (m.stock || 0) < 0);
+            if (negatives.length) {
+                blocks.push('<div class="master-alert-item danger">' +
+                    '<b>⚠ 在庫数がマイナスの薬が ' + negatives.length + ' 件あります</b>' +
+                    '出庫が入庫を上回っています。棚卸修正で実数を入れてください。' +
+                    '<div class="names">' + negatives.map(m => m.name + '（' + m.stock + m.unit + '）').join('、') + '</div>' +
+                    '</div>');
+            }
+            el.innerHTML = blocks.join('');
+            el.className = blocks.length ? 'master-alert visible' : 'master-alert';
+        }
+
+        // 未登録の薬を追加フォームに1件ずつ流し込む。
+        // 分類は推定値を入れるが、在庫の増減に関わるので必ず人が確認して登録する。
+        function startRegisterMissing() {
+            if (!missingDrugs.length) { showToast('未登録の薬はありません', 'success'); return; }
+            const d = missingDrugs[0];
+            switchTab('scan');
+            currentMajorMode = 'manage';
+            document.getElementById('btn-major-manage').className = 'major-mode-btn active-manage';
+            document.getElementById('btn-major-dispense').className = 'major-mode-btn';
+            document.getElementById('sub-mode-manage').style.display = 'flex';
+            setMode('addmed');
+            document.getElementById('newmed-name').value = d.name;
+            document.getElementById('newmed-furigana').value = '';
+            document.getElementById('newmed-stock').value = '0';
+            document.getElementById('newmed-threshold').value = '10';
+            document.getElementById('newmed-price').value = '';
+            const guess = guessCategory(d.name, d.category);
+            const sel = document.getElementById('newmed-category');
+            const custom = document.getElementById('newmed-category-custom');
+            if ([...sel.options].some(o => o.value === guess)) { sel.value = guess; custom.value = ''; }
+            else { sel.value = ''; custom.value = guess; }
+            showToast('未登録 残り' + missingDrugs.length + '件。分類を確認して登録してください', '');
+            document.getElementById('add-medicine-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
         // 薬品コードの採番。M+3桁の最大値+1。Supabaseの主キーなので重複すれば登録が弾かれる
         function nextMedicineCode() {
             let max = 0;
@@ -2136,6 +2270,12 @@
                         stockData.push(toStockItem(Array.isArray(inserted) ? inserted[0] : inserted));
                         stockData.sort((a, b) => String(a.code).localeCompare(String(b.code)));
                         renderStockList();
+                        populateCategoryOptions();
+                        // カルテ側との差を解消できた分を警告から消し、残りがあれば次の1件を出す
+                        const wasMissing = missingDrugs.length > 0;
+                        missingDrugs = missingDrugs.filter(d => normalizeName(d.name) !== normalizeName(name));
+                        renderMasterAlert();
+                        if (wasMissing && missingDrugs.length) setTimeout(startRegisterMissing, 800);
                         // Clear form
                         document.getElementById('newmed-name').value = '';
                         document.getElementById('newmed-furigana').value = '';
@@ -2385,6 +2525,23 @@
                     document.getElementById('patient-input').focus();
                     return;
                 }
+                // 在庫を超える出庫はその場で知らせる。
+                // 黙って通すと在庫がマイナスのまま積み上がり、実数が分からなくなる。
+                const short = batchItems.filter(it => {
+                    if (it.mode !== 'out') return false;
+                    if ((it.medicine.category || '').replace('[旧]', '').startsWith('外用')) return false;  // 外用薬は在庫を減らさない
+                    const m = stockData.find(x => normalizeCode(x.code) === normalizeCode(it.medicine.code));
+                    return m && it.quantity > (m.stock || 0);
+                });
+                if (short.length) {
+                    const detail = short.map(it => {
+                        const m = stockData.find(x => normalizeCode(x.code) === normalizeCode(it.medicine.code));
+                        return `・${it.medicine.name}　在庫${m.stock}${m.unit} に対して ${it.quantity}${m.unit}`;
+                    }).join('\n');
+                    if (!confirm('在庫数を超える出庫があります。\n\n' + detail +
+                        '\n\n在庫の記録が実際とずれている可能性があります。このまま送信しますか？\n' +
+                        '（棚卸修正で実数を入れてから出庫するのが確実です）')) return;
+                }
             }
 
             // 確認ポップアップを表示
@@ -2510,6 +2667,7 @@
 
             // Supabaseにもトランザクション記録+在庫更新
             syncToSupabase(batchItems).catch(e => console.warn('Supabase sync error:', e));
+            renderMasterAlert();   // 出庫の結果マイナスになった薬をその場で表に出す
 
             const modeLabel = currentMode === 'in' ? '入庫' : currentMode === 'adjust' ? '棚卸修正' : '出庫';
             showToast(`${successCount}件の${modeLabel}を送信しました`, 'success');
@@ -3500,6 +3658,8 @@
             populateCategoryOptions();
             if (USE_GAS) loadHistoryFromGAS();
             renderStockList();
+            // カルテ側マスタとの突合は時間がかかるので、一覧を出したあとに背景で回す
+            checkMasterDrift();
         })();
     </script>
 </body>
