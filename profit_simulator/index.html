@@ -178,7 +178,7 @@ th .src{vertical-align:baseline}
 
 <div class="header">
   <h1>HUNDRED DOCTOR 粗利シミュレーター</h1>
-  <span class="sub">HD Profit Simulator v2.1 | データ: <span id="masterSourceBadge" style="font-weight:700">読込中</span> | 機密: 社内限定</span>
+  <span class="sub">HD Profit Simulator v2.1 | 版: <span id="appBuildBadge" style="font-weight:700">-</span> | データ: <span id="masterSourceBadge" style="font-weight:700">読込中</span> | 機密: 社内限定</span>
 </div>
 
 <div class="tabs" id="tabs">
@@ -555,6 +555,14 @@ th .src{vertical-align:baseline}
 </div>
 
 <script>
+/* ===== 版数 =====
+   古いexeを使い続けていても気付けないと、修正済みの不具合が現場でそのまま出る。
+   （2026-08-27: 経理から届いた6月分の支払通知書が8/19ビルドのもので、
+     8/20に直したセット計上の不具合がそのまま出ていた）
+   画面ヘッダーと支払通知書の欄外に版を出し、どのビルドで作った紙かを追えるようにする。
+   ※ index.html を直したら必ずここも更新してからexeをビルドすること。 */
+const APP_BUILD='2026.08.27';
+
 /* ===== Supabase ===== */
 const SB='https://vypwgxkqtxuzqfaaeamf.supabase.co',SK='sb_publishable_WVbE1jJE6sBDli7qO-xSJA_GqDqu4OE';
 const H={'apikey':SK,'Authorization':'Bearer '+SK};
@@ -1647,7 +1655,7 @@ function renderInvoice(){
   const sender=INVOICE_SENDER;
 
   // 商品×チャネル別に集計して明細行を作成
-  const {items:lineItems, hasBundleOrders, freeSampleQty, shipBack}=buildInvoiceLines(invoiceData.orders, docName);
+  const {items:lineItems, hasBundleOrders, freeSampleQty, shipBack, check}=buildInvoiceLines(invoiceData.orders, docName);
   const subtotal=lineItems.reduce((s,l)=>s+l.amount,0);
   const tax=Math.round(subtotal*10/110);
   const total=subtotal;
@@ -1679,6 +1687,24 @@ function renderInvoice(){
   }
 
   let h='';
+
+  /* 自己点検にひっかかったら、印刷する前に画面で止める（この帯は印刷されない） */
+  if(check&&!check.ok){
+    h+='<div class="card no-print" style="margin-bottom:16px;border-left:4px solid #c0392b;background:#fdf0ee">';
+    h+='<h2 style="color:#c0392b;font-family:var(--font-min)">⚠ 個数が合いません（そのまま発行しないでください）</h2>';
+    h+='<p style="margin:6px 0;font-size:13px">元データの販売個数 <b>'+check.rawUnits+'個</b> に対して、明細行の合計が <b>'+check.lineUnits
+     +'個</b> です（差 '+(check.lineUnits-check.rawUnits)+'個）。同一注文のローション＋セラムをセットにまとめる処理で、'
+     +'商品が別の行に化けている可能性があります。</p>';
+    h+='<p style="margin:6px 0;font-size:12px;color:#7b241c">この画面の版（'+APP_BUILD+'）が最新か確認し、それでも出る場合は開発担当へこの画面ごと連絡してください。</p>';
+    h+='</div>';
+  }
+  /* 参考表示: 決まった区分に無いチャネル/割引の行（異常ではない。単価だけ実績から算出している） */
+  if(check&&check.offTemplate.length){
+    h+='<div class="card no-print" style="margin-bottom:16px;border-left:4px solid var(--kohaku,#c9821f);background:#fff8e8;padding:10px 12px">';
+    h+='<div style="font-size:12px">決まった区分に無いチャネル・割引のため、単価をその月の実績から計算した行があります（異常ではありません）：<br><b>'
+     +check.offTemplate.join(' / ')+'</b></div>';
+    h+='</div>';
+  }
 
   // ===== arari.png レイアウトのサマリー =====
   h+='<div class="card no-print" style="margin-bottom:16px;border-left-color:var(--wasu)">';
@@ -1791,6 +1817,8 @@ function renderInvoice(){
   h+='記載内容に相違がございましたら、3営業日以内にご連絡ください。<br>';
   h+='期日までにご連絡がない場合は、本通知記載の金額にて<br>';
   h+='振り込み手続きを進めさせていただきます。';
+  /* 様式番号＝作成に使った版。紙だけ見ても、どの版で作った通知書かを追えるようにする */
+  h+='<div style="margin-top:8px;font-size:9px;color:#999">様式 '+APP_BUILD+'</div>';
   h+='</div>';
   h+='</div>';
   area.innerHTML=h;
@@ -1936,8 +1964,10 @@ function buildInvoiceLines(orders, docName){
         docFeePerUnit=Math.round((rev-unitCost)*p.dr);
       }
       const desc=t.prefix+p.name+t.suffix;
+      /* _units＝この行1件が実際の商品何個ぶんか（セット行は ローション+セラム で2個）。
+         最後の自己点検で「元データの個数」と突き合わせるために持たせる。 */
       items.push({description:desc, qty:0, unitPrice:docFeePerUnit, amount:0,
-        _pi:pi, _ci:t.ci, _discIdx:t.discIdx});
+        _pi:pi, _ci:t.ci, _discIdx:t.discIdx, _units:p.isSet?2:1});
     });
   });
 
@@ -2000,7 +2030,8 @@ function buildInvoiceLines(orders, docName){
         // 「その他」ではなく、チャネル＋割引内容まで明記（例: Amazonわき用クリーム10%OFFキャンペーン販売）
         const _pfx={amazon:'Amazon',amazon_fba:'Amazon(FBA)',qoo10:'Qoo10',rakuten:'楽天',tiktok:'TikTok',mega:'Qoo10メガポ'}[cid]||'';
         const _sfx=(discIdx===0)?'定価販売':((DISC[discIdx]?DISC[discIdx].name:'割引')+'キャンペーン販売');
-        unmatched.push({description:_pfx+P[pi].name+_sfx, qty, unitPrice:docFee1, amount:r.docFee});
+        unmatched.push({description:_pfx+P[pi].name+_sfx, qty, unitPrice:docFee1, amount:r.docFee,
+                        _units:P[pi].isSet?2:1});
       }
     }
   });
@@ -2011,7 +2042,7 @@ function buildInvoiceLines(orders, docName){
   const _uagg={};
   unmatched.forEach(u=>{
     if(!u.description)return;
-    if(!_uagg[u.description]) _uagg[u.description]={description:u.description, qty:0, unitPrice:u.unitPrice, amount:0};
+    if(!_uagg[u.description]) _uagg[u.description]={description:u.description, qty:0, unitPrice:u.unitPrice, amount:0, _units:u._units, _off:true};
     _uagg[u.description].qty+=u.qty;
     _uagg[u.description].amount+=u.amount;
   });
@@ -2052,8 +2083,36 @@ function buildInvoiceLines(orders, docName){
                 qty:'', unitPrice:'', amount:shipBack});
   }
 
-  items.forEach(it=>{delete it._pi;delete it._ci;delete it._discIdx});
-  return {items, hasBundleOrders:false, freeSampleQty, shipBack};
+  /* === 自己点検（誤差の早期発見） ===
+     セット組み（同一注文のローション＋セラムを1セットにまとめる処理）が失敗すると、
+     商品や単価が別の行に化けたまま黙って通知書に出てしまう。
+     （2026-08-20に直した不具合はまさにこれで、経理が手で気付くまで分からなかった）
+     そこで「元データの販売個数」と「明細行が表している個数」を毎回突き合わせ、
+     合わなければ画面に警告を出す。セット行は1件＝2個ぶんとして数える。 */
+  /* ⚠ 突き合わせ元は「ペア化する前の元データ(orders)」でなければ意味がない。
+     ペア化後(processed)を数えると、セットがローションに化けた行はローション1個として
+     数えられてしまい、化けた側と一致して素通りする（=今回の不具合を検出できない）。 */
+  let rawUnits=0;
+  orders.forEach(o=>{
+    if(findCIDByOrder(o)==='shopify'&&!String(o.order_id).startsWith('#'))return; // 定期contractは対象外
+    const pi=findPIByOrder(o); if(pi<0)return;          // -2(トライアル)・対象外もここで除外
+    if(isFreeSample(o))return;                          // Vine等の無償提供は通知書に載せない
+    const q=Math.max(1,Number(o.quantity)||1);
+    rawUnits+=(P[pi].isSet?2:1)*q;
+  });
+  let lineUnits=0, offTemplate=[];
+  items.forEach(it=>{
+    if(!it._units||!it.qty)return;                      // 原価行・送料調整行は個数を持たない
+    lineUnits+=it._units*it.qty;
+    if(it._off) offTemplate.push(it.description);
+  });
+  /* 判定は「個数が合っているか」だけを異常とする。
+     テンプレ外区分(Amazon(FBA)/TikTok/楽天の未登録割引など)は毎月ふつうに出るので、
+     これを異常扱いにすると誤検知だらけになり警告そのものが無視される。参考表示に留める。 */
+  const check={rawUnits, lineUnits, offTemplate, ok:(rawUnits===lineUnits)};
+
+  items.forEach(it=>{delete it._pi;delete it._ci;delete it._discIdx;delete it._units;delete it._off});
+  return {items, hasBundleOrders:false, freeSampleQty, shipBack, check};
 }
 
 function buildLineDesc(product, channel, order, bundleCount){
@@ -2422,6 +2481,7 @@ async function printInvoice(){
 }
 
 window.addEventListener('DOMContentLoaded',async()=>{
+  {const vb=document.getElementById('appBuildBadge'); if(vb)vb.textContent=APP_BUILD;}
   // Supabaseマスタ読込（失敗時はハードコードフォールバック）
   await loadMasters();
   initSelects();renderMatrix();renderWaterfall();runSim();renderMulti();renderDoctors();renderHD();renderTrial();
