@@ -561,7 +561,7 @@ th .src{vertical-align:baseline}
      8/20に直したセット計上の不具合がそのまま出ていた）
    画面ヘッダーと支払通知書の欄外に版を出し、どのビルドで作った紙かを追えるようにする。
    ※ index.html を直したら必ずここも更新してからexeをビルドすること。 */
-const APP_BUILD='2026.08.27';
+const APP_BUILD='2026.08.27b';
 
 /* ===== Supabase ===== */
 const SB='https://vypwgxkqtxuzqfaaeamf.supabase.co',SK='sb_publishable_WVbE1jJE6sBDli7qO-xSJA_GqDqu4OE';
@@ -1630,7 +1630,12 @@ async function fetchInvoiceData(){
     ]);
     const exIds2=new Set(excludedList2.map(e=>e.order_id));
     const orders=dedupOrders(rawOrders.filter(o=>!exIds2.has(o.order_id)));
-    applyShipShare(orders); // 送料を「1注文=1配送」で按分（医師をまたぐ注文も総個数で分ける）
+    /* ⚠ 支払通知書では送料を按分しない（applyShipShare を呼ばない）。
+       医師との取り決めは「1商品1個ごとに送料600円」の固定で、粗利計算Excelの
+       【通信費パターン】パターンB「600円（配送あり）」＝原価合計の1行として
+       1個ごとに引く形で書かれている。経理担当の集計表の単価もこの600円ベース。
+       一方の実績タブ(loadActual)は按分したまま＝HD自身の実費（1注文1配送）を見るため。
+       用途が違うので、ここだけ固定単価に揃える。（2026-08-27） */
     // 該当医師の商品のみフィルタ
     const docProducts=P.filter(p=>p.doc===docName);
     const docProdNames=new Set(docProducts.map(p=>p.name));
@@ -1809,10 +1814,6 @@ function renderInvoice(){
   h+='<strong>備考</strong><br>';
   if(hasBundleOrders){
     h+='※ 単価欄に「@」表記のある行は、同一注文内で複数商品をご購入いただいた際の按分単価です。<br>';
-  }
-  if(shipBack>0){
-    h+='※「まとめ配送による送料調整」は、同じご注文でまとめて発送した回数ぶんの送料を戻したものです。<br>'
-     +'　 各行の単価は商品1個ごとに送料を見込んだ金額のため、その差額をこの行で加算しています。<br>';
   }
   h+='記載内容に相違がございましたら、3営業日以内にご連絡ください。<br>';
   h+='期日までにご連絡がない場合は、本通知記載の金額にて<br>';
@@ -2058,30 +2059,11 @@ function buildInvoiceLines(orders, docName){
       if(genka>0) items.push({description:'原価', qty:totalQty, unitPrice:genka, amount:genka*totalQty});
     });
   }
-  /* === まとめ配送による送料調整 ===
-     各行の単価は「1個＝送料600円」で計算した固定単価なので、同じ注文でまとめて発送された
-     ぶんだけ送料を多く引いている。実際の配送は1注文1回なので、その差額を粗利へ戻し、
-     医師配分率を掛けて1行にまとめて加算する。単価表は変えないので照合しやすい。 */
-  let shipBack=0; const adjOrders=new Set();
-  processed.forEach(o=>{
-    /* テンプレート行に載った注文だけが対象。
-       テンプレートに無い区分(unmatched)は実績のまま計算しており送料も按分済みなので、
-       ここで調整するとと二重に戻すことになる。 */
-    if(!o._matched)return;
-    const cid=findCIDByOrder(o), ci=cid?CI(cid):-1;
-    if(ci<0||!C[ci].hasShipping||isFreeSample(o))return;
-    const pi=findPIByOrder(o); if(pi<0||pi===-2)return;
-    const qty=o.quantity||1;
-    const charged=SHIP*qty;                                     // 通知書の単価に含まれる送料
-    const actual=(o._shipShare!==undefined)?Number(o._shipShare):charged; // 按分後の実額
-    const diff=charged-actual;
-    if(diff>0.5){ shipBack+=diff*P[pi].dr; adjOrders.add(String(o.order_id)); }
-  });
-  shipBack=Math.round(shipBack);
-  if(shipBack>0){
-    items.push({description:'まとめ配送による送料調整（'+adjOrders.size+'注文）',
-                qty:'', unitPrice:'', amount:shipBack});
-  }
+  /* 「まとめ配送による送料調整」の行は廃止した（2026-08-27）。
+     医師との取り決めは1商品1個ごとに送料600円の固定で、粗利計算Excelにもその形で
+     書かれている。まとめ発送の回数で戻すのは実費の考え方で、請求の取り決めとは別物。
+     単価表どおり1個ごとに引いたままにする。実費（1注文1配送）は実績タブで見る。 */
+  const shipBack=0;
 
   /* === 自己点検（誤差の早期発見） ===
      セット組み（同一注文のローション＋セラムを1セットにまとめる処理）が失敗すると、
