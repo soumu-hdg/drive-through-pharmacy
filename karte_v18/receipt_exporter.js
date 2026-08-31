@@ -751,18 +751,158 @@ ${pagesHtml}</body></html>`;
   }
 
   // ============================================================
+  // 6c. 返戻の再請求（チェック分のUKE生成＋一覧印刷）2026-08-31
+  //     再請求プランは receipt_viewer.js の rzLoadPlans/rzResubKey（localStorage）。
+  //     診療年月(RE)は変えず、IRの請求年月だけ今月に書き換える（=月遅れ・返戻分の再請求は診療月）。
+  // ============================================================
+
+  function rzNowYm() {
+    const d = new Date();
+    return String(d.getFullYear()) + String(d.getMonth() + 1).padStart(2, '0');
+  }
+
+  /** 生UKEテキストをレセプト単位のブロックに分解（返戻の"8,seq,0,"プレフィックスは除去。IR/GO/HRは除外） */
+  function rzSplitRawBlocks(raw) {
+    const lines = raw.split(/\r?\n/).filter(l => l.trim());
+    let irLine = null;
+    const blocks = [];
+    let cur = null;
+    for (let line of lines) {
+      const m = line.match(/^\d+,\d+,\d+,(.+)$/);
+      if (m) line = m[1];
+      const rt = line.split(',')[0];
+      if (rt === 'IR') { irLine = line; cur = null; continue; }
+      if (rt === 'GO' || rt === 'HR') { cur = null; continue; }
+      if (rt === 'RE') { cur = []; blocks.push(cur); }
+      if (cur) cur.push(line);
+    }
+    return { irLine, blocks };
+  }
+
+  function exportResubmitUKE() {
+    if (typeof rzLoadPlans !== 'function') { alert('再請求プラン機能が読み込まれていません'); return; }
+    const plans = rzLoadPlans();
+    const nowYm = rzNowYm();
+    let made = 0;
+    const problems = [];
+
+    for (const ft of ['shahoHenrei', 'kokuhoHenrei']) {
+      const list = allReceipts[ft] || [];
+      const selIdx = [];
+      list.forEach((r, i) => {
+        const p = plans[rzResubKey(r)];
+        if (p && p.resubmit) selIdx.push(i);
+      });
+      if (selIdx.length === 0) continue;
+
+      const raw = rawUkeData[ft];
+      if (!raw) { problems.push(ft + ': 生UKEデータがありません'); continue; }
+      const { irLine, blocks } = rzSplitRawBlocks(raw);
+      if (blocks.length !== list.length) {
+        // 同種の返戻ファイルを複数読み込むと生データは最後の1本しか残らず対応が取れない
+        problems.push(ft + ': 読み込んだ件数(' + list.length + ')と生データの件数(' + blocks.length + ')が一致しません。返戻ファイルを1本だけ読み込み直してから作成してください');
+        continue;
+      }
+
+      let irFields = irLine ? irLine.split(',') : null;
+      if (irFields && irFields.length > 7) irFields[7] = nowYm; // 請求年月のみ今月へ（診療年月は不変）
+      const selReceipts = selIdx.map(i => list[i]);
+      const totalPts = selReceipts.reduce((s, r) => s + (r.totalPoints || 0), 0);
+
+      const out = [];
+      if (irFields) out.push(irFields.join(','));
+      selIdx.forEach(i => out.push(...blocks[i]));
+      out.push(['GO', String(selIdx.length), String(totalPts), '99'].join(','));
+
+      const label = ft === 'shahoHenrei' ? 'shaho' : 'kokuho';
+      downloadText('RECEIPTC_saiseikyu_' + label + '_' + nowYm + '.UKE', out.join('\r\n') + '\r\n', 'application/octet-stream');
+      selReceipts.forEach(r => rzUpdatePlan(r, { doneAt: new Date().toISOString(), month: nowYm }));
+      made += selIdx.length;
+    }
+
+    if (made === 0 && problems.length === 0) {
+      alert('「この分を再請求する」にチェックされた返戻レセプトがありません。\n返戻タブ → 詳細画面でチェックしてください。');
+    } else {
+      let msg = made > 0 ? '再請求ファイルを作成しました（' + made + '件・請求年月 ' + nowYm + '）。\n※診療年月は変更していません（月遅れ・返戻分の再請求は診療月のまま）。' : '';
+      if (problems.length) msg += (msg ? '\n\n' : '') + '⚠ ' + problems.join('\n⚠ ');
+      alert(msg);
+      if (made > 0 && typeof renderList === 'function') renderList(); // 「再請求済」表示を更新
+    }
+  }
+
+  function printResubmitList() {
+    if (typeof rzLoadPlans !== 'function') { alert('再請求プラン機能が読み込まれていません'); return; }
+    const plans = rzLoadPlans();
+    const rows = [];
+    for (const ft of ['shahoHenrei', 'kokuhoHenrei']) {
+      for (const r of (allReceipts[ft] || [])) {
+        const p = plans[rzResubKey(r)];
+        if (!p || (!p.resubmit && !p.action)) continue;
+        rows.push({ r, p, kubun: ft === 'shahoHenrei' ? '社保' : '国保' });
+      }
+    }
+    if (rows.length === 0) { alert('対応内容または再請求チェックが記録された返戻レセプトがありません'); return; }
+
+    let trs = '';
+    rows.forEach((x, i) => {
+      const reason = x.r.henreiReason ? ((x.r.henreiReason.code ? x.r.henreiReason.code + ' ' : '') + (x.r.henreiReason.text || '')) : '';
+      trs += `<tr>
+        <td style="text-align:center;">${i + 1}</td>
+        <td style="text-align:center;">${he(x.kubun)}</td>
+        <td>${he(x.r.karteNumber)}</td>
+        <td>${he(x.r.name)}</td>
+        <td style="text-align:center;">${formatMonth(x.r.billingMonth)}</td>
+        <td style="text-align:right;">${x.r.totalPoints.toLocaleString()}</td>
+        <td>${he(reason)}</td>
+        <td>${he(x.p.action || '')}</td>
+        <td style="text-align:center;">${x.p.resubmit ? '再請求する' : '—'}</td>
+        <td style="text-align:center;">${x.p.doneAt ? '済 ' + he(String(x.p.doneAt).substring(0, 10)) + (x.p.month ? '<br>(' + toWareki(x.p.month) + '請求)' : '') : ''}</td>
+      </tr>`;
+    });
+
+    const w = window.open('', '_blank', 'width=900,height=900');
+    if (!w) { alert('ポップアップがブロックされました'); return; }
+    w.document.write(buildOfficialFormHTML({
+      title: '返戻レセプト 再請求一覧',
+      body: `
+        <div class="form-title">返戻レセプト 再請求一覧</div>
+        <table class="form-info"><tr>
+          <td class="fi-label">医療機関</td><td>${he(institution.name || CLINIC.name)}</td>
+          <td class="fi-label">出力日</td><td>${new Date().toLocaleDateString('ja-JP')}</td>
+        </tr></table>
+        <table class="form-table" style="margin-top:8px;">
+          <tr><th style="width:32px;">#</th><th style="width:44px;">区分</th><th style="width:70px;">カルテ番号</th><th>氏名</th>
+          <th style="width:66px;">診療月</th><th style="width:60px;">点数</th><th>返戻理由</th><th style="width:120px;">対応内容</th>
+          <th style="width:74px;">再請求</th><th style="width:96px;">ファイル作成</th></tr>
+          ${trs}
+        </table>
+        <div class="form-footer-note">
+          月遅れ・返戻分の再請求は診療月のまま請求します（診療年月は変更していません）。<br>
+          対応内容と再請求チェックはこの端末のブラウザに保存されています。出力日時: ${new Date().toLocaleString('ja-JP')}
+        </div>
+      `
+    }));
+    w.document.close();
+    setTimeout(() => w.print(), 400);
+  }
+
+  // ============================================================
   // 7. 総括表 印刷（簡易サマリー）
   // ============================================================
 
   function printSummary() {
     if (!hasAnyData()) { alert('UKEファイルを先に読み込んでください'); return; }
     const data = {};
+    const canLate = typeof isLateClaim === 'function';
     for (const key of ['shaho', 'kokuho', 'shahoHenrei', 'kokuhoHenrei']) {
       const list = allReceipts[key] || [];
+      const lateList = canLate ? list.filter(isLateClaim) : [];
       data[key] = {
         count: list.length, points: list.reduce((s, r) => s + r.totalPoints, 0),
         days: list.reduce((s, r) => s + r.visitDays.length, 0),
         copay: list.reduce((s, r) => s + (r.insurance ? r.insurance.copayAmount : 0), 0),
+        lateCount: lateList.length,
+        latePoints: lateList.reduce((s, r) => s + r.totalPoints, 0),
       };
     }
     const henreiCount = data.shahoHenrei.count + data.kokuhoHenrei.count;
@@ -790,6 +930,9 @@ ${pagesHtml}</body></html>`;
           <table>
             <tr><th></th><th style="text-align:right;">社保</th><th style="text-align:right;">国保</th><th style="text-align:right;">返戻（計）</th><th style="text-align:right;font-weight:700;">合計</th></tr>
             <tr><td style="font-weight:600;">件数</td><td style="text-align:right;">${data.shaho.count}</td><td style="text-align:right;">${data.kokuho.count}</td><td style="text-align:right;">${henreiCount}</td><td style="text-align:right;font-weight:700;">${total.count}</td></tr>
+            ${(data.shaho.lateCount + data.kokuho.lateCount) > 0 ? `
+            <tr style="color:#b45309;"><td style="font-weight:600;padding-left:16px;">うち月遅れ 件数</td><td style="text-align:right;">${data.shaho.lateCount}</td><td style="text-align:right;">${data.kokuho.lateCount}</td><td style="text-align:right;">-</td><td style="text-align:right;font-weight:700;">${data.shaho.lateCount + data.kokuho.lateCount}</td></tr>
+            <tr style="color:#b45309;"><td style="font-weight:600;padding-left:16px;">うち月遅れ 点数</td><td style="text-align:right;">${data.shaho.latePoints.toLocaleString()}</td><td style="text-align:right;">${data.kokuho.latePoints.toLocaleString()}</td><td style="text-align:right;">-</td><td style="text-align:right;font-weight:700;">${(data.shaho.latePoints + data.kokuho.latePoints).toLocaleString()}</td></tr>` : ''}
             <tr><td style="font-weight:600;">合計点数</td><td style="text-align:right;">${data.shaho.points.toLocaleString()}</td><td style="text-align:right;">${data.kokuho.points.toLocaleString()}</td><td style="text-align:right;">${henreiPts.toLocaleString()}</td><td style="text-align:right;font-weight:700;">${total.points.toLocaleString()}</td></tr>
             <tr><td style="font-weight:600;">実日数合計</td><td style="text-align:right;">${data.shaho.days}</td><td style="text-align:right;">${data.kokuho.days}</td><td style="text-align:right;">${henreiDays}</td><td style="text-align:right;font-weight:700;">${total.days}</td></tr>
             <tr><td style="font-weight:600;">一部負担金</td><td style="text-align:right;">${data.shaho.copay.toLocaleString()}</td><td style="text-align:right;">${data.kokuho.copay.toLocaleString()}</td><td style="text-align:right;">-</td><td style="text-align:right;font-weight:700;">${total.copay.toLocaleString()}</td></tr>
@@ -1509,6 +1652,8 @@ ${pagesHtml}</body></html>`;
       <button onclick="ReceiptExporter.printAllRezeptForms();closeExportMenu();">点検用レセプト様式（全件まとめて）</button>
 
       <div class="rc-export-group">返戻関連</div>
+      <button onclick="ReceiptExporter.exportResubmitUKE();closeExportMenu();" style="font-weight:700;">再請求ファイル（UKE）作成（チェック分）</button>
+      <button onclick="ReceiptExporter.printResubmitList();closeExportMenu();">再請求一覧 印刷</button>
       <button onclick="ReceiptExporter.printHenreiSoukatu('shaho');closeExportMenu();">返戻用社保総括表</button>
       <button onclick="ReceiptExporter.printHenreiSoukatu('kokuho');closeExportMenu();">返戻用国保総括表</button>
       <button onclick="ReceiptExporter.downloadHenreiResult('shaho');closeExportMenu();">返戻処理結果.txt（社保）</button>
@@ -2112,6 +2257,8 @@ ${pagesHtml}</body></html>`;
     printReceipt,
     printRezeptForm,
     printAllRezeptForms,
+    exportResubmitUKE,
+    printResubmitList,
     printSummary,
     printChecklist,
     printShahoSoukatu,
