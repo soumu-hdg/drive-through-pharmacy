@@ -17,6 +17,8 @@ const ReceiptExporter = (() => {
     founder: '島原　立樹',
     prefecture: '23', // 愛知
     prefectureName: '愛知県',
+    phone: '0568-25-5080',
+    hyobetsu: '1', // 医療費請求書の「表別」（実物様式の固定値）
   };
 
   // 保険者番号→市町村名マッピング（愛知県内主要）
@@ -376,6 +378,374 @@ const ReceiptExporter = (() => {
         ${warningsHtml}
       `
     }));
+    w.document.close();
+    setTimeout(() => w.print(), 400);
+  }
+
+  // ============================================================
+  // 6b. 点検用レセプト様式（診療報酬明細書・罫線様式）2026-08-31
+  //     miroに貼られた実物（1/2・2/2の続紙構造）に合わせた出力。
+  //     提出はUKEオンライン請求のため、これは点検・保管・PDF化用。
+  //     印刷ダイアログで「PDFに保存」を選ぶとPDFになる。
+  // ============================================================
+
+  const RZ_ERA = [
+    { label: '令', from: 20190501, startYear: 2019 },
+    { label: '平', from: 19890108, startYear: 1989 },
+    { label: '昭', from: 19261225, startYear: 1926 },
+    { label: '大', from: 19120730, startYear: 1912 },
+    { label: '明', from: 18680101, startYear: 1868 },
+  ];
+
+  /** YYYYMMDD → {era:'昭', y:51, m:5, d:4} */
+  function rzWareki(yyyymmdd) {
+    const s = String(yyyymmdd || '');
+    if (s.length < 8 || !/^\d{8}/.test(s)) return null;
+    const n = parseInt(s.substring(0, 8), 10);
+    const y = parseInt(s.substring(0, 4), 10);
+    const m = parseInt(s.substring(4, 6), 10);
+    const d = parseInt(s.substring(6, 8), 10);
+    for (const e of RZ_ERA) {
+      if (n >= e.from) return { era: e.label, y: y - e.startYear + 1, m, d };
+    }
+    return { era: '', y, m, d };
+  }
+
+  /** 診療開始日 → 「令04年9月15日」 */
+  function rzStartDate(yyyymmdd) {
+    const w = rzWareki(yyyymmdd);
+    if (!w) return '';
+    return w.era + String(w.y).padStart(2, '0') + '年' + w.m + '月' + w.d + '日';
+  }
+
+  /** 転帰区分 → 表示（1=継続は空欄） */
+  function rzTenki(flag) {
+    return { '2': '治ゆ', '3': '死亡', '4': '中止' }[flag] || '';
+  }
+
+  /** レセプト種別4桁 → 右上の分類ボックス */
+  function rzTypeBoxes(r) {
+    const tc = r.insuranceTypeCode || '';
+    const isShaho = /shaho/.test(r.fileType || '');
+    const D2 = { '1': isShaho ? '社' : '国', '2': '公費', '3': '後期', '4': '退職' };
+    const D3 = { '1': '単独', '2': '２併', '3': '３併' };
+    const D4 = { '1': '本入', '2': '本外', '3': '六入', '4': '六外', '5': '家入', '6': '家外', '7': '高入一', '8': '高外一', '9': '高入７', '0': '高外７' };
+    const box = (digit, label) => '<span class="rz-tbox">' + he(digit) + ' ' + he(label) + '</span>';
+    return box(tc[0] || '', tc[0] === '1' ? '医科' : '') +
+           box(tc[1] || '', D2[tc[1]] || '') +
+           box(tc[2] || '', D3[tc[2]] || '') +
+           box(tc[3] || '', D4[tc[3]] || '');
+  }
+
+  /** 同一スロットの行を集計（点数が均一なら単価も出す） */
+  function rzAgg(rows) {
+    let unit = null, uniform = true, count = 0, total = 0, has = false;
+    for (const p of rows) {
+      const c = p.count || 0, pt = p.points || 0;
+      if (!c && !pt) continue;
+      has = true;
+      total += pt * (c || 1);
+      count += c;
+      if (unit === null) unit = pt; else if (unit !== pt) uniform = false;
+    }
+    return { has, unit: (uniform && unit !== null) ? unit : '', count, total };
+  }
+
+  /** 点数欄（左カラム）のHTML */
+  function rzTensuColumn(r) {
+    const cats = {};
+    for (const p of r.procedures) (cats[p.category] = cats[p.category] || []).push(p);
+    const cat = (c) => cats[c] || [];
+    const name = (p) => p.name || '';
+
+    // 12再診の内訳（時間外対応体制加算等の束ね行は「再診」へ）
+    const c12 = cat('12');
+    const gairai = c12.filter(p => /外来管理加算/.test(name(p)));
+    const saiJikan = c12.filter(p => /時間外/.test(name(p)) && !/対応/.test(name(p)));
+    const saiKyu = c12.filter(p => /休日/.test(name(p)));
+    const saiShin = c12.filter(p => /深夜/.test(name(p)));
+    const used12 = new Set([...gairai, ...saiJikan, ...saiKyu, ...saiShin]);
+    const saishin = c12.filter(p => !used12.has(p));
+
+    // 14在宅の内訳
+    const c14 = cat('14');
+    const oshin = c14.filter(p => /往診/.test(name(p)));
+    const yakan = c14.filter(p => /夜間/.test(name(p)));
+    const shinkyu = c14.filter(p => /深夜|緊急/.test(name(p)));
+    const homon = c14.filter(p => /訪問診療/.test(name(p)));
+    const used14 = new Set([...oshin, ...yakan, ...shinkyu, ...homon]);
+    const zaiYaku = c14.filter(p => p.isDrug && !used14.has(p));
+    const zaiSonota = c14.filter(p => !p.isDrug && !used14.has(p));
+
+    // 20投薬
+    const c24 = cat('24');
+    const naiCho = c24.filter(p => !/外用/.test(name(p)));
+    const gaiCho = c24.filter(p => /外用/.test(name(p)));
+
+    // 80その他（処方せん＝処方箋料＋一般名処方加算。回数は処方箋料本体のみ数える）
+    const c80 = cat('80');
+    const shohosen = c80.filter(p => /処方箋|処方せん|一般名処方/.test(name(p)));
+    const sonota80 = c80.filter(p => !shohosen.includes(p) && !p.isDrug);
+    const yaku80 = c80.filter(p => !shohosen.includes(p) && p.isDrug);
+    const aggShohosen = rzAgg(shohosen);
+    // 「一般名処方加算１（処方箋料）」の括弧内にもマッチするため先頭一致で本体だけ数える
+    const shohosenHontai = rzAgg(shohosen.filter(p => /^処方(箋|せん)料/.test(name(p))));
+    if (shohosenHontai.has) { aggShohosen.count = shohosenHontai.count; aggShohosen.unit = ''; }
+
+    // 行を作る: [識別, ラベル, 集計, 単位ラベル]
+    const rowsDef = [
+      ['11', '初　診', rzAgg(cat('11')), '回'],
+      ['12', '再　診', rzAgg(saishin), '回'],
+      ['', '外来管理加算', rzAgg(gairai), '回'],
+      ['', '時 間 外', rzAgg(saiJikan), '回'],
+      ['', '休　日', rzAgg(saiKyu), '回'],
+      ['', '深　夜', rzAgg(saiShin), '回'],
+      ['13', '医学管理', rzAgg(cat('13')), '回'],
+      ['14', '往　診', rzAgg(oshin), '回'],
+      ['', '夜　間', rzAgg(yakan), '回'],
+      ['', '深夜・緊急', rzAgg(shinkyu), '回'],
+      ['', '在宅患者訪問診療', rzAgg(homon), '回'],
+      ['', 'そ の 他', rzAgg(zaiSonota), '回'],
+      ['', '薬　剤', rzAgg(zaiYaku), ''],
+      ['21', '内服　薬剤', rzAgg(cat('21')), '単'],
+      ['', '　　　調剤', rzAgg(naiCho), '回'],
+      ['22', '頓服　薬剤', rzAgg(cat('22')), '単'],
+      ['23', '外用　薬剤', rzAgg(cat('23')), '単'],
+      ['', '　　　調剤', rzAgg(gaiCho), '回'],
+      ['25', '処　方', rzAgg(cat('25')), '回'],
+      ['26', '麻　毒', rzAgg(cat('26')), '回'],
+      ['27', '調　基', rzAgg(cat('27')), ''],
+      ['31', '皮下筋肉内', rzAgg(cat('31')), '回'],
+      ['32', '静脈内', rzAgg(cat('32')), '回'],
+      ['33', 'そ の 他', rzAgg([...cat('33'), ...cat('34')]), '回'],
+      ['40', '処　置', rzAgg(cat('40').filter(p => !p.isDrug)), '回'],
+      ['', '薬　剤', rzAgg(cat('40').filter(p => p.isDrug)), ''],
+      ['50', '手術・麻酔', rzAgg([...cat('50'), ...cat('54')].filter(p => !p.isDrug)), '回'],
+      ['', '薬　剤', rzAgg([...cat('50'), ...cat('54')].filter(p => p.isDrug)), ''],
+      ['60', '検査・病理', rzAgg(cat('60').filter(p => !p.isDrug)), '回'],
+      ['', '薬　剤', rzAgg(cat('60').filter(p => p.isDrug)), ''],
+      ['70', '画像診断', rzAgg(cat('70').filter(p => !p.isDrug)), '回'],
+      ['', '薬　剤', rzAgg(cat('70').filter(p => p.isDrug)), ''],
+      ['80', '処方せん', aggShohosen, '回'],
+      ['', 'そ の 他', rzAgg(sonota80), '回'],
+      ['', '薬　剤', rzAgg(yaku80), ''],
+    ];
+
+    // 主要区分の見出し（左端の帯）
+    const bandOf = { '11': '', '12': '再診', '13': '', '14': '在宅', '21': '投薬', '31': '注射', '40': '処置', '50': '手術', '60': '検査', '70': '画像', '80': 'その他' };
+    let html = '<table class="rz-ten">';
+    for (const [num, label, a, unitLbl] of rowsDef) {
+      html += '<tr>' +
+        '<td class="rz-ten-num">' + he(num) + '</td>' +
+        '<td class="rz-ten-lbl">' + he(label) + '</td>' +
+        '<td class="rz-r">' + (a.has && a.unit !== '' ? a.unit : '') + '</td>' +
+        '<td class="rz-x">×</td>' +
+        '<td class="rz-r">' + (a.has && a.count ? a.count + (unitLbl || '') : (unitLbl ? '　' + unitLbl : '')) + '</td>' +
+        '<td class="rz-r rz-ten-total">' + (a.has && a.total ? a.total : '') + '</td>' +
+        '</tr>';
+    }
+    html += '</table>';
+    return html;
+  }
+
+  /** 摘要欄の行データを作る（傷病名(5)以降＋診療行為＋コメント） */
+  function rzTekiyoLines(r) {
+    const lines = [];
+    // 傷病名欄(1)〜(4)からあふれた分は摘要欄へ（実物と同じ運用）
+    r.diseases.slice(4).forEach((d, i) => {
+      lines.push({ cat: '', text: '(' + (i + 5) + ') ' + (d.name || d.code), cls: 'rz-tk-dz' });
+      const sd = rzStartDate(d.startDate);
+      if (sd) lines.push({ cat: '', text: sd, cls: 'rz-tk-dzd' });
+    });
+    // 診療行為（UKEの記録順。束ね剤は最終行にだけ 点数×回数 が付く）
+    let lastCat = null;
+    for (const p of r.procedures) {
+      let text = p.name || ('[' + p.code + ']');
+      if (p.isDrug && p.quantity) text += '　' + p.quantity;
+      if (p.points || p.count) text += '　' + (p.points || 0) + '×' + (p.count || 0);
+      lines.push({ cat: p.category !== lastCat ? p.category : '', text });
+      lastCat = p.category;
+    }
+    // コメント(CO)は識別番号付きで末尾にまとめる
+    let lastCoCat = null;
+    for (const c of (r.comments || [])) {
+      const disp = c.text || (c.official ? c.official.disp : '') || c.code;
+      lines.push({ cat: c.identifier !== lastCoCat ? (c.identifier || '') : '', text: '＊' + disp, cls: 'rz-tk-co' });
+      lastCoCat = c.identifier;
+    }
+    return lines;
+  }
+
+  const RZ_LINES_PER_PAGE = 40;
+
+  /** 1ページ分のレセプトシートHTML */
+  function rzSheetHTML(r, tekiyoRows, pageNo, totalPages) {
+    const ins = r.insurance || {};
+    const ko1 = r.kouhi[0] || null;
+    const ko2 = r.kouhi[1] || null;
+    const dobW = rzWareki(r.dob);
+    const bm = r.billingMonth || '';
+    const reiwaY = bm.length >= 6 ? String(parseInt(bm.substring(0, 4), 10) - 2018).padStart(2, '0') : '';
+    const bmM = bm.length >= 6 ? parseInt(bm.substring(4, 6), 10) : '';
+    const kyufu = r.copayRatio ? String(Math.round(parseInt(r.copayRatio, 10) / 10)) : '';
+    const sexNum = r.sex === '男' ? '1 男' : r.sex === '女' ? '2 女' : '';
+
+    // 傷病名(1)〜(4)
+    let dzName = '', dzDate = '', dzTenki = '';
+    for (let i = 0; i < Math.min(4, r.diseases.length); i++) {
+      const d = r.diseases[i];
+      dzName += '<div>(' + (i + 1) + ') ' + he(d.name || d.code) + '</div>';
+      dzDate += '<div>(' + (i + 1) + ') ' + he(rzStartDate(d.startDate)) + '</div>';
+      dzTenki += '<div>' + (he(rzTenki(d.outcomeFlag)) || '&nbsp;') + '</div>';
+    }
+    if (r.diseases.length > 4) dzName += '<div class="rz-dz-more">─（(5)以降は摘要欄）─</div>';
+
+    // 摘要欄
+    let tekiyoHtml = '';
+    for (const ln of tekiyoRows) {
+      tekiyoHtml += '<div class="rz-tk-line ' + (ln.cls || '') + '">' +
+        '<span class="rz-tk-cat">' + he(ln.cat || '') + '</span>' +
+        '<span class="rz-tk-txt">' + he(ln.text) + '</span></div>';
+    }
+
+    return `
+    <div class="rz">
+      <div class="rz-note">○ ${he(r.karteNumber)}　<b>点検用レセプトです。</b></div>
+      <table class="rz-t rz-title-t"><tr>
+        <td class="rz-nb">
+          <span class="rz-title">診療報酬明細書</span><span class="rz-title-sub">（医科入院外）</span>
+          　令和 ${he(reiwaY)} 年 ${he(String(bmM))} 月分　県番 ${he(CLINIC.prefecture)}　医コ ${he(institution.code || CLINIC.code)}
+        </td>
+        <td class="rz-nb" style="text-align:right;">${rzTypeBoxes(r)}</td>
+      </tr></table>
+      <table class="rz-t"><tr>
+        <td style="width:50%;padding:0;border:none;">
+          <table class="rz-t rz-full">
+            <tr><td class="rz-lbl">公費①</td><td>${he(ko1 ? ko1.futanshaNumber : '')}</td><td class="rz-lbl">公受①</td><td>${he(ko1 ? ko1.jukyushaNumber : '')}</td></tr>
+            <tr><td class="rz-lbl">公費②</td><td>${he(ko2 ? ko2.futanshaNumber : '')}</td><td class="rz-lbl">公受②</td><td>${he(ko2 ? ko2.jukyushaNumber : '')}</td></tr>
+          </table>
+        </td>
+        <td style="width:50%;padding:0;border:none;">
+          <table class="rz-t rz-full">
+            <tr><td class="rz-lbl">保　険</td><td class="rz-big rz-sp">${he(ins.insurerNumber || '')}</td><td class="rz-lbl">給付</td><td class="rz-big">${he(kyufu)}割</td></tr>
+            <tr><td class="rz-lbl">記号・番号</td><td colspan="3" class="rz-sp">${he(ins.symbol || '')}${ins.symbol ? '　・　' : ''}${he(ins.insuredNumber || '')}</td></tr>
+          </table>
+        </td>
+      </tr></table>
+      <table class="rz-t"><tr>
+        <td class="rz-lbl">氏名</td>
+        <td style="width:30%;"><b>${he(r.name)}</b><br>${he(sexNum)}　${dobW ? he(dobW.era) + ' ' + dobW.y + '. ' + dobW.m + '. ' + dobW.d + ' 生' : ''}</td>
+        <td class="rz-lbl">特記事項</td>
+        <td style="width:9%;">${he(r.tokki || '')}</td>
+        <td style="width:32%;font-size:8.5px;"><span class="rz-lbl-inline">保険医療機関の所在地及び名称</span><br>${he(CLINIC.address)}<br>${he(institution.name || CLINIC.name)}　電話 ${he(institution.phone || CLINIC.phone)}</td>
+        <td style="width:8%;text-align:center;">${pageNo}/${totalPages}<br>[　1]</td>
+      </tr></table>
+      <table class="rz-t"><tr>
+        <td class="rz-lbl-v">傷病名</td>
+        <td style="width:40%;">${dzName || '&nbsp;'}</td>
+        <td class="rz-lbl-v">診療開始日</td>
+        <td style="width:19%;">${dzDate || '&nbsp;'}</td>
+        <td class="rz-lbl-v">転帰</td>
+        <td style="width:7%;">${dzTenki || '&nbsp;'}</td>
+        <td class="rz-lbl-v">診療実日数</td>
+        <td style="width:9%;">保険 ${r.jitsuNissu || ''}日${ko1 ? '<br>公① ' + (ko1.jitsuNissu || '') + '日' : ''}</td>
+      </tr></table>
+      <table class="rz-t rz-main"><tr>
+        <td style="width:52%;padding:0;vertical-align:top;">${rzTensuColumn(r)}</td>
+        <td style="padding:2px 6px;vertical-align:top;">${tekiyoHtml || '&nbsp;'}</td>
+      </tr></table>
+      <table class="rz-t rz-fut">
+        <tr><td class="rz-lbl" style="width:70px;">療養の給付</td>
+            <td class="rz-lbl" style="width:52px;">保険</td>
+            <td class="rz-r rz-big" style="width:110px;">請求点　${r.totalPoints ? r.totalPoints.toLocaleString() : ''}</td>
+            <td style="width:110px;">※決定点</td>
+            <td class="rz-r">一部負担金額　${ins.copayAmount ? ins.copayAmount.toLocaleString() + '円' : ''}</td></tr>
+        <tr><td class="rz-nb"></td>
+            <td class="rz-lbl">公費①</td>
+            <td class="rz-r">${ko1 && ko1.points ? ko1.points.toLocaleString() : ''}</td>
+            <td></td>
+            <td class="rz-r">${ko1 && ko1.copayAmount ? ko1.copayAmount.toLocaleString() + '円' : ''}</td></tr>
+      </table>
+    </div>`;
+  }
+
+  /** 1レセプト分の全ページHTML（摘要が入りきらなければ続紙を自動生成） */
+  function buildRezeptPagesHTML(r) {
+    const lines = rzTekiyoLines(r);
+    const chunks = [];
+    for (let i = 0; i < lines.length; i += RZ_LINES_PER_PAGE) chunks.push(lines.slice(i, i + RZ_LINES_PER_PAGE));
+    if (chunks.length === 0) chunks.push([]);
+    return chunks.map((chunk, i) => rzSheetHTML(r, chunk, i + 1, chunks.length)).join('');
+  }
+
+  /** 点検用レセプト様式のドキュメントHTML（印刷→PDF保存用） */
+  function buildRezeptDocHTML(title, pagesHtml) {
+    return `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><title>${he(title)}</title>
+<style>
+  @page { size: A4; margin: 8mm 10mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Yu Gothic", "Meiryo", sans-serif; font-size: 9.5px; color: #111; line-height: 1.45; }
+  .rz { page-break-after: always; padding: 2px 0 8px; }
+  .rz:last-child { page-break-after: auto; }
+  .rz-note { font-size: 10px; margin-bottom: 2px; }
+  .rz-t { width: 100%; border-collapse: collapse; }
+  .rz-t td { border: 1px solid #444; padding: 1px 4px; vertical-align: top; }
+  .rz-t td.rz-nb { border: none; }
+  .rz-title-t td { border: none; padding: 1px 0; }
+  .rz-title { font-size: 13px; font-weight: 700; letter-spacing: .2em; }
+  .rz-title-sub { font-size: 9px; }
+  .rz-tbox { display: inline-block; border: 1px solid #444; padding: 0 5px; margin-left: 2px; font-size: 9px; min-width: 34px; text-align: center; }
+  .rz-lbl { background: #f2efe8; font-size: 8.5px; white-space: nowrap; width: 1%; }
+  .rz-lbl-v { background: #f2efe8; font-size: 8.5px; width: 1%; white-space: nowrap; writing-mode: vertical-rl; text-align: center; padding: 4px 1px; }
+  .rz-lbl-inline { font-size: 8px; color: #555; }
+  .rz-big { font-size: 13px; font-weight: 700; }
+  .rz-sp { letter-spacing: .35em; }
+  .rz-full { width: 100%; }
+  .rz-r { text-align: right; }
+  .rz-main > tbody > tr > td { border: 1px solid #444; }
+  .rz-ten { width: 100%; border-collapse: collapse; }
+  .rz-ten td { border: none; border-bottom: 1px solid #ddd; padding: 0 3px; font-size: 9px; line-height: 1.55; }
+  .rz-ten-num { width: 18px; color: #333; border-right: 1px solid #bbb !important; }
+  .rz-ten-lbl { width: 92px; }
+  .rz-x { width: 10px; color: #999; text-align: center; }
+  .rz-ten-total { border-left: 1px solid #bbb !important; width: 46px; font-weight: 600; }
+  .rz-tk-line { display: flex; gap: 4px; font-size: 9px; line-height: 1.5; }
+  .rz-tk-cat { flex: 0 0 16px; color: #333; }
+  .rz-tk-txt { flex: 1; }
+  .rz-tk-dz .rz-tk-txt { font-weight: 600; }
+  .rz-tk-dzd .rz-tk-txt { padding-left: 1.5em; color: #333; }
+  .rz-tk-co .rz-tk-txt { color: #444; }
+  .rz-dz-more { color: #777; font-size: 8px; }
+  .rz-fut td { padding: 2px 5px; }
+  .rz-hint { background: #fdf6e3; border: 1px solid #d0c8a8; padding: 6px 10px; font-size: 11px; margin-bottom: 8px; }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .no-print { display: none !important; }
+  }
+</style></head><body>
+<div class="rz-hint no-print">印刷ダイアログで送信先を「PDFに保存」にするとPDFファイルとして保存できます。（この帯は印刷されません）</div>
+${pagesHtml}</body></html>`;
+  }
+
+  /** 点検用レセプト様式で1件印刷 */
+  function printRezeptForm(receipt) {
+    if (!receipt) return;
+    const w = window.open('', '_blank', 'width=860,height=1000');
+    if (!w) { alert('ポップアップがブロックされました'); return; }
+    w.document.write(buildRezeptDocHTML('点検用レセプト — ' + (receipt.name || ''), buildRezeptPagesHTML(receipt)));
+    w.document.close();
+    setTimeout(() => w.print(), 400);
+  }
+
+  /** 点検用レセプト様式で読み込んだ全件をまとめて印刷 */
+  function printAllRezeptForms() {
+    const list = [...(allReceipts.shaho || []), ...(allReceipts.kokuho || []),
+                  ...(allReceipts.shahoHenrei || []), ...(allReceipts.kokuhoHenrei || [])];
+    if (!list.length) { alert('UKEファイルを先に読み込んでください'); return; }
+    const w = window.open('', '_blank', 'width=860,height=1000');
+    if (!w) { alert('ポップアップがブロックされました'); return; }
+    w.document.write(buildRezeptDocHTML('点検用レセプト（全' + list.length + '件）',
+      list.map(buildRezeptPagesHTML).join('')));
     w.document.close();
     setTimeout(() => w.print(), 400);
   }
@@ -964,21 +1334,33 @@ const ReceiptExporter = (() => {
       cityMap[cityKey].receipts.push(r);
     }
 
-    const billingMonth = allKouhiReceipts[0].billingMonth || '';
+    // 基準の診療月＝最頻月（先頭レセプトが月遅れ分だと基準が逆転するため件数の多い月を採る）
+    const monthCount = {};
+    for (const r of allKouhiReceipts) {
+      if (r.billingMonth) monthCount[r.billingMonth] = (monthCount[r.billingMonth] || 0) + 1;
+    }
+    const billingMonth = Object.entries(monthCount).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? 1 : -1))[0]?.[0] || '';
     const wareki = toWareki(billingMonth);
+    // 請求日＝IRレコードの請求年月（なければ診療月の翌月）の1日
+    const seikyuBm = institution.billingMonth || '';
+    const seikyuDate = seikyuBm ? toWareki(seikyuBm) + '1日' : getSubmitDate(billingMonth);
+
+    // ★2026-08-31: 実物の「医療費請求書」様式に合わせて全面改修
+    //   （種別チェック欄・県番号/表別/医療機関番号・所在地/開設者/電話・
+    //     請求割合・備考の月遅れ表示・25行改ページ・ページ計・脚注）
+    const KOUHI_KIND = { '81': 'kodomo', '85': 'kodomo', '82': 'shogai', '83': 'boshi', '84': 'boshi', '21': 'seishin' };
+    const ROWS_PER_PAGE = 25;
 
     let pages = '';
-    let pageNum = 0;
     for (const [cityKey, group] of Object.entries(cityMap)) {
-      pageNum++;
-      let rows = '';
-      let totalPoints = 0, totalAmount = 0;
-
+      const kinds = new Set();
+      let hasShahoRow = false;
+      const rowsData = [];
       for (const r of group.receipts) {
         const kouhiInfo = r.kouhi[0] || {};
         const kouhiType = kouhiInfo.futanshaNumber ? kouhiInfo.futanshaNumber.substring(0, 2) : '';
-        const typeLabel = { '12': '生活保護', '21': '精神通院', '51': '特定疾患', '54': '難病',
-          '81': 'こども', '82': '障害者', '83': 'ひとり親', '85': 'こども', '89': '福祉給付金' }[kouhiType] || kouhiType;
+        if (KOUHI_KIND[kouhiType]) kinds.add(KOUHI_KIND[kouhiType]);
+        if (/shaho/.test(r.fileType || '')) hasShahoRow = true;
         // ★2026-08-20修正: 旧実装は「総点数×10 −(保険の)一部負担金」で、
         //   ①公費対象点数でなく保険の総点数を使い ②保険併用時も公費が全額負担する前提だったため
         //   併用レセプトで大幅な過大請求になっていた。
@@ -995,39 +1377,89 @@ const ReceiptExporter = (() => {
           ? (100 - kyufuRatio) / 100 : 1;
         const amount = Math.round(koPoints * 10 * patientRatio) - koCopay;
 
-        rows += `<tr>
-          <td>${he(kouhiInfo.jukyushaNumber || '-')}</td>
-          <td>${he(r.name)}</td>
-          <td>${he(typeLabel)}</td>
-          <td style="text-align:right;">${koPoints.toLocaleString()}</td>
-          <td style="text-align:right;">${amount > 0 ? amount.toLocaleString() + '円' : '-'}</td>
-        </tr>`;
-        totalPoints += koPoints;
-        totalAmount += amount > 0 ? amount : 0;
+        // 備考: 診療月がこのファイルの請求対象月と違えば月遅れ＝診療月を表示（実物の運用）
+        let biko = '';
+        if (r.billingMonth && billingMonth && r.billingMonth !== billingMonth) biko = toWareki(r.billingMonth) + '分';
+        if (r.tokki) biko += (biko ? '　' : '') + r.tokki;
+        rowsData.push({
+          juk: kouhiInfo.jukyushaNumber || '-', name: r.name, points: koPoints,
+          amount: amount > 0 ? amount : 0,
+          ratio: patientRatio === 1 ? '－' : String(Math.round(patientRatio * 10)),
+          biko,
+        });
       }
 
-      pages += `
-        ${pageNum > 1 ? '<div style="page-break-before:always;"></div>' : ''}
-        <div class="form-title" style="font-size:14px;">医療費請求書<span style="font-size:11px;color:#666;margin-left:8px;">${wareki}分 (${pageNum}/${Object.keys(cityMap).length})</span></div>
-        <div class="form-dest" style="font-size:14px;">${he(group.cityName)} 長 様</div>
+      const totalPoints = rowsData.reduce((s, x) => s + x.points, 0);
+      const totalAmount = rowsData.reduce((s, x) => s + x.amount, 0);
+      const pageCount = Math.max(1, Math.ceil(rowsData.length / ROWS_PER_PAGE));
+      const ck = (on) => on ? '☑' : '☐';
+      const checkboxRow = ck(kinds.has('kodomo')) + '子ども　' + ck(kinds.has('shogai')) + '障害者　' +
+        ck(kinds.has('boshi')) + '母子・父子家庭　' + ck(kinds.has('seishin')) + '精神障害　／　' +
+        ck(false) + '国保特例　' + ck(hasShahoRow) + '社保・国保組合用';
 
-        <table class="form-info" style="margin-top:12px;">
-          <tr><td class="fi-label" style="width:140px;">医療機関名</td><td>${he(institution.name || CLINIC.name)}</td></tr>
-          <tr><td class="fi-label">医療機関コード</td><td>${he(institution.code || CLINIC.code)}</td></tr>
-          <tr><td class="fi-label">請求件数</td><td>${group.receipts.length}件</td></tr>
-          <tr><td class="fi-label">請求金額合計</td><td style="font-weight:700;">${totalAmount.toLocaleString()}円</td></tr>
-        </table>
-
-        <table class="form-table" style="margin-top:12px;">
-          <tr><th>受給者番号</th><th>氏名</th><th>公費種別</th><th style="width:80px;">点数</th><th style="width:100px;">請求金額</th></tr>
-          ${rows}
-          <tr style="font-weight:700;border-top:2px solid #333;">
-            <td colspan="3">合計</td>
-            <td style="text-align:right;">${totalPoints.toLocaleString()}</td>
+      for (let pg = 0; pg < pageCount; pg++) {
+        const slice = rowsData.slice(pg * ROWS_PER_PAGE, (pg + 1) * ROWS_PER_PAGE);
+        const pagePoints = slice.reduce((s, x) => s + x.points, 0);
+        const pageAmount = slice.reduce((s, x) => s + x.amount, 0);
+        let rows = '';
+        slice.forEach((x, i) => {
+          rows += `<tr>
+            <td style="text-align:center;">${pg * ROWS_PER_PAGE + i + 1}</td>
+            <td>${he(x.juk)}</td>
+            <td>${he(x.name)}</td>
+            <td style="text-align:right;">${x.points.toLocaleString()}</td>
+            <td style="text-align:right;font-weight:600;">${x.amount ? x.amount.toLocaleString() : '-'}</td>
+            <td style="text-align:center;">${he(x.ratio)}</td>
+            <td>${he(x.biko)}</td>
+          </tr>`;
+        });
+        rows += `<tr style="font-weight:700;background:#f0ede6;">
+          <td colspan="3" style="text-align:right;">計</td>
+          <td style="text-align:right;">${slice.length}件 / ${pagePoints.toLocaleString()}点</td>
+          <td style="text-align:right;">${pageAmount.toLocaleString()}円</td>
+          <td colspan="2"></td>
+        </tr>`;
+        if (pageCount > 1 && pg === pageCount - 1) {
+          rows += `<tr style="font-weight:700;background:#e8e4dc;">
+            <td colspan="3" style="text-align:right;">合計（全${pageCount}枚）</td>
+            <td style="text-align:right;">${rowsData.length}件 / ${totalPoints.toLocaleString()}点</td>
             <td style="text-align:right;">${totalAmount.toLocaleString()}円</td>
-          </tr>
-        </table>
-      `;
+            <td colspan="2"></td>
+          </tr>`;
+        }
+
+        pages += `
+          ${pages ? '<div style="page-break-before:always;"></div>' : ''}
+          <div style="text-align:center;font-size:17px;font-weight:700;letter-spacing:.4em;margin-bottom:4px;">医療費請求書</div>
+          <div style="display:flex;align-items:flex-start;gap:10px;font-size:11px;">
+            <div style="border:1px solid #888;padding:3px 8px;">${checkboxRow}</div>
+            <div style="margin-left:auto;white-space:nowrap;">${he(seikyuDate)}</div>
+          </div>
+          <div style="font-size:13px;font-weight:600;margin-top:6px;">${he(group.cityName)} 長 様</div>
+          <table class="form-table" style="margin-top:6px;">
+            <tr><th>県番号</th><th>表別</th><th>医療機関番号</th><th>併設</th><th>割引</th><th>入院外 金額</th><th>請求総件数</th><th>枚数</th></tr>
+            <tr>
+              <td style="text-align:center;">${he(CLINIC.prefecture)}</td>
+              <td style="text-align:center;">${he(CLINIC.hyobetsu)}</td>
+              <td style="text-align:center;">${he(institution.code || CLINIC.code)}</td>
+              <td style="text-align:center;">—</td>
+              <td style="text-align:center;">—</td>
+              <td style="text-align:right;font-weight:700;">${totalAmount.toLocaleString()} 円</td>
+              <td style="text-align:right;">${rowsData.length} 件</td>
+              <td style="text-align:center;">${pageCount}枚の内 ${pg + 1}枚</td>
+            </tr>
+          </table>
+          <div style="font-size:10.5px;margin-top:4px;">医療機関所在地：${he(CLINIC.address)}　名称：${he(institution.name || CLINIC.name)}　開設者：${he(CLINIC.founder)}　電話：${he(institution.phone || CLINIC.phone)}</div>
+          <div style="font-size:11.5px;margin-top:6px;">${he(wareki)}分を下記の通り請求します。</div>
+          <table class="form-table" style="margin-top:4px;">
+            <tr><th style="width:38px;">番号</th><th style="width:110px;">受給者証番号</th><th>氏名</th><th style="width:70px;">総点数</th><th style="width:95px;">市町村負担額</th><th style="width:56px;">請求割合</th><th style="width:170px;">備考</th></tr>
+            ${rows}
+          </table>
+          <div style="font-size:9.5px;color:#555;margin-top:6px;line-height:1.6;">
+            但し、社会保険及び国保組合のレセプトが返戻されても、点数、割合が変わらない場合は、医療費請求書に再請求の必要はありません。<br>
+            月遅れ・返戻分の再請求は診療月／加入保険が国保組合の場合は組合名／国保特例の場合は特例と表示
+          </div>`;
+      }
     }
 
     const w = window.open('', '_blank', 'width=800,height=900');
@@ -1037,7 +1469,7 @@ const ReceiptExporter = (() => {
       title: '公費医療費請求書',
       body: pages + `
         <div class="form-footer-note">
-          ※ UKEファイルから自動集計した参考値です。金額は概算です。<br>
+          ※ UKEファイルから自動集計した値です。提出前に実物と突合してください。<br>
           出力日時: ${new Date().toLocaleString('ja-JP')}
         </div>
       `
@@ -1072,6 +1504,9 @@ const ReceiptExporter = (() => {
       <button onclick="ReceiptExporter.printDiscCoverLetter('shaho');closeExportMenu();">光ディスク等送付書（社保）</button>
       <button onclick="ReceiptExporter.printDiscCoverLetter('kokuho');closeExportMenu();">光ディスク等送付書（国保）</button>
       <button onclick="ReceiptExporter.printKouhiSeikyu();closeExportMenu();">公費医療費請求書</button>
+
+      <div class="rc-export-group">点検用レセプト様式（印刷→PDF保存可）</div>
+      <button onclick="ReceiptExporter.printAllRezeptForms();closeExportMenu();">点検用レセプト様式（全件まとめて）</button>
 
       <div class="rc-export-group">返戻関連</div>
       <button onclick="ReceiptExporter.printHenreiSoukatu('shaho');closeExportMenu();">返戻用社保総括表</button>
@@ -1675,6 +2110,8 @@ const ReceiptExporter = (() => {
     downloadUKE,
     downloadAllUKE,
     printReceipt,
+    printRezeptForm,
+    printAllRezeptForms,
     printSummary,
     printChecklist,
     printShahoSoukatu,
