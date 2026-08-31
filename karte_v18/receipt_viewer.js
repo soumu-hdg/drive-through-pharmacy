@@ -28,7 +28,8 @@ function parseUKE(text, fileType) {
   const henreiRecords = []; // ★v0.15 返戻HRレコード（受付番号でRE突合、全件走査後にマッチ）
   let currentReceipt = null;
   let currentCategory = '';
-  const isHenrei = fileType.includes('henrei');
+  // ★2026-08-31修正: fileTypeは'shahoHenrei'/'kokuhoHenrei'（大文字H）なので小文字比較では常にfalseだった
+  const isHenrei = fileType.toLowerCase().includes('henrei');
 
   for (let line of lines) {
     // 返戻レコードは先頭に "8,line,flag," プレフィックスが付く
@@ -340,6 +341,7 @@ async function handleFiles(files) {
     document.getElementById('clinicName').textContent = institution.name;
   }
   // 自動チェック実行
+  rzInvalidateBaseMonth();
   runAllChecks();
   // UI更新 - データがあるタブに自動切替
   for (const key of ['shaho', 'kokuho', 'shahoHenrei', 'kokuhoHenrei']) {
@@ -493,11 +495,62 @@ function checkReceipt(r) {
 }
 
 // ===== UI Rendering =====
+// ===== 月遅れ請求（レセプト側）2026-08-31 =====
+// UKE内のデータだけで判定できる: 診療年月(RE[3])がファイルの基準月（最頻の診療月）より
+// 古いレセプト＝月遅れ分。診療月は変更せず、表示・集計の別掲のみ行う。
+let _rzBaseMonthCache = null;
+function rzBaseMonth() {
+  if (_rzBaseMonthCache !== null) return _rzBaseMonthCache;
+  const mc = {};
+  [...allReceipts.shaho, ...allReceipts.kokuho].forEach(r => {
+    if (r.billingMonth) mc[r.billingMonth] = (mc[r.billingMonth] || 0) + 1;
+  });
+  const e = Object.entries(mc).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? 1 : -1));
+  _rzBaseMonthCache = e.length ? e[0][0] : '';
+  return _rzBaseMonthCache;
+}
+function rzInvalidateBaseMonth() { _rzBaseMonthCache = null; }
+function isLateClaim(r) {
+  const b = rzBaseMonth();
+  return !!(b && r.billingMonth && !r.isHenrei && r.billingMonth < b);
+}
+
+// ===== 返戻の再請求プラン（localStorage・端末内保存）2026-08-31 =====
+// 返戻レセプトごとに「対応内容」「再請求する」を記録し、チェック分だけ再請求UKEを作る。
+const RESUBMIT_LS_KEY = 'rz_resubmitPlan';
+function rzResubKey(r) {
+  return (r.fileType || '') + '|' + (r.uketsukeNumber || '') + '|' + (r.karteNumber || '') + '|' + (r.billingMonth || '');
+}
+function rzLoadPlans() {
+  try { return JSON.parse(localStorage.getItem(RESUBMIT_LS_KEY)) || {}; } catch (e) { return {}; }
+}
+function rzSavePlans(p) {
+  try { localStorage.setItem(RESUBMIT_LS_KEY, JSON.stringify(p)); } catch (e) {}
+}
+function rzGetPlan(r) { return rzLoadPlans()[rzResubKey(r)] || null; }
+function rzUpdatePlan(r, patch) {
+  const plans = rzLoadPlans();
+  const k = rzResubKey(r);
+  plans[k] = Object.assign(plans[k] || {}, patch);
+  rzSavePlans(plans);
+}
+function rzSetAction(idx, val) {
+  const list = allReceipts[currentTab] || [];
+  if (list[idx]) rzUpdatePlan(list[idx], { action: val });
+}
+function rzToggleResubmit(idx, checked) {
+  const list = allReceipts[currentTab] || [];
+  if (list[idx]) rzUpdatePlan(list[idx], { resubmit: !!checked });
+}
+
 function getCurrentReceipts() {
   const list = allReceipts[currentTab] || [];
   let filtered = list;
   if (currentFilter === 'warn') {
     filtered = list.filter(r => r.warnings.some(isActionable));
+  }
+  if (currentFilter === 'late') {
+    filtered = list.filter(isLateClaim);
   }
   if (sortCol) {
     filtered = [...filtered].sort((a, b) => {
@@ -554,7 +607,17 @@ function renderList() {
     html += '<td>' + esc(String(r.seq)) + '</td>';
     html += '<td>' + esc(r.karteNumber) + '</td>';
     html += '<td>' + esc(r.name) + '</td>';
-    html += '<td>' + esc(r.insuranceType) + '</td>';
+    let typeExtra = '';
+    if (isLateClaim(r)) {
+      typeExtra += ' <span style="display:inline-block;font-size:10px;font-weight:700;padding:0 6px;border:1px solid #b45309;color:#b45309;background:#fdf1dd;border-radius:2px;" title="診療月 ' + esc(formatMonth(r.billingMonth)) + '（基準月 ' + esc(formatMonth(rzBaseMonth())) + ' より前）">月遅れ</span>';
+    }
+    if (r.isHenrei) {
+      const _pl = rzGetPlan(r);
+      if (_pl && _pl.resubmit) {
+        typeExtra += ' <span style="display:inline-block;font-size:10px;font-weight:700;padding:0 6px;border:1px solid #c1272d;color:#c1272d;background:#fdeaea;border-radius:2px;">' + (_pl.doneAt ? '再請求済' : '再請求') + '</span>';
+      }
+    }
+    html += '<td>' + esc(r.insuranceType) + typeExtra + '</td>';
     html += '<td class="num">' + (r.jitsuNissu || r.visitDays.length) + '</td>';
     html += '<td class="num">' + r.totalPoints.toLocaleString() + '</td>';
     html += '<td style="text-align:center;">';
@@ -589,8 +652,11 @@ function updateSummary(list) {
     else if (w.severity === 'mid') sevMid++;
     else if (w.severity === 'low') sevLow++;
   }));
+  const lateCount = list.filter(isLateClaim).length;
+  const latePts = list.filter(isLateClaim).reduce((s, r) => s + r.totalPoints, 0);
   el.innerHTML =
     '<span><strong>件数:</strong> ' + total + '件</span>' +
+    (lateCount > 0 ? '<span><strong>うち月遅れ:</strong> <span style="color:#b45309;font-weight:600;">' + lateCount + '件 / ' + latePts.toLocaleString() + '点</span></span>' : '') +
     '<span><strong>合計点数:</strong> ' + totalPts.toLocaleString() + '点</span>' +
     '<span><strong>実日数合計:</strong> ' + totalDays + '日</span>' +
     '<span><strong>点数検算:</strong> <span style="color:var(--rc-green);font-weight:600;">一致' + reconOk + '</span>' +
@@ -652,6 +718,29 @@ function showDetail(idx) {
       '<strong style="color:var(--rc-red,#b5442f);">&#9888; 返戻理由' +
       (r.henreiReason.code ? '（' + esc(r.henreiReason.code) + '）' : '') + '</strong><br>' +
       esc(r.henreiReason.text || '（理由テキストなし）') + '</div>' + insHtml;
+  }
+  // ★2026-08-31 月遅れ表示（診療月が基準月より前）
+  if (isLateClaim(r)) {
+    insHtml = '<div style="flex-basis:100%;background:#fdf1dd;border-left:5px solid #b45309;' +
+      'padding:8px 14px;margin-bottom:8px;font-size:12.5px;">' +
+      '<strong style="color:#b45309;">月遅れ分</strong>　診療月 ' + esc(formatMonth(r.billingMonth)) +
+      '（このファイルの基準月 ' + esc(formatMonth(rzBaseMonth())) + ' より前）。診療月のまま請求します。</div>' + insHtml;
+  }
+  // ★2026-08-31 返戻の再請求記録（対応内容＋再請求チェック。端末内localStorageに保存）
+  if (r.isHenrei) {
+    const plan = rzGetPlan(r) || {};
+    insHtml += '<div style="flex-basis:100%;background:#fff8ec;border:1px solid #d8c9a3;border-left:5px solid #b45309;' +
+      'padding:9px 14px;margin-top:8px;font-size:12.5px;line-height:1.9;">' +
+      '<strong>再請求の記録</strong>　' +
+      '<label>対応内容: <input list="rzActionList" value="' + esc(plan.action || '') + '" placeholder="例: 傷病名を追加" ' +
+        'style="width:240px;padding:2px 6px;border:1px solid #c9bfa8;" onchange="rzSetAction(' + idx + ', this.value)"></label>' +
+      '<datalist id="rzActionList"><option value="加算を取り下げ"></option><option value="傷病名を追加"></option>' +
+      '<option value="点数を修正"></option><option value="摘要を追記"></option><option value="患者情報を修正"></option></datalist>' +
+      '　<label style="cursor:pointer;"><input type="checkbox" ' + (plan.resubmit ? 'checked' : '') +
+        ' onchange="rzToggleResubmit(' + idx + ', this.checked)"> <strong>この分を再請求する</strong></label>' +
+      (plan.doneAt ? '　<span style="color:var(--rc-green,#3a6b35);font-weight:700;">&#10003; 再請求ファイル作成済 ' + esc(String(plan.doneAt).substring(0, 10)) + '</span>' : '') +
+      '<span style="color:#8b8574;font-size:11px;">　※チェックした分は「出力」→「再請求ファイル（UKE）作成」でまとめて出せます</span>' +
+      '</div>';
   }
   document.getElementById('detailInsInfo').innerHTML = insHtml;
 

@@ -76,6 +76,7 @@
       フィルタ:
       <button class="rc-filter-btn active" data-filter="all" onclick="setFilter('all')">全件</button>
       <button class="rc-filter-btn" data-filter="warn" onclick="setFilter('warn')">警告のみ</button>
+      <button class="rc-filter-btn" data-filter="late" onclick="setFilter('late')" title="診療月がこのファイルの基準月より前のレセプト">月遅れのみ</button>
     </div>
   </div>
 
@@ -232,8 +233,8 @@
      ============================================================ -->
 <script src="supabase_client.js"></script>
 <script src="receipt_checker.js?v=20260728_v21"></script>
-<script src="receipt_exporter.js?v=20260831_v34"></script>
-<script src="receipt_viewer.js?v=20260831_v34"></script>
+<script src="receipt_exporter.js?v=20260831_v35"></script>
+<script src="receipt_viewer.js?v=20260831_v35"></script>
 
 </body>
 </html>
