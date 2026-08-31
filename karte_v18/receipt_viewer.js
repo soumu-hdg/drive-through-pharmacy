@@ -1144,6 +1144,12 @@ function printCurrentDetail() {
     ReceiptExporter.printReceipt(list[currentDetailIdx]);
   }
 }
+function printCurrentDetailRezept() {
+  const list = allReceipts[currentTab] || [];
+  if (currentDetailIdx >= 0 && currentDetailIdx < list.length) {
+    ReceiptExporter.printRezeptForm(list[currentDetailIdx]);
+  }
+}
 function csvCurrentDetail() {
   const list = allReceipts[currentTab] || [];
   if (currentDetailIdx >= 0 && currentDetailIdx < list.length) {
