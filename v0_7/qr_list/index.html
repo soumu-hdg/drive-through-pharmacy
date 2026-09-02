@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>薬品QRコード一覧</title>
+<style>
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Noto Sans JP", "Hiragino Kaku Gothic Pro", "Yu Gothic", sans-serif;
+    background: #fff;
+    padding: 12px;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 12px;
+    border-bottom: 2px solid #2196F3;
+    padding-bottom: 8px;
+  }
+  .header h1 {
+    font-size: 18px;
+    color: #1565C0;
+    margin-bottom: 4px;
+  }
+  .header .subtitle {
+    font-size: 10px;
+    color: #666;
+  }
+  .stats {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 12px;
+    font-size: 11px;
+  }
+  .stats span {
+    padding: 3px 10px;
+    border-radius: 12px;
+    background: #E3F2FD;
+    color: #1565C0;
+  }
+  .stats .vacant-stat {
+    background: #FFF3E0;
+    color: #E65100;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+  .card {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 6px;
+    text-align: center;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    background: #fff;
+  }
+  .card.vacant {
+    background: #f5f5f5;
+    border: 1px dashed #ccc;
+  }
+  .qr {
+    width: 80px;
+    height: 80px;
+    display: block;
+    margin: 0 auto 4px;
+  }
+  .qr-placeholder {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 4px;
+  }
+  .name {
+    font-size: 8px;
+    font-weight: bold;
+    color: #333;
+    line-height: 1.2;
+    min-height: 18px;
+    word-break: break-all;
+  }
+  .vacant-name {
+    color: #d32f2f;
+    font-weight: normal;
+  }
+  .code {
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 9px;
+    color: #1565C0;
+    margin-top: 2px;
+  }
+  .vacant-code {
+    color: #999;
+  }
+  .unit {
+    font-size: 7px;
+    color: #888;
+    margin-top: 1px;
+  }
+  .print-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #2196F3;
+    color: #fff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 24px;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    z-index: 1000;
+  }
+  .print-btn:hover {
+    background: #1976D2;
+  }
+  @media print {
+    .print-btn { display: none; }
+    body { padding: 0; }
+    .grid { gap: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>薬品QRコード一覧</h1>
+  <div class="subtitle">生成日時: 2026-04-14 19:17</div>
+</div>
+
+<div class="stats">
+  <span>全薬品: 207件</span>
+  <span>有効: 205件</span>
+  <span class="vacant-stat">欠番: 2件</span>
+</div>
+
+<div class="grid">
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8klEQVR4nOVWQWrEMAwcxYY9aqEPUr7Wn3kfVJCPARUV2VDK9rxzaEWIFV1mpMgjSeLZPo9fIeCvxJBe7+ZouVO3IHGxzISO617QRePg4ELkBOzmwJROrv2U6/5qjJ/Wv73bx0nGzXVcb941Mcn9bM2N2M8duq7PxNUtebqBdMuVaejYn0HDzQwdAQtNaJJws9IEbBe80A8KrpdIpheB5ghevtnWUwSWEyy9CiCmvBbj2Q5MEZEO60XgsWO0fm41BC10MO8RsMSq+rn8YM4jHZhn6Huw59EDOgRnS95+taWj+aOqPU/2fuV7xeL8X/lne+wXRbSNkW448GkAAAAASUVORK5CYII=" alt="QR M001">
+  <div class="name">カルボシステインDS50％ 0.45g</div>
+  <div class="code">M001</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+klEQVR4nOVWMW4EMQgc7O3ZH+Gv7c98T8kPcM+KCHzVXYoUCUWCrLWMVhoPDAZyvNrd3lzAX/HBNb5dxX1TFyu6iwQiX3Siu8c1Wg0uiAYgWAOLjuLYL9oB/02ML33yzf9+yHeEtHIj1oMdq4zvg4hC0h/jJqKzqo62KSyF7e4ldQRXcY3kGs99tCq+xtMgsdjBZXzjueiaoIhoW1WcEUxn99kVVsY3DTyfxMt0tU2lB+6swm1YREQHHpncWCjtR/M+5T4R3aHV6aqrIPScGmsFuO2582VrGF9W2Be2HTwJo3vNfJXvZJZP1m8E3Grnq571W5Vf+mdz7CcqVKIE67ixBwAAAABJRU5ErkJggg==" alt="QR M002">
+  <div class="name">カルボシステインDS50％ 0.6g</div>
+  <div class="code">M002</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9ElEQVR4nOWWMY7DMAwEl5IAl8yP6K/lSfcD5UdST4MBZSPFHZAuW1xYyJCaESnu0hL4HUf5cwT8lzPEyLUOuJ6pm5PuYhFXsWtEXqNwuBDZAcvdlEaqc7u+et/8U4zyhjt3iJG5ATSN5rli0t73ISKZ79wPEbmxdHRFz2Ze4ST92tlQrj2GsfSLGBbRfenIYZWWb/Q6UDNrc+1QGjde9Awad8BPf15bVp0LNJIFbAM1+mcY7+YRdImIVOfymkcx0rw29jxCwwNzGVchcVdY+uRtSamA4xtIu8iO8mUdzpxHgDeD/kD7Qe1nWxI2lm/Il/3HPgEc4ZE0+ZYmlgAAAABJRU5ErkJggg==" alt="QR M003">
+  <div class="name">カルボシステインDS50％ 0.9g</div>
+  <div class="code">M003</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9ElEQVR4nOVWQU5FIQycAonL/ht4FDg6HsUblH1fxhSeMVG3vwttCCRshum0Q4X4Hlf5cQX8lTvQYq+crod696S3dJJYowU64xklBxciA0pfA0taeu6bzqdjfEW7z/XgGsm4DLK7qJRYaXl+E5FTV5eIPLL66DNOYZNM6SPQerVeSShp3TUNF3XDVTLcI8k3QOtRTui0WEjk63vn5punL+fmewudx/eEwXW6ztC6JOAWLBGRY5IN/TkYvwQt2raSjhA6q57L/R8tgc6mfLHcf0HZHNVwvVrqnLPCon0Nvo9cfedROWvOwT1fbbc8yzNw5Z/NsR8T96vKMve59AAAAABJRU5ErkJggg==" alt="QR M004">
+  <div class="name">カルボシステインDS50％ 1.2g</div>
+  <div class="code">M004</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/klEQVR4nOVWwW0EMQgc1kj7JB2kFNPadeYr5Towf1acsC9RlLzDI0GWhfzBw8AABb7bdfx4Av7KG2Lm3WJANvTuRX/pEQFTz+iR3zhq4oJIIXE+FEZclGf+cO6OwfWcm7LpL8f4apylBbBEehKwMrx3IsICexHRW1UfvWzswo6Ioj6yZJYBlwHTqxAvJGG2PMOLdAMxeyKVaLPH7JCaPKdOZuhFbotRxS82xkzy7K0S77aVbZfRZtVcMCIiltsSke51OtmzpAE2daOqPjpe88jUZbDEOWvnkYzT0Sau91m659iCbBoPrdpz+mfntiS6TK/y3mK1W9gr4tI/22Of/E6pH8yIYKYAAAAASUVORK5CYII=" alt="QR M005">
+  <div class="name">カルボシステインDS50％ 1.5g</div>
+  <div class="code">M005</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABBUlEQVR4nOWWMW4EIQxFvweklB4pB4Kr7c2Yo+QGUK7E6Ed/2CqbIkXWReKCAWukJ9v4GyO+2rk9uYC/4gO71tQLfIVeZhC3kExk6iWR7DFc+cwqcOg0LAfnftRzfzXjW19J/Uf//ZIvq8TX5/7esxMjLN7DzAC8fdTTzPaoeFf7DNxzYZxuQH3Ui3be1nHGcMnpJCnFcMIZphuQXkFQYMbpFaa3K+S26DOMi5LY2CG1ZBR3WZduiB7E3TDMzDKOqeK+iPFsG6B5BOe5F0n0qFHztzzEWfdZ+xk5F7zNUafflOotMF4q1WrksHsFkFLI1A+9duLqi6VXVx9darkFcO2fvWM/Aed4myuw+BItAAAAAElFTkSuQmCC" alt="QR M006">
+  <div class="name">ドンペリドン坐剤１００ｍｇ</div>
+  <div class="code">M006</div>
+  <div class="unit">個</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+ElEQVR4nOWWMXLEMAhFP5ZmUio3yFGkm+3kZtqj5AaiZ+dnsLxNts4vEgp7TPPA8AEjftrjeHEBf8UHrnwWEm2n3kMUSycJtzjpGcah4cJsoLEswK3K/3318euMV58/oUIuOdE+86sxdNy7mcFvqVwze1fp6LK5G5ukREfg6mX1rV+uHk3FzUyxxVs4QzQ3QKZyM+XVuXq21iHhrsRFmztfXX05I4dV0osy321JvAIIjX7dzKy2GUA9Gwyy+nJ3ckJV/Xxc+8gH2qyNb6I9WK93m6ea8PhY0jvHR/URPvg1tPVNy2mpq+/93EeZL3zk1XEIuPbP7thvxIarNJxWcEUAAAAASUVORK5CYII=" alt="QR M007">
+  <div class="name">ドンペリドン坐剤３００ｍｇ</div>
+  <div class="code">M007</div>
+  <div class="unit">個</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9ElEQVR4nOWWMW4EMQhFP2NLWzrSHgjfLNqbzRxlb4DLSKyIYJIUibbMLxIK26L5Av9nLIHv8dh+pIC/kkNYrs0U0Eqok3Q1IlrstUYYRzdzIjOPa2JJJ/d+vfax/7LGk9yaRN2eV1zb29X6CCxavYeIALjc50NEXlgcnZE0pbEjgseRJbxevmJxhLNSz6P6CAxevfgSBZz3XsGhYWixN4PT6o16Ie1TmuarMwwtdfOJdg6/S0Sk1zByHGmwjTqPUCgROVJAc/6mnwvkjaC7fezjhjV93Jh9BjTtVPzyfIVECTgudmS31yT/r6I4Yt2v/LN/7DvfBaeVOfmgMAAAAABJRU5ErkJggg==" alt="QR M008">
+  <div class="name">アスベリン散10％ 0.2g</div>
+  <div class="code">M008</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/ElEQVR4nOVWMW7DMAw8WgYy0j/oU6SfBfkZ85Q8oIC007iCcr20HTq0HBKCEGTCwIk+805CfI19+VYCnqUG9lgLCdRZqJ50lkoSox3ocYwlAXcFIKhQWx3r2Mp78re/79u/Y/xQG9fyaL947y9rpEFv8aT0PNy7iGBcY3JFZMuaozN8/tixWVJwey29Fpor2atrHq6rkSyR5km6gUA8JKtX9orEfkmba/SbyC+C4gkdjaf1e0QgWhDds3xhiIisalOspyUtafxy+iA8Ms0HIdIwmqutykuiD0bo7eIoHftbT73njOYz+Wi5/NrJcpZefYrVKdRJcyQvdo/9AIkJtLY+0cD9AAAAAElFTkSuQmCC" alt="QR M009">
+  <div class="name">アスベリン散10％ 0.3g</div>
+  <div class="code">M009</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABBUlEQVR4nOVWO2pEMQwcPRm2lG/kvUHOlJv5HSUHCOiVC3pMkDekSFJskahIhDFGGMb6zMhCfLZz++IC/ooP9Nw197EcI4reMkjCJh1K5jO2AtwGQDBwXGHejq6vtbm3qS/XX8b41jfO/tC9H8wzgXY8RQOMOMri3UUEwMVxikiv4tG7TfVsbJIlPAJ96J1HZBjVa/ib8SoZQNiEkWW4PpJES7UCKR1RqJPkRMY7w+pwNUHvcylrHZX97ImYQl02Fw4RkbaK27BH3Rwcq6VnHtaKKn0WyYnQbDZ7rtKr7eN06/vZV49tVfzFUM/6rlWX50XelMpm8+LV/6vs5LSaeOWf/WPfACJcnzd31WNFAAAAAElFTkSuQmCC" alt="QR M010">
+  <div class="name">アスベリン散10％ 0.45g</div>
+  <div class="code">M010</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+klEQVR4nOVWQW4EIQxzAGmPzA/6FOZnq/6M+REcK4G8CrSrqj2vD22ERkwuxklsMOJnzPArBfyVHNj8G1sZKCtRhugshSTy+60hkn6MoMGF2Yl++l+3JK59rvOtvhjje6TnbqRTjEsg7TpnosvqfJkZUGLDNLNDxTdv56hpEVf5BthKdB1VkiPThRwEuMEJHtdAmceVgCHzKzpHn+e1Iini232SnWauKdePQ+fPZI3cplFUfMEdjk46umquupktW36aV1DeR0Q/R7+r7iPQh7lEbzFXl3X6XeH6nQccOgj5tk/9DiFfsiL7SrnedP3F1/tqh4av/bN37AP1P4k3Uak1UwAAAABJRU5ErkJggg==" alt="QR M011">
+  <div class="name">アスベリン散10％ 0.6g</div>
+  <div class="code">M011</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABBklEQVR4nOVWsW0DMQw8igJc0ht4FP1mXk0exRtQZQA9LqDebpIUBpKwSAhBxeGhI/9InYT4GHv5BAF/BQM9dmVXbwtoMymXRhLj+naGkpFGyeGFyAbr6sCQmv3vb/ul/zbHF9i4nu7bC9/9FFajtYBqHQMwxl6+cV55HbuJCMZWgV1Ezllz9IyjsUmmzBHoTb0pO4z0Ni2Ld1U6rZNU9pl0b4CLS0n1Rm9Iq9eh3uYqXDP1ZZ9G9UPoGKWZ2c+OaUcCWb4wRESqhQ9XYOb5YDuUxSLN6ufy8KMRllSNJ8+7nyOs12hs7BdPfeeMba7F+5asLx8qp+n79KMRKscIlwRe+Wfv2HeVKq91Q0fohgAAAABJRU5ErkJggg==" alt="QR M012">
+  <div class="name">アスベリン散10％ 0.75g</div>
+  <div class="code">M012</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABCElEQVR4nOVWMW4EMQgcbEspfT+4p+CfRfnZ5il5wElQRvJqImyluZNS5SiSKSimGWNgQIh7nOWBAv4KB1rESlbTRehMeouShI+51OMZJUG3ARAo+tt5teaXesvTXdB2G0/SKD9wLs/XuM+XQOuEAzsWPKL8PvcuIvDRgFNELllz9I3d2CRT5gg0raaVRCdNZ0/TRWj1yLTymEm+gZAzVIvEaYrEfOuyqbDKzPoy/nYXt2bWd8OAfsx+RGuVBN0CFxFp/VgmouEjJXEfAdPHdPlM8o0S+0gG/LX1o3W+JO7BwPrnajivlnrn+IjV74MfI+vO0e1UK4ZLz8z7ypZL7xEuCbryz+7YL29crl8dK+ZUAAAAAElFTkSuQmCC" alt="QR M013">
+  <div class="name">後）フェキソフェナジンDS 0.5g</div>
+  <div class="code">M013</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA7klEQVR4nOVWQQ7CMAxz10kcy4+yr/Gz8qP2nskoLXAAJC7gA1RTJ0WTHHuum0Q8rn15KgG/UgNb7LnBYaNgLurFyBB7LTWT0caiwUVKG2C5AT2tYu1L/T7Gq1rf9mD99rsP+spIZtaxk03jq7ufLTeln9M9N1ZX5gZC2Hibl8qgLNS51MnVYZkU5UahAwcy8qqc9qPKz2RuwXoYzKKNRYLbboi3NlzFN1aLqyGPI+za84sS+K7T2a6/eJDV+RnzPgJwRk/om3YWsLVv+zHSAyqdEXER0TEeWV7N+yhyw0sV+grTz5wjlgg3/dkcewFuLKUKDKc12QAAAABJRU5ErkJggg==" alt="QR M014">
+  <div class="name">後）フェキソフェナジンDS 1g</div>
+  <div class="code">M014</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8UlEQVR4nOVWu44DIQwcAz37R+wv3x+wfwS9kU9DkubuihTJFDkLedFopfHbWOCnrPQLAj4FQwzqPBrQNtBcxNsiIg94jRwRQ8NLzOwEWpknphVx7Gt/P8df2DR/6r9XYYUpBkqNEtSYMn8vMwOTey4zO1R9dJfOYt7iqj5yfpvXHruLXeRvzxFeOS8djfck4R2NbpKXLqOqeKPfGDMHJg1w1XzO+zzMkPm7hdFGvuU6KfcRUMmvinMCuI+oB4cXDUjKfXTxzD24koj3LvNcx26lBOUeXAcc1zKNv499xHtD/aIBSVrPMTgnVfVs/+wd+w3OUJtqO3UteQAAAABJRU5ErkJggg==" alt="QR M015">
+  <div class="name">後）オセルタミビルDS3％ 1.3g</div>
+  <div class="code">M015</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA70lEQVR4nOVWQW7EMAgc4ty9P+hT8NO9T+kPyLES0VTEWmnV9tBDO4cWWY5BkTAwAzbio5zbJxPwV2xg1N7IhF8GT9FdnCQO2/tsZF1j0/iF2QC8vY7yrs79PX/fxxe2Pvdv/fdTtr2gVR8/X2LvxKHFc3gLJZ7BJeEF5ktSFK+TbIEsHk10jd+qr8ETNIw0b0L+MmC3Cnzv87QhwhWvNlV9stikyjNWccvdQ00pnnEBbOp4FLU3zuxzYTuVPGJVea2UziO83e551AGqeIFqVqX0qcrz9jwH8xgq/m6LwkupJ0eo5xHDs8twZf/sHfsOlBGqxJbaL4YAAAAASUVORK5CYII=" alt="QR M016">
+  <div class="name">後）オセルタミビルDS3％ 1.9g</div>
+  <div class="code">M016</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+klEQVR4nOVWMW7EMAyjbAM3+n7k/CzIz+yn9AEHyLsCFvJ1KJqu0dAKgRxwocTIoYT4GWe6QMBfwUD1nElDW0CzoFoaSWCU2jPpZaQYXohs3iaAKSVe+7ndz3HFxkMv2LdIN2Bkx9zPJ1BpcbxDRHykFaeIPKPu0Vd0W4NNMuQegdqs9qzNqWsYbwIGAAMK2kPHKVuYzvA/Vcvq7zlQ5+wic4ncXfYUxMvV5rsAq1H9vkPhjA6E9es5s695dmuwSJ3VTdD8CfPB5Uf1sMqCFu1Hc1/f+riT4zesHvljw9yjfL94m+sodpQXyit2v/LcqGvRSgG88s/22E+YN6c8yGMzxgAAAABJRU5ErkJggg==" alt="QR M017">
+  <div class="name">後）オセルタミビルDS3％ 1g</div>
+  <div class="code">M017</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+klEQVR4nOVWMXIDMQhcTppJiX+Qp6Cv5WfyU/wD6HWzHmS7SdKGwqFQQbMCdheE+B7n8SMFvEsO9HwbCdhO2Cr6i5FECHQ2Mr9x1OBCZED3nEN6de+v7Tb+GuOXXLxAi3B7UgvoSgSy21FW71VEEKMDp4hcqnT0igexSZboCHRrbo0TSrotrcLdml2wRjbOVeQbIOfajtHc6Iayet2yxl14q5wv5yYVcsrF82UyCrob7lV7IUREun6tNJFsOCr3EdIqV8h5qd1HMbrOrvzwOn/O0GlJLZyfXnrnRJa8YvA2qu4c28pNNT2unVV5X3ma1VPCRwGu/LM79g5TRKrvkFpC9AAAAABJRU5ErkJggg==" alt="QR M018">
+  <div class="name">後）オセルタミビルDS3％ 2.6g</div>
+  <div class="code">M018</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAUlEQVR4nOVWQW7EIAwck0h7JD/Yp8DX+jPylD6gEtwdTWXYVtX2vHNorcg4vgw2ngEjnu1Kv1LAX8mBPfwWvsxEcdFeCklksmNjeKh6YFaB0+4Nw3Zx70f1l2P8tP0rKLePKsblXK573zMxZH0+zSxG+r1eZnaoeLSsw+dgk5TwCOyFPZjrua1fV9W7zWJDMXIQ2UW4bQUBitiAy/rM5rmRbetRsuv6XEItl06K5iqtiVq3A3C+CuPZEoaZ2T4RH1KZpPeRHeU6QqihmiugBJViniebkgA3Pdbc9lE9v0Wrk7BecvE3giTATd/ScetnEEp3vljvq/gYR+wKXPtn79hP22iW371BXNMAAAAASUVORK5CYII=" alt="QR M019">
+  <div class="name">後）オセルタミビルDS3％ 3.2g</div>
+  <div class="code">M019</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+UlEQVR4nOVWQW4DMQgc1r6TH/Qp+Gv9mfcp/QE+RnI0FXZ7aXLooeHQoBW7iywN2OMBIX7a7bgLAf8lBnr44iB36TaTcrFA1F5HK2SkceTgQqQBBu0YUpP3fsjt8myMhzErH+036/4oVoNa8Trx5lWJkcxnK26JfAa3OeYiNskkXDeuSqf2/Tuz6sWXt6mEZtVLTiDgNBKYeefbC/vU8MWRWW/xECs6Cnser7Z5tIYoOQn3wBCRJctxuPEgtx9dLxYSPVqWXlmIs2Px2RL77zJlHW3qe9Y+1++PE9oFrTBvviK3Qp5xofLOF3u+WvdoqeWRgCsvNsd+AmIdoJehPQEvAAAAAElFTkSuQmCC" alt="QR M020">
+  <div class="name">セファクロル細粒20% 1.5g</div>
+  <div class="code">M020</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/ElEQVR4nOVWQW4EIQxzIFKP2R/0KfCzqj+jT9kfwJ2Rq7DdS3v3oRtFCHExwY6DEb/jKn+OgP9yBs5cKwf5KL1t0V1aIq6P64ZK5jWKBhdmHfFZ7x3LXPTO/tw038P1nK+eqcP1lBbgMbCAYK5FgFuALzPD6g5cZnZT9dEzHsImKekjcLY6WyV3kLPtUOFyJFZaByvHFvkGOFt6RYyamwZdvUxvjGS2clQlvzyiSqIh5PfEeeofaRUBbsEyM/PIYST0SaSuktmU9EnZHDzzaJnH8ODb1M6joE/Uiet9XvJ5tFfnvWv5HcevTi8XDS7yf/Vw6ZNbgWsv9o/9BtxesCPpi4I/AAAAAElFTkSuQmCC" alt="QR M021">
+  <div class="name">セファクロル細粒20% 3g</div>
+  <div class="code">M021</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABBklEQVR4nOWWTWrFMAyER7bhLd0b9Cj2zUpv5hzl3UBeFhymjLPrD3TRp0UrQkxE4LMkjywjPtqZPrmAv+IDXe/sDfUKva2gvTSSqEN0UttIMVyYdeBYs2NaCc79fLn5oxlf+o71s/9+yVd0tLS089lLJWZYvIeZAbjd+2lmT1HxXvKZeCuNcX0D9EZvku2WEj1GvyAH6iDHEpqoDOK6elR2CAqInkK4HMqtmtXIjrh4yVWZHXo49JmCuDJXwtWfg7gJ08ysoO3iHo9hfKMjMpP7PO9apyAudJ63iBR12P27rQ7MvurrCrwXLit1GHpm3HyllqWEH5p2Zg+er7h1FFVf+2dz7DsfYpshDjQ8dwAAAABJRU5ErkJggg==" alt="QR M022">
+  <div class="name">セファクロル細粒20% 4.5g</div>
+  <div class="code">M022</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABBUlEQVR4nOVWQWoDMQwcrQ09Oj/oU6yf5Wvep+QBAeuuZYq8oYe20EurQyLMYsSCPCONJCG+2rF9cwHP4gNnfAuJdkLvnvSWThImvGkh4xlbQtwKQNDRKG1Wu5R7Mvc7TP87xg8+0zPRv/33lzwTqG3UO6K0LA3vLiKwayhXRC5ZOnrYOAubZJKOTKtpBbwNmB6JeB3dF9jCEfctJ+4os5+HM4TsaXjb+MRbkvILziC5kAsyPBFvWEQc3oJzT6pnEZHaxmoi3fP6ZI95tFqlm2TpaIt5JAq7RqtsfEucg2GL5zJxvM/UPcekBs/Km2btOX0p93ES95x9zSNxU5iWpPzKi+2xH7MOpu0OyjZGAAAAAElFTkSuQmCC" alt="QR M023">
+  <div class="name">セファクロル細粒20% 6g</div>
+  <div class="code">M023</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+klEQVR4nOVWMY4DIQwcL0gpyY/gZ/kaeUp+gHuiiQxJc5cixd0Ud9aKlSwke2yPByO+2v345gL+ig8ccSb2WTb0OkW5VJLwdrq1REYahyYuzBo2WLesrv0Vpf92jDc+v8DbB/d+ypdjtIBcOhxRbZfhvZoZvGXgbmZnFY9etgebpIRH4Khp1M1fjjqLLi4HZukkI7pobyAWRTCorgQqZHgZSBfYwJuE/QUqSo8uR8FleJdFhWO00lDpgpuZ5dLnXiI6Hay7uRNYn0wHlx55y6XnwpNIB7Hnak9yIlU8Op5/D8jTG29N29/+xKvcV0Bay2pRWBPX/tk79gHWLLPaELXBBwAAAABJRU5ErkJggg==" alt="QR M024">
+  <div class="name">セファクロル細粒20% 7.5g</div>
+  <div class="code">M024</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA70lEQVR4nOWWwWrDMBBEZyVBjvIfrX85fyD/kXQsyGyZuA4h6aGHdA6tDotZDE+zkmdsgee1p5cW8Fd6iM6au+c4pPsU7cXjRvxYkCO4jaThwmwFNowVw4p49rVd+m8zvuuNdV9+8t67eoVXCyi1OWtgyO9zd+F9trtvlKn0DUT3L2BtQckaveRmojnkCbrHVJ1vdIqd8FkbqozrRB9OBUwZNyIfRBZ65lRxuXjKyNF03M6aOydMqGjO6cwj6i3ARZ9H2DCMqZRE3IdouH1KCcIcDFswse2m0XvmEZ8d9YraVP6MM4/okyq/sn/2H/sJKj2NM2y42CMAAAAASUVORK5CYII=" alt="QR M025">
+  <div class="name">ワイドシリン細粒20％ 1.5g</div>
+  <div class="code">M025</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+UlEQVR4nOVWSW4EMQgsbEt9ZH6Qp9hPd54yPzDHSLSIaM/kkJxTiibIciMu5WqWQgLf7Sw/QsCrxBAr7xrhuql3J72lRwRsHCvR8xmFgwuRAZ0fN8Ck/bF8lF+K2Tjug4jbsrSApjM9DRiN77uIwJLsKSI3Vh89za/CTqdQcFevq+/+jdVdWbgxHQkXEXX7hYMb0LmJx+rg8Q0HdnLrdZw1n13zD2eWuXzTEn26ziytQsAtMBGRPTcaOnE+9ywtwG24SapDIeqRpSQ1jYOkg+3x1Xk46sL5tqh7jiVltxH3wdpz+lfn1kw0bc/ZenRJko1Kyq/8sz32Ex1VqYPdVa1bAAAAAElFTkSuQmCC" alt="QR M026">
+  <div class="name">ワイドシリン細粒20％ 1g</div>
+  <div class="code">M026</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA7klEQVR4nOWWO3IDMQxDoU+vIgfSXs03095I6plBBlo7RTzjzigcFfo1b7EESSXi7/jOT1fAp9yBU3OZPdolvYeJ20kWjkAvJKeHq7uUDgAVwEqas4Fb7+s6+HvIBm5+bHpdUu3iVoVYyxlfszZiuf1cZrf6+Rqiy9gkfXk0pTTauI7h0os2OBHYpaP59BYOoGPXK9GzhcuhmAKFQ9ay6eWukPIzigqmjXv3M63cjJVSShW9Krjnexgv+hG3n4cvj2aH4ovtZ+3D2RfawDqi3cL4n7E7/pW/Pl9BqbQ/4FT+rsPejyDVpvimf/aO/QFWC6vvESY+2AAAAABJRU5ErkJggg==" alt="QR M027">
+  <div class="name">ワイドシリン細粒20％ 2.3g</div>
+  <div class="code">M027</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+0lEQVR4nOWWQWoFIQyG/6j7zI3i1d7NnKP0AAVdFjL8jziFQgvdNYvXIKOTzWdMfqMQ3+0qP1zAq/jAGd86Ab1DN0/ai5GEDqxeydhGSeA2AAKLkB1tHfU9jxu2uov9EaP86qs70VncFqUVk4nOpsRKi/cUkYj3rV8icmRxlSQduA7EiiNLv8YZFeU67l/P4tYdp8NcCWUSlwSszg0Fgl6SuK6DjFGnJcY7cN9XE5WszDvnsGmbO7K4BUtEpOHcyY2B3H70cdh1xEWNLB0h6vnuv5bYf7cpfXXXR9Y5t6+VDkGvzHtfbSmdnGfoNy+/+BTv1m9WfuWfvWOfWH2Zdz9+HwAAAAAASUVORK5CYII=" alt="QR M028">
+  <div class="name">ワイドシリン細粒20％ 3.8g</div>
+  <div class="code">M028</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/ElEQVR4nOVWS4oDIRB9pQ1Z2jAHKm8WcrCAfZTcoNzbvKF0ExKY3VRgpha27eZZvo8K8VpnelsC/soaaD5mwyirdR1Be1GSKA29ZtK3kWJwIVJ96tCyBZ99v14e9ROcHwEYT7W5tPyj9y/bCtHD+j1EBMDlUU8R2aN8tMrd5MImGeIj0JSmgLqe5+8I6rd5VhSOOaJE9UsOIHt0eF45egrCJTkKyZZN4/o1J3clZCZzmK5WmV8NmS0KN6GLyIxlJ/eXMH64j3jueu4YvSKSX8PUswbev7NKG72OcvOjTojUM6Z/43SFFVkH7XD/xvGL+b7S5d8ofuWfvWO/AUvyo4ag8JFxAAAAAElFTkSuQmCC" alt="QR M029">
+  <div class="name">ワイドシリン細粒20％ 3g</div>
+  <div class="code">M029</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/0lEQVR4nOVWQW4DMQiE2FKP5Ad9ivlafkaf0h/AsRIrKpz0kvTQQzqHFlmsNbI0C9gDXHRvx+kBIvorGJW3H2XlawMrQbyrqobTqBpV5RjexpiVxD7ORMETnftFob/N8Q0W+uI/OfcsbHaJiaZY76QoYPG+MfM1yQczn1Hv6GaW1Be7qkD3OXSG7iQbhR6weJ1y+/1+O+pE5ZmkGYev1i7B5Ln1arNbq9b2ieJNMZJWyOELF+/VmtFSasD0OZiZp1xyi0ji+uDale3+n72w/Sg4xaZUq/QJwDtvX7FuwU7Hq0PnnFAKzdB6V2x97avKsDmn/fD+gbFXInj5n82xn/vrrVb873A1AAAAAElFTkSuQmCC" alt="QR M030">
+  <div class="name">クラリスロマイシンDS小児用10% 0.5g</div>
+  <div class="code">M030</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8ElEQVR4nOVWQWrEMAwcx74r0AfZX+4PnB/ZxwWFKeNQCu0e9tCqsCuMYoRhLGmsSSK+27n9CAHPEgOHfCZhV+rVg+5SSWKmC13X2GJwkVIDah7ATCW69ofP9tcYd2LWy0PnfitWRK31ub2NYsSM5fOoedRAPoOXjSoyL/OY/k7RqQDnfhQcaY+qM+lGB9ZS1h6Fm4f4rP5aD+xvh/JdpDJNSw/icxWoMhWZI+ssG3pKGtRhdR7ymd2tX6/Jo+pMMrMvr+WheoS0f0rDFoBbvrazwd5rtA5WAD7bmVoYLtmlv0DR9PgHPXIL41V6sf/YDwvrm3iJMh2QAAAAAElFTkSuQmCC" alt="QR M031">
+  <div class="name">ビオフェルミン配合散 0.7g</div>
+  <div class="code">M031</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAUlEQVR4nOWWS2oEMQxES7Zhlpob5Cj2zYa5mecoOUBA2rupoHaySbIdBZLCNI03z2X9LMRXHeXbFvBX9kCLb+Ukt/W+ks7Sg+g3+KhkHKMkcBsAQYfeRa35tb7lcbf4KzH3W/ORyG3badMZf0p4mt+HiOA0e4jINauOPrUTm2RKHYHWq/VKQknrS7O4QZxLWcnKuZL6Bk5urGo9mkaaX+vBQlz17pYrLa/s4wA10+9WEOfSGalVErgFLiLSNNpkQ38O4wfRomzPTMa50uYgREbMQZ1NeUmcgyG9Xxaq4Xix1HeOD/hYPvg6cuMbim6ZF9/Hnkcxf31ECZcErvyzd+w7CJ2ry2ZMmV4AAAAASUVORK5CYII=" alt="QR M032">
+  <div class="name">ビオフェルミン配合散 1.5g</div>
+  <div class="code">M032</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/UlEQVR4nOVWQWrEMAwcxYYevdAHyV/LwwrOU/YH8l3LFNl7anvoodWhFSGOhWE0YiayEB/jcXxKAX8lB1q8iym5qasn1aKB2E65oZBRxpGDC5EOaOym1OTeT8Hsv4zxda7Y9879TK6GtGLRt1erjZhpfC8RAfBy7w8RuWX5aIfBl7BJpvgINKVp2LaNvfUsvt6GNy5oomXxJR1aDE/opP8VaE/QwrE/PInvKBxYlAM6TVc7LAZEIu6BKSJSoRXw9SDNR2SJIRhWyvORhXmLKZaeE+fvinb67N7OzD4DGn0OvjH6PYsvw0dXsSu6PXvu/QrLR0tdRwKu/LN77DsJuKZF99Pj0AAAAABJRU5ErkJggg==" alt="QR M033">
+  <div class="name">ビオフェルミン配合散 1g</div>
+  <div class="code">M033</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABBUlEQVR4nOVWQW4DMQgcbEs9kh/0KfbPovzMfUp+AHdWVLhJK7WpFKlZDikH73pkeRYWBsjx3bbyAwKeBYNLrNXDFtAt6Vt6MOqAjmCXvBgQDfBpOwBKLTv2/UV257iBKd137pGY+wTP2LFbHu8bEUGPUblEdMiqo6t9JLa7p9QRXHqVXn0au0s3zuL1GZ5KSEewJ+kGXPrF5XhZqVVyeBFcPH35m/V/S4jzOWSqLanMzmeB8TW1SgJvgRIRNZ7h8l4cv/cjADpMKbpDuX1ul36kR+PZ2KM7lD/edw/WLk8+VUEVbK+SOufoaBHn4eeRNef0z8qtS6Utc76SL9WyDF76Z3PsO3lbp1kJCr9XAAAAAElFTkSuQmCC" alt="QR M034">
+  <div class="name">ビオフェルミン配合散 2.5g</div>
+  <div class="code">M034</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+klEQVR4nOVWu23FMAw8Su7pDTIKtVo2k0d5AwSQehoXUEqVpEiRsHhhYRmEgOPnjpQQn+0uX1zAs/jAEd9KQnfq5kmxGEngqo9WyQijJOAeAASG2fAyjnnWt+Tam8/21xjf+a46fnTvF+vMOEx0HErMtHwvEQlKP9otImeWjrYNCzIv8yT92tavL/3GT0nBJesIdF+gdeTMDZA9JpUGIrRnzSus5sLxkS80tc670Z6XbwHgGnwOJa+skbqPOrRvNXmWjrgpTTosi88l9pE0wORcI1p79ltgtkNfPX0fcdh9xuxCZn/Jpd+glmfyeSAYpSuAkoAr/+wd+w6KN6IZYiKwugAAAABJRU5ErkJggg==" alt="QR M035">
+  <div class="name">ビオフェルミン配合散 2g</div>
+  <div class="code">M035</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+UlEQVR4nOVWMY4DIQwcL0gpnR/cU+Bn+Rp5yv0A917NybBFlKvPxcVCi6AZj2ftQYj3OI9fV8B/uQNnfAsHdFNvnpRLIwnrHuiMNI4cXIh0KG8TMKnZtX+e9z/HeIl67fag9WRcAlVHnJSwtDo/RQTWK3CKyD2rj64Y+8cmmdJH4GxltkK6krO5ZuGSWIgkC4cnzQ2Qo0xAR5kthkYa3wlHrM03UV94kN1CJ/LdsUq9EsjyBRMRqUqPIdI8zwfbUjZMcAmd5oPLj0xcR92udCT6go6bo0ycXzP1nWOPsH7r/O7J+vJSOU3f7UdSrcN6tPCRgCsf9o79AXY5rVQ/V9VqAAAAAElFTkSuQmCC" alt="QR M036">
+  <div class="name">ダイアップ6ｍｇ</div>
+  <div class="code">M036</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+UlEQVR4nOVWO05EMQwcb55E6b0BR3FuhrhZ9ijcwCmRvBrkBChgCwpwwVpRPlakiZPM2EJ8tevpmwv4Lz7Qs29k6A7dougsRhJTjoWexzjV4EKkQ4nZNzpK7/7S/M8xbvhm/9m+3/SRAzpypYw63IuIYD4lc0XkXMWjD9sfm2QJj0C35rb5S7fQQlwOZmPjiCLdQAqFJiLd9jyq4qUbOdqKt/B9sUiU6K0y3m35o0Yom1flhSkicugzgBTnOt2wRV4cs8eU13NtPpo9dBzKh6I8eLyPSjia4/ropXXO7OueO196VZ1jW6lWnyodlfWV22eLCly5szr2DfFvrd+5adjfAAAAAElFTkSuQmCC" alt="QR M037">
+  <div class="name">アンヒバ坐剤１００ｍｇ</div>
+  <div class="code">M037</div>
+  <div class="unit">個</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/0lEQVR4nOVWOW7EMAwcWgJSan+Qp0g/268xT9kfkL2ECSi7CHbbhMWGMGyYzXB4DYV4tnW8uIB38YEW70KindT7TIqlk4TL3OgRxpGDC5GBxvIYcKnpuV+3v8d49bkUe/b9tOOXfTVaC6hN468Rnsb3S0Tg9wosEbllzdFlejY2yaQ58lF9RLqbwsfK46sAZlOShTqT9gZoAVoMxXosjZaTZ9D6DL4sm29WfRFLsmmhFuslk+9pO9vB2rJ0wUVEzr1RgZmng313MqPK8aTp4NYjFzStjR9JOliv7zVKWJ+Weuf4vfqYPvgYufXVs8pZdw6u+8oigD3CObjyz+7YbyH3paRBxiyeAAAAAElFTkSuQmCC" alt="QR M038">
+  <div class="name">アンヒバ坐剤２００ｍｇ</div>
+  <div class="code">M038</div>
+  <div class="unit">個</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8ElEQVR4nOVWsW5DIQw0GCmjK/WD4Nf6Z84fwRjJ0VUGpUMqZcsNrQcez4s5+46jQJ7jXn+lRP5KTjBzVUBxoPcgnaUDkDVuZSiQx6iculLKEJFmLqs0Up/bzy7aeFON+iJnX5c9aCHiRX767XM2gywun2fX2Yl8FpyYPcm8I0h4OwCdEuYKF2PVhevsp9shiTpYeEO6zhyxmBPn6zlT80g1gdxnfYiXx6sTW0d5UdP6PHNVeJgfNQVTR8g4bhhcPyof11jbGioJr2zZ5o9tbldC3frYXPPeWONeBs0HAd+XVVp/Cqqy/SiMxqvyz96x35dyr0cSHUo/AAAAAElFTkSuQmCC" alt="QR M039">
+  <div class="name">カロナール細粒50％ 0.2g</div>
+  <div class="code">M039</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABBklEQVR4nOVWQWoDMQwcrQ09Oj/IU6yf9WvuU/qAgHQMeJkib3pJS26rQyuWxegynpE1khDPsW8/UsBfyYEW/8JReFDvM+kunSRcFzrjGlsOLkQUbdwvgEtN0rl+H3q96UkY24ucyzwd45kvgdpGvQGN8DS+HyICf4/OFZFLVh89Ysz1sEkm9ZFrda1LarjueXwHWpAtZFmsZxZusfArWg/TaDk6g9bDGx980+oLcoTU6LRerM80vkeEwmO2EdBbAu4GFxGpjTNMpJ+D8UvQom3XS8b60ubgmkeuYZWNb5Y7j1oM/WLYr5a657hU1+nKT82tb8RaddLqe8yjKDFcS1J95Z/tsV8KwKToPQW1WwAAAABJRU5ErkJggg==" alt="QR M040">
+  <div class="name">カロナール細粒50％ 0.3g</div>
+  <div class="code">M040</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+ElEQVR4nOVWQUpFMQyctAWX8QYeJb2ZV4tH8QbNUuhjJP3qQsHdz0JDCSWbaZhmJkJ8j6v9KAF/pQauzJ1O3lq3XfQWS8SYB535jFaDC5EJ9QEgJHMrwB1ftzexO2G0X2oxHw7RlbikQ30DUO463BcRQTwP4BKRx6o5+ox9PnZeWgnusr6sk1vJZVsrcU8mO30X6QZIv0H3ZSka1f3i9FvGbwOw1Yd6SmXMq/g/L8sRVu+ryhdCRGQc3RiwKt0AV45tPya485T54PGjkLQkZap0K/QjdQP6wvW0SvecmCPmjsnXWcwvP1gu4/fmRzLO/PYifuWf7bHvXRmpY1i4VL4AAAAASUVORK5CYII=" alt="QR M041">
+  <div class="name">カロナール細粒50％ 0.4g</div>
+  <div class="code">M041</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/UlEQVR4nOVWu21EMQyTbAMpdRvcKPZmWc0ZJQMEsMoAeuDBHxyCpA6LRMX7uKFpmRQV8r2u9GNJ5K+sCcZ8ZiBjU69B2ksFIK4bfW4jcXBFtYn1S5u4FtI5l+cXnj+JgJvO21/F2y9jfK1ymFovHyIGcRrfN1XdZC9VvbF0dKrHutgAKDoSjJpHzUAYMGoYC3faRQX6so7JOlh+FdY38WkaNL5jeaN1LKuk9hddDLPL3P7OWqcdCz04+nVV1bJazPXJuq60FG/h+nnjziOfI6kYXgZ3HhnKkDzkug9qzvFp0eEN742Vc+pS7tEvK+fIyVfbpbeEEwFX/1mOfQA+oap2tiv+fgAAAABJRU5ErkJggg==" alt="QR M042">
+  <div class="name">カロナール細粒50％ 0.5g</div>
+  <div class="code">M042</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/UlEQVR4nOVWuW0EMQwcSgIc0h24FAm4yq4zupTrQMy5oEFpFzB8qY+BPYFAMJldzvAhx08c5SkF/JUcfMZbPbAS3ZK+pQej0sk+82pANMACHVBqSXVuV9CJZ8vXXEd9jBdzfEcLawEt6gywx1vwjPL7uU8igo4GHET0ntVHF2wZO4KSwjt7nb26gN1nN07jjbY1lupeXSxpbiAGBTtY6uw7trT/nafKe1pakq+kugT1EjpP341gFGMP6pLAW6BERI3ve4hY3h7sW1lbpFl+Luc+Umosjf1t5u4jltsy9vExU+8cHdBhOvwxcvWVrXLWnYPzvrr6N6uP6J/dsV/z9LI97x1mOQAAAABJRU5ErkJggg==" alt="QR M043">
+  <div class="name">カルボシステイン錠２５０ｍｇ</div>
+  <div class="code">M043</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9ElEQVR4nOVWS25DMQgcf6Qs/W7Qo+Cr9Ui9gX0jvIzEE5XtJIradadSwsIfNiNgYAiOn3bGXy7gVXxwnWfyBshyiJFwxd2Twoond1cO7vSFUAHJo2KETMpzvj96svsnEnDj7S4No/4xxrPlWeJ1nR+ai2Nw+aySlMvnbYpJ5mXGqe+YZc2Q69EzejhYeV7N694MMEjixRs2vS4quXyeofLidbf9KQ2FE+/M8DOZWbzCg897UBN1AVuPrDRXGq9w0yNvaRWax2dsPcL16LZHdGTqEeYAKV/C3kEEgI3K6t+4WwnoM/jSkv6DHu1Vxxi44c322G+11582R8FPgwAAAABJRU5ErkJggg==" alt="QR M044">
+  <div class="name">ドンペリドン錠１０ｍｇ</div>
+  <div class="code">M044</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9klEQVR4nOVWQW7DMAyjbAM9aj+yf1b0Z+5T9gPrroCFXJ+284RhMwIn0YVRSJEW4uu6yrcS8Fdq4Iq9klx9F7onfUsnCRvtoOf9A5EBfcSbSftlfJQfqtk9F7eFtICmEwYoYy8JuAV4ishbV5eIfGTN0VnzLWySKXMErl5Xr6RrjLBrFu52jEAnK6cn+QbCKJQBGujx7Fm4lfRtVjWP3xIBJHIj3QZMrmQ9L7hO1xnSKgm4BSYi0pQtTGRHUkmaI24lA/C40nJw55HdobMpbyuvX6BXzt01s+aonHuIebgNfo5cfnn6zeP3efJot1yT+JV/do59AbwKrCfsH8/XAAAAAElFTkSuQmCC" alt="QR M045">
+  <div class="name">プリンペラン錠５　５ｍｇ</div>
+  <div class="code">M045</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+0lEQVR4nOVWMW4EMQgcbEspuR/kKfbPTvcz8pQ84CTofZqI3VyT1EFRMoULmgEGxgjxFY/2LQT8lRjo+XZa93kE5i7KZZJEXHeyM9NoBbwDgGBCb6I+4tLvv0uPn6g3EYuxinkJDLVxB5SIsh68iQjimpsrIpeqPXriHGySJXsE+uw+O7mV9Lm1jndn1dbJTttFvoFk9Jwo+kzTKKwXaqQx663UFxtI6hQadfqeOKr+HK1WwNsQIiJDb6eJpI+0In15KAtkw6vmueV/JAuxoDaUL4X/YEJtOLrj8eqld07IjrVj8X3V6mtPlav86ryvssmHURftkfyzO/YD+duwSDAQP+IAAAAASUVORK5CYII=" alt="QR M046">
+  <div class="name">メジコン錠１５ｍｇ</div>
+  <div class="code">M046</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA7ElEQVR4nOVWSW4EIQwsN9zpH+Qp7qfDj8xxJCNHZtKaUXKvSEkJsfhS2C5jJPAd6/hhAv6KDWE5lwiHboM66S4aEZhSWy8ReY2DwwuRC9BiSHZSnOu9GRD9hZy3HWEeb01p7WV9WG2BydWzaTGmnhFPmKaYN5yT33k9w/04R8WQk5dfgfoE5uWyq+kg8CKiowVaD1O0zspv3fMIjHXubeuL5W98KTnFzNIVXno2zZjT6sjufrRTzPPXkqu8Daf2o/E4h+9aBstfIB+rPLTOe69uOODzWnLR+mCkjBP55TByP8qW5I2mK/ln/9hPDfGe3pJ2E7MAAAAASUVORK5CYII=" alt="QR M047">
+  <div class="name">レスプレン錠３０ｍｇ</div>
+  <div class="code">M047</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA80lEQVR4nOWWO27EMAxER5Z6LZAD5CjyzXI1+ii5AVUGoDEB5WywSOqdImFBy2qGnydRhfhp5/ZrC/gre6CnrzT6WBsjRLEMkphvS50ZxqbRRSk7cDQAs6TfBLrte/Xx4k3f8271fX+yxqO1RGt9zldvnZhann1UKc/gZT4S5mWh6e/Mtmadb0fDUW6qOpPVR6x1ILMOUX8HOutSRzdhf42emWbK3dCl+QJfMKu4wp3nDCBFZXX29JWGniNJyRWZXF1epbvd51Ge31hnGTKuMCrt4ll3Xz1YzP0su2wOknb9tG7VxfMoR1KsiysUuuWfvWM/AQ/dpPABK7X3AAAAAElFTkSuQmCC" alt="QR M048">
+  <div class="name">フェキソフェナジン塩酸塩60㎎</div>
+  <div class="code">M048</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9UlEQVR4nOVWQU4EMQxzpyNx7P6Ap2S+xs+6P2qPSFkZOcAF7kZic0hncnHdOk4b8TMex68S8F9q4FLuKxJRhUjTXoIkxnxZ6KS2cXhw0doF3DEmdjtN53x+rftCi7+48+h10TDypZY7Xtc5iO3Wc19OPZ8Y5Rwb72fQ5xvgCopp5Jifv+nCBSKBFDQxaMIlU2KOOnC5Vnr6aLfOt5S07mqlMU165uzlkJWn6B8e3Aqpq/zZhruU+9KHuJtwj+95xHaLxw25Lxj7qC+oiTSCbfO3Qs585ZCw4eTLWXwlrbT5JKk+UkPJQNKu586yrMOA257sHfsBhQiiyjZGUioAAAAASUVORK5CYII=" alt="QR M049">
+  <div class="name">オセルタミビルカプセル</div>
+  <div class="code">M049</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAklEQVR4nOVWQW4DIQwcL0g9eqU+oE+Br/Vn7FPyA3OsxGoqQw5RIuUWR2p9WFZchsEzY4S4r3N72AL+yh5o/k2GZGVulBF0lkIS2hyd9GNsMbgQqcAk2yUH3XO+rn3Hl+U39LykS301xk1ll9Zcfj4tK9HD+B4iAuDjUk8R2aN8tMowprBJhvgItEJ3bllWosX4dwJpG3C+QwmN43slq/SwCsorkA3aaP7jURnIdwBQekSTKUxXq8wHRCDuhi4iHsvZpXW8BuPZPDr3cu4YvSJQz8m8xXMqhc3fWdrQ69Bv19gWyJf00Jijf0TxJRtwJDvcv3H9xXpfLR9F9Vf+2Tv2FxMKnEFmG/kCAAAAAElFTkSuQmCC" alt="QR M050">
+  <div class="name">クラリスロマイシン錠200㎎</div>
+  <div class="code">M050</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/UlEQVR4nOVWSWoEMQwsWYY5Kj+Yp9hfy888T5kfWMeAhwpydyCkr0GHRAi3qUtZrdIixE97lQsE/BUMnHEqqbNtoK2ktzSS8P5xH0rGM0oOL0Q67P327HCp6f9+JXBcMe/1gn238stYDWkB1Rg3Izwt3oeIwHtUroi8ZdXRlx3CJplSR+BsOpuSy8jZluXxwsbagSvHSuobOGLU2Rge0lpJ+R1ByrHjDV9p/dkGbByJTox322Y/pVUSeAtcRKTaOJpIVn9GyOlI627RWXou5zxygY1qvCXNwXp+beiETrzuM3XP8Q7vyzufPTm/uj1xz3mc82i7JuVX/tke+wmpUaoN/GpXBgAAAABJRU5ErkJggg==" alt="QR M051">
+  <div class="name">ケフレックスカプセル２５０ｍｇ</div>
+  <div class="code">M051</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/UlEQVR4nOVWwU0EMQwcbyLxNB1cKXFr11kohQ7sf1aDnD1AAokffoC1ilb+OGNnxiPE1ziPbyngr+RAz7OR9LETYxXdZZBEmNzmrl7XAxGD3lcYQnpRn/v7z5Bfq3H8kAu5Bo1CvAS6bj4pEWV4X0QEYR04ReS5ikePmNfDJlnEo7C+wUInws46vLN5qgfJxrmKdAMpU5qK0Xzkk9aaPideAEtzslm9aL5IkdTZfFxfId4du9uJ2qv2QoiIdL1/iuZRuI8AhK2QKh4dj30UtnR25ZPX7iMlHM1x3rzU50RK9Arjq1X5nPHB3JaDLvM51z6S7TesFc1X/pmPfQP4mKFxiox3twAAAABJRU5ErkJggg==" alt="QR M052">
+  <div class="name">サワシリンカプセル２５０　２５０ｍｇ</div>
+  <div class="code">M052</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8klEQVR4nOVWMY4DIQwcFnqQ7kHer+Vn8JT7gSlP8sonL1GKJEWKZIo7FyBZSAPMeOzkuI9je0gBfyUH11izOyBnQox0F/EAHVZ7do9rbBxcpLRj7gXATIX99+Lf+6cxnuVGee3cm3IlpHVuP19aqmNy9aySlaln+AqNUlphpPfKtX5rWFem4Xo4xg09K803hutILSg+2jgaTVfhVwZYvLdbpfELXB1SLCjm/HNZcrLZVkO0Qu5HHbW7Ck/PGvxmDWEbhKhnRD8CUhv55BrkWWDupV6MPoPkqN/Tojciv96XuqKaNg4ubv3IqrP0nP7ZHPsLYuqdNGW65tkAAAAASUVORK5CYII=" alt="QR M053">
+  <div class="name">レボフロキサシン錠２５０ｍｇ</div>
+  <div class="code">M053</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9ElEQVR4nOVWS27EMAh9/uzJDXoUcrUeqTcgN7KXIxG9CmdW7Sxm0bKYQRaJkKVn4JnnQvy0s/4KAa8SA0f4RrahK6CedBYlibmfH9bIOEbNwUUpO3AE4iw9u/Z6Bvr/YjyIyWcbz+z7q1gPasVHi4wuxMzl89BcPoOXjbhKl3lOf2fQqQO37eg4ypZXZ4e6mCN+WlK+IC06K2R4y+vvUNJW1oCYS16+q7xR52tQey6fGYkzel0z9cggdoeuObhKstGWj+WpeoSyHb7uMrLm893mDvnS9DeIAz73UMOahEvGuOhAFws1rJl6BA51SeNVebN37DdW76Vmzv0NOgAAAABJRU5ErkJggg==" alt="QR M054">
+  <div class="name">ビオフェルミン錠剤</div>
+  <div class="code">M054</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA6klEQVR4nOVWQW4EIQwzMNIec+iDmK/tz9IfwbFSKlfJ7F5aqbe6UosQgVwsE8fQiM/jvX9JAX8lB65cx5rArMQMEe4kOciwXLk0uJlr7QRebwvY7RDd8/GI+4w2f6Xmtyo0hHxZ4e1lHUZstZ5L0kI9X2MhkMImqeujlc0b5tcxdHz9CU2Yii8dmJdvJLSuvp7FtWSd0hLyHXSYj4VxGWZX6nkWrqv03LFba2nLUfNnML55jzwVZSnsUOECZValZ5Vf9Uc0j32G3fOqu5Avvfo3JR3a/warf4euvqj3KDeDZVldgNv+2T/2A6mMuVqPWlM0AAAAAElFTkSuQmCC" alt="QR M055">
+  <div class="name">ミヤBM錠</div>
+  <div class="code">M055</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9ElEQVR4nOVWQWoDMQwcrQ096knan5X8zHlKfmAfAyoq0qYtpD30kMyh1cHGg2GwRhpZAvfxtn2DgL+CIWaubZrDCjAn8VpEtAhorjE5vImJ7MDZASzp5Nyv15fL/mSOH7Gz/+7eg7CeEtcmOrsGFrue22TWc4eWcyxcuwXPN5B9dLxUx3F0Vp4dKNMw1+xi5/DG8NK3Ep6u5TxeixgR42B3lr6tGGOilWE66b0VEy15R5B4NywRkZ7KZoGx/Blf8yjreRD7yAD7rGeWX223XU++dteTE+fCLXQI9hZEnyx9j/7ND8/G4cXHPMr+Zekr/+wf+w4br6Fe8466owAAAABJRU5ErkJggg==" alt="QR M056">
+  <div class="name">トラネキサム酸錠２５０ｍｇ</div>
+  <div class="code">M056</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/0lEQVR4nOVWTU4GMQh9tE1miTfwKPRmXq0exRvA0oQJhs58xuhaFkqalnbzeOWXAt/lbD+egL/yhtDce4TzRV28yBaJCNg8NNHTjFaDC6IJXu80YTSK/nl8akc8Lq0At92nkdv8ZYyvMjK0gHEFFQesjO8rEcHmAE4ieqrKo4f4DuxUWgmuSlfpsZwjVJyrcGM5xCE9ItGL6gZCr5IloZJKHd/I793KplznX/DqSVZ6Md9IyuDlvJJ7K8BtMCKiwWsXEamqz8hwutwK7FXWB3c/MgKvwXFobT/idTi64nzW0jnHXmDTbcbbrPXvupK3as7BPV/d+ZvLK3Dpn82xH7wwr4wzES1HAAAAAElFTkSuQmCC" alt="QR M057">
+  <div class="name">タケキャブ錠１０ｍｇ</div>
+  <div class="code">M057</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+0lEQVR4nOWWPW4EIQyFnwEppSPtAfYocHT2KDlAJFNG8uhFZmabJG1cJJY1Ymg+HsY/Qny1o3zbAv7KHmjxrST0lN496SydJNagBT2OUXK4EBnQ2dbAkpZ0z+25eHzc7Popidw16vtALpdAU8ZKiZUW34eIYIXYQ0Res/Losun7YZNMySPQerV+5i+tu+ZxQ+RG163as+pVtQ5ltR5FI00v6U/VW3Iad0LDI8q5esOCOF1nPK2SwC1YIiJtN6OG/juMH4xXZCcAD0/rg7sfreE6m/LFcvuCsjmq4bhb6pyztuQ1+DaS41t38mbNObjmq121TvcMrvyzOfYTY/murA49984AAAAASUVORK5CYII=" alt="QR M058">
+  <div class="name">麻黄湯エキス顆粒</div>
+  <div class="code">M058</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/0lEQVR4nOVWMY4DIQwcA1JK5wd5CvxslZ+Rp+QHuGc1kdmkyUnXxUViWSuvm2EYGCPEe+zpTwv4lh44/JvZpx7U6wxaSyUJ204DmfRlpBhciDRo38+ASQna5/IqbrT2IYz0T8+2z2O88yVQ9Op/SlgY35uIwLYC7CJyjrpHr5jrYHuRQnBHzaNmEkqOOjUKl5zayZ5Jd48g3wDZoQ7KUd004vj2Y3sXX88ZhTsXX1c5lO8Kp+yjwYsUgJtgIiJFr2WZSJQ/w4/TkhXA9Aybg2semUztRXkasfNIex7IA/tlhL5zbCvWpjXeW7C++alymL7HPGpH+hVOAbjyY+/YB1EVsSEZ43tZAAAAAElFTkSuQmCC" alt="QR M059">
+  <div class="name">ロキソプロフェン錠６０ｍｇ</div>
+  <div class="code">M059</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAUlEQVR4nOVWQW4DIQwcA1KOzg/yFPhZlJ+xT8kP4LiS0VQmqVS15/rQ+mAkLoPtYcZCfI+VflwBf+UOHJ7zQOar9GpBb6nciKe0TPozUgwuRBq0XwYwpQT3ft7t1zG+Rnmf+li3UWJx6UcVNCgxw/p8iAhmywNLRK5R9er+PhNnqYzTDXBUaId2Q830bFG4hmqAwaUjjyhc9jzg9SrJDmUULne9dQ/atcvi6q15Z9Mepc/gKwZM6dYQ1OeEKSIuy2W28+rsQhSfuWmc96Cj+Jw+/eixzeiwYF+Y93WjAKJjReLiyM8G3ctHCpwv6SK5KW2hfiS+ZT2d0ojAlX+2x34ADauWoUtJ/9kAAAAASUVORK5CYII=" alt="QR M060">
+  <div class="name">後）アセトアミノフェン錠２００ｍｇ</div>
+  <div class="code">M060</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA7UlEQVR4nOVWTU5GIQwcHiTfsu8GHgWu7A14N4J9yZjy1BhN3DkmSgiQboZppz+J+LzW8cUE/BUbOOLM7LCbenXRXypJzJYHMhnfODS4SKkBdZ3ATEXk5/L+8tJ+COP4xmb9sQMNIV/uaz2NYsTU6nnUPKpQz+C9xtuDFOXRDDmFn8+r4Eqnys/srykMOGoW8cUdXxgjvkaXxXcEZQ+ygR7Qh65uPIgE3NUSUj3X2EFc5+fdj+jWN7RMV4GVP2yX9iOs8/Kdy5D2oyv6kT3X35hBfLaVmgyXu2QVoFjX5dGIM4acUd1kukr/bI59AROVmrBY6F1qAAAAAElFTkSuQmCC" alt="QR M061">
+  <div class="name">後）アセトアミノフェン錠５００ｍｇ</div>
+  <div class="code">M061</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8UlEQVR4nOVWQY7DIAwcU6Q9kh85X+uT+gPylP4AjpWIXA1JLtv7HFoUGcJlPPbYxgL/154+roBvuUM02ltzlIO6D5EvHhHARvQIupE0uDBbSfy5olsWxTmfe6l51PMnCXH7CnNocQPIU1S0Xa1nSlqnZ8S56nUIEW7zwd1RapCyim/zUcgXwIDfRHwTgL+n2UJQlPtr0emKSW2nwFA0fGf99oVd63BDNheOxTpif1blF1f9YqorVHFO1zwidJ4W0nnkGRu6sVEnUf0CTO4MOLkP5Ruk1J0lvO2m4XvNI36O8qADSarnaEfL0sTZfuwd+waAQpRsES716wAAAABJRU5ErkJggg==" alt="QR M062">
+  <div class="name">メリスロン錠６ｍｇ</div>
+  <div class="code">M062</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/0lEQVR4nOVWwWkEMQwcrQ33VDpIKXZnSzrzlpIOrL+WCfIeBJJ75JHTIxHGBmEYSzOyJMRXO7dvLuCv+MAZe+Egr9CbJ72lBaLtsF7IeMaWgwuRDh3yApjU7NwfZT4d44HP9p/d+00fOaBvDkDpebiHiMD2CpwiwfKWgAvebfgSNsmUOgJnK7MV0pWczTUPFzo4I9iyovYsXTmwire77dCRx++M37KsePP4ZeT2SnXJ5PeyxbIvdM/h10REqg4HKtpzMB4YP5UcAsvUs0iHRUuqyltSH6z3U8fNUSbO15k659juUb+d7z2XX14rcc45Vj+SoNh6dP8tAVf+2Rz7AYdmrg5rSCvdAAAAAElFTkSuQmCC" alt="QR M063">
+  <div class="name">アドテスト COVID19+Flu</div>
+  <div class="code">M063</div>
+  <div class="unit">キット</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA7klEQVR4nOVWQU4EMQxzJiNxzP6Ap6Rf25+VByG1946M0tUiBGd8gKhqo17cJG4cI77bdfy4Av7KHThq95HkI/RcordkIcbdbnCynnFocGHWyp0N005x7mdb0X8Z46udn97LexPjch/X6ziDmGo++0gpn4MkF3DdUB67Kt5kRZrYvOLQxLuBoteOXEEEZbgAnB2h7Feo4laJu7P7wJLFy8otgj52n6QOt6zYVdl2Ee6BaWa7LQNrL8j+Eeklgk9iHyJcIH1g8zmF+rst+ipJui+5HiG6oTl181X15JKGt5KG2dTz1aj/q6qv/bM59gOdeaDNS6BQSgAAAABJRU5ErkJggg==" alt="QR M064">
+  <div class="name">クイックナビ StrepA</div>
+  <div class="code">M064</div>
+  <div class="unit">キット</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA90lEQVR4nOWWS24EIQxEi4a9c4McBW42mpt1HyU3MMtIHtWo6KzykbKY8SKxUH8spML4GVOIz3bbvriAv+IDXc/qvfIMvUfSWjpJ2PX9BZXUMrYcXZQyFPLbwCwtee/npdn+ZI1vfUfM8Zt5D/I1obVet1dvRsx0nr0n8gyeJnWBTTJJ1ztXpLG4oqfFu9MR6BpGWF68gV4dEs3O7x7Gyv1UjzSejdX1UfO42mCCOT5+j7xzcpZSSsNC+lkaP9QRldzF855XR96xeIZ47on9d5kx5gi7aqs35MVLlZIO6jSeoSNrtYZDrWGO3H4EDV2xcvJb/tk99g7bSaHScxMRBwAAAABJRU5ErkJggg==" alt="QR M065">
+  <div class="name">後）ドンペリドン坐剤 10mg</div>
+  <div class="code">M065</div>
+  <div class="unit">個</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAElEQVR4nOVWS24DMQh9jC116d6gRzE3i3ozcpTewOwZUcHMqskii4RFitBYQiM9Pz5+kOOv7dtNCHiXGHzFt7nYOKhPK7rLdHco90D3uMZWgwsixhBThlKvzv38WC/HuBNTfuy/Z8bcBePbAAy3OtwrEUEvHdiJ6LNqjk4Ty8Z296I5Uu45RBgC5b2Or7QVTFt4sLaq96qtIBvoa9qoyfPRzGJZ6OZSVV94YgGzrfBCvmmZastsW1E/ExH1FKOO+RqMO+ZnM0eJ08t0MPVILxjSh4c6bAW4/TyHdIuB2r9W6Z6jZMqm7D9cW18/vHDPuaYeBV8ox9u1FeDSP9tjfwFzPqjsYXaJIQAAAABJRU5ErkJggg==" alt="QR M066">
+  <div class="name">後）ドンペリドン坐剤 30mg</div>
+  <div class="code">M066</div>
+  <div class="unit">個</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAElEQVR4nOVWMW4EIQwcw/ZeKQ+4p5iv5WfsU+4BJ0EZyWgi76ZKUqS4uEhcYGMhDRhmsBCfbZUvKeCv5MARYx1wvY5unrQXIwllvbdKxjZKAu4GQGAx6tjmXh+5tZ+C2X4Z49uc1fGjdU+sM0+3bmNTYqad9xCReNL3tkRkz8JVknRg7YiIPYu/xmFBW+3X1HNww7pHaCEdyizcHk6Zq1cgWYc5rLJfaulZ+sxh0AANnWRanU8byMUtmCIiIR+A44igpP5Hb7utHT5bGn8R4myI93wSuSTglg+vHbO5vnriv3CZv3RBq8zrry7pqOOIaufdL05QCyqRWfcr/6yPfQeU8pnjEZmk7AAAAABJRU5ErkJggg==" alt="QR M067">
+  <div class="name">アスベリンDS2％ 0.125g</div>
+  <div class="code">M067</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA90lEQVR4nOVWwWkEMQwcrffv6yClyK2ls71SrgP5eeAwQdq7TxLIJ5lHIowNwjAeaSTZiI/2tn1yAX/FB0buLYB+UvcleouTBDzRyXzGpsGF2UB/xRyYtotjP8f6dYyvfP3I9f29n/LtKa06doyU1hTr2Vu4UM/7o3wm7rtT1zfA8EpullLjsUR8wXiWbdVvCx3ugrfA6iST+NLgsjj2Y1WoSRVu+DqbZKJTl9/TCrSRujjHcx6h+OpwvVKcYi6ByebgOY9Yw+i6hP05bV7wQgOsh/af4+2WrFVzH4/85soSzixvAtwNuJoZpqWqb+N+0fC1f/aPfQdmGZker6WBDQAAAABJRU5ErkJggg==" alt="QR M068">
+  <div class="name">アスベリンDS2％ 0.25g</div>
+  <div class="code">M068</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/klEQVR4nOVWQW4DIQwcA3fnB3kK/KBPivIz9in9ARwreTWV2bSHNoceEh9SHwyykAY8YxshftqefoWAV4mBw30eMD2eXi3oLpUkUB2d9GukGFyINOg1vzdMKcG5n5fydIx7Mb3u5/6Hc4+KFZfWWqw0KDGD9VzzqIF6Bg8bsCVskkF1NJucNlnkFmy7tKA804vX1j6TeUTl+eCXHUoub3HvhdPqfdIptiDcbqirQ1ZTWryelZmMynPCFBFvy2W2j9OTMO4Yh3Oal/eEB+k5fc2jXnwYbRbYn93m236mAKIj5J9Tvnc+f3VE80tm9kPSFjuPyH4r4RSAK//sH/sJwn2lGC8rLmAAAAAASUVORK5CYII=" alt="QR M069">
+  <div class="name">アスベリンDS2％ 0.375g</div>
+  <div class="code">M069</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA90lEQVR4nOVWS25DIQwcA1KXzg16FLhZrkaO0huYvZ+mMi/ZpF100XjRIoRghDTyb2whntdRvkDAX8FAi7NyOvoGuifxdpLVECdJy+ENTGRAecjAkpbt+1t7Pcc32BrVfvLvNzFyQme8lJ7HexMRrGtUrohcsurosRz9fikpvNar9UpCdxFpHi8AD+ngqR6e5OfpCJNDQDLt5Rar7eqaF9+CNY5LjzReoVdHcj4boNPP1CoJvAVLRKTpdOAulSWxHzGUau/cfrRG09mUb5Zj76ML6WyGajjeLXXOWYI1fA1+jNz4zrN+E+ccxHx1SsfensEr/2yO/QT3uLA+a/l19QAAAABJRU5ErkJggg==" alt="QR M070">
+  <div class="name">アスベリンDS2％ 0.5g</div>
+  <div class="code">M070</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9ElEQVR4nOVWwY0DIQwcL0h5Oh2kFOgsSmdcKekA/71yZDb53L1vFCUWYi1/ZocxHiTwO/btTwn4lBpi5l4iYrZVaE76lxYRsC7nA513BiIdenMdMKlvpsf2TzW7nu6diFuztYCqIzMNGI3vj4jAkuwuImfWPXqFr8bOZKPgzlZmKxGueYVdWbgRZSZ6JjGcNDeQHJGTqsxG5us6XEdJvkR9Y+ScXHzLBJNvRp7wYj1ZvmAiIsfcqEtosPoqlrIAPBfNB5cfmUBH1TiRfLA+vzpathb2y6S+c+xarbv1uHeyvuWpMk3fw4/ErcN6IekrX/aOfQBZLKzPTSS4GQAAAABJRU5ErkJggg==" alt="QR M071">
+  <div class="name">後）フェキソフェナジンDS 1.0g</div>
+  <div class="code">M071</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9klEQVR4nOVWQW4DIQwcL0g5sj/IU9ifRf0Z+5T+AI6RvJrKbBJV7blzaCwLIV+GMTMYI37GsfwqAf+lBvZYU6x1FqqLzlJJojR2JDKOsWhwYbZh3OzaMCyLe18+/h7je+TXzvMmxiWQx+bBmhiyPu9mBtRLx2Fmq8pHr+ghbJISH4G9pvARE+mFqcv8O9E/7b7uGXDhe5UmZZ+guj6zeYnETC+y+8UJGh2eb6Yr9dwfYtbNhWFmlhGiythVulqe84g+Nh+3GIiLyL9A6HlmE87fM/b7uh8rAnqBjm+P/bSwji/5MG8u7aK7Xzz/V2do+Nqb/WO/AOLhnzzmDsa4AAAAAElFTkSuQmCC" alt="QR M072">
+  <div class="name">後）オセルタミビル75㎎</div>
+  <div class="code">M072</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAklEQVR4nOVWQWrEMAwc2YYetT+Sv9afOU/pD+RjwWGKnD21pfTQ1WFrgpwMhokkjyQhPq+zfIGAZ8FAD1sd1W0DtpJ4jWTlqGFJz+ENTKQD29kpLTn2s78H+0M5vsWO6r8690dYixTHZqLelJhp/h4iElf6rZ8icsviVZJcwHlDvHFk6de4lbt0XJ8rq24sHQsWjxLKLP0agBdH09GmYPakODOSS7coWR4ur6w41zspKkf8RknhvVawZ/IWTBGRtrO8HsXxQz9idEAdiToywGqoKaiz+m+578o2+9LXldgX9jqgQ9Ar8+arqMkR8CNGnbS64WGrbyFft6sk8Mo/m2M/AByonRzt7VZoAAAAAElFTkSuQmCC" alt="QR M073">
+  <div class="name">後）オセルタミビルDS3％ 1.0g</div>
+  <div class="code">M073</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA80lEQVR4nOVWQWoDMQwcrQ09eqEPkr+WhxWcp+QBBfmuZYq8IYf0XBFSHez1XGZlacYS4jmO7RcEvAsGWqzFQNMFqCfxKsnCsVbScngDE+mAHjswpSbdc73vcy/f/Y84thfCapQ4Nv36tNqImfYvVxEB8HHrh4jsWTo6I9QUjU0yT0emgKKN8+hp+dqig3ojWl6+aOEYQRqRma86UDiKRcqexVtWfWlBndVXGwBvg/Zwriz9ThFZtgz46SNb6nvk0c8jT0cWxS2G1c/x7Zme3Uad3dvFk99BBLWgF+bNV+TpkNcQ1Oy585WW0C+z6iv/bI79AdQonHPdtTjqAAAAAElFTkSuQmCC" alt="QR M074">
+  <div class="name">ケフラール小児用顆粒100㎎ 1.5g</div>
+  <div class="code">M074</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA6ElEQVR4nOVWQU5FIQycfpq4xBvBzYw3w6N4A7rvz5i+/54xunYW2pAC3TTDMANGfI/77UcJ+Cs1cFduXIlxFEaK+g6S7ZFJbk3fqplN9FfERJiLztmvxfBcruc8LGP+co+v4UUx4H3VrhMhw/tmZogXB+5m9qzS0RVAXWmSMh21PUq//RBRl/U9TePQby1SipdlHXK83EV042oyfsns/AQOGd5HbGRf2ZfOn8PMzA/IjqHyZ5zvUekXWUP7HsVEX975tHV4gfKNE7XoXt3OOabHzJh8n1p+18WyzK8qt30Zl0hH9s/+sR8Vu7wQ7xoAlgAAAABJRU5ErkJggg==" alt="QR M075">
+  <div class="name">ケフラール小児用顆粒100㎎ 3.0g</div>
+  <div class="code">M075</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAUlEQVR4nOVWO25EMQgcbPc8KQfCN4v2Zs9HyQEi4R6LCDvVRkq3FAmFPzRjYAZDjmdb5YcL+Cs+uMZaFQbZDrGkt4i7g+8GVPd4RknAbQAoIpVqaPOqn7m5n7SuV2M8x3vMZ0/G9diEWBs7ZlqeBxEFpT/6IqIrS0fHto7O0ZL0K67BZ+P7XC2RV46B+W5vSqwrK8+AVL+NT6vOiTcSGy1LA7oqwDn1jTxbA7Fi9sreNJvPrtGfaxKfCyYR0aGXYbwG47f/iC5ZF2z2rP9Xgs8qm89byCUBt3zv/MDsxg/Lmzdk69ex9ZvHK8D9BkbVUVWQV1/s+UqOjrLqS/9sjv0Cp2KV4kukIqMAAAAASUVORK5CYII=" alt="QR M076">
+  <div class="name">ケフラール小児用顆粒100㎎ 4.5g</div>
+  <div class="code">M076</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8klEQVR4nOVWMW4DMQyjzt499EG6r+Vnzo/ksYALBrKTJe2QIeXQCgcbJxigLImijXi2r+ObC/grPjByLeGAL4dPUSxOEu0ygUJmGIcGF2Yn4BXAsCrO/bASv43xo89fPPcmX83Wyu06P6I2Yqj7ebW0rJ8r2pocA5/VqZsbYDgXeWfr+3dqcMm54RKaaBThhhd2tH5PuKi+YKAEZiPZk8LC+wJ55QyALFThbkseobCrcA8MM8uxPB8fZDxipndTScejWPWNRaKc0jL9XdZ6HedcKgyVLtytdcNZqHtfkTkhS1xTGsap1SNs/qrqa//sHXsDODaUKFwWiPIAAAAASUVORK5CYII=" alt="QR M077">
+  <div class="name">ケフラール小児用顆粒100㎎ 6.0g</div>
+  <div class="code">M077</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABA0lEQVR4nOVWMU4EMQwcJ5EofT/gKfHP0P0sPOV+EJdIXg1KdqEAiQ4X4CKK3IzHiWcsxNc4yrcU8Fdy4FxnJYG+Ez2Saukk4VY5KrnKKDm4EDHo/e0GuLSkPrePSxfYL2GUH3JudT80EvkSaDrWTQlP4/sqIvDV5ENEbllzdMU4PzbJpDlya24NCB1wO/L4DihDB8nKEUm6gSUauqA5O2cPzekzOPvJt26+Nel9sfmybrL1rKEk4a5YiCN2tyPpP4uINL3Hp2iWRD8Cmlu4ZM1RufzIX6CjKZ9mrh/paBN14nieqXuOL4kONz4sa8/pW6lWnNtOJPuR2+XCJQFX/tke+w7BL6IQOv48iQAAAABJRU5ErkJggg==" alt="QR M078">
+  <div class="name">ケフラール小児用顆粒100㎎ 7.5g</div>
+  <div class="code">M078</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA7ElEQVR4nN2WwWrEMAxEx7GhR+8fKX/WX/P+kXwsKEyRt9lC20MP2ymsCMaIwDPSeORCfI1j+5YCniUHeq7VDbCVsBCdxcgsNjkqmcfYNFyUsgPXo+yYpYlr38eL/zXjp9x8fbv85r9H5Vp2Fmh9gGidmGo9L0nL9FzuvtFC6Rug2wIa+uC6xaHhkgGcn1VSxPXV3KRb9BFdxeVinQLTcf2jvzdZ6ep8C7cs+NqG9P4CPaEQ1Xk755FVT/Oq6nmEwBWzYO7it0Cb+3HJqwSVnpF2MXBaR6i4JP/BNzzX6rmJdGkN93Me3eOp37HvjuebA9x83ukAAAAASUVORK5CYII=" alt="QR M079">
+  <div class="name">ワイドシリン細粒２０％　２００ｍｇ 1.0g</div>
+  <div class="code">M079</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+ElEQVR4nOVWQYrDMAwc2YE9KrAP6FOcr+3P3B/JxwWFKbJhD9se9rDVoRUmUURgJHs0shC/7Sx3IeBVYqDFs1qrXKU3T8qlkYT27x2VjDRKDi5EjnDHgSFb8t6PifhcjMexan/7739iW1Brvs6LbUqMdD5bS+QzuMzgk9gkk3CtMSpt0L4+Pate1+7hNldCs+pln2LVoZl6BVos174SyKzXEWSuhspe03i1zEI3KpmFWzBEJETSY12DYCV1Hsnezn1Oh5KAi9W8Ic7B55Y4f6dpxzhcv7L2efvx/LMLjsq8+xUZCvlh1+jfvPPFGr6rj7LOV97sHnsD6hiaLpyW7uYAAAAASUVORK5CYII=" alt="QR M080">
+  <div class="name">ワイドシリン細粒２０％　２００ｍｇ 1.5g</div>
+  <div class="code">M080</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAklEQVR4nOVWQW4DIQwcA1KO9Ad5CvwsX6NPyQ/M3auJDMmlzSFSGx9ay+JgrXYYPB4Q4msc6VsJ+Cs1UH3NZOam3ixoL40kpmD2TPo2UgwuRDrqOM4DU0r02bd87e/GeFKb8tp3v1UrLi2gVGICe00/+F96vfYp4qIqwCEiH1Fz9IgtbJIhcwRqy9oyByqpzWoULsdmuqxjWJBvYPlVW47RQvnqwqqbr6dF8TUHHd5l9VGySD0rUIfV4fRTAG7CFBEpleYm0t6D8SSodzEDMM+we3DdR1OsjlJ50jh/9qjjZMiK46yh75x5sdltdl57bH/Ho8uRfoU1vPe0CFz5Z+/YG+9qsPmA+wj8AAAAAElFTkSuQmCC" alt="QR M081">
+  <div class="name">ワイドシリン細粒２０％　２００ｍｇ 2.3g</div>
+  <div class="code">M081</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+klEQVR4nOVWQWoDMQwcrQ17dH4kf61Pyg+cp/QH9jGgRUXeTQptDjmkc2iMMYswSKMdzVgcP9e2/AoB/yUG73GmrlZ26GqkWtT9aHZyjzIWTl6IVADrZ8WQTO59+bA/z/EoNqqcnrn3qlgOagF5kirOweZz6krks9x1IxtTN+BdZ0JFaR6QOXjh7lbmBgya3Fl52w7WoFZaFLBw8vpEihQEC7U0zvyOunpbvW1zfleSTsL31WOgkjfe/+3ffhQGQeszDj9KPcQr0f0o44IhGJWlkwpo6gefg94L0wfb9QTDZRMO3psfxbeinFEaS59x86PQSRaf5c3esV/gxIu6m9VB+QAAAABJRU5ErkJggg==" alt="QR M082">
+  <div class="name">ワイドシリン細粒２０％　２００ｍｇ 3.0g</div>
+  <div class="code">M082</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA7ElEQVR4nOVWwW0EIRAzC1KebAcpZbazU0pKB9AR/Ac58nL5JO+MosRagTQfA/aMNxFfsY5vJeCv1MChNZOo++rmQWcxkpjXZtcxjhhepCRSUc9Ufpkexw/V6tsWOoq3yFrabL2OUokZ6+dheVign8GNcZv5hsfoO2XmAqyzF/R0xr0zh1rYAYfloPuCbIChNulb6aH6Ng5zdVPzGqUvegEkq0bW4yVoTuLTz3arrDf36DxqT4MdMbxGMrNlrfo8NI9snd3vXkbUfN7wcqG+W3RGdVHPa6UrjJeysVA0PYLzSJHkNcxX6Z/9x34AcjGcWDMjQiEAAAAASUVORK5CYII=" alt="QR M083">
+  <div class="name">ワイドシリン細粒２０％　２００ｍｇ 3.8g</div>
+  <div class="code">M083</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+UlEQVR4nOVWQWpFIQycPIW31Bv8o8Sbld7Md5R3gEJcFiIp0S5Ku/6htFkoZjMZnUkkw/eYx48U8FdyMPE1WdeyqbMG1cJmBnC6WzLzMo4A3AyAwBgVRfKo6e13vcfTcmx3C8TNLq21zYfkYhhhfC8iAnDebRJRjfLRDmEX8woN8i9/9W8Kw7XuWGBdoEli+sbmuy5ZGGUVcITgmiWBOuLnbWuMngfNh51yncLvFXm0IP8Wl5OOl3VkzfHzqG83aZSubMl4qzpKz4fPI2rANeuVBCg9eC5gtFxeNXxGJeFZvXch8n2tb/9aXL/CIut8tViUnumf/WM/AJU6oXdInQxsAAAAAElFTkSuQmCC" alt="QR M084">
+  <div class="name">クラリスロマイシンＤＳ小児用10％ 0.5g</div>
+  <div class="code">M084</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAElEQVR4nOVWQU5FMQgcXkn+Em/gUdqbGW9Wj/IPYAJLE37GtP/pQhN3slBCmoYNncIwCPHVbse3EPBXYqCvs5Fpd+g9i97SSSKG7uzrGUdNXogM2GwOhGjRP+vn7U36L+U4foiFLLx1eXW1FqBGfQWMiDK8LyKCGIu5IvJQxaPT5r2xSRbxKIZuEqVNxLjV4Z0AcoNtnFk0N0DvjbNx0ju9p9X88zkn0+bGuzxr6mukdwU0BkIK67vNAZu5pmWVLoSIiG4xUvSs08H+0cnYXqaDW4/iCTbVePFaPbLnS6I5bo9euufEyO28juL6cpO3as/BuV85mve7Z0Ve+Wd77DuDJaTIx/NKiQAAAABJRU5ErkJggg==" alt="QR M085">
+  <div class="name">クラリスロマイシンＤＳ小児用10％ 1.0g</div>
+  <div class="code">M085</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8ElEQVR4nOVWMW4EIQwcL0gp2R/B1+5n7I+gjOSVT8NumiRFimSKi4UsYSENg8c2Fvhs5/YlBLxKDDHo06gpLurVRXepQcTDZ0sRvMamwYVZo9+BaVn89qX/PcZ3sdn8R+d+K5YpLSCXyEGPKeN7mBlmw2ynGbO8CXARt3WKeZmL6reuzFYvPUZV1S9I8EaEg93DVbgpOkr4ouxFhnuDroZZVbiZbhrKw9b+zbV6HhwQKbpQz7jmEQrx+eabBrdSWiQb13LtPAIOJno29V9gtnNnKUE6B+N9h+M4TcP3I7/R1X1j0FNXg31SpWf7Z//YJwlbp6df6HeuAAAAAElFTkSuQmCC" alt="QR M086">
+  <div class="name">後）クラリスロマイシン錠小児用 0.5g</div>
+  <div class="code">M086</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA7UlEQVR4nOVWyW3EQAzjHECecgdbitzadjYuJR1ongFkcKHxZ7H5C4Gjh43RhxyLpFyIzzrrrxZwlx5o8Wwk5Lq6ehIXJQOxfe+NDBo1Bxel7JglTrP0PzaPepNeD2mt1/mwLsTM1bNpM03UM3iVhZWu8qT76vLv8OXfloRbgQMyfrYwUaTH3JO0JmyGDv0yPTcEgZqAC3JEZL19bc/Ss0uEczN1CQ6e418hDJyFM87es/eRy6Bppo/IkFZAI9LDM/cRcG5HM0BGcmb73Ls8PXtX6PLviuiaOF/Sl3+ZNF+87yOXRaAm4JZ/9h/7AhBWmMNkL5UgAAAAAElFTkSuQmCC" alt="QR M087">
+  <div class="name">ビオフェルミン配合散 0.2g</div>
+  <div class="code">M087</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9UlEQVR4nOVWO27FMAyjngN0dIAeoEdxrtab2Ud5N3B2BSz43Knt0KHl0GpIFCEAQVG/ID7adfsUAv5KDJx6ltlQF/WWJtxGsrADrZCcHlzFIg6gifgZmzn357H9OsaXsfHN/34otklivdp4mVslThvfEREq6ftxRcTu6qNlEwkVNklfH80GIGtfn2ni28vU9Ei0rES18UUuzz2voCRrWPU1LdOlb3nAlYnirKtlQhdu8dUzHvtIDtldfG/aCFQZx96uXYMaLn2Bd4kB+encC7XjPLK+pnEvLMvnHjgKffcVdWyMpzmUbZ++WPW8+silb/yzO/YNSLufLMZjMCwAAAAASUVORK5CYII=" alt="QR M088">
+  <div class="name">ビオフェルミン配合散 0.4g</div>
+  <div class="code">M088</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/klEQVR4nOVWsW3EMAw8SgK+lDfIKPRqv5k8SjaQygAUGFBKlU+RIn/Fh4UFEwbOR96REsf3mOkhBbxKDt7jmbta3dTVSLjq7tmbQbO7dw5u5EROQAuAIYVc+yH2dIyfc7n/7ru/yZVocRw633qpjkHje4kIgNv7OUXkYPHd9hn4KOq8uYHwUVdAUdt+NRYuajPAsEZHdRYuNln6vEKOUiN7y8GdxXfB5b5+wCOMhLsiWAduJuEmDBGJsbykdT0H4zESEPsItc1D5wEbJ2v/KqBbUSFskp7T11nvGKfVe2ylROTrvv3L0xXCSsB161dUm9df7PvV9i+rv/LP7rGfFPuXiquVzHQAAAAASUVORK5CYII=" alt="QR M089">
+  <div class="name">ビオフェルミン配合散 0.6g</div>
+  <div class="code">M089</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9klEQVR4nOVWwU3AMAw8J/m7GzCKuxqbpaOwgft3dcgpSAh48AAjgR+NZFW62Lk7W4j3cbUPKeCv5EDPb+fsbithUXQXI7PZ14ZO5jVaDS5Edpx7ADhllPd+6PxxjM9y/Wn/0n/fkxtJrTzsePChxFlW7yEid72XiGxVOrrDLcm8Ior0a0u/hKaaeh0uQme8gnav8Y3E7bdluUFnFPkV6BbKt92OIl7NPHR1WFlV70h/Tofcf2keMXTSc0ZE1fsyaZxCDlgVn9vLPAJkO5LYOqt3gXMf+pjTsFXiGt2uba0crfB9mWrqTGpFJZ99MUpZ5c/yz/bYZzQmmD94egXbAAAAAElFTkSuQmCC" alt="QR M090">
+  <div class="name">ビオフェルミン配合散 0.8g</div>
+  <div class="code">M090</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/0lEQVR4nOVWMY7DMAyjbAM3Oj+4pzhf68+Sp/QHym6DB7rBDW2HG64aWg12IBiQKZF0jLiPkR5SwLvkQNeaHfQ2E60H3aWRROVYkEldI8XUhdkK7AXAYSW498fa6/biGs9z+br+6dz/5Iqopa2Nby+VOMLw7mYG4Ou6DjNbonR0C0efxCYZoiPQ26ncySt6jH6FF1Uw5RhV3z3Wr1BVOsqvQG7qbWXmlh09DC8psGjZp08G8SoBwjj5DGB/VY37SDjMzMr051k6zDd+36M2Fhk1ovQLDbfF8jmde710PUkXtToF4qVaLSEH8pm8OeSubsfNF9OvTv1Gzdc+7D/2B+LWl1hBlHxxAAAAAElFTkSuQmCC" alt="QR M091">
+  <div class="name">ビオフェルミン配合散 1.0g</div>
+  <div class="code">M091</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/0lEQVR4nOVWQU5FIQycAnveDTxKuZnxZnAUbwDLn/RlTMGVunChXWgX5aV5yXSgnVaIj3anTyHgr8TA6T5P5Kk7oBaUi5JE5X0hk55GisGFSAOGIy4pwXe/nkvtv4zxZWxgte/890Ox4qXlh46nWSqxwvgOEfGSfm23iFxRfOtWjoVHUcbpBjiV3rlqu644Y/rXdSNPNWe9fWUYrkEz+4GO0iuQ3bbP7HnCAvnmiczuH3SzIL7b5k6APQo3YYmIy3IB7OhIipxH/XHpfcFWi5q/CqgP39B6Tu9n7baa1RcLnAvHSu2Clhm3X5FHIYffdtz74uxXp3+j3lf+2R77Bjb6lgXGlKeTAAAAAElFTkSuQmCC" alt="QR M092">
+  <div class="name">ダイアップ6㎎ 6㎎</div>
+  <div class="code">M092</div>
+  <div class="unit">個</div>
+</div>
+<div class="card vacant">
+  <div class="qr-placeholder"></div>
+  <div class="name vacant-name">重複のため欠番</div>
+  <div class="code vacant-code">M093</div>
+</div>
+<div class="card vacant">
+  <div class="qr-placeholder"></div>
+  <div class="name vacant-name">重複のため欠番</div>
+  <div class="code vacant-code">M094</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA7klEQVR4nOVWQY7DIBAzEKlH+qPJ08lT9gdwrDSRqyHJpbuHPez60CJEkhGS8YzxJBGvY8/fQsC7xMAea+lAPaibi85i5JnsQsYxsgYXKa0B+rVipEWc+8r9/t8YP8VG8l/t+6vYEtICltpuxFKJIdazlW5CPYPnaNcLRbjdZmXNa2NQVvHtcMArY4UVHV+UmOZBmTGzBtciw2xhlfMiu0hX7Sjr/ArPdKWe+8w2m7K+mP3Ia+Cr8pyvfmS3HuZV5P0I2DASxqrySQNsXiWlrvL5rHzc4dj2pONLsrAdVin0DRz9aBqmqfScPuw/9gknEqcjSI/HPAAAAABJRU5ErkJggg==" alt="QR M095">
+  <div class="name">後）アセトアミノフェンＤＳ小児用２０％ 0.5g</div>
+  <div class="code">M095</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+ElEQVR4nOVWS04FMQxzpiOx7NyAo+QdvT0KN8gsn9SRUVqehIAFC/ACumirqJLzsZMa8XFd2ycT8FdsYORe2ApX6D5EvjgT0e8HCplubBpcmN1w2n7OXZ17L/HrGF/Z+jff/ZBtT2rl4f059kqcsni7mSWlX26XmR0qHa0Vjwsp0REYvvQ7auq3yHDJd92DJVR947QSyasSfh39Lqtv+ABGbWPGiyqrbxY3kxw+0VV5rhzwVd83PW/SeYTaGK7UESeNU0GTXUM5j4Dr6DkaapPxGXMYTT43VZ63x8WfUr/Zu6CsL1eTTGoNJZ9jNpCaDgwFrv2zf+wrmwKgUl9i5IYAAAAASUVORK5CYII=" alt="QR M096">
+  <div class="name">後）アセトアミノフェンＤＳ小児用２０％ 0.75g</div>
+  <div class="code">M096</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8ElEQVR4nOVWO25EIQwcPj17gxwFrrw3YA8UyfR+8mogVZIiRTLFxgUIC2nweGyTAp/tyl9cwKv4EMa1BG07uove0om4Rl2D6KaJtwJI6Ezrm9V1K+9i7h/F/hzjG18j1T+495s8x97IM9G1erZerAv1jF1AEUZVH3NRvD0iKKo2S0w0Ha636W0CcPQiizd2sPsBaNNl+TXChcFPNcl4DuaU9PLEXLtUzzgCE/KMM4+cbAt1ZbuOYhaum/AswM2cR4md+bo9/LToLOrPH7YG2r3L/yAO+BpXGjLciAn0CtQ22UOych5hN0yZrtI/+8c+AZyvr2PMetT/AAAAAElFTkSuQmCC" alt="QR M097">
+  <div class="name">後）アセトアミノフェンＤＳ小児用２０％ 1.25g</div>
+  <div class="code">M097</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABA0lEQVR4nOVWQWoDMQwc2YYcFegD8hT7B31Tf7Z+Sh4QkI8FLypyNhDac+bQ6LACX8aaGXlWHL9rT3+OgP9yBrf4ZqtT76PXSbpLdT/Izu5xjcTBhUiDfp2uDUMKiedy9NFwscLXXLf5coznKmGtaFXQoI5Bm7eLCEbLhl1Ezqw9updhLmO7O2mPRpNzl8tWgu2+S2PNu0E3tzrX/sYDkii4Vlev0CAZyuE55s1WAz3eyZB4st7nGQwvqmOLWTwffo5cyKE1b96VRyuJlKivhabZwswTleXn9MgjX2HUJzuPPr8/XABR25m46Kdbgy6xE1FfDzMvS7P97McKc3Dlzf5jfwAKAqWRZY9nCQAAAABJRU5ErkJggg==" alt="QR M098">
+  <div class="name">後）アセトアミノフェンＤＳ小児用２０％ 1g</div>
+  <div class="code">M098</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8ElEQVR4nOWWQW7DQAhFP8ZSl/gGPcr4arnZ9ECVZpaRiH6EnShVu+5ftMjyYDZPGPiDEd/ttvwIAX8lBo56+2iIM/WWIm4j6aSP5iSHhlsxs73c6Ji2iv/9tOv224yvtj6d9va5i7ms4wPvYw1iqvu5WlrZz6cVvRqbpG6ORmWa0c/PVHEzmGj1BBGqfFlQZz/0qgnr270kqx8OKvdFVl/4qMb2omu4S8lj1felINBwp5kdsgykkosaWwSvW7ttwNxVetWAQ6yk/bw8zrjk3DMuqb6PgOiG3anZr177xjnIrtNJPO8jOKvEqeDaP9tj7/WrnWb+4EufAAAAAElFTkSuQmCC" alt="QR M099">
+  <div class="name">アメナリーフ 200㎎</div>
+  <div class="code">M099</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/ElEQVR4nOVWO45DIQwcA1JK9kZwsyg3I0fZG+De0awMr0pSRMrGxa6FKCzEMB5/EOLebunBBfwVHzh9zyTqpt4s6C2NJFSgPZP+jBSDC5GOSgOgUqJjfy2fx3ji03Oer5z7TR85UC8e5x3t9OZ9L/quIgI9F+AmIl9RdXTYsJXYJEPqCJwtz7brl7NZjcLdiMsyh0OnMNyRpxPnbJ5aKQg3u7jeKp1voL4GuMRrRfJ184waVsP0TVARkVIHgIIW1Z/h6eTK+hA0X2FzcM0j7aijVJ5mHF+gZY6Vz17LFjqPOrSbdn73WH3HwTdIXxz/q9WsdglbBK78s3/sD4gttuAWxgYUAAAAAElFTkSuQmCC" alt="QR M100">
+  <div class="name">プレドニン 5㎎</div>
+  <div class="code">M100</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9UlEQVR4nOVWwY3DMAyj4vyVDTqKvFnRzZxRuoH9l6GCbtHH3fuEQ2sEiqIPQ1EULIGfZ26/SsCn1BCdsXSDPqmbJ+FaRJSIV+w5uKyJVOCUAxiyJ/d+XMu9/jHGf6jtlHi95qXvGhhp/3KKCEf6XqcIVd5ScJWT7MA8sIa6ZfnXohszbc9Pz8GN5sB6zJUW9iy+Jdp7XxF9S8GNxt0IC6LDNYtvhGtblFHWqvQsXB5OVy5uZyydCVudhLuByga0yWHzgI+a5l/ASqeJAOaeubP1to/qevO8+4aRL1tN/ybqi2XhM/rJ7ZGnL97zTNZJ+sqX3WMfxqarHqTXAHgAAAAASUVORK5CYII=" alt="QR M101">
+  <div class="name">向デパス 0.25㎎</div>
+  <div class="code">M101</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA80lEQVR4nOVWO25EIQwcP5BSsjeCq+Vm7FFygEi452kiA9JKm36KxAVINGY+jDHive7r1xHwV87AEWtiR9nQ6xTdpZKEN3hLZFzj0vSFWQuwpcMty7mfgh6vymf3R/pu4r4EciEcwbbLeH6aGbxl4Dazh+odnepzGZuk6B15ywvs8nO7dXj7NjPJxM6hyQ1w1MiKEh05KoqG58Cb2GfhwSvSF5vnlZA1SfGuio4LtUjfC25mlsvnXCGiymeEnUJZzuXqqZuDiHnkLZeeCz+GDi9Qt5MTqfLVdfaVWtMbv5pY37Tx6vR97nl0vjoife2f/WN/AFBgraZPdH5BAAAAAElFTkSuQmCC" alt="QR M102">
+  <div class="name">マグミット 330㎎</div>
+  <div class="code">M102</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8klEQVR4nOVWQY7DIBDzANIeJz/Yp5Cv7c/oj+C4EpFXk6Jo1Z7rQ+tDNMzFmMEORjziSE8t4F16YI9v7pW8S69TtJcajN4w9kzGNpKGF2Y7hh3fDcOK+Oyd5eUc/1GuapZdzEugjC1WTgzZOd/MDKi54zCzTeWjhcbTSiQlPgJ7zaePMjmduWv8e+aGc6JOb6tI0rwCMIFQnSS8ZGabzqXXZfMNsXe90OoNnLeLbKr5Jgwzi1ieV3glkY8YIw4HRa3zUY2wYvg3swn/vwu/2+3YENQJOr19+Vd3rwCywX/grXj7Er03cOXVXA2NXvuwd+wfNACjBhNYqycAAAAASUVORK5CYII=" alt="QR M103">
+  <div class="name">モビコールHD</div>
+  <div class="code">M103</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/UlEQVR4nOVWS2pDMQwcPRu6VG7Qo9jQg4V3M+coOUBBXhb0mCIn2bTdRpR2MMZoMx79hfiKY/tmAv6KDbS4CwPL0DzpLy0YZ683dsvzgUiH7j47ptRfFo/tSbZ5zuWtkVpA1b2+A0rMNL0XEbnpPUTklFVHD/hK7HhsKbzWirVCupLWXLN4SehwBHXhCOoth3eEXmtcB0l6NwAOfJwAHVX3rH4FcpADWFHO04t7NkdGDdfwuef4eYqIVB01mkh7DscPoEXZFg5fgfa8OYiYR7OHZOWL5fXngI43QzEcr5a658wzZvfZee3J8S1xM2vPwX2/skejTqoj+Wd77CeTs6h3M8zbLAAAAABJRU5ErkJggg==" alt="QR M104">
+  <div class="name">葛根湯</div>
+  <div class="code">M104</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/UlEQVR4nOVWO2oFMQwcrQ0plRvkKPbNHu9mzlHeDaReywTb+5okRYqgIhHGC2JhPPqNhPhs5/HFBfwVH2jzLmThpt4i6S2NJLzHQp/POHJwIdKh93m71OzYtwSMb3zei/3kv9/0kQN6DwDKyMN9FxH4rQKniLxm9dFlI1Zhk0zqI+/VewWqDng/0/gaioHW1ugYtJy5MYtqQpPFGq3N0jqScGOx5uablF/QGjl2hEsq32WG0BE6SlJ+D7iISFXOkkbLmhtYcb5EMOZJ08GlRy7QUZUvSTpYr6+yrkY+3yx1z/E+pd87Hz03v+O56mTNq71frebdJzJw5Z/tsR8mbKx9D6pTwgAAAABJRU5ErkJggg==" alt="QR M105">
+  <div class="name">カルボシステイン錠２５０ｍｇ 250㎎</div>
+  <div class="code">M105</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/0lEQVR4nOVWS2pDMQwcPQuyVG7Qo9g3C7mZc5QeoGAtC35MkfOySbroomjRmsf7iAfjkawZCfG89u0lBPyVGDjiXtjJO/U6k/ZSA9EvGuiMbWw5uBBpsGt8uWh27msCxjcxl+ntB//9VkzjaAFq1A/ACE/jexMRLLK7iJyz+uix5jrY8bKl4I5aRi3sMHLUaVm47KuFeyFDPUaOboReTeOdLEdFHl+u9D74ZtaXR3FLMl8GKKxPY0mq7wYXEdGlz5qqk/VwQG/T5fOc60feYF2NpyQf1ONpvQJlYH8bqXOOXzTy3Pjesuacyujc40qcc27Lj5YleStJ9ZV/Nsd+AR9gqGAqpAsnAAAAAElFTkSuQmCC" alt="QR M106">
+  <div class="name">カルボシステイン錠５００ｍｇ 500㎎</div>
+  <div class="code">M106</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9klEQVR4nOVWwW0EIQwcY6Q8uQ5SCnR2us64Uq6ASPjv1URm95V8IytKLGQkf4ZhwGMhvsZRvpWAv1IDV2TlVJ7UuyedpZOE3T3QGccoObgQGWiP4waY1F+mR/nhWr12G/oxknEJ1EYYcOaSgFuAp4jARgUOEbll/aMrpu+HTTLlH4Gr6+pKeiNX95aIG6DRN5QzoEsOLtAmEKy5OtL4kr7zxTdNX85ozguhci7fiH3b3qhJ+haYiEgNiaOJeJ4P9lNc36Ce54MIP7KgXBvfVq4vtDB9XTjeV+qcY6PacBt8jWR9da/EOed5+pHbCBdO0lf+2Rz7CY3eq9KcCO0KAAAAAElFTkSuQmCC" alt="QR M107">
+  <div class="name">ムコダイン錠２５０ｍｇ 250㎎</div>
+  <div class="code">M107</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA70lEQVR4nOWWS27DMAxER5aBLBWgB+hR6KvlZsqNqD0NFiMhm6SLLtpZpIJB0wMDD/yBKonnc24vEvAuGtJpq6O6TcFCxLXMrJnRaNM1XGqlHHTHgVF2ce5H+XvG99rFf/bf72g7Szxf56fvLTHE/Wzqfl7HEWBjZ6ZujtwAQ+vrM1Tx1uxBqK0RDhG31+zVCQWY7VBxcxZ30hFNFy8aiXwYu4y7+tkmV1hfp61OhzkXcTfMsUXLcrXzOrfDJuBiDe+jn+mHci+0vo8j2i2Ee2Gee3z0gqOm7n7FUWJr3bkadPXFYx9xjlT1Lf/sHvsFAXerEiWZ1dMAAAAASUVORK5CYII=" alt="QR M108">
+  <div class="name">ムコダイン錠５００ｍｇ 500㎎</div>
+  <div class="code">M108</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/UlEQVR4nOVWOW4DMQwcWuppIA/wU6Sv+Wfap/gHVGmAiwkoJylsFyliFg6x0O4OBAx4DSnEve2HBwh4Fwy0OIuB1hbQPIm3kSwkNE5aDm9gIj1cvnRMqcmxn/31HE+xzX9374+wGiler/1kVYmZXM+tpNZzhS7lmLjWxjzdQPTR8tR13H49Mc7kiAivFvYcXo4f3Qiv0/SKw9FoKBzF4JrlrzXogPKLOi/OyyxGQ1kB9xy9miISsuzxbK/heLQDEPMIOvZj24/w2bP0qgEhVh71HN+eORf0XGd3PXviXLiZfwxBL8zbr5ZYodgWoyEvv/jer6KPsvIr/2yP/QQ1WZsDb8xivAAAAABJRU5ErkJggg==" alt="QR M109">
+  <div class="name">プルゼニド錠１２ｍｇ 12㎎</div>
+  <div class="code">M109</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+UlEQVR4nOVWwWkEMQwcnQx56jpIKXJnx3XmlJICAvLfywRrN5/kr0AyGGP0GY/GliTEdxy3HyHgr8TA2LtyAJ4BX0V3cZKYnQEl9zVuBbwNgMBhQyzavOtHHe8J/orn89FmL+Rtp9JmY5+MmGV630QEKfYQkXvVP/rCyoe9D7cS3nANVxJGhi+r4b1iKwtIs6e+97I8Ayk5nOEo0ovkBTmU1Fp/maRpNCr1buwMj2VDo6ovTBGRZiOLiK+6Pujczo6Vr3rV9UGIdMwHbDTjS2Ef3LCnBjRwvEbpnDM7Zl+zs6xuxOXv+X+r5hxc89VZpXOtCl75Z3PsJ0BHp8yQNoXpAAAAAElFTkSuQmCC" alt="QR M110">
+  <div class="name">小青竜湯</div>
+  <div class="code">M110</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAUlEQVR4nOVWS25DMQgcbEtZOjfoUeyb5WrOUXoDWFbiaSL8sqiSbcuiReh9ZjMGDIMQr3aUNwj4Kxio8aykY2xgeNJZBkmYXDTY4xglhxciE33Fn0lLz/3X9fc53jGbVV+x71Z+GGtxtYB25rkTlhbvXURgtwYcInLN6qOnLd8Xm2RKH4E6qo5KopM6vGfxMiYlNT4qV1CXFF4dlSumh4YjL95VdfgOvCbXlws9MhwtnFjfMIX35Z0Re0ngLTARkdZXO4dIng6Os7IObE/Twa1HFpLUOi9JOtie776aoyqOD03dc0zcptvk50yub92euOfctx5JlPhU4ZLAK/9sj30AEqOqq/gdaZ8AAAAASUVORK5CYII=" alt="QR M111">
+  <div class="name">麻黄附子細辛湯</div>
+  <div class="code">M111</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAklEQVR4nOWWS24DMQiGf2xLWZIb9Cj4ZlFu5hylN4A9Iyqctou2iy5aFollzQON9Jnh50GBr+to30zAo9gQmtceAcg2iBedRSICRqFJz2O0Gi6IJngdZ8BoVP97Oem/M36wGf3uu7+0RSzwyjcOr+PeiAh2ycwlonNVHn0s38LOh1bCVekqPZZzhIpzGRcJ3Y73WIluNVzJusHRVUIlpdVKuLE+6b0uvm0X5zWAYRNWrmcV55RWL4pvSx+JBl/TZaCwbkjqKkvldKPsDq2wH9nFeQ2O7A6tgDve73w9ObrieNHSOcem7x2vs2rOkXvm3nfhnHPb/Sidhc1eFF96sjn2DSpBp9Sf5fBUAAAAAElFTkSuQmCC" alt="QR M112">
+  <div class="name">ＳＰトローチ０．２５ｍｇ「明治」 0.25㎎</div>
+  <div class="code">M112</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABBUlEQVR4nOVWMW7DMAw8SgIy0j/oU6SfBfmZ8pQ8oIC007iCcro0GTKkHFrCMGTCwOl4PIlC/Iw9PaSAv5IDh78zO1BXolrQXipJzGaOTt9GCsAtAAQVShBlbvkzuPbXfft1jCe5eT7d2gv/vTNHdujFv5QWh3sVEcyzO1dEtigffYetxvZFCsEdNY+aSVNyVNMo3OXZg2xmd+gUgjsA7QdxDjeyBfHt0G7wUudIfdnzouwqB+tL7yhnrWH6JkwRkeKlRkH18zoF4MLbaSlrwHrC7kGINMwG7UV5CrwHPfSSB/LA/jFC55zplG023lqsvv3wb9Scg/t8tQ6ru4VTAK78szn2CzXzsiXuCqI/AAAAAElFTkSuQmCC" alt="QR M113">
+  <div class="name">プリンペラン錠５　５ｍｇ 5㎎</div>
+  <div class="code">M113</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA70lEQVR4nOWWQWrFMAxER7ahS+dGypV7A+dG8rIgoyL3p5R23Sn8iiCDNs8axyNL4Hus8qMEPEsNYZmraZjugjppLxqRYrc+akRuo3C4EDmBax3AlEbWvg+f5y8zvkZ7rJ9QIjfycKN5ZkyazpeIZL/zXCJycLjyR76BMPVcFX3sK8y5v4iIaup9APCkB4lr27J6ODadx9XUFroNk9ovkM7st+zOOt8M02qoEZXGtczV4D35TtK53PMo+23AC30eNVyY27gKifuIea5jX6UC4hyMtwOOawmn33se5afor+iD5c/4eF/lL83zDfln79h3HHSG2DS/sqMAAAAASUVORK5CYII=" alt="QR M114">
+  <div class="name">後）ドンペリドン錠１０ｍｇ 10㎎</div>
+  <div class="code">M114</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+ElEQVR4nOWWQW4DMQhFP7alLMkNehT7armZe5TeAO8Z/QpPolbJtmXRIuSx2DzDZ4yFeLajvISAvxIDLdZKAn0HuiedpZPEEt/0OEbJ4UJkQHkxYElLr/1x/X3Ga2xJtefYdys/HGvRWkBTxk6JlZbvu4hgjSi1iFyz/qOH+W7s2JQUrvVqvXJCSeuuWVzOnWWslTPQJYtrOIm0jrx8CZ2uZ76p+tK+hE7Ud1sQp5+tVRK4BUtEpOntvESy7mdEnbeyADw8bQ7uebSG62znVCoJ3Hb/6u3iqIbjzVLfOWv4dn6MZH3rXeU0fR/zaHtM4ZLAlX/2jv0E5Dey/sUI6SUAAAAASUVORK5CYII=" alt="QR M115">
+  <div class="name">アスベリン錠２０　２０ｍｇ 20㎎</div>
+  <div class="code">M115</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8klEQVR4nOVWvU4GMQxzfyTGIPFAuUcPD4TUjkhFRmk/FmBg4PMAGXKn6CTXsZtcIT7HW/1SAv5KDRyZW2bfBV+iszjJA9rIPEbV4KKUCxbLArN0ce9nuT/GdzWL/qPvfqvW01rnMS8YMcV+9jaUfu7JMcnitTt1cwMcDgsYF7wxlogvmFi33PZFXip9G6MNLGOiG1V8eVgfoUkZbsCSL4cnWZ2+OzZoI3V9HplTXyR0GrtqcJ1k9pn7Kg3ZHjz7iD2X0fMSzueM+bieWIBiQzKv+seLP7xcsC12FerLyCF5LF01uDh+JuN2hasAt/yz/9h3U6CjeV6ja68AAAAASUVORK5CYII=" alt="QR M116">
+  <div class="name">メジコン錠１５ｍｇ 15㎎</div>
+  <div class="code">M116</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8UlEQVR4nOVWQW4EIQxzBqQ9Zn/QpzA/G+3P6FP2B3DPyFWYtodW6q0+tAih4IsVjJMY8XWd2zcI+CsYOPIs7BxtAS1EvI1kuU6SQ8ObmNkOf5x3YFoVvXP9jG7xWxzbD9g8Yu5C3poSA9UfeXNiyvJ9NTPMowKnmd1VPnpfPZBfmqTMR2W0QsKXiVzFuzx7mfeqHiHMF2jJPhqE+QZarKBo9YX3wp4qi/VlSgzv4ckeGv9OM7PqfRWR1ZI2YT9i8kZubT+ae3ivztvQ9qNUFmXgfBnSOWcemfLc+dzF+pblX+Gcg5yvxkehFvnI/tkc+wYznbahYdFyIwAAAABJRU5ErkJggg==" alt="QR M117">
+  <div class="name">レスプレン錠３０ｍｇ 30㎎</div>
+  <div class="code">M117</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA7UlEQVR4nOWWO47DMAxEnywDKZUb0VfLzeQbSWUABgzIxFvsB9giYbHLQrYIA6OhZkgX43Pcli8p+Cs5bPhah4BEQjTpLGJmsDu6mR9jycGllA2kWmeWNbn27cLc3ozxXW5u1/NvvntVbnVpwdoMi3Vm6zkknaZn7Bn9eLEk3CHqT9HWLVysWXzr8GorKEJL5NuM1jUoJ+KiDkp1gSXyNatRaj22mtU3NG72NLw/vwvjR/9CCxMl1Xk55pFDr3BKn0ewM4tPhyXJRyB1PPWcqSuP1q9nlP1W8vg+rPRolVm64kPPYeG0vlH+2X/sHXp5niZClLUrAAAAAElFTkSuQmCC" alt="QR M118">
+  <div class="name">アタラックスPカプセル 25㎎</div>
+  <div class="code">M118</div>
+  <div class="unit">CP</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8klEQVR4nOVWy2oDMQwcW747kA/S/lr+zPmggn0MqEyRXHLoA3pIdEjFsmbFwlgzGsuF+Brv9VsKeJUcOP0tU2VqJNSS9qIk0S+3E4T0bdQE3AagQAFtRFsnecvlfh3+PBfjx9z1j/89kGfGcjvP1on12v0M7nB0b2ySSbhTuSvtY39aGs+d1ukMd0pivcIhEwENS9TX+hZ2yPSSLQ0XHjLjnEziuTpi9LPdT4+agrtKKaVBm4v7JIxffEQKR/TzSPSRAirhJsRgssy50Il1WL9Y4lyIuNp5FBzCnPvVXd9P/7qFaw4utnkZ/s3St/yze+wHFbOiLjDAlcYAAAAASUVORK5CYII=" alt="QR M119">
+  <div class="name">アレグラ錠３０ｍｇ 30㎎</div>
+  <div class="code">M119</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+0lEQVR4nOVWy00FMQwcryNxNB1QStIZrYVS6MC+ezXIu48LnLEQWNFG68tk/BlbiK92Ht9cwF/xgV5fJWE39ZlNb5kkEaJe6PWMowcXIqvIxkLI+GX5OH7IF5KtuKNKCxi266+i3cb3TUQQrwM4ReS5q48etvMqbJJNfRRrxKpw20ass4/vTtvkVlK56T26UbgwqoM+6RPWE+eCK220yqxerLMxzloKOdWRbXxv86qrYt2U3wMhIjJs5yUiXfqMKqfKbA3BrNM2B695FJK2h/GpaQ6Ox20cCXWcL96654QgVsbi++rN7/7Mcpde3fuVQ6t/62QHrvyzPfYDkaOqq/P1HaQAAAAASUVORK5CYII=" alt="QR M120">
+  <div class="name">アレグラ錠６０ｍｇ 60㎎</div>
+  <div class="code">M120</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+ElEQVR4nOVWsXHEMAwDRff8jaTVspk8SjaQe/mQo/SXIrn77lEkKiybDQQLAGnEz3WXXyXgr9TAkU8fFbGp1ynCrSSdnKhOcmhws2bWgNPZcdkh+s/Hc78aUN+EUV7WuC4aQr7MrVqMI4hLxvc0s5T0Z7vN7KHCDTLFjPuBfGNX+bdy1LRt9P05NbhkgqaY64xl5CLBHXDyO6+mLq/g7DO6s/sAQsd3Zj4/D5AaKyI9+9LzTi5VThZcZmZHSiuJvwfjRT/q20o6H4100FbUag26Ppgrk7nN+JjiPggguqE5dfNVZjJOH2emx9XE85Wv4FLdr/2zOfYLBIeTtrUeyjQAAAAASUVORK5CYII=" alt="QR M121">
+  <div class="name">クラリスロマイシン錠２００ｍｇ「杏林」 200㎎</div>
+  <div class="code">M121</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA90lEQVR4nOWWMW4EMQhFP7Z75kb4armZ5yh7A7vHIgJvtUmRIqHIUsxIaKTnb+AzZHiNXb6kgP+Sg01/VrNqR7po0lnEnkSn+zFKDhdEHavvC1jUsu/+ro/+14xvc/rD734n17y1/CXEs7Fhpem9icib6tE3EV1Zc3Rielef0KT5lZigAfZpqnlcKETZNKBZvgGbUo9lTQnJWVwbyl7fo9eFlzTuAA9H8/A7LwncBggmbF3h0bKz99HQkJzYz2JmdUZxIXWm7cHYR8C+bm9sHrl7QXT1xh+avwen7Mu9C5n1teNXMU0lh4swK/cr5ThASeDSm/3HfgLJFqBxfinI5AAAAABJRU5ErkJggg==" alt="QR M122">
+  <div class="name">クラリスロマイシン錠２００ｍｇ「ＴＣＫ」 200㎎</div>
+  <div class="code">M122</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA5klEQVR4nOWWMW4EIQxFHwxSSnIjr7Qny5FyA/ZG0DNyZGZpkrT5kRIXjOTm8Y2/Pcn5HGf+koK/ksN7nEc36iXdpugu5u7w8M7hHtfIGi4p3cAKMFIR176+nUH/UcZ3ubGhIm6J1oJS231SqjPU/Rwtrevn9EtzA+8242vU5iFZo5dlXruqPYPuIm63Y0NnbTqutyCy6Tq9rMf165XdZXpXdJ7zWcbtcUaR64KK6pz3Pgp0gRf1PgIejBSDOou4K4xxO1+XlTIa/4Id3paFl4uzcB/BLEZ9pzbVfGbvI+WcTP/sP/YDqkWJcjrAdDIAAAAASUVORK5CYII=" alt="QR M123">
+  <div class="name">後）フェキソフェナジン塩酸塩60㎎ 60㎎</div>
+  <div class="code">M123</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAElEQVR4nOWWQW4DIQxF/TFSl+QGPQrcLOrN6FFyA7Os5MiVyWSTdtFF8xethZjBGukNNv4YIY92LV9cIn/FJ2E5a6RtR3fSv/QkrgGMpBsvBsCQ9parhcqOfffnM77xLbzYT777TV/ElDZz1cJ53HcAss5ZuQBOrDq6m++DnS+FwrWu1jVDHWHdG4sbM1l74xoz0YXDDTVR67FHHq1C4Zp4m96m7v0qMb9hWUE70ULM77ZEZ6KVlN8iCwDq1o0UZ55u9NsN6Gv4wseJex+ts7RZW6RKFwK3Hs82q4uaXF+N2uesIRnnEZfB6nP6oVQ5B6vPkaO/uqn0Hs7g4p/1sZ9Au63wcyTceAAAAABJRU5ErkJggg==" alt="QR M124">
+  <div class="name">クラリスロマイシン錠２００ｍｇ「ＮＩＧ」 200㎎</div>
+  <div class="code">M124</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/ElEQVR4nOVWMY4DIQwcA9KVRMqDzNfysJPYp+QHpmc1kaFLUqS4c3GHVt5dC2lsPGMsxPM604sL+Cs+0NxmU3KnrjMoFnXEenN00sNIMbgQaYCeF2BICT77Ifnefhnjva98uO9nfMWp5S/9vlqpxAjL9xARAF/3dorIJUpHe7manNgkQ3QEmtIUUNS+f2dUvlh2QmdlDswX3q+A6gE4egrCpXmmZN/oM45XfTfqzB7Fq7Ss0oL7RsIQESnwKs/dR1JUfblo7HzucToyF282XXz27xl5L9SO0Wa9zcB7Ya0DtQtaZtx8tXWU7fDTHi12voI/3jNj6iv/bI59AFfjksyzSLv8AAAAAElFTkSuQmCC" alt="QR M125">
+  <div class="name">ジスロマック 250㎎</div>
+  <div class="code">M125</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/ElEQVR4nOWWTW4DIQyFnwGpS+YGOYq5Wm5GjtIbmGUkRo4MkSIl6z5VLQuY8ebz7wNxvK8zfZiAv2KDW+zZkH2HrpPki7o7qmO07B5uJA4XIg3A/QCGFHLuh2T7acZvsJVorTj0vFiJKtN8uYkIgK/vdorIwYq3rvEZuBd1nm7ATd00xrb2/Ts5XI/hnbXPQHt2Z3H7hAZuJTzoicK1CHkC2Xs2jdgTh6uhGNW3RBPzvJZF4ERuwhCRJctR3NvkaZjulpZDz7gaGuv+VSBKvPp5DXIicNPzrL2MNuuVlefy+qxd0LITdXK18Z7fTNNJiz2G9/nE4nDln71jH7dmlm8kcW8lAAAAAElFTkSuQmCC" alt="QR M126">
+  <div class="name">タミフルカプセル 75㎎</div>
+  <div class="code">M126</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+0lEQVR4nOVWO24FMQgclu29N8hR8NXezbxHyQ3YntU8YStNkiJFQvFC4Q+yNB48gIX4bPf2xQW8ig/0HNVBLuoWRXexRGzE1ZXMa2w1uBDpAHYAl+zFsb/6ffw1xre+U/1H537Jt6e0crLzzfd85TK+p4ikpN/7LSJHVR4tc8QUNsmSPALd6JarNtY2quqGupEjYNGoZXyZNNUtSwcy2lHFN9qgm3Is9KjiqxnqGXBWxnlaqqsW13NcfJN7Ee720Y/Gfdh9IK5e1X8NME11Ech1VPaFxv3q0R5R2BemnWhD0JU1/6tZJ6eMV/5qYZ3ErFcrj6reV/7ZP/YJiZyrVoMFtVoAAAAASUVORK5CYII=" alt="QR M127">
+  <div class="name">後）オセルタミビルカプセル 75㎎</div>
+  <div class="code">M127</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8klEQVR4nOVWQUpFMQycvnRfb+BR0qt5s/4DCelSqIykRQR14cI/Cw3llYYH00wmSQvx2V6vLy7gr/jAyK+FG0/ovkR3cZJoA7Mbmde4BLgVQIFnWh+jzgd71nI/u8W9Mb73rdl/9N/v8czcbslzI6Zcz+FCPVe0XT4TL9Wp6xtgOE+kbZzj0uDyHQ6+Go0U4QZ2p0rQVLUov0ieydVIjpRWU8XLsSXtJ3Adz8cClrhDhXthllJKha9Mbi4I82vk1vPQ1VE44BbYenbh/N225+9qT0s4F47VNgq6Ufe+Oi3L4pb1O7t2HuGjcV0C3PLP3rFvjTefRypNVlgAAAAASUVORK5CYII=" alt="QR M128">
+  <div class="name">バルトレックス錠 500㎎</div>
+  <div class="code">M128</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABB0lEQVR4nOVWQWoEMQyTk0CPnh/0KZmflf1Z9in7gAXPsZBBRTNLD+1e60JrQhJ8kZ1Ylo34anv55gL+ig8M7ZWsPFPvMymWTiFe90XoCqPk4MJsVeK3FZu1pHdunzfzaL/w573elHUmLjmwrfsCOGce7tXMVNKB3cyWLB49bMyjsEmm8AiMPn3U6JVjeiIuOZ3TB9U6hsIoSbhAr6HGdUDn5FuwqajeF9iruha2Na0/kwOuF67RRaWSgntaQL+MrlUy9WiISkd1zSwekayBiXOl6eChRz7gbOhZelQe53ZIIS8/ifHM53yR/r5l6X5Tmjqu8Eu7o91z56sQgxgadWYGrv2zOfYDFyCqcVW2iawAAAAASUVORK5CYII=" alt="QR M129">
+  <div class="name">クラリスロマイシン錠200㎎ 200㎎</div>
+  <div class="code">M129</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+UlEQVR4nOWWQWrEMAxFv8aGWSo3cm7QI/Vqzo3k5YDCL1LaTUuhi44WrTEGfwLiWdKPhPi8ztsXCfgrGmhxNgNtpDC8KO4g2ThbnKTVxA1NZMfaHxuwpBe/vbI/PcY32tp/9t2vaD1SDPT14j2oscp4DxEBcDecIrJV8erlHLMneJVvgDYaCY0mcmUr6iOQ03W6Ejqh9ELfABDIgCPYvYoXH9TBq1VxDdAwyetayJsrqyvZq/x5iYh0HJeJeJ1PDmYfYe2+XpuV/X8HsoxzF77z+zoe23FuiNA31PFaZDZ3HW+UsbLr7DrvdflFzlfXcFU2X8k/m2PfADkUl3D+0rhIAAAAAElFTkSuQmCC" alt="QR M130">
+  <div class="name">ケフレックスカプセル２５０ｍｇ 250㎎</div>
+  <div class="code">M130</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+0lEQVR4nOVWMY7DMAyjYgM3uj+yf5avOU/pAw6wxgNc8CCnXa5dj0MrBBm00JQoSkb8jdv2lALeJQeO+CcS5aRep+gtlSTc4C2R8YxNgwuzhsJZOtyyuvZHurb/xniR8weoCDeHtIBcev5GSMtlfA8zg+8xuWZ2Uc3RPfpcwiYpmiNv2VtepYa3m5AvCjlqIhM7h8Y3wq84kEZlfCGtKeQ78eAr6i+WP9ezwknLNyIQ+yyy/m5wM7Nc+gwTqUJ/rtFiIHubbj8X7T7yHaXnwi/RHgRHPXW19Ly0vSn30Y6oc+O1yfhyMb3z1d05x9pHcefEqSPqr33YHfsLFBKn7Y5BzWoAAAAASUVORK5CYII=" alt="QR M131">
+  <div class="name">サワシリンカプセル２５０　２５０ｍｇ 250㎎</div>
+  <div class="code">M131</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+klEQVR4nOVWQWoEMQyTk0CP3h/0KZ6fLf1Z9il9QCG5Z9DiDL200Ft1aE0IwRdFUSzbiK9xlm8p4K/kwJF7JZdf1GOJ7hIkMQ3zqGReowhwGwBDwNmINm/1Q4d7xWnxSxjlh9y0uoVW4pId3hcA59LhPswM897yqc1uqjr6jLU/dh6KBHdEHXHVL0csl+GijlhI6Mqe0EWHW8k6Ik1DxpcXzbTKPMj0JYEAtspavhkjsoRdpm/BNDNr/rbSNLdVFlEdMZVNp9pL1gdhdmAezXtzvgj7YIb3lgWF83VI55yZlNc8+H6I9a17Ceecx+5HSTZHHZG+9s/m2CdeGq/I4tBiwwAAAABJRU5ErkJggg==" alt="QR M132">
+  <div class="name">後）レボフロキサシン錠２５０ｍｇ 250㎎</div>
+  <div class="code">M132</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/UlEQVR4nOVWMW4EIRDzAFJK8iP42X2NPCUPiAT9nBwNy0VRUsfFZbRadmmMscdgxM+6p19TwLPMgTPemQP1ot5ctJZGEqtj9UzGMpIGF2b9kF1WRPtcvr6yP36SADedcXVf/Y8xvlcJawGljvKB2O0l4/tmZuEr4G5mr6o+OjV8G5ukpI/A2fJsmfRKzuZVhcsBwOvIZOYI6KTCrRFWnC1CQ8m30uvgxVemL+loeSJUlvLdNUPiY60kwE1YZmZl53O5ciSJ+ohbWQf2IzsH93m0bhGVlS9Txxdol5MzqfJVOuO6lX0k8b2L9c0XX5G+OPer+QhqUR/ZP7vHfgKIdLXSxGkv0AAAAABJRU5ErkJggg==" alt="QR M133">
+  <div class="name">クラビット錠２５０ｍｇ　（レボフロキサシンとして） 250㎎</div>
+  <div class="code">M133</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8ElEQVR4nOVWwYkDMQwcx4Y8tR2kFLm1lJQOvKVcB/bfRkHKQuAujzzCPC7CaJdhYVbSjO1k+B3r9AcC/gsG656zeQSgk/Qv6oyjHuyd14OUKrCXUTFSYfdeCRwvMLnOt777FFZcWvFYl17EMLh67pq7EvWMMJDL+HgxI/louIMKdG17wZ42Vp+tTWgsTCiEU6/z+mSlWWTefHvUKM19JMaq9+TUP+kcqsaombRP4qnnrmbMPiNOhPYYMctHeHBla5F9Tep5hLXtM7wM1v58xKiQm9LvIAWYo65UabwWMnZqaTwfdc85fDSFpqv0ZffYO7E7m/0Fj0WaAAAAAElFTkSuQmCC" alt="QR M134">
+  <div class="name">ブスコパン錠 10㎎</div>
+  <div class="code">M134</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/ElEQVR4nOWWMW4EMQhFP8bSluwNchRbysFWuZn3KHsD3DMigklSJFK6pUgoRojmzefbYHJ8j6P9KAF/pQbX+LJHZGFY0b+MIO7ZT7rW9YBoQt4MwKZe1Of+lRHGkxjtl9qenEZXct0XZEWfxa2Oeyci7FsHDiK6Vt2jz7A82JG0Eq4O1sG+TNx1mFRx3cNcCaXsK9CthKuhkTWSGBp1epcBlsJDb5m/7pytTqMr9WYEcZksLvK3YRMRdVk5NHNUtgIu4jhlq0+XrW4PIvbRDsld/KK1+0jWq4IVx4uWvnP2xJ62pz9msb98Xqg6f++5j0LvxxZuBVz6Z+/Yd94CsCU5T9ELAAAAAElFTkSuQmCC" alt="QR M135">
+  <div class="name">トランサミンカプセル２５０ｍｇ 250㎎</div>
+  <div class="code">M135</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAklEQVR4nOVWQWoDMQwc2YYelR/0KfLPSn7mPCUPKFh3L1PkTS8p9BYdWmEWo8t4pJ2RhHiOo/xIAX8lB874VrLypG4r6S1GEt7XRo9nlBxciHToVS6AS0uqc/u+GL2/CKP8knN5PcYzXwJNR/sElPA0vjcRgX+EckWiyyUBF3zEWPvHJpmiI3BanRbiVXLa0jRc1PlgXTkCuuTgGnRUjjotTCONL4NjnJNvXn8R5nx2OZXvjl3tpVHtlaNfFxFpet0mYivPJy3mUVhlXy7HJXceeYeOpnybufNI2baQj/eZuue47Dp33nvWnmNbuY+TuOfc9jyS5dHlkHBJwJV/tsd+AfhEqoYq82mfAAAAAElFTkSuQmCC" alt="QR M136">
+  <div class="name">後）トラネキサム酸錠２５０ｍｇ 250㎎</div>
+  <div class="code">M136</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABBElEQVR4nOVWMU4EMQwcZy1daSQewFOSnyF+Fp5yP7BLpKyMZpdDiGvBBbiIIjeTydhjS+J77O0uBfyVHNJ5bjkzT+p9Fb2lEzGelejJZ7QaXIgM2AtiIESL/llvl/726FqveYzLdfwyxtdQlhagNhGAJc+G+2g/n3sVEcRQYBeRh6o+usU6CpuXVoLrffO+ZcIyvS+rws3JFnYSp3t4jW8ccN5hRKRp1PHNBSzL7eRbpy9OZ6bKtXwZjmWTrIv0bQgREbXUT9NsRX2UVJZfTaHr5iA4j0JgUy0vXjuPbHaWFvYnL91zYmiMFSOvo1bfefRvVu05+NivaFaHURf1kfyzPfYdwDOvk3AM6aEAAAAASUVORK5CYII=" alt="QR M137">
+  <div class="name">オーグメンチン配合錠２５０ＲＳ　（３７５ｍｇ） 250㎎</div>
+  <div class="code">M137</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8UlEQVR4nOWWTW7FIAyEh4DUpXODHgWu1puRG8GykqOpDK309N62mkVrRfnxxszwGScRz3EfLyngr+TAEfdMwrb06qK1VJKYyWfLZCzj0NRFSg2oBcBMRe69C2q85uzjbTznHuP45VwJtNbjfh/FiKnledQ8qpBncMcIqne4Zn9n23an8yq40qnymd2X6oV0hWn0rorWYWF1vMj2d0Tn+j4kjUK93UNvuA3ULOIKPzxjId1d6DNiHoXq3U0uqltJ5ofLpfMIn+flq5eh0ovAaXFlXXdefUfMX5/tTk02B8m+P4r1PNTziKO6ybhK/+w/9gtwRqdgBqMYxAAAAABJRU5ErkJggg==" alt="QR M138">
+  <div class="name">タケキャブ錠１０ｍｇ 10㎎</div>
+  <div class="code">M138</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/UlEQVR4nOWWMW4EIQxFvxeklJ4bMVfbmzFHyQ1Mb/Qjw2qLJEWKxMXGxWiwRvo8hv9BiM81b19awKv0QItnMUA3evOkuTSS0E5DIWMatxxdiJwY5zyAITV57bWX9/OPNb7tteD9wXe/1KuxtYA6lqoSI433EhGgFcMUkSPLR8+y2NgkU3wEWivbR6Qri+X4N3h9pYdrh9KRp1siMboDjmD3JN3uj0VevJqoG/nc/DFM092beYVz/Ousc2GIiFQEb8WVlc/Yti3sxVq8p/nIWoRVSId64vm765rHNY8wFDJ5rSH8Gxb2LF6yQ+/QXrW/WfL9KnhX5fDKP7vHfgBv5KzDccIACgAAAABJRU5ErkJggg==" alt="QR M139">
+  <div class="name">ネキシウムカプセル１０ｍｇ 10㎎</div>
+  <div class="code">M139</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8klEQVR4nOWWS07FMAxFb5rMXYkFOVt7S2IH6Y6cIZKr++SEETBgAB6AVaWNFcm/UzuF+Cj38UkF/BUdaLFWjsodunqSL0oSs2P2SoYbR45dlNLjUwZmadm51wj5l218oZPH9879lK4FWuv19mJNiJnLs2k1TeQZ3GIaMC/xnPrOwKkB93k1XOXMyjOHy6DBAYdCcuIFTVeJV31l5NXXFktYUMnIi5eM5vwOc2w9lWdUi0btqXlGJRdd8Td5GldcqY41Hk+dR3qfl+/RcCT15y3eOuRVs+fg1QCf/S49zS459qbJqJY8jwIwlzSuyj+7xz4BDhOcP4opMngAAAAASUVORK5CYII=" alt="QR M140">
+  <div class="name">麻黄湯エキス顆粒 7.5g</div>
+  <div class="code">M140</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8UlEQVR4nOVWMW7EMAyTbO+6H/Qp9s8O/VnylPzA2R3wwLhF0R5wWzhcNTiGFloUKcVhf+NITymzd8kZOs+MxWKWXofoLRUAz61lgM9IGlxzb7b78bHY7kXEc/m+1GLtIoz0KrfORpuwXvBTPXoJ2C6rd3V3Snprh7vfVD6a0SvFfMYQ+bdO/47Tv1mJGz+gwrlhebuX8wHHbb0K4ynQf7FtoeOZouqWex2BIeM5Fvb3WowX+wgjFtYu1DMA8gySTLaTcB8ZxZy7kfYkwp0x9lbic8j3UaZ/q1BXlf3lpKJ/IeqvfemZFqZ/VfPZ/9l/7AMOZJf4Ob3MegAAAABJRU5ErkJggg==" alt="QR M141">
+  <div class="name">カルボシステイン錠２５０ｍｇ「ツルハラ」 250㎎</div>
+  <div class="code">M141</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/klEQVR4nOVWOY7DMAwcSgJSMj/Yp0g/89e0T8kPxF7GLCi5CJI2y2KXMGR7mhGvIYV4tTO9QcBfwcDhZ2aHbtfrDLpLJQk7Fjv9GimGFyIN2vOjwaSEx/68/z7HO2ayE/2MPVv6MFa8tICi3f+UsDB/v0UEdhTgFJF7VB9d1ndhkwzpI3DUPGomoeSoU8N4XTTWyfURoxsrzgN5uONe0mH+sjvpshyb36mEeoRzZH63OWOfSqdOAbwJJiJStJctInFzsO7MApj+hM3BNY9MpvaivAXNwXK9td+md9P5NUL3HDtgbVrjo8Xmty+9YtSeg2u/crFaQh3UR/LP9tgf/3KyBYayVnUAAAAASUVORK5CYII=" alt="QR M142">
+  <div class="name">カルボシステイン錠２５０ｍｇ「トーワ」 250㎎</div>
+  <div class="code">M142</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/UlEQVR4nOVWwWkEMQwc2YY8vR1cKXZnac1bSjqQnwdaJshOCCR55HHRIxGLDWJhNNLIkhCf7UpfXMBf8YHqZ+awuqk3C4qlkcR8Xuj0MFIMLkQ66sDsmFKic39m/XWMb3yzlx/990gfOTzPACotDvcUka2rS0SOqD56ty1skiF9BGrL2nb/UpvVKFxnClvNmzkcOgXh5sU3a/NHI4hvAs7rwP2A1VE81WG68so65fVF1tdNne8OwGLyPEVESmUByhIYovqIS8m2QC1uDsLn0fSRVCqfgnRV3u7KYsiK66ahe850yjY7X3pwfbOf/kpb5H6l+GjhFIAr/2yPfQWerqnp2ym6pgAAAABJRU5ErkJggg==" alt="QR M143">
+  <div class="name">カルボシステイン錠２５０ｍｇ「ＮＩＧ」 250㎎</div>
+  <div class="code">M143</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA7UlEQVR4nOVWu27DMBCjLAEZz0A/SP61/pn8R9J+BouT0qXJkKHlkN5gA4QB3otHJ+JnXNsDBLwLBvZ4ZtJRJ1BdlEslCZyZLZORxqbhRUoHxlHGgZGKvPfX/vccT7Ca+0vf/RJWYrXidfpHL0YM7T73mrtyn8EVPbZ6hYvqrUu/MN6FvGl4sYq9swv7DGuwFvO1puPtNbN9X8sGU/V5TXbW69ZcVG9Z+uXYOUJESe5HsDZ7rtMRydyj4R7XUuaD04+AtJ9xoq2J/cjHUezT5T546/Xa54nehPPlulexWq71I4Z+IwFX8KZ/9h/7BeFMobDEvBhTAAAAAElFTkSuQmCC" alt="QR M144">
+  <div class="name">カロナール錠 200㎎</div>
+  <div class="code">M144</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA80lEQVR4nOVWS1IFIQzsTGbPuxHczHo3Y47iDWCfqbYCWlq6theaBYRsmnw6iRHf5T5+mIC/YgNHnp5nXYYaor9Ukih0difzG4cGF2YNuPI17RTHfr7cj9/G+Crnh3JxNjEu86pWxlmIKYvzZWZZ0q/tNrOHikdbFo+2GiL+Vo6atC19P0Pkb3+nbULThf7G1goTWtSvkM0KiExu95Euhyy/JErngLPr6mrLyAHhlOX3wDQzO9cwit2lD12cncyKymir6mqR10fd9Sycv0vKM2aL8gz1PAJKNzSnZr/6zO/mb1L40OBi7VfVF49U+bV/tse+AW1PqGtNWVdCAAAAAElFTkSuQmCC" alt="QR M145">
+  <div class="name">カロナール錠 300㎎</div>
+  <div class="code">M145</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA60lEQVR4nOVWwWpEIQycqHcf7Afpp+un9A/iseAjJXnsUnav7Sy0QaLOZUgyJorh2c70AgF/BYOp+2wjawugbRJvM7N8eTNTDq9jIh2YfltS6LmX4/c5XrE68kd/wr5b+mGseIlj+7xpqYbF1bM2tp4v0/vBjKTn5WUtwHnMgunqSqT6CrBvdq6+JVKdWH1DkX011EHsV0AdZmPHa0Ll1Nfjvfpz3LxbbqqeW7Robp4R8dbh7LR49T6JwrN402MeyTF3vGXwdNWyxX/Hhc2LN2xuYK9+SqfNQQsZF6DUkfUN82hXmq7kn/1jvwAyc6PYEJi0AwAAAABJRU5ErkJggg==" alt="QR M146">
+  <div class="name">カロナール錠 500㎎</div>
+  <div class="code">M146</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8UlEQVR4nOVWO27FMAyjIu/KjeSr9WbOUXoDeXfAQkk/QNuhQ5+G1kMSEAGoHykL8fmc2xcI+CsYGPlUDsAvwFdRLE5msZVDyQxjq+GFSMfs5w5MaeW113g8x3fYmv1H//0O1nK08uVi0YyYZfkeIpJ1fu6niOxVOrpPvH2QJToCI2WrJOxWUxUvx/pwD1b5Bhiu4cqRidso5AWMyzLrdEsrqzOXUUkNv9jL/Dmd6t00Wv0+smxxpY54FTkZkTO2KvcRDtmPXA02aveCY/ZmT6t6Hx0afu7XlWMr7C/HPV0s6i9e5zkygFvIq4JX/tk99gVAwJ1wMBgwiQAAAABJRU5ErkJggg==" alt="QR M147">
+  <div class="name">ハルシオン 0.125㎎</div>
+  <div class="code">M147</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA90lEQVR4nOVWMW4EMQgE21JK8oN7yvKzU35GnpIHRILeqznhtVLk6qNIkGVbNCM8A2MG/Y6zPaWI/kqO4Ll3GPxYiWMW4R4A+rUD8BrczDErycfJSsGj/u3FXo/xE2Ofof1b973Rc7QX5ADbxQpmHe4nM1Pcs3OZ+b2qj3bYpJQ0gCI9h47QQTTEKPSsrNeP3cVreswiXJuSQ3qhL2m1GlzA6SK3l/LL5w1vni2c92I9O02xKdbL5nMwMw+xlDQtS2qFfoSU1sxV60fBU2zIIroV+oJYd+pO581L/zmhFDpD8aXF/PbNchm/lx9lvenCRfzyP/vHPgBDea3vokq+vwAAAABJRU5ErkJggg==" alt="QR M148">
+  <div class="name">ベルソムラ 20㎎</div>
+  <div class="code">M148</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAUlEQVR4nOVWQWoEMQyTJ4Ee0x/0Kc7Pyv4sfcr+wL5n0OJk99L20MPWh9YMQxADQvFIthCf6zy+QMBfwUCLd+EopgvQmcSrJItpIQtJy+ENTKSjXeAdLjX77hVt/DbHN5jL9P6D756F1WgxULfYRnia3g8Rgb9X4BSR1ywfPWpC74cjhdd0m2i2ZaKWxovgWmILR5Z/QY5wUIu8iuxK08sl1uJQMvvL6OzWW/adH0m8UfFHjbnYZ45/XUSktkuNENGZl5NKxvCf3qfLmZQbx30eeUcbtfHF8vI5qhGGYjjfLHXPcUHcc+e1Z+05up27n6w953jMozV/vZek/so/22NvLi2xxJogHNcAAAAASUVORK5CYII=" alt="QR M149">
+  <div class="name">後）アセトアミノフェン錠 200㎎</div>
+  <div class="code">M149</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+klEQVR4nOVWQUpFMQxM2sJf1ht4lD7wYF6tHuUfQEj2eYyk/YL4tjoLDaWL2aQzk6RRyPc4ywUS+SuYwPKuQMhYwAjSWwYAcb1hViCfUTh5RfWQvnx2bXzt/fj9HBfMNS7Y1yg/jLUsLZHW0d4l1XYa3zdV3SKfqvrE6qNHzFiFDYDSRwIb1UYFpAM2otPy5r3JVsxMXUh5o8+kbCPfwOM7VsaUep9g8a1L4U2Zx3fHUjs6zd8irqra+lxDZH1JheQvtq1Z1VnYwfyPPCm3jpvx5nNGny8m1eR8Nuqe46/hR/iB+8H1d26XWXuOPPYr+xzUpD7Sf7bHfgC6Vq7GoiIe7gAAAABJRU5ErkJggg==" alt="QR M150">
+  <div class="name">後）アセトアミノフェン錠 500㎎</div>
+  <div class="code">M150</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9klEQVR4nOVWMW7EMAyjnAAZkx/5fnZfc57SHzhjAQUs6KRF0c7lcBUMwdBCUBJpB/EzzvKrBLxKDezKU69Tr6NQ04RbSU5krsrsHlzVIh44YnlTns29X5vO32J8j/nrdkY14xKYj2fOwEoctj7vEQFg6TgjYnPp6I52LTZJm44mEmu7pWTSEUg5pWhqpZk23yBTfoUEEuKetj73SrbBd1AuJtzUcG/T8PG9ogtRrE3zLTgiQracw0SM/ly10nKqRx5PPYvFNF+MNR6nud7f8nnZ37f93CDoYuTbL/1KwuniS17KbfPaFt98Mf5XIjvCwzf+2T/2A2wCqWXJDkIkAAAAAElFTkSuQmCC" alt="QR M151">
+  <div class="name">後）ロキソプロフェン錠６０ｍｇ 60㎎</div>
+  <div class="code">M151</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA90lEQVR4nOVWsXEEIQxcweVcBy5FtObOuFLcAeRi5JH4yJ5x5g1sBYJTsqxGuzpxfI1dvpWAv1KDz8g1smZBjfQWdXe06Hd1j2cUDi5EOvBYG1hykfp8vc7Vq/0WRvmpplidiHvFaOWx3+bVHIvG9xGRGKqPvkXkZunoROroXI2kX/WZym3jfBqP7wg4qDWvPL6w41RhHYleOLgaHNuoPupUNBbfbPKx6OrEPp+YmriDhVuwREQuPAa8nLJQ99G+dd+w1Vn7V4FosuU8E/dvRjhzt/YerS7g8fWRfGOkjeaTHvI5+q00n5yR64xL9bSsQsCVf/Yf+wkncabMZkTRaQAAAABJRU5ErkJggg==" alt="QR M152">
+  <div class="name">メリスロン錠６ｍｇ 6㎎</div>
+  <div class="code">M152</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/UlEQVR4nOVWsW0EMQyjzgJS6jbIKPZqv5kzSgZ4wOp9YCD7q1z9KhLBcMFGFinREuJ3XMcNAv4KBo64C8lRF1Bn0lsqSXi7zp09p14FIKiwRyHUz/LM5l69vT3HHfM2b9i7eSagRn0CRnhavV8igkXyJSJn1hy9os/V2CST5sibetOguu9pQla9hZwWd2HnyPENcNQysDOGaVgOz+GT07jFXSVn6bsc42PECCfrGzHqtD6tlyR9D7iIiNojWhrrSzqS+opbVmCdtH8QIqGsWldjCH0k+XOEdR0oA9fnSN1zXKa36Y3fLVffvlXO2nPw2q+C5LrPzMgr/2yP/QF6sahhuRL1pAAAAABJRU5ErkJggg==" alt="QR M153">
+  <div class="name">アムロジン錠 2.5㎎</div>
+  <div class="code">M153</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/klEQVR4nOVWQW4AIQgc1KRH9kf4s6Y/s0/pD/TOZhrc3Uub9FYOLTFKuIyDMCLEVzvLtxDwV2LgjL2SddoOmCfdxUhi9fMI9LhGycGFSIe+QQeWtKQ8t8cxb/2XMMoPsSUv+6GRyJdAU2IB114ScAvwLiJYvQGniBxZffSY78IOp6TgTqvTKulKTnNNw41iJhnSwRHQJQfXNmXUcKK0PIsvgyYeylm4JGDQEa88LY/vZROuwze65/TvEhFpOlqIiHmeTtpONbC6LzmP3P9ovUJHU4ZKl6Q+AqxyXMWcVVflPiPJsfjR0/jyUqqLb9Kcg3u+ulUrlmfgyj+bYz8BJZeyr8YneaAAAAAASUVORK5CYII=" alt="QR M154">
+  <div class="name">アドテスト</div>
+  <div class="code">M154</div>
+  <div class="unit">個</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8ElEQVR4nOVWMW4EIQwc8PacdA/IU8yX7wfeH0EZyWgis1clKVIkLi4WYrUW0mDPwFCIz7HqlxTwKjlwxCykQ3dCPWkvShKzCE3I2EbNwUUpHVDMjlmO7N6f5fbnGN/kmsn4ybrfyh0hrfjoehtHI2aunofKyNQzeMUIVV/hSfUqySC3mdDQcnCD33Uf73euo3vZra5JfZYolsFvs0R+bY/tD808qc8I0E3u9RsXdc3UMyQEZp7W5xGz0LwZh0ryOWJQLHt4qh9h3U6fPfN+fsbsaA/N9kEF4LOv0tNwSQPOKP5yw5rtR97SdFX+2Tv2A25OpiYCGpi2AAAAAElFTkSuQmCC" alt="QR M155">
+  <div class="name">クイックチェイサー</div>
+  <div class="code">M155</div>
+  <div class="unit">個</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+0lEQVR4nOVWQY4DIQxzAKnH9Efws1F/Rp/SH8A9I1eh06pqz81hN0LMyBeTODgI8Rl7+oKAv4KBw/fMnkddQLWgs1SSmNt+Rib9GCmGFyINejEAU0p47Yv2n3N8Y3PLt/aBvUf6AUb2o85Ki+O9igjmVoBdRM5R9+gZthrbf1II76h51OylJkc1jeOFdnPrYGZ36hTCS0IJdb9y0wjMl+z0ZI9lUf5sqC+h4/J9hFe4mzIH6ZswRUSK+hwuQJRvYOnrnWyL1OLmIHweza1oL8pT0ByE31+4bzxaOqqv0vGdDbPZbLy1WH155Bun73XNo1ZWyjlIX/ln79g7IxWxyBbC2tkAAAAASUVORK5CYII=" alt="QR M156">
+  <div class="name">アドレナリン注０．１％シリンジ「テルモ」　１ｍＬ</div>
+  <div class="code">M156</div>
+  <div class="unit">本</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8klEQVR4nOVWMY4DIQwcFqSU3h/cU8zX7mfsU/IDU0byyiezKU5JnSnuLATCjZnx2KYEXu3c3lzAX/EhLPca4XJBVye9RSMCs9/uvUbkMzZOXJTSn7dZGp97GZ+P8eaTb8xOjNtSWnno+WVNApOrZ9NqStQz4jLLUrrMOfmdmdYGfexHw1F2Fs8xsoQNDjgUwsGbPNckeWR+s5Ro+R1husBmCTsNr8EXzHXTbNQbU89abTVqGs+We42AJOE8vJYw66/l3Hn02A+/WvRGwouU0xpGMnj96mmpZ5/9LJ02B2OBdaDJqEaeR0m4C01X5Z/9Y38Ap0GjgwGZHQwAAAAASUVORK5CYII=" alt="QR M157">
+  <div class="name">リンデロンVG軟膏0.12％ 5g</div>
+  <div class="code">M157</div>
+  <div class="unit">本</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/UlEQVR4nOVWy2lEMQwcPRty1HaQUmRIYSGdOaVsB9Ix4McE++0SyAf2kNUhEcYGYRiNx/oI8dn27YsL+Cs+0Ode2AsP6jaSYjGSiPZ2QiFnGFsOLkQatNdoCKnZb2/F747xjS/abfd+00d26MsAoBx5uK8igniuwC4ip6w8ulg/PjbJlDwC3YpbIYeSbkOzcNnHYl3m6hN6y8EldIG6zaKRxtdtcvygnPfOB+UldCLfw9ygfWiavhtCRKSuulFh98H4QV9OWQGMudL64OpHIbMlKR+S+mC9nNqfHMWxP3rqnBMN0UY0nluuvv2qcla9OuYrvxbqpDySfzbHvgNubLStNxoRqgAAAABJRU5ErkJggg==" alt="QR M158">
+  <div class="name">レボフラビン点眼0.5％ 5ml</div>
+  <div class="code">M158</div>
+  <div class="unit">本</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+ElEQVR4nOVWS2oFIRCsfgpvqTdybvZ4N3Nu1C4HHCr0OIGQrFOLpBHR3pTVv9KI73Y+friAv+IDPfbkmGVRb1P0lkYShU9HIuMZDw0uzDaM7azAsCyOfXkn/22Mr5Y/D+2wJsYlkEeNWyGGLM67mQEtOU4zq6o+uq0nj8ImKekj0FuKPuqBWJhc1r84zOZ4Wd0zcMji7FHMiX0CMw66ONNbDMnSr6XCvZIbcHET8l12F3OfMl0YZmYZ+xoiwvnclh7lsc3xUukR6G2l9VpdqL/L9qPuZ0VAP6Dj6yFGq4Wnii/ZUd6z9Fz6U5df3P+r26Hha//sH/sBHwydzJzXJwUAAAAASUVORK5CYII=" alt="QR M159">
+  <div class="name">ロキソニンテープ１００ｍｇ　１０ｃｍ×１４ｃｍ 100㎎</div>
+  <div class="code">M159</div>
+  <div class="unit">枚</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9UlEQVR4nOVWQW4EIQxzFqQe2R9lftA39WfMU/oDuGfkKrCntoceWh+20YgREZJjYjkY8Tmu25cU8Cw5cORaBtA2dQ9RLU4SjQEUMsu4aXBhdgDny/uBaVV89/OIP8f4Nuc/PPdLuZrSyt9pbdRGTLGevQwX6hncMRBL2CRFuMO5mEbrexsqvmg94eDRWKR8kc2V+hV2ZwNe2MtANBVfMs15FZDQonuuqSgQ83XvQ+ZX08ys4nyA6nzSt6Svu1/3NGqo9Az4VtRyadn8XdF6jqT2puovHnzJxTdHf6j4kj3n/jjTPXT9xX5f5cdscShw7Z+9Yz8Ak1uXX0llhxsAAAAASUVORK5CYII=" alt="QR M160">
+  <div class="name">ロコイド軟膏０．１％</div>
+  <div class="code">M160</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9UlEQVR4nOVWQWoEMQyTk0CPWdgHeX5W+rPMj5zjghcVJy2Ftocetj60IXgmZkCJ7JEixOdxL19SwF/JgRaxGrzvo6sn7UVJorMBlYxtlBxciBzA6fPAlJbM/Xxuv47xfa7az757TK5Fa8Xj9Ku1TszkftZqmtjPDfv3mbg1ZZ5ugKaMkyr62EvP4rkaHBqzs5JZuBrFJXP1CrS3WTm2Wnoiz5VccWTxXNCDYZ/iax2xpOBOEVmyvEAT9Vm3H8lF7xeEO5Skfgb03X810X/XCGU+vL9k1bd9vPYhOCrz7lfkAM4nO8Ma8uqL7UdLOphVX/ln99hX6z6LtX4acUAAAAAASUVORK5CYII=" alt="QR M161">
+  <div class="name">ロコイド軟膏０．１％ 5g</div>
+  <div class="code">M161</div>
+  <div class="unit">本</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/klEQVR4nOVWQW4EIQxzAGmP7A/6FJD6sKo/o0/pD5JjJZCrDLNVtXtuDt0cZhguxhPHRoj7WulhC/gve6D6M5Oom3qbQWdpJGEC65n0Y6QYXIh01DEBmJSg/1x+VhfePlIAbjrf1qf1P8b4XcWlBZQtqkpYGN8PERdVAZaIXKPm6FZb2CRD5gjUlrVljllJbbPG4aLSQcnM4dApBJfj4MusLZgv1d3SoTmi+pv2LBXA59feVrCetblV1rD+JpiISKnvB/EW5c/pzKPTKuXrGptH5pFUKi8am0d1vCqyYr3oCs+jaZ2fPeqe0w6n2n7lLj2D88i8yzmov/Jk99hvCemnePFYQDQAAAAASUVORK5CYII=" alt="QR M162">
+  <div class="name">アレジオン点眼0.05％ 5g</div>
+  <div class="code">M162</div>
+  <div class="unit">本</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA6ElEQVR4nOVWQW4EIQxzYKQ9sj9ivrY/Y34E91ReBWarbiv1Nj60OQQmGskisQ1GfI+P9KME/JUa2CPnXlHW0auLcCvJTJ65a3CjZrZHvgPDNnHvx349xtfYXpuDn9Dp7Y/rcDkXK30rxFDzOSit5POKDkcQm6ROR73GMUtbn67qs5+5egkJu26+NbO52q/gJWyKbHnuXcWrzDYdEsstXcrnmieuar4Jw8ymLQOO4xqM3+4jTCkJdVSDz5NRwBRyEuCmcy1tG7uXhwv7jNAvl351vALIcMhbP+JqGLv2PsLSkWq+9s/esU+uuLBI0qxoFwAAAABJRU5ErkJggg==" alt="QR M163">
+  <div class="name">イナビル吸入粉末剤２０ｍｇ</div>
+  <div class="code">M163</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABA0lEQVR4nOVWO24FIQycAXrvDXIUuNlTbsYeJTfAZSRWjgzRK5JXpMhzkUyxgLXSMP5Cw1dc6ZsJ+Cs22PBvHnXKll5n0F2qmTMWbdnMr5FieEE2yKuflCXY93qb0p/M8cgmvfzov9+yFU+tvWiDGDRM70kS2vLARfKIqqMNryZPbDMLqiNtPE6+rFLCebGF6QXqBCaQ9z7F8Pbpq/crsw6J8bP3yTvjDvGM0gvpeVRbLXrG+Xlhqc5mTp0CeBOUJAtq0fZ+PInjAWx4TPNw4RPVB2KKnEd9DaNzBvZnh95OMQKUEfLOKfddfmuQER1f8xL+TOkUOo+wJHtKpwBe/rN37AfVK52zBzn8dAAAAABJRU5ErkJggg==" alt="QR M164">
+  <div class="name">イナビル吸入粉末剤２０ｍｇ 20㎎</div>
+  <div class="code">M164</div>
+  <div class="unit">キット</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAUlEQVR4nOVWQW4EIQxzBqQeMz+Cr/VnzFP2B3BcKSNXmVmpVXuuD20OEHExMYmNEd/j3H4cAX/lDJy5ltngd+ktRHdpZCLG6oXMa2waXJh1+HuZwLIq4rm+9tVLjKp/c+dz/22Mr1Gzte5t9WytJav3MDOs/jZxmtmuwnWSDODckRmHan4bfMBHoBXmGirdKNfYBjJR6QaSWFxilYQPOGX1kiMu3Fu7QqWTtqPiKI8ePk7ror66Y7ZwFjJEPG9YZpayXFd/ZuEy3Xj5UeFIlX5oeP70o0gzOkLuR3AaYD61/5yWDLvM98GZ75uSdU1xtvSm9COrQHlkS0OBa//sH/sByweXlp4mpUAAAAAASUVORK5CYII=" alt="QR M165">
+  <div class="name">ゲンタシン軟膏 10g</div>
+  <div class="code">M165</div>
+  <div class="unit">本</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA6ElEQVR4nOWWMW7DMBRDqUi7ciPpajlSbuDeSBoDfIMFrTZD2yFDwiEVDA0fBp5If/MrET/XfvpVAt6lBg7teSDqkt7CdJZGilhmz6SOcfJwkVL/Ej5TMXtfWV7O+Ks2++38yHvPqhU5DJR6yUSpxDT3c8ujGfs53XOjhDM3wNEOYEPdKMkevSCFi7oFEKLTxaU+Lhk46EYuIKvz0WBWvZTk1Vakj6s1pFf5bOMO7dJbBfX5PDSPltj1hHceBT4wE2b33gUaZt/P+pXg8hlomSs3FB3hnEdYUXlF3Vz5jO955MzJ9M/usZ8AzpqtvozLYAAAAABJRU5ErkJggg==" alt="QR M166">
+  <div class="name">レボフロキサシン点眼 5g</div>
+  <div class="code">M166</div>
+  <div class="unit">本</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA80lEQVR4nOWWQWrFMAxER/GHLp0b/KPIV/s3cw5UsPcKU8b53bRddNFq0YqQgAiMNXqybcTHOLdPKeCv5MChdxkgr9I9ktbi74oopJax5ejCrKHSdmDaLdn72fT8rsZXufpA7d/476dyN6F1fabcxkzm2cvwRJ7BK6QusEkmzdFsth92Z8jt47SW5bOX4VwmFw1yls/DY+1XqCQ7ao7P4qpI2gXzanFk1UtJr8IrI5tnR2XJ9Rmrv6q0MlHXSZYhmANiO3LPo9BhdETi/qyYe9xpgNVxZuoCL68NdTV7S+wvO9lDSCfz7GR/jvCWoGv/7B77BhRxpxh0344DAAAAAElFTkSuQmCC" alt="QR M167">
+  <div class="name">ツロブテロールテープ０．５ｍｇ</div>
+  <div class="code">M167</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+UlEQVR4nOVWQQ4CIQxsgcQj/gh+tvFn+BR/QI8mbMaU3fWgiTfnoGTDQi/DMO0UhbyONbyFRH4lJug+RzRgo14G6SzFEW1Jjg4/RuDgimqV3Hxnmkj3nJ6rVcuXMMKHmNU4hWbiAk3yxXcZg4d7VVWxZV616plVR/toW2IDoNSRoJfYSwRGBnoZmYY7vSK3CLh7dI5vON/dsnzB5FvcpnDwJekbROR+vnoaWxVbVnI+d5d4ZESSvkFMVTVNf95NM7DyCoizCQ7/aH1w9iPzlpQyTp3HV6RsmeysSXUU9r8tYnVYxa1y9W2HyjS/8jn2w6hJdaR/9o59APzssB93cn8CAAAAAElFTkSuQmCC" alt="QR M168">
+  <div class="name">ツロブテロールテープ１ｍｇ</div>
+  <div class="code">M168</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA60lEQVR4nOVWMW7EMAyjYgM3Oj+yn+78SB4LKOBByXVpbz0OrQbF0ELTEMkY8bPO7dcI+Csz0LMX72g39R6iu3SSwBFrFDKvsWlwYTby2CaWVfHbN9aPY7ybLcMaQtyaqwXUxhrZsWR8D7OL7Bqnme0qHb1q5jJfFSL99shvR5v0rtIv6AggkOiR6Dq+qdw0qx5thgyXs3j22zBVfO02ZQPiMg5q84jei6NwfhDjfR4h2iUi0Ttv33nUH57m9VDn0RE4Xi69iXDvqmuce0oJ0hycXzsCx2kavrnJJAsZYt/w7CkiV/qk/bP/2CdxSpPl8p2VHgAAAABJRU5ErkJggg==" alt="QR M169">
+  <div class="name">ツロブテロールテープ２ｍｇ</div>
+  <div class="code">M169</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA5klEQVR4nOVWQQ4CIQwchDv7A58CT4cflXtJTUEToyZedA7aEDbbkAxtp1OC4dHm6ckF/IoPJr5Ha4qyHEVJdylmhlGjIJr5NU4cXIRQgZIAjJDYue/z+DrGC19uu9Dvzn3Kl5xa6zPPkrJhcPksJQqTz7Btm8zLlFPfUXe659ETejhoeS562106MideR4TDNa9vNuXVt0XZ6N5NxHihcDKr/7lmKpnPUswar4/kNo9csojximPFu6XUedTn0XX1Moh9FG29d3Lj6dXVOgAddYZKm4O2aQwkVw/2PHKpzDRehT97x14ARuamz3RLil4AAAAASUVORK5CYII=" alt="QR M170">
+  <div class="name">後）ツロブテロールテープ０．５ｍｇ 0.5㎎</div>
+  <div class="code">M170</div>
+  <div class="unit">枚</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABBUlEQVR4nOVWQU7EMBDzJJU4hh/wlPRniJ+lT9kfTI5IqYxmtlyAAwfwAaoqaa1ITpyxEyM+Pmf5BAF/BQM92hptT6Av0Vw6STSijUrGNIqGF2Y7cKy5Y9om1n4+p9S/yvEldnxz3A9hW5RWdP188q0RU7bew8wAPNz208weVettmRwTr1unLjdA7/Qetm3j/rs0vBzxOlZQs5IiXsc9MS7BRXkFemrbSI6aH0ukMzOfe3XU0FzDG1hwAQvvR0OR8E4zy1gO6kytovIRWTmynofORx7mjUMh6jmNXAS85erbWHNf7SV2uQjXy8u/VVrPI610VO+Yu/h+xfBvbPFS8No/u8e+AYgVlVO1p2m3AAAAAElFTkSuQmCC" alt="QR M171">
+  <div class="name">後）ツロブテロールテープ１ｍｇ 1.0㎎</div>
+  <div class="code">M171</div>
+  <div class="unit">枚</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8ElEQVR4nOWWQWrEMAxFn2LvPTeYoyhX7g2SG9nLARkVOUMXbaGbVoupCcH5BL7+R/6yOJ/X3L5A8CoY3uNdupauC1BLqkXdw+zH/SjuUcaWw4vIDmcFhtRk75uX/tcc32Fjn6H6x/9+C6vRWlDbER/NGa/dz/KRG9UycwPvugjV2uEhOUdv+LwYY28ozZN4/QAtER0h2RJ5veNXUmXq7YTYdvVXZKYl6V2rPwvI4t0YIiIVnXc3mLe03AhvyxJ7PZY6jxROhjD27LvA2OctjhJZPvM8v9iKDsucR5xWlfZGO7LymTWPVmDm5Yb8s3vsO08vll0s3VUyAAAAAElFTkSuQmCC" alt="QR M172">
+  <div class="name">後）ツロブテロールテープ２ｍｇ 2.0㎎</div>
+  <div class="code">M172</div>
+  <div class="unit">枚</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+klEQVR4nOVWsW0EMQyjbANf+jf4UezNsppvlGwg9TrwIX8uCJI6KhIVhqGGlklKEuJ7nOVHCvgrOVDjrKRj7MTwpLcMkjC5aaDHM0oOLkQm+ubZpCX9c7suh2O1fM7trdn8ZYyv0UJaQOsLhvhtS6v3EBHYbMApIvcsH13xEjbJFB+BOqqOyuWd1OE9DxeA78IrV0CXHFwAA31VHbn1IkjdZ83jtwDjvB/yYPjX5EzWswI9pFWT+C0wEZHW6Z9NsyTpmVvJvlXteXMQMY9soq/WedPcedTZHFVxPjR1z7Fo0W6T7zOZX27/Zu05+Niv9GrUST6Sf7bHPgFHO6xp/F/i/wAAAABJRU5ErkJggg==" alt="QR M173">
+  <div class="name">アズノール軟膏0.033％ 20g</div>
+  <div class="code">M173</div>
+  <div class="unit">本</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8UlEQVR4nOVWQW7EIAwcINIeyQ/6FPhZ1Z+RB1WCu6Op7FTVave8c9hakSG+DMbjMYl4tDM/hYB3iYHTfZnN0CLQTITbSBbSqntODa7HUurAUSaw0ia++/V57q/GuLftb3f77mJc+nLgY26VWGo+l6nl82UTBic2SV0fzeZp1nH9muqerUaaDh2NnCW4HF7Z6roh1isLX+IAVmX50mJTJgqHilfZEYPPr8V4tIyVUnJZtviE+txIovLc27nDVlfpVQOaDyPnczRyFuDm39WVuVv9Mvk8Qh0JvVD3viJHzP3DBURXX1zziN6/VNU3/bN37A/F65x/l8f5xgAAAABJRU5ErkJggg==" alt="QR M174">
+  <div class="name">アドレナリン注０．１％シリンジ「テルモ」　１ｍＬ 1ml</div>
+  <div class="code">M174</div>
+  <div class="unit">本</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA4klEQVR4nOVWO5LFIAwTn57ciByd3Mj0MHqjvKTZ7VXsurCJG1lEtknET9v5Vwr4Kzkw5Etgod+Jvky1dJJAL4FCqozswUVKJ3DtA5ipmu65PrGx8v3IBtz8xJm2WNtwq6QF1Da6PDHNeu4lnHoGHxvvgSbc6Euxow2KsotvQGTv29boaC6+HCWANhb6amPZcEOKYmhUirKRLxq/oBK2TVdfC/3oQvpwQ17N24Tv0lV+95EKqPdChHcfVVyYCfN0vwXmuQ+1Epy4bewDC5e2Ujb1L28Zwz038O4j55xM/+wd+wGXgaI8ooh8zQAAAABJRU5ErkJggg==" alt="QR M175">
+  <div class="name">メプチンエアー10μg 5ml</div>
+  <div class="code">M175</div>
+  <div class="unit">個</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA5klEQVR4nOVWSWoEMQwstQ05emAeMB8ZUD/d+ZF9DLipQeomh+RegYkwXnQpayvJiJ9ybL9UwLvowBF7id1T4Uv0FycJeBkoZHxj0+DCbAc+4zWtivxcr7P1531UfcznHkuHWyO1gNr6B1EbMcX57GUo89n+iDfA4Ssvq3WGyRp7QXIBFzQcjSrczu/Itr5kuCNAV/JVeluI2xjuzWehzM8pw5n8rMLdMM0saNkeYfLXTcYb0Y/OZiS1F2c/QrSkacHSmwg3xTH34xalBF0deWHPaoqCWsr4knLewDlfcSh50v7ZHPsCQV+Sg34CrNcAAAAASUVORK5CYII=" alt="QR M176">
+  <div class="name">ヒルドイドクリーム０．３％ 25g</div>
+  <div class="code">M176</div>
+  <div class="unit">本</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9ElEQVR4nOVWy21EIQwcA1KO3g5SCnS2rTmlpIBI9p3VRMDbS3KNrCixEKC5DGPjjxBf7VG+QcBfwUBfe6XR+wb6TOLtJKtjKitJz+FdmMiAsgEIab8sHuWHsXadcWOMZF4CTa19AEpEmg/eRARxX5krIresPHraRL8uJYXXe/Veyak7iTSLlwY1+hJ+qsfMqlc8kr3n6iWUU61uvcvhJYXXj6tXcKv39YaSwntsMdr1tUoCb0GIiDS1U0Sy6jOufkSbwF65/SjuUGvKF8/tC2ptojoer54658RAjBmD7yM3vjwra84pz34kc0uuSfGVfzbHfgImfbQo2frwTgAAAABJRU5ErkJggg==" alt="QR M177">
+  <div class="name">グリセリン浣腸液５０％「ムネ」３０ｍＬ 30ml</div>
+  <div class="code">M177</div>
+  <div class="unit">本</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAklEQVR4nOVWy21EIQwcA1KOfh1sKaa1dMYrJR3AcSUjrwybREpWOWV9SObAx0IabDw2ZPiKmb6ZgL9ig3Ufc4d1WQbRoLuImYGtANnMr5FieEFUgfN6AINKUJzLfR412/smBfCmj5WO+nSOTxRPLZ9kXnphwwjz9yQiAC9vdRLREaWjDVeTJ7aZhegI1mUrV7ntrUb5qxDl+5jD/LWmkNyhvEt1mL9tk+4FOM7fXaKte50MjPNC91Bna1G8CYOIqOD0lH4Wx0/96HrIPFa1TI/P/bp+4fks8HyWwP67wA2jKr9qcB/ECW4E74YzrE6ay2fp1wOuof8r2fqNel/6Z//YG+aepPSebsWdAAAAAElFTkSuQmCC" alt="QR M178">
+  <div class="name">グリセリン浣腸液５０％「ムネ」６０ｍＬ 60ml</div>
+  <div class="code">M178</div>
+  <div class="unit">本</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAElEQVR4nOVWy00FMQwcx5Y4hg4oJekM0Vko5XXg3LMa5LxFQizHJyOBtUq0c5n4M7aF+G5HuUDAX8FAj1NJoG2graS3NJKYnR7s8YySwwuRjvoWf1MsPfaWwHHF5usV+2rlwZhFaQFWByZQGWd5MEf5GXsXEcxuwCEiz1k6Om2sXdgkk3Q0u21nEaHuR6K/iO7RlFQOek7fCF71cFa9BWnNiXPwLmDtVqkcmpRfnP3Z2/1Dor9hEeGxdrRXUj2LiNjuz3YfSSWBF/SQrX5meeXNQcQ8moI6rPIpaQ7aeVfCoY7jxVP3nCk2+5qdt56b37H1G9vO+g39apKO5J/tsR+dS6AbGFjmqwAAAABJRU5ErkJggg==" alt="QR M179">
+  <div class="name">ジクロフェナク坐剤 25㎎</div>
+  <div class="code">M179</div>
+  <div class="unit">個</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+UlEQVR4nOVWO25DIRCcBSSXRPKB4GaRb8Y7Sm6wlJGwJlqe5SJJ6ymSLQBtM/ubYY34bvf0wwX8FR/ocWYH6pl6W6JYGknUQUcmI4ykwYVZj+fsmFbEtZ/vqOPFGL/7yuxC3BKjta/Pq5dKTFm+h5kBuHz0u5m9qXh0WrApBpukhEegN3oL2u65omv4G7oRWAHaVmUW5osauqHVK5BjPTo78o5hqXCzhz5vnRy6Op/mLdAp62/CNLMty8DCsXT/YONO86SSkEcNiCKvmOdN5CTATY+7ssy+6k1V5/J8resw9EzdfkUO4Mh+BH9nF+9X3DxS9df+2R77Bfesof8NZduPAAAAAElFTkSuQmCC" alt="QR M180">
+  <div class="name">ヒアレイン点眼0.1％ 5ml</div>
+  <div class="code">M180</div>
+  <div class="unit">本</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA90lEQVR4nOVWMY4EIQxzYKQt2R/MU+Dp8KCVQh/kU2CL0129Ke5SgERjYidxhPgZK/16Av7KG6h+Zq1WTurVgv5SSQLjmi2T/o0UgwuRhsKswJQrmPsp9nGM73G978J16xWLy3NNZxszjOchIpjtoVgi8ozqoxMK24VNMqiPZpPnkLtv0seSFpVvz6Sh+vTwRo6ZG6BW79xCFJIdJYZn1/coe+ak555CcBXm8/mM6B7H84lNdWa3MJ7VT5cY25LicCvppnCq2tlOkX7Uzc1oWLAvzGY3BZCiKxIX9fFqKFvsFKgv38Uc2b/Y+xXZubcsi8CVf7bHfgGSN6ed9Vv99wAAAABJRU5ErkJggg==" alt="QR M181">
+  <div class="name">レボフロキサシン点眼0.5％ 5ml</div>
+  <div class="code">M181</div>
+  <div class="unit">本</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/klEQVR4nOVWMW7EMAyjYgM3qj/oU+yn+57SH0i7AxayM7UdbrhquDOCBBACyBQlUkL8POfxKwS8Sgy0eBdy6obeZtJdGkl4h/dCxjWOnLwQ6dBRAbjU7Nrfd8H/NccfMe+P/fesWI3WAupuKiU8De9dROC9AqeIfGTN0XXGXI1NMmmOvNcFFjrg/UzECw28hSwctBzdAK1tvSrWIqnm1BnBrHIu4AtyVl6L1NCocLEYpZnZz4apATyL3wMuIlKVdYlIlj6DFmNbGHo140nzweVHLmFJyluSD9brq6MBxXB+Wuqe4+H70zu/ejK/5WI5jd/tRzL3qpPEr7zZHvsNVKqnfVDsEMoAAAAASUVORK5CYII=" alt="QR M182">
+  <div class="name">ロキソニンテープ５０ｍｇ　７ｃｍ×１０ｃｍ 50㎎</div>
+  <div class="code">M182</div>
+  <div class="unit">枚</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+klEQVR4nOVWwWoFIQycrAs96h+5f9Zfc/8oHh8oU7K279CW0sN7c2hDEAnCmJiZaMRnm9uXEPBXYqDHmhyJK/U6RHepJJEb+pHIuMamwYXZgX7cCtBtF9c+txd/Nsa3sTrLr849KLZHawF7v1Az0WX5nmYG1OSYZlZUPHq3Ro/GJinhEeg1mJtbIkdmchl/o7z0Osu5A8GmTaRXvBg0LtfVmVHeAM0tVCvLcNvI96EUbz2U/exr04ZsLnQzC1le/hyMH+YRRz9Gf02ieQR6Xc96eRPO32XnrZyzIKA36PL1uvir6issWY40L/6qdBL3/9WHaXDtn/1j3wBS8KGXYmOmnAAAAABJRU5ErkJggg==" alt="QR M183">
+  <div class="name">白色ワセリン 50g</div>
+  <div class="code">M183</div>
+  <div class="unit">本</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA60lEQVR4nOVWO07FQAyc/UiUfjdyboa42eZG3hLJkZEdiQIoKGAKcJFEVqTZsWfsbYGPcfVPKeCv5BCWzxEZlVAnnUUL8bzakejGq0FrB/bzUyzsNum19338OsYXufOb//1Qbqa06tXEpgQ2V8+mw5SoZ5SBIixVfYeT+Gr5d0HSv4OL6xJeoMQ6r4STLDUSnYWbfDViFd+VxDsHFzflMHVZvPks1dN7QkKdvo8gK0yZeo6IYeUg5PRw5j4CXh/nMEAWeR/NfUx5YfW3v38N0+tRI7oT+xvrnpbpps7BRZHNA7gES8/tn91j3wDdkaTUxE/F5gAAAABJRU5ErkJggg==" alt="QR M184">
+  <div class="name">小児薬剤</div>
+  <div class="code">M184</div>
+  <div class="unit"></div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+0lEQVR4nOVWy4oEIQysqDDH9B/Zfzbsn6X/yL5Haog9O+zjPDnsBpEYhLKilSjET5vlVwj4KzFwxFxHd72od086SycJtQZUMo5RcnAhsuPc6wBOacm5V5vbuzG+Wvt0Dm/70y3fdrwvRhrOe6yUnod7iAiA28AUkS1LRy8b8bBJpugIHL2GjlhJV4aQSw4uoEaaq637zcJlcAyygK+lZ+ECcL34LsolB9cWXwsFYREvObjLxirOwT2rL5wiIg3do3gdWXUDl2wrLZw1PLMfAU2t6UdWvSovb27H3FBpaXkGeh0h3jXy8hz9SLnybLeR/r96BnL4yj/7xz4AsNeldW6ZUfkAAAAASUVORK5CYII=" alt="QR M185">
+  <div class="name">アスベリン散10％　0.15ｇ</div>
+  <div class="code">M185</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA90lEQVR4nOVWQa5CMQgc2iYu8Ubtzbxa/1G8Qdlj5oc+TX50qyz8LFrCZjoMBYR4tlt5CQHfEgNXnJWsPKh3T3pLJwkT3+jxjJKDC5EBnc0GTFp67m/nz2O8xmzU9Rz7a+XNsRalBTRleEpYGt8fEYGNSLWInLP+0cN8F3Y4JQV39bp65YSSq7tm4ZLQ6dupnAFdUnDX0axmXT2bL+DoR6usafqSu0NGhuMLJ/INW3CdrqxJ+haYiEjTyHZLnYP9qGQPlUNoz5xHdmk6m/K08vgiinlu1syqq3K/7QIbboPXkasvH6tOmr73eeSxb+wpXBJw5Z/tsb+vRbLCRaNtjQAAAABJRU5ErkJggg==" alt="QR M186">
+  <div class="name">アスベリン散10％　0.4ｇ</div>
+  <div class="code">M186</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA5ElEQVR4nOVWQU5FMQicPrrHxAPRm3kmb9B3FG9Alya8jOH3rdStmOikoSmbKWUoNOIzruOLC/grPtDTCmfoDt2i6C5GEuulryFkXuOo4UVr4z6t1qvf/oTOn+b4xqeUt1HI21NauZ3vz96VWLV6dhO3Qj2DG56q3oiieI2kOKBTOKFVvGRoLgABq+P1tJIhP0jL8uu4I81qyt8yyvLrlvlNmJTpasO3wGbxO0sqeW5tR2UdcT5srqjtR9fTGWtU/s831oC+2m/MILHG1UYZL5mdtwNdZxbUUdqP6BZapqv2z+bYD6Vxpo04f6edAAAAAElFTkSuQmCC" alt="QR M187">
+  <div class="name">アスベリン散10％　0.5ｇ</div>
+  <div class="code">M187</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA7klEQVR4nOVWQWoEMQyTx4EeU9gHJV/bn2UeVEiOBS9anGmhtOfq0OowE3JRZMmJjfiOx/FjC/gre+DMr084L+ktRGdpJFGJ1Z3MYxwaXph14Hx/BZYVce1XRx2/zPEV5XPRXt66mJf5O+M2S7osznPz2YR5Bi8kewabpIh3Nl5Kd644VXpnQyU5Ai0qXaY3MXwirw6pv8Oz1PC9QNX5G9vcTZ0IbZ5986r8PbDMzAoy0oEztR+qPiKdIxOV1Rb2EfKyisxzE76/G/VeVo96D/V7hLgNQ3fq5iumufB5Zv+uLp6v+DFiafy1fzbHPgEuNqYVtRrxjwAAAABJRU5ErkJggg==" alt="QR M188">
+  <div class="name">フェキソフェナジンDS5％　0.3ｇ</div>
+  <div class="code">M188</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA90lEQVR4nOVWS25EIQwzhD2VeiC4WdWbwY1gn5Er82bVj9RFJ4tphB5S9CTjxA4k4nPc8pcU8Cw5cOlrC+RFvXnQWZoQK7G7kTpGjsFFSh2YBcBOJbj2+w11PBjj+5zv/qv//iZXJC1tM9VV1OVgPTdbLVTPlSQduL3ISuSI4tsops2Prrhi+IIctgTqgqaRUbg0reE1cl5BDQUczQ5x1DC+w+96huZkUJ0zxFR6viJuTu6U0hnLqvZ8DMYPPuKR8bFSnI+WzHusROAYOQfg5vteR9nd67sH3gsnpr+OhG6Me19dFrY15d/dw+8jmJ5YMf1N/+wd+wGdr5h98k11tAAAAABJRU5ErkJggg==" alt="QR M189">
+  <div class="name">セファクロル細粒20%　1ｇ</div>
+  <div class="code">M189</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/0lEQVR4nOVWS2pEIRCstoUsFXKAHEWvNgcL+I4yBxjQfUsFfTOLfLbTgcRF+14jlFVa3QrxdczwLQX8lRzYV9QVy04Uc9pLIYnUtEPJtY3ggBsByGJa5luPI+vNV/tRn4/xY+7Q6wM6fFrxPJ25pvL+2mMihhvfQ0QAvFzrFJHshZtI0oCZsb7YvPxb2JdzLbXz13xw2baFV7REJZ1w+zKvdljiLllefLfOtomf6OakMzffwrNOOukcT/9iIN5+px+xb6md+IZHP6LkMjNsVDf/Yp+v730O9zld4qiWLubYF+4jNUFV+r2vdrGC9kN7WY04eN9n3V42D1z5Z+/YD3/nlAc57fO2AAAAAElFTkSuQmCC" alt="QR M190">
+  <div class="name">セファクロル細粒20%　2.3ｇ</div>
+  <div class="code">M190</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/UlEQVR4nOVWTU6FIQycAonLfjfwKHA1bwZHeTeApUnJmPLUhcbla4yygKab6c9MixBfz07fXMBf8YHT78xuqMdRLSiWShKoeSKTHkaKwYVIw2r7uWNJ+WX9SI/yjXxrgbjFqeVPFZ1FiRWW7xARp/StbRG5onR0P/PDIEN0BE6XbSZN+W6kANwEwIDXa5QlmdzSwvj8NGtZjbPua1jYnGQ3pd+nyNCo/rLnWc+ErKa0wPls2m3dh8Z4EMbP+4jQzpO4RemIZD76Nd9KYXU++wjY18gT0B69K1Yr+hKlo/RpZdfv+XKkwP6SR79OLYvk8/QATE8AKQBX/tk/9g2fkZ7+Kt/CYQAAAABJRU5ErkJggg==" alt="QR M191">
+  <div class="name">セファクロル細粒20%　3.8ｇ</div>
+  <div class="code">M191</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8UlEQVR4nOVWQWrEMAwcO4IeFdgHyV/rk/oD50f2saCgRU4Xyu61TKEVQglzGVsaSS6BZzvrCwT8FQwxMm7RY9gCzElnsYjAbJLskceoHF6U0gCDdswi9Nw7geMV03eZ7Qn7bvWHMUlprc/nbYgGJlfPwzaqnhGXjcdPBKmPZpZVgLIfgqPsrDxHX9k2T0kblHPfZMwSa8/6andefbvr8uymYN23YrZt4G2pGrOw5iQeerb0IOZ5ZNwioLmSWH2Eiyv3YMZ0p+4jnPvh14iupPn8ZbNBP4y+BwXw2c7SaLyxRpYDktPjF/aRK01X5Z+9Y+8MlJ1iL1Y7BwAAAABJRU5ErkJggg==" alt="QR M192">
+  <div class="name">オセルタミビルDS3％　0.9ｇ</div>
+  <div class="code">M192</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9UlEQVR4nOVWOY7DMAwcmgJSyj+Sf+avyU/JD6RyARoTUFpvkdRhFrssbJrN8JghLcSznctLCPgrMbD5U1ktz9KLBeVSSEe8NSjpaSwxuBDZ0PdzBbqkoD6nyznYtzdhLL8olpxa/iqSW8pED8vlEBGn9H07RWSN0tG0VpzMwyxIv2XqF0O/GobLilwvdMbtjb7rfU+j8HM9LGxPshpguOrNYfMFMrV5vZarBfU5TTpZn59FPnCP6lSTRemIpE5EFG1hd3DcI+BrPdRnXaP6XOBluq+sUftq+fHU9etqQuR86Sr2eoPmi28+t8GozCg+yz/7j30Ajv2eTrkgvZ0AAAAASUVORK5CYII=" alt="QR M193">
+  <div class="name">オセルタミビルDS3％　1.3ｇ</div>
+  <div class="code">M193</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/UlEQVR4nOVWQWrEMAwcxYE9Kj/oU+yflf4seUofULCPBYUpE9NLW9hLq0NXGMcIw2iksRQjvtq5fHMB/8UHdu2lAz6p10iKpZIU3GiFVBhLDi7MGvzl1oFha3Lux/O5/TXGTz7fte7f+y3fKmnpc2A0SWsk67mWXlP17CQZwLlBJ+5ZfOtncWvhHkl8QWUYASW5zIe8pOBSWLNf6exM4xtOpVd9Ur0r0vi6VlEAifWd1hFO6Sovz5jvV4ry1PqSLF3EQwJLm4NzHu3XMDoisT/LRosnGmDez0xc4PbW4Fexl8T6Up35knSOrhbgMDOMtgLltb1vOXztwf5jPwDcDqHtRKDWZwAAAABJRU5ErkJggg==" alt="QR M194">
+  <div class="name">オセルタミビルDS3％　2ｇ</div>
+  <div class="code">M194</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9klEQVR4nOVWQW4DIQy0MVKO9Ad9CvwsXyNP6Q/sO9FUhvbS5JBDNYcWIaO1VhoP9mAr5Oe6lweXyF/xCTytYUo71PsixdIBSAyJYUCGUTi4ojqkzfwKrey77wSMJ75Q81f++00fsqj2PTcsHu5NVSWuqVxVfWPp6HudwgZA0ZHAu3k/+oX31Wi422IaYJgJXSi4gHmKyLzDhcl3ZWZnBrDtIvK1JNuNyfcsF2lzndIqBNwioapa97tR9xaWjpCZzZdqb1of3P0oknJtuJD6YP062+wpJbm/O3XOiavEWDHwMcj5xbbEOee2+5HWM+qQ8qv/bI79BAfIqto/KLIaAAAAAElFTkSuQmCC" alt="QR M195">
+  <div class="name">オセルタミビルDS3％　2.7ｇ</div>
+  <div class="code">M195</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA5klEQVR4nOVWQW7DMAyjY99dYA/YU5Sne0/pD+TjABka6BTDsN55aAXDsXVhQlJSSuJ/rOMpBbxKDuncazJ2wkL0LkbEeT7QXcdBKQRt88QsTcRz+z2tT296zfuod361CrfRWvvx/eGtJ6bWz27VTehn7ALKdLtKKTNFuM46qr4lzoEuw0XA0i3Agw43E30AW98+QqhvsGWNYDWlkGe7OuS+UeuQ+hmVBiPhoZ1H0cfl7VDWUTLqXqGdR+v2FXsaQucrqw8/DxXPx99LzHOVUzYHkzZmtD7YMA/lPEJ1iy7zVXmz/9gfKkGvDjUe0fYAAAAASUVORK5CYII=" alt="QR M196">
+  <div class="name">オセルタミビルDS3％　3.3ｇ</div>
+  <div class="code">M196</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA90lEQVR4nOVWsU4FMQxzLpUYcxIflPs1Pgyp71P4AKTeniooLRNIbHiADD0pi+vGjk8SX2se31rAX+khR52aXXNT9yDdxbMQfcqlmXWNg4DbAAgc96mBdp/6zsPdNcV/CeP4sadr0CzcVtKqj78+j2aJm8b3ISIAnt6uKSIny0e7BkrMq4LkX9/+DSv/Kg03OyzDMhYoa2+gFoV1HYu49aDhZhZf4JOv0d45dY04hweP7wEgrO90AJyfRyh05+l5VB6VrjIDroP3ziJX5cL5qBVtnZwL7b6avQQ7j1yHz5OpK6/5Zl/+LWkFU88DpShLlp7ln/3HfgAXhp2yW2UmRgAAAABJRU5ErkJggg==" alt="QR M197">
+  <div class="name">クラリスロマイシンDS小児用10%</div>
+  <div class="code">M197</div>
+  <div class="unit">包</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA90lEQVR4nOVWMW7EMAyjLO/Oj+Sv3c+cp9wP7LGADBWSt2uHDq2GnoYEEQLQJEjJZHitXb60gP/Sg01/sg2zQ1006SwSiLKps5kfo+TggqhjEdrAopqtvfCz/zXGd737h//9Uq+6tfwl1GZthpXG9yYit/SzbyK6snJ0aoqbOUqT8iuRX0Pz/HISbnGsKQroIjbb1NPmlTZjGzwFbWjSvIKZg1pQPmprFl8OU7naeXyLE2xDV1f/lPx9hOZqZ+bIQmRPEMTVLon7CPfHdfOEb6WShBsldfXaHpp+B+Ep+8r0lZwIR34jyCUHF4esI/rgyvEzvdk99hO+UaDZkJICJQAAAABJRU5ErkJggg==" alt="QR M198">
+  <div class="name">アセトアミノフェン錠２００ｍｇ</div>
+  <div class="code">M198</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9UlEQVR4nOWWTWrFMAyExz/wlg70AO8oztV6s+RABXlZUJgi+2XT7qfQapEo3nySrJGSiO925R9HwF85Ay2ehSxcqXcXxdI5iVfaCxlhZA0XKe0YKYgjVVGd6+3062mvj6zk4vGxQ8tlvE5/s9qIoe1n68W6sJ/BZRZSWuaifPvSL1qoqci4DBwNvui6uXHSkJ5HsX5tp8vmJA80+l3k8LOEa/OKW+Tr7XBRnWu0UzswtvJL+wjtoHVdP1vsozL164jp4cp9BHxuZzFEzbOI+7Kx1/au0lG+nf4I/c4RnYX3S855Fa3l0n2EILYZQBZw0z/7j/0CqUyeNF1dpxQAAAAASUVORK5CYII=" alt="QR M199">
+  <div class="name">アセトアミノフェン錠５００ｍｇ</div>
+  <div class="code">M199</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABAElEQVR4nOVWO4pDMQwcWYaUfpAD2TcLuZnfUfYAAbtc0GOC/MIW2ToqdlX414w00sgS4t2O9OsJ+Ctv4PBVRyXP0KsF+VIdsdzzbEq6GykANwMQVADf15Hnpo9Y7uft8xjv8Z52ebRgXK7NeS7EDON5FxGP96sdIrJF4RaSNODY4Cf2KP1WjuqyLf28WlQ9Z8Cw53mzwiieQVK9b3QU71fOeYrrk4aq7DrCeAbZObAQoSt2i+LZbUEH4iZMEZGMaqu6LO4frKu0+imluPwOF68OmNfzEnIKwE2vvTDPZuVu0f/RbtcuaMqY+eonv96ZdVSNyy/WfPXSb1R+5Z/NsU93EaQLpk7r7gAAAABJRU5ErkJggg==" alt="QR M200">
+  <div class="name">クラリスロマイシンDS小児用10%</div>
+  <div class="code">M200</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA60lEQVR4nN2Wy23EMAxEh5LvdAcpRW55O/CWkg6k4wI0uBgpAYLkPgYiCDzoMnz8yhK/z1X+PAH/5Q3ZaWtH+EJvIfKlZVKxfh41k24UjS7MDtodGLaJY+8/6qsIdYeFVHdjaQGbJ3LaIa7nVnsT1rPdNDeQvc3MtvAziazhxWxeSs/LaIeKt3bAz4Ws000qfqnPAgtZfj3h5+rfminLL8/krZkq3YJhZhzLr48M4LXL5gb3Ue0El/Ji7aMGPDEM45Dxgm27BibZQ7oHz2tH4HmZhvd7H/E2+IMOFOn/KjvnJFwT57v20V3/2Df5CY4JdEANPQAAAABJRU5ErkJggg==" alt="QR M201">
+  <div class="name">オセルタミビルカプセル75ｍｇ</div>
+  <div class="code">M201</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/klEQVR4nOVWMW4EMQgcjKWU7A/yFPtn+zXfU/IDKCOxImL3tkmkdKG4WJZl0YwHDwMU+L6O9iMEvEoMoXlyLI6L+vCit4yIgO3HBo7IZ7QaXBBNyGIFjHpRnvt9eXzS+COM9kvMZvKtw+0pLaDLKSoJWBnfBxHBZgcOItqq6uhefgo7L60EVwfr4FguETpcqnCfiFm8F7pX5ZkvUB0Xdy/zSVlx+mTyrfNJsII2uE3Y3mWV6lmHyy2tVoDbYERESfM0kSp/RmiWLUfieu66/81+ZNmSusSb1vYjWeMU2PGupXOO7bDpNuNjFv8v5xlVcw6e85XeRl1UR/TP5tgvobOrQSDlm/IAAAAASUVORK5CYII=" alt="QR M202">
+  <div class="name">ゲンタシン軟膏</div>
+  <div class="code">M202</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8ElEQVR4nOVWO25EMQgcHq/33gjfLMrNvDfCPauJsF+aJIpSZCkSCiwjSwNm+AjxUR7HJxPwV2ygp1aHcoduUeSLkUQbMbuS6cZRgwuRft2mnMV/P1+ej/Gl7f7Dd79kO5Na65DmZyNmMZ9N3Qr5DG5J9CQ2ySJcN2akFm3sa1TFCyAaF/TSRwmuZ1qVY4GmG1FVR+oWMPW7OjB7EZ85Eg7G1aK1Ll6Ltvn83j2OEtwpInIuxHgWxjfziHKzxw1Rll/P4lW/Sqlw/i5pA7NHe43CuXBJG4KurNuvyOyQq36trn49tWaX3itWTX7ln+2xbyP7i8Us+mVaAAAAAElFTkSuQmCC" alt="QR M203">
+  <div class="name">リンデロンVG軟膏0.12％</div>
+  <div class="code">M203</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA/0lEQVR4nOVWMW4EIQy0MdKW3I/Mz6L8jDzlfmDKSEQTmd1rLnWmuLPQstAMgz0eFPIcP+XPlsir7AkivwasdlL3RTqLA5Cpx70bkMcoHFxR7dLG901kaiXdc338uOCxKATccs2z19n/GeN5DxjSPnPVsHi4X6oq8yOVq6o3lo6uGGsXNgCKjgThFn7qF+GrsXCBZBpJ1jB4uJGUs2VFoltw+lXibr7ZKpOvMHHFIvlaeEqpUHDPSMSx2mDdc5Gpqlp336jiRB/0XclpgisHzQe3H820pNpwkHxQtojcMHY9g1VX5ZpnX3vg3sn5tSvLtPyefrRTPLuR8qtv9o79BRHnrpoM93SOAAAAAElFTkSuQmCC" alt="QR M204">
+  <div class="name">ヒルドイドクリーム０．３％</div>
+  <div class="code">M204</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA+UlEQVR4nOVWO25EIQwcA1JK7w32KHCzp9yMPcrewO5BjoDNFkk/RWIhhN0MM+CPBH7aTL9CwF+JIWztOQJ6qNdBukuNCLjEs+WIdY3EwYVIg/YCwGXtiYBb3qd5t5eTiLh+hTdwcQMo+rk8DTjtfR8iAr8KMEXkxsqjbxv7Y69DouBazVZzdGiE1aE0XLzJ5uhM3GyA9rB6uA8aX8NAzYcvqU5ii7wy6JAFTedjW+qhnaVzgouIFO27iNTFPRH7ETC8DZd54/Yjv4r2ovFh3L6gveyEmnejzjkuW+cWz8aac+quVK9FnHMeux8tvvC2alci4Mo/m2O/AJitqqE7iFD3AAAAAElFTkSuQmCC" alt="QR M205">
+  <div class="name">レボフロキサシン点眼</div>
+  <div class="code">M205</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA9UlEQVR4nOVWMW4EIQwcL0hXkh/kKfjp5Cn7A7tnNZHhckUu7bnIWYhduRnGHg8I8Tuu4ykF/JccaLEXjtk29T6TztJJwvV2aiHjGEcOLkQUbVyfAy41vfbl1JdjPOf8BzQJt4a0gNoYf43wNL5fIrL5XiLykTVH9xhzCZtk0hy5VtcapR5wvfL4jtlikdzuMbNw0QKxWKf1Yjl+BVp/dDb4JvkkwiSXP2+yyKvzCuury8yq8wEXEalthKRfhfFH0KK5hZzAWmn34LqPXINy483y+AI9dLVYZ+nquH89KE9Xnprb31E237T5tdgfZpU1R/Jm79hvfTqwXYR3s7QAAAAASUVORK5CYII=" alt="QR M206">
+  <div class="name">アレジオン点眼0.05％</div>
+  <div class="code">M206</div>
+  <div class="unit">錠</div>
+</div>
+<div class="card">
+  <img class="qr" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAAA8ElEQVR4nOVWQWrEMAwcx4YeHeiD5C/3B/GP5GNAQUV2c2l72MMyh10RnCACY03GM0mO33Vtf1rAq/TgGmt2z75GFyPtRdwdo517oMc2Ng4uUmoAPhQYqbC57wSMf3o1qH7gvWf1Skgrbv381BLoXD2rZBWinuGr9H5wJ52jEZ+1AGnvBT3tLJ79QHVDkGwIto2Fm3X6lQpquJaxcG1als3TxJtXg9s8Vb2M2qh6lrjm7EbNo8PqMaFZ806sSKK5snje7jzq195tWfRG8uefGg31S9g5KOEbo12p0XDdjzV5qeEh4OaRqxjPr9Kb/cd+A3Z8pIR+r91bAAAAAElFTkSuQmCC" alt="QR M207">
+  <div class="name">クイックナビ StrepA2</div>
+  <div class="code">M207</div>
+  <div class="unit">キット</div>
+</div>
+</div>
+
+<button class="print-btn" onclick="window.print()">印刷</button>
+
+</body>
+</html>

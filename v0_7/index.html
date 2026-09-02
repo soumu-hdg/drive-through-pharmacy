@@ -1,0 +1,4268 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>薬品在庫管理 v0.7 - 夜間休日診療</title>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+
+        /* ヘッダー */
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 16px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .header-sub {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+
+        /* メインコンテンツ */
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        /* カード */
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* 大分類 */
+        .major-mode-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .major-mode-btn {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background: white;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .major-mode-btn.active-manage {
+            border-color: var(--primary);
+            background: #eff6ff;
+            color: var(--primary);
+        }
+        .major-mode-btn.active-dispense {
+            border-color: var(--danger);
+            background: #fef2f2;
+            color: var(--danger);
+        }
+        /* 中分類 */
+        .sub-mode-toggle {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        .sub-mode-btn {
+            flex: 1;
+            padding: 10px 8px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            background: white;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            opacity: 0.7;
+        }
+        .sub-mode-btn span { font-size: 18px; }
+        .sub-mode-btn.active-in {
+            border-color: var(--success);
+            background: #f0fdf4;
+            color: var(--success);
+            opacity: 1;
+        }
+        .sub-mode-btn.active-adjust {
+            border-color: #f59e0b;
+            background: #fffbeb;
+            color: #f59e0b;
+            opacity: 1;
+        }
+        .sub-mode-btn.active-addmed {
+            border-color: #8b5cf6;
+            background: #f5f3ff;
+            color: #8b5cf6;
+            opacity: 1;
+        }
+        .sub-mode-btn.active-out {
+            border-color: var(--danger);
+            background: #fef2f2;
+            color: var(--danger);
+            opacity: 1;
+        }
+
+        /* 薬品マスタの整合性警告（カルテ側との差・マイナス在庫） */
+        .master-alert { display: none; margin: 10px 12px 0; }
+        .master-alert.visible { display: block; }
+        .master-alert-item {
+            border-left: 4px solid var(--warning);
+            background: #fffaf0;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #7a5a12;
+            line-height: 1.6;
+        }
+        .master-alert-item.danger { border-left-color: var(--danger); background: #fef2f2; color: #7f1d1d; }
+        .master-alert-item b { display: block; margin-bottom: 2px; }
+        .master-alert-item .names { color: var(--text-muted); font-size: 12px; margin-top: 4px; word-break: break-all; }
+        .master-alert-btn {
+            margin-top: 8px; padding: 6px 12px; border: 1px solid currentColor;
+            background: transparent; color: inherit; border-radius: 2px;
+            font-size: 12px; font-weight: 600; cursor: pointer;
+        }
+
+        /* 薬品追加フォーム */
+        .add-medicine-form {
+            display: none;
+            /* iPhoneでキーボード表示時、最下部の入力欄が隠れないよう余白を確保 */
+            padding-bottom: 50vh;
+            scroll-margin-top: 80px;
+        }
+        .add-medicine-form.visible {
+            display: block;
+        }
+        /* フォーム入力欄フォーカス時の自動スクロール余地 */
+        .add-medicine-form input:focus,
+        .add-medicine-form select:focus {
+            scroll-margin-top: 100px;
+            scroll-margin-bottom: 50vh;
+        }
+        .add-medicine-form .form-group {
+            margin-bottom: 10px;
+        }
+        .add-medicine-form label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .add-medicine-form input, .add-medicine-form select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+        }
+        .add-medicine-form input:focus, .add-medicine-form select:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 2px rgba(139,92,246,0.15);
+        }
+        .add-medicine-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            background: #8b5cf6;
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .add-medicine-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .history-icon.adjust { background: #fff7ed; color: #f59e0b; }
+
+        .history-filter {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .history-filter input, .history-filter select {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        /* QRリーダー */
+        #qr-reader {
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #qr-reader video {
+            border-radius: 8px;
+        }
+
+        .qr-placeholder {
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            color: white;
+        }
+
+        .qr-placeholder button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .medicine-code {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .medicine-stock {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        /* 入力フォーム */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* 数量入力（大きめ） */
+        .quantity-input {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .quantity-btn {
+            width: 48px;
+            height: 48px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background: white;
+            font-size: 24px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quantity-btn:active {
+            background: var(--bg);
+            transform: scale(0.95);
+        }
+
+        .quantity-value {
+            flex: 1;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .quantity-value input {
+            width: 80px;
+            font-size: 32px;
+            font-weight: 700;
+            text-align: center;
+            border: none;
+            background: transparent;
+            -moz-appearance: textfield;
+        }
+
+        .quantity-value input::-webkit-outer-spin-button,
+        .quantity-value input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .quantity-value input:focus {
+            outline: 2px solid var(--primary);
+            border-radius: 8px;
+        }
+
+        .quantity-unit {
+            font-size: 16px;
+            color: var(--text-muted);
+        }
+
+        /* 患者選択（オートコンプリート） */
+        .patient-input-wrapper {
+            position: relative;
+        }
+
+        .patient-autocomplete {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 50;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .patient-autocomplete.show {
+            display: block;
+        }
+
+        .patient-autocomplete-item {
+            padding: 12px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+
+        .patient-autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .patient-autocomplete-item:hover {
+            background: var(--bg);
+        }
+
+        .patient-autocomplete-item .patient-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .patient-autocomplete-item .patient-id {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* 送信ボタン */
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 10px;
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .submit-btn.in-mode {
+            background: var(--success);
+            color: white;
+        }
+
+        .submit-btn.out-mode {
+            background: var(--danger);
+            color: white;
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .submit-btn:not(:disabled):active {
+            transform: scale(0.98);
+        }
+
+        /* 履歴 */
+        .history-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-right: 12px;
+        }
+
+        .history-icon.in {
+            background: #dcfce7;
+        }
+
+        .history-icon.out {
+            background: #fee2e2;
+        }
+
+        .history-content {
+            flex: 1;
+        }
+
+        .history-medicine {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .history-detail {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .history-qty {
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .history-qty.in {
+            color: var(--success);
+        }
+
+        .history-qty.out {
+            color: var(--danger);
+        }
+
+        .history-qty.adjust {
+            color: #f59e0b;
+        }
+
+        .history-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--danger);
+            margin-right: 8px;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .history-item.selected-for-delete {
+            background: #fff5f5;
+        }
+
+        .history-delete-bar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: white;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            border-bottom: 2px solid var(--danger);
+            margin-bottom: 8px;
+        }
+
+        .history-delete-bar .delete-count {
+            font-weight: 600;
+            color: var(--danger);
+            font-size: 14px;
+        }
+
+        .history-delete-bar button {
+            padding: 6px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+        }
+
+        .history-delete-btn {
+            background: var(--danger);
+            color: white;
+        }
+
+        .history-delete-cancel-btn {
+            background: var(--bg);
+            color: var(--text-muted);
+            border: 1px solid var(--border) !important;
+        }
+
+        .history-edit-toggle {
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: white;
+            color: var(--text-muted);
+        }
+
+        .history-edit-toggle.active {
+            background: #fee2e2;
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+
+        /* トースト通知 */
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #1e293b;
+            color: white;
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s;
+            z-index: 250;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .toast.success {
+            background: var(--success);
+        }
+
+        .toast.error {
+            background: var(--danger);
+        }
+
+        /* スキャン通知ポップアップ（画面中央に大きく表示） */
+        .scan-popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .scan-popup-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .scan-popup {
+            background: white;
+            border-radius: 16px;
+            padding: 28px 32px;
+            text-align: center;
+            max-width: 340px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            transform: scale(0.8);
+            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .scan-popup-overlay.show .scan-popup {
+            transform: scale(1);
+        }
+
+        .scan-popup-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .scan-popup-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .scan-popup-detail {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .scan-popup-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .scan-popup-badge.stacked {
+            background: #dcfce7;
+            color: var(--success);
+        }
+
+        .scan-popup-badge.selected {
+            background: #dbeafe;
+            color: var(--primary);
+        }
+
+        /* 薬品追加ボタン */
+        .manual-add-btn {
+            width: 100%;
+            padding: 14px;
+            border: 2px dashed var(--primary);
+            border-radius: 10px;
+            background: #eff6ff;
+            color: var(--primary);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+
+        .manual-add-btn:active {
+            transform: scale(0.98);
+            background: #dbeafe;
+        }
+
+        /* バッチ登録リスト */
+        .batch-card {
+            border: 2px solid var(--primary);
+            background: #eff6ff;
+        }
+
+        .batch-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .batch-item:last-child {
+            border-bottom: none;
+        }
+
+        .batch-item-info {
+            flex: 1;
+        }
+
+        .batch-item-name {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .batch-item-detail {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .batch-item-qty {
+            font-weight: 700;
+            font-size: 15px;
+            margin-right: 10px;
+        }
+
+        .batch-item-qty.in {
+            color: var(--success);
+        }
+
+        .batch-item-qty.out {
+            color: var(--danger);
+        }
+
+        .batch-item-qty.adjust {
+            color: #f59e0b;
+        }
+
+        .adjust-input {
+            width: 72px;
+            padding: 4px 6px;
+            border: 2px solid #f59e0b;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 700;
+            text-align: center;
+            color: #f59e0b;
+            background: #fffbeb;
+        }
+        .adjust-input:focus {
+            outline: none;
+            border-color: #d97706;
+            box-shadow: 0 0 0 2px rgba(217,119,6,0.2);
+        }
+        .out-input {
+            width: 72px;
+            padding: 4px 6px;
+            border: 2px solid var(--danger);
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 700;
+            text-align: center;
+            color: var(--danger);
+            background: #fef2f2;
+        }
+        .out-input:focus {
+            outline: none;
+            border-color: #b91c1c;
+            box-shadow: 0 0 0 2px rgba(220,38,38,0.2);
+        }
+
+        .batch-item-controls {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-right: 8px;
+        }
+
+        .batch-qty-btn {
+            width: 28px;
+            height: 28px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .batch-qty-btn:active {
+            background: var(--bg);
+        }
+
+        .batch-remove-btn {
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: #fee2e2;
+            color: var(--danger);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .batch-remove-btn:active {
+            transform: scale(0.9);
+        }
+
+        /* 手動入力モーダル */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 300;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            width: 100%;
+            max-width: 500px;
+            border-radius: 20px 20px 0 0;
+            padding: 24px;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        /* CSV外 折りたたみ */
+        .other-drugs-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            margin: 16px 0 8px;
+            background: #f1f5f9;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            border: 1px dashed var(--border);
+            user-select: none;
+        }
+        .other-drugs-toggle:hover { background: #e2e8f0; }
+        .other-drugs-toggle .toggle-arrow { transition: transform 0.2s; }
+        .other-drugs-toggle.open .toggle-arrow { transform: rotate(180deg); }
+        .other-drugs-list { display: none; }
+        .other-drugs-list.open { display: block; }
+        .other-drugs-list .stock-item { opacity: 0.6; }
+        .other-drugs-list .stock-item:hover { opacity: 1; }
+
+        /* 薬品検索リスト */
+        .medicine-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .medicine-item.checked {
+            background: #e8f0fe;
+            border-color: var(--primary);
+        }
+
+        .medicine-item:hover {
+            background: var(--bg);
+            border-color: var(--primary);
+        }
+        .medicine-item.checked:hover {
+            background: #d4e4fd;
+        }
+
+        .medicine-item-name {
+            font-weight: 600;
+        }
+
+        .medicine-item-stock {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .modal-checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--primary);
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+
+        /* モーダルフィルタバー */
+        .modal-filter-bar {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+        .modal-add-bar {
+            position: sticky;
+            bottom: 0;
+            background: white;
+            padding: 10px 0 0;
+            display: none;
+            gap: 8px;
+            align-items: center;
+            border-top: 1px solid var(--border);
+        }
+        .modal-add-bar.show { display: flex; }
+        .modal-add-bar button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .modal-add-btn { background: var(--primary); color: white; flex: 1; }
+        .modal-clear-btn { background: var(--bg); color: var(--text-muted); }
+
+        /* 確認ポップアップ */
+        .confirm-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 500;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .confirm-overlay.show { display: flex; }
+        .confirm-box {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 400px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        .confirm-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .confirm-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+        .confirm-item:last-child { border-bottom: none; }
+        .confirm-item-name { flex: 1; }
+        .confirm-item-qty { font-weight: 700; color: var(--primary); min-width: 60px; text-align: right; }
+        .confirm-meta {
+            margin: 12px 0;
+            padding: 10px;
+            background: var(--bg);
+            border-radius: 8px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .confirm-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .confirm-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .confirm-cancel { background: var(--bg); color: var(--text); }
+        .confirm-ok { background: var(--primary); color: white; }
+
+        /* カテゴリ選択カード */
+        .modal-category-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+            background: white;
+        }
+        .modal-category-card:hover {
+            background: #f0f4ff;
+            border-color: var(--primary);
+        }
+        .modal-category-card:active {
+            background: #dde6ff;
+        }
+        .modal-cat-icon {
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+            border-radius: 10px;
+            flex-shrink: 0;
+        }
+        .modal-cat-label {
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .modal-cat-count {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .modal-cat-arrow {
+            margin-left: auto;
+            color: var(--text-muted);
+            font-size: 18px;
+        }
+        .modal-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 0;
+            font-size: 13px;
+            flex-wrap: wrap;
+        }
+        .modal-bc-link {
+            color: var(--primary);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .modal-bc-sep { color: var(--text-muted); }
+        .modal-bc-current { color: var(--text); font-weight: 600; }
+
+        .medicine-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        /* ボトムナビ */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid var(--border);
+            display: flex;
+            z-index: 200;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 0;
+            flex: 1;
+            min-height: 52px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 12px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: rgba(0,0,0,0.05);
+        }
+
+        .nav-item:hover {
+            background: #f0f4ff;
+            color: var(--primary);
+        }
+        .nav-item.active {
+            color: var(--primary);
+            background: #e8eeff;
+        }
+
+        .nav-item span {
+            font-size: 22px;
+            margin-bottom: 2px;
+        }
+
+        /* タブコンテンツ */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* 在庫一覧 - 3列グリッド */
+        #tab-stock .container { max-width: 960px; }
+        #stock-list {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+        .other-drugs-toggle, .other-drugs-list {
+            grid-column: 1 / -1;
+        }
+        .other-drugs-list {
+            display: none;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+        .other-drugs-list.open { display: grid; }
+        @media (max-width: 700px) {
+            #stock-list, .other-drugs-list { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 450px) {
+            #stock-list, .other-drugs-list { grid-template-columns: 1fr; }
+            #tab-stock .container { max-width: 500px; }
+        }
+
+        .stock-item {
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            transition: background 0.15s;
+            min-height: 70px;
+            position: relative;
+        }
+        .stock-item:active {
+            background: #f0f4ff;
+        }
+        .stock-item.checked {
+            background: #e8f0fe;
+            box-shadow: 0 0 0 2px var(--primary);
+        }
+
+        /* チェックボックス複数選択 */
+        .stock-checkbox {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 20px;
+            height: 20px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+        .multi-select-bar {
+            position: fixed;
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            z-index: 200;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+        }
+        .multi-select-bar.show { display: flex; }
+        .multi-select-bar button {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .multi-select-bar .add-btn { background: white; color: var(--primary); }
+        .multi-select-bar .clear-btn { background: rgba(255,255,255,0.2); color: white; }
+
+        /* 患者別グループ表示 */
+        .history-group-header {
+            background: var(--primary);
+            color: white;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            margin: 12px 0 6px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .history-group-header:first-child { margin-top: 0; }
+        .history-group-header .group-count {
+            font-size: 12px;
+            opacity: 0.8;
+            font-weight: normal;
+        }
+        .history-view-toggle {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 10px;
+        }
+        .history-view-toggle button {
+            padding: 5px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: white;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .history-view-toggle button.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* 体重別選択 */
+        .weight-filter {
+            display: flex;
+            gap: 4px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .weight-filter-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-right: 2px;
+            white-space: nowrap;
+        }
+        .weight-btn {
+            padding: 5px 10px;
+            border: 1px solid #e67e22;
+            border-radius: 16px;
+            background: white;
+            font-size: 11px;
+            cursor: pointer;
+            color: #e67e22;
+            font-weight: 600;
+            transition: all 0.15s;
+        }
+        .weight-btn.active {
+            background: #e67e22;
+            color: white;
+        }
+        .weight-dose-badge {
+            display: inline-block;
+            background: #e67e22;
+            color: white;
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 8px;
+            margin-top: 2px;
+            font-weight: 600;
+        }
+
+        .stock-info {
+            flex: 1;
+        }
+
+        .stock-name {
+            font-weight: 600;
+            font-size: 13px;
+            line-height: 1.3;
+        }
+
+        .stock-code {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .stock-qty {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .stock-qty.low {
+            color: var(--danger);
+        }
+
+        .stock-unit {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .stock-category {
+            font-size: 11px;
+            color: #fff;
+            background: var(--primary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 2px;
+        }
+        .stock-category.child { background: #e67e22; }
+        .stock-category.external { background: #27ae60; }
+        /* カテゴリ色分け */
+        .stock-category.cat-fever { background: #e74c3c; }      /* 解熱薬・解熱鎮痛剤 赤 */
+        .stock-category.cat-cough { background: #3498db; }      /* 咳止め 青 */
+        .stock-category.cat-phlegm { background: #2ecc71; }     /* 去痰剤 緑 */
+        .stock-category.cat-antibiotic { background: #9b59b6; } /* 抗生剤 紫 */
+        .stock-category.cat-allergy { background: #f39c12; }    /* 抗アレルギー 橙 */
+        .stock-category.cat-stomach { background: #1abc9c; }    /* 整腸・消化 ティール */
+        .stock-category.cat-nausea { background: #e91e63; }     /* 吐気止め ピンク */
+        .stock-category.cat-flu { background: #00bcd4; }        /* 抗インフルエンザ シアン */
+        .stock-category.cat-kampo { background: #795548; }      /* 漢方薬 茶 */
+        .stock-category.cat-test { background: #607d8b; }       /* 検査キット グレー */
+
+        .stock-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .cat-btn {
+            padding: 6px 14px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            background: white;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .cat-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        /* ===== v0.7 追加分: 入荷・発注・原価表示 ===== */
+        .rc-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; }
+        .rc-list { max-height:220px; overflow-y:auto; margin-top:6px; }
+        .rc-list .rc-item { padding:8px 10px; border:1px solid var(--border); border-radius:6px; margin-bottom:5px; cursor:pointer; background:white; }
+        .rc-list .rc-item:hover { background:#eff6ff; border-color:var(--primary); }
+        .rc-item-name { font-size:14px; font-weight:600; }
+        .rc-item-sub { font-size:11px; color:var(--text-muted); margin-top:2px; }
+        .rc-selected { margin-top:8px; padding:10px; border-left:4px solid var(--primary); background:#eff6ff; border-radius:0 6px 6px 0; }
+        .rc-preview { margin-top:10px; padding:10px; background:#f1f5f9; border-radius:6px; font-size:13px; line-height:1.7; }
+        .kpi-band { display:flex; gap:0; flex-wrap:wrap; border:1px solid var(--border); border-radius:8px; background:white; overflow:hidden; margin-bottom:12px; }
+        .kpi-cell { flex:1; min-width:110px; padding:10px 12px; border-right:1px solid var(--border); }
+        .kpi-cell:last-child { border-right:none; }
+        .kpi-label { font-size:11px; color:var(--text-muted); }
+        .kpi-value { font-size:20px; font-weight:700; margin-top:2px; }
+        .kpi-value.warn { color:var(--danger); }
+        .od-row { display:flex; align-items:flex-start; gap:10px; padding:10px; border:1px solid var(--border); border-radius:8px; margin-bottom:6px; background:white; }
+        .od-row.alert { border-left:4px solid var(--danger); }
+        .od-row.soon { border-left:4px solid var(--warning); }
+        .od-main { flex:1; min-width:0; }
+        .od-name { font-size:14px; font-weight:600; }
+        .od-sub { font-size:11px; color:var(--text-muted); margin-top:3px; line-height:1.6; }
+        .od-badge { display:inline-block; padding:1px 6px; border-radius:2px; font-size:10px; font-weight:700; margin-right:4px; }
+        .od-badge.b-out { background:#fee2e2; color:#991b1b; }
+        .od-badge.b-low { background:#fef3c7; color:#92400e; }
+        .od-badge.b-soon { background:#e0f2fe; color:#075985; }
+        .od-badge.b-untracked { background:#f1f5f9; color:#475569; }
+        .od-packs { width:64px; text-align:center; padding:6px; border:1px solid var(--border); border-radius:6px; font-size:14px; }
+        .cost-line { font-size:11px; color:var(--text-muted); margin-top:2px; }
+        .dm-hit { padding:8px 10px; border:1px solid var(--border); border-radius:6px; margin-bottom:5px; cursor:pointer; background:white; }
+        .dm-hit:hover { background:#eff6ff; border-color:var(--primary); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>薬品在庫管理システム <span style="font-size:12px;opacity:.75;font-weight:400;">v0.7</span></h1>
+        <div class="header-sub">西春内科・在宅クリニック</div>
+    </div>
+
+    <!-- 薬品マスタの整合性警告（カルテ側との差・マイナス在庫） -->
+    <div id="master-alert" class="master-alert"></div>
+
+    <!-- スキャンタブ -->
+    <div id="tab-scan" class="tab-content active">
+        <div class="container">
+            <!-- 大分類 -->
+            <div class="major-mode-toggle">
+                <button class="major-mode-btn" id="btn-major-manage" onclick="setMajorMode('manage')">🔧 管理機能</button>
+                <button class="major-mode-btn active-dispense" id="btn-major-dispense" onclick="setMajorMode('dispense')">💊 出荷（処方）</button>
+            </div>
+            <!-- 中分類（管理） -->
+            <div class="sub-mode-toggle" id="sub-mode-manage" style="display:none;">
+                <button class="sub-mode-btn" id="btn-in" onclick="setMode('in')">
+                    <span>📥</span>入庫
+                </button>
+                <button class="sub-mode-btn" id="btn-adjust" onclick="setMode('adjust')">
+                    <span>📝</span>棚卸
+                </button>
+                <button class="sub-mode-btn" id="btn-addmed" onclick="setMode('addmed')">
+                    <span>➕</span>薬品追加
+                </button>
+            </div>
+
+            <!-- 薬品追加フォーム -->
+            <div class="add-medicine-form card" id="add-medicine-form">
+                <div class="card-title">➕ 新規薬品登録</div>
+                <div class="form-group" style="background:#f1f5f9;padding:10px;border-radius:6px;">
+                    <label>💊 薬価マスタから探す（推奨）</label>
+                    <input type="text" id="dm-query" class="form-input" placeholder="薬品名かカナを2文字以上（例: アムロジピン）" oninput="dmSearch()" autocomplete="off">
+                    <div id="dm-results" style="margin-top:6px;max-height:240px;overflow-y:auto;"></div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+                        厚生労働省の医薬品マスタ 18,515件から選ぶと、レセプト電算コード・薬価・単位が自動で入ります。
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>薬品名 <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="newmed-name" placeholder="例: アムロジピンOD錠5mg">
+                </div>
+                <div class="form-group">
+                    <label>入数（1ロットあたり）／仕入単価（1ロット・税抜）</label>
+                    <div style="display:flex;gap:8px;">
+                        <input type="number" id="newmed-packsize" min="1" step="1" placeholder="例 100" style="flex:1;">
+                        <input type="number" id="newmed-costpack" min="0" step="0.01" placeholder="例 981" style="flex:1;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>フリガナ</label>
+                    <input type="text" id="newmed-furigana" placeholder="例: アムロジピン">
+                </div>
+                <div class="form-group">
+                    <label>単位 <span style="color:var(--danger)">*</span></label>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <button type="button" class="cat-btn active" onclick="selectUnit(this,'錠')">錠</button>
+                        <button type="button" class="cat-btn" onclick="selectUnit(this,'包')">包</button>
+                        <button type="button" class="cat-btn" onclick="selectUnit(this,'個')">個</button>
+                        <button type="button" class="cat-btn" onclick="selectUnit(this,'本')">本</button>
+                        <button type="button" class="cat-btn" onclick="selectUnit(this,'枚')">枚</button>
+                        <button type="button" class="cat-btn" onclick="selectUnit(this,'キット')">キット</button>
+                        <button type="button" class="cat-btn" onclick="selectUnit(this,'mL')">mL</button>
+                        <input type="text" id="newmed-unit-custom" placeholder="その他..." style="width:80px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-size:13px;">
+                    </div>
+                    <input type="hidden" id="newmed-unit" value="錠">
+                </div>
+                <div class="form-group">
+                    <label>初期在庫数</label>
+                    <input type="number" id="newmed-stock" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label>発注点（この数以下でアラート）</label>
+                    <input type="number" id="newmed-threshold" value="10" min="0">
+                </div>
+                <div class="form-group">
+                    <label>薬価（円）</label>
+                    <input type="number" id="newmed-price" step="0.1" min="0" placeholder="例: 15.5">
+                </div>
+                <div class="form-group">
+                    <label>分類 <span style="color:var(--danger)">*</span></label>
+                    <select id="newmed-category" class="form-input">
+                        <option value="">選択してください</option>
+                    </select>
+                    <input type="text" id="newmed-category-custom" class="form-input" placeholder="一覧に無い分類はこちらに入力（例: 成人/降圧剤）" style="margin-top:6px;">
+                </div>
+                <button class="add-medicine-btn" onclick="submitNewMedicine()">➕ 薬品マスタに登録</button>
+            </div>
+
+            <!-- QRスキャナー -->
+            <div class="card">
+                <div class="card-title">📷 QRコード読み取り</div>
+                <div id="qr-reader"></div>
+                <div id="qr-placeholder" class="qr-placeholder">
+                    <div>カメラでQRコードをスキャン</div>
+                    <button onclick="startScanner()">カメラを起動</button>
+                    <div style="margin-top: 16px; font-size: 13px; opacity: 0.7;">
+                        または
+                        <a href="#" onclick="openManualSelect()" style="color: white;">手動で薬品を選択</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 患者選択（出庫時のみ） -->
+            <div class="card" id="patient-card" style="display: none;">
+                <div class="card-title">👤 患者</div>
+                <div class="patient-input-wrapper">
+                    <input type="text" class="form-input" id="patient-input" placeholder="患者番号または氏名を入力" autocomplete="off">
+                    <div class="patient-autocomplete" id="patient-autocomplete">
+                        <!-- 候補がここに表示される -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 担当者選択 -->
+            <div class="card">
+                <div class="card-title">🧑‍⚕️ 担当者</div>
+                <select class="form-input" id="operator-select">
+                    <option value="">-- 選択してください --</option>
+                    <option value="島原">島原</option>
+                    <option value="森">森</option>
+                    <option value="湯浅">湯浅</option>
+                    <option value="長部">長部</option>
+                    <option value="田中">田中</option>
+                    <option value="沓名">沓名</option>
+                    <option value="西村">西村</option>
+                    <option value="佐川">佐川</option>
+                    <option value="萩原">萩原</option>
+                    <option value="加藤">加藤</option>
+                </select>
+            </div>
+
+            <!-- 診察日 -->
+            <div class="card">
+                <div class="card-title">📅 診察日</div>
+                <input type="date" class="form-input" id="entry-date" style="font-size:16px;">
+            </div>
+
+            <!-- 薬品追加ボタン -->
+            <button class="manual-add-btn" onclick="openManualSelect()">
+                ＋ 薬品を追加（手動選択）
+            </button>
+
+            <!-- バッチリスト -->
+            <div class="card batch-card" id="batch-card" style="display: none;">
+                <div class="card-title">📋 登録リスト（<span id="batch-count">0</span>件）</div>
+                <div id="batch-list"></div>
+            </div>
+
+            <!-- 一括登録ボタン -->
+            <button class="submit-btn in-mode" id="submit-btn" onclick="submitAll()" style="display: none;" disabled>
+                📥 まとめて入庫
+            </button>
+        </div>
+    </div>
+
+    <!-- 在庫一覧タブ -->
+    <div id="tab-stock" class="tab-content">
+        <div class="container">
+            <div class="kpi-band" id="stock-value-band"></div>
+            <div class="card">
+                <div class="card-title">🔍 薬品検索</div>
+                <input type="text" class="form-input" id="stock-search" placeholder="薬品名・コード・カテゴリで検索..." oninput="filterStock()">
+                <div class="category-filter" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+                    <button class="cat-btn active" onclick="setCategoryFilter('')">全て</button>
+                    <button class="cat-btn" onclick="setCategoryFilter('成人')">成人</button>
+                    <button class="cat-btn" onclick="setCategoryFilter('小児')">小児</button>
+                    <button class="cat-btn" onclick="setCategoryFilter('外用')">外用</button>
+                    <button class="cat-btn" onclick="setCategoryFilter('検査')">検査</button>
+                </div>
+                <div class="weight-filter" id="weight-filter-bar">
+                    <span class="weight-filter-label">体重別:</span>
+                    <button class="weight-btn" onclick="setWeightFilter('')">解除</button>
+                    <button class="weight-btn" onclick="setWeightFilter('6m')">6ヶ月(7kg)</button>
+                    <button class="weight-btn" onclick="setWeightFilter('1y')">1歳(10kg)</button>
+                    <button class="weight-btn" onclick="setWeightFilter('3y')">3歳(15kg)</button>
+                    <button class="weight-btn" onclick="setWeightFilter('5y')">5歳(20kg)</button>
+                    <button class="weight-btn" onclick="setWeightFilter('7y')">7歳(25kg)</button>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+                    <label style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:4px;cursor:pointer;">
+                        <input type="checkbox" id="multi-select-toggle" checked onchange="toggleMultiSelect()" style="accent-color:var(--primary);">
+                        複数選択モード
+                    </label>
+                </div>
+            </div>
+            <div id="stock-list">
+                <!-- 在庫一覧がここに表示される -->
+            </div>
+            <div id="multi-select-bar" class="multi-select-bar">
+                <span id="multi-select-count">0件選択中</span>
+                <button class="add-btn" onclick="addMultiSelected()">一括追加</button>
+                <button class="clear-btn" onclick="clearMultiSelect()">解除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 履歴タブ -->
+    <div id="tab-history" class="tab-content">
+        <div class="container">
+            <div class="card">
+                <div class="card-title">📋 履歴</div>
+                <div class="history-filter">
+                    <input type="date" id="history-date-from" onchange="filterHistory()">
+                    <span style="line-height:36px;">〜</span>
+                    <input type="date" id="history-date-to" onchange="filterHistory()">
+                    <input type="text" id="history-search" placeholder="薬品名・患者名・担当者で検索..." oninput="filterHistory()">
+                </div>
+                <div style="display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap;">
+                    <button onclick="setHistoryDatePreset('today')" style="padding:4px 10px; border:1px solid var(--border); border-radius:6px; background:white; font-size:12px; cursor:pointer;">今日</button>
+                    <button onclick="setHistoryDatePreset('week')" style="padding:4px 10px; border:1px solid var(--border); border-radius:6px; background:white; font-size:12px; cursor:pointer;">過去7日</button>
+                    <button onclick="setHistoryDatePreset('month')" style="padding:4px 10px; border:1px solid var(--border); border-radius:6px; background:white; font-size:12px; cursor:pointer;">過去30日</button>
+                    <button onclick="setHistoryDatePreset('all')" style="padding:4px 10px; border:1px solid var(--border); border-radius:6px; background:white; font-size:12px; cursor:pointer;">全期間</button>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div class="history-view-toggle">
+                        <button class="active" onclick="setHistoryView('timeline')">時系列</button>
+                        <button onclick="setHistoryView('patient')">患者別</button>
+                    </div>
+                    <button id="history-edit-btn" class="history-edit-toggle" onclick="toggleHistoryDeleteMode()">編集</button>
+                </div>
+                <div id="history-list">
+                    <!-- 履歴がここに表示される -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 月別消費量タブ -->
+    <div id="tab-consumption" class="tab-content">
+        <div class="container">
+            <div class="card">
+                <div class="card-title">📊 月別消費量</div>
+                <div style="display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; align-items:center;">
+                    <button id="consumption-refresh-btn" onclick="loadMonthlyConsumption()" style="padding:6px 14px; border:1px solid var(--border); border-radius:6px; background:white; font-size:13px; cursor:pointer;">🔄 更新</button>
+                    <input type="text" id="consumption-search" placeholder="薬品名で検索..." oninput="filterConsumption()" style="flex:1; min-width:150px; padding:6px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px;">
+                    <select id="consumption-sort" onchange="filterConsumption()" style="padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-size:13px;">
+                        <option value="name">薬品名順</option>
+                        <option value="total-desc">消費量多い順</option>
+                        <option value="total-asc">消費量少ない順</option>
+                        <option value="stock-asc">在庫少ない順</option>
+                    </select>
+                </div>
+                <div id="consumption-summary" style="display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap;"></div>
+                <div id="consumption-table-wrap" style="overflow-x:auto;">
+                    <table id="consumption-table" style="width:100%; border-collapse:collapse; font-size:13px;">
+                        <thead id="consumption-thead"></thead>
+                        <tbody id="consumption-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="consumption-loading" style="text-align:center; padding:30px; color:var(--text-muted);">データを読み込み中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 入荷タブ（v0.7 新規） -->
+    <div id="tab-receive" class="tab-content">
+        <div class="container">
+            <div class="card">
+                <div class="card-title">📥 入荷を登録</div>
+                <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">
+                    納品された薬を登録します。ロット数を入れると入数から自動で数量になります。
+                    仕入単価と使用期限もここで記録されます。
+                </p>
+                <label class="form-label">薬品</label>
+                <input type="text" class="form-input" id="rc-search" placeholder="薬品名・コードで検索..." oninput="rcRenderCandidates()" autocomplete="off">
+                <div id="rc-candidates" class="rc-list"></div>
+                <div id="rc-selected" class="rc-selected" style="display:none;"></div>
+
+                <div id="rc-form" style="display:none;">
+                    <div class="rc-grid">
+                        <div>
+                            <label class="form-label">ロット数（箱数）</label>
+                            <input type="number" class="form-input" id="rc-packs" value="1" min="0" step="1" oninput="rcSyncQty('packs')">
+                        </div>
+                        <div>
+                            <label class="form-label">数量（<span id="rc-unit">単位</span>）</label>
+                            <input type="number" class="form-input" id="rc-qty" min="0" step="1" oninput="rcSyncQty('qty')">
+                        </div>
+                    </div>
+                    <div class="rc-grid">
+                        <div>
+                            <label class="form-label">仕入先</label>
+                            <select class="form-input" id="rc-supplier"></select>
+                        </div>
+                        <div>
+                            <label class="form-label">仕入単価（1ロット・税抜）</label>
+                            <input type="number" class="form-input" id="rc-cost" step="0.01" min="0" placeholder="例 981">
+                        </div>
+                    </div>
+                    <div class="rc-grid">
+                        <div>
+                            <label class="form-label">ロット番号（任意）</label>
+                            <input type="text" class="form-input" id="rc-lot" placeholder="例 A5F231">
+                        </div>
+                        <div>
+                            <label class="form-label">使用期限（任意）</label>
+                            <input type="date" class="form-input" id="rc-expiry">
+                        </div>
+                    </div>
+                    <div class="rc-grid">
+                        <div>
+                            <label class="form-label">入荷日</label>
+                            <input type="date" class="form-input" id="rc-date">
+                        </div>
+                        <div>
+                            <label class="form-label">担当者</label>
+                            <input type="text" class="form-input" id="rc-operator" placeholder="氏名">
+                        </div>
+                    </div>
+                    <div id="rc-preview" class="rc-preview"></div>
+                    <button class="add-medicine-btn" id="rc-submit" onclick="rcSubmit()" style="width:100%;margin-top:10px;">📥 入荷を登録して在庫に反映</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">🗓 使用期限アラート</div>
+                <div id="rc-expiry-list" style="font-size:13px;"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">📜 直近の入荷</div>
+                <div id="rc-recent" style="font-size:13px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 発注タブ（v0.7 新規） -->
+    <div id="tab-order" class="tab-content">
+        <div class="container">
+            <div class="card">
+                <div class="card-title">🛒 発注リスト</div>
+                <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">
+                    発注点割れだけでなく、直近90日の消費ペースから「あと何日で切れるか」で並べています。
+                </p>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+                    <button class="cat-btn active" onclick="odSetFilter('alert', event)">要発注のみ</button>
+                    <button class="cat-btn" onclick="odSetFilter('notstocked', event)">未仕入</button>
+                    <button class="cat-btn" onclick="odSetFilter('all', event)">全て</button>
+                    <button onclick="odLoad(true)" style="padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:white;font-size:12px;cursor:pointer;">🔄 更新</button>
+                </div>
+                <div id="od-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;"></div>
+                <div id="od-list"></div>
+            </div>
+            <div class="card">
+                <div class="card-title">📄 発注書</div>
+                <div id="od-cart" style="font-size:13px;color:var(--text-muted);">発注リストからチェックすると、ここに集計されます。</div>
+                <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+                    <button onclick="odMakeOrder()" style="flex:1;min-width:140px;padding:10px;border:none;border-radius:8px;background:var(--primary);color:white;font-size:14px;font-weight:600;cursor:pointer;">発注書を作成して保存</button>
+                    <button onclick="odExportCsv()" style="flex:1;min-width:140px;padding:10px;border:1px solid var(--border);border-radius:8px;background:white;font-size:14px;cursor:pointer;">CSVで書き出し</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ボトムナビ -->
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('scan')">
+            <span>📷</span>
+            スキャン
+        </div>
+        <div class="nav-item" onclick="switchTab('stock')">
+            <span>📦</span>
+            在庫
+        </div>
+        <div class="nav-item" onclick="switchTab('receive')">
+            <span>📥</span>
+            入荷
+        </div>
+        <div class="nav-item" onclick="switchTab('order')">
+            <span>🛒</span>
+            発注
+        </div>
+        <div class="nav-item" onclick="switchTab('history')">
+            <span>📋</span>
+            履歴
+        </div>
+        <div class="nav-item" onclick="switchTab('consumption')">
+            <span>📊</span>
+            消費量
+        </div>
+    </div>
+
+    <!-- 手動選択モーダル -->
+    <div class="modal-overlay" id="manual-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title-text">薬品を選択</div>
+                <button class="modal-close" onclick="closeManualSelect()">×</button>
+            </div>
+            <input type="text" class="form-input" id="modal-search" placeholder="薬品名・カテゴリで検索..." oninput="filterModalList()">
+            <div class="modal-filter-bar" id="modal-cat-filter">
+                <button class="cat-btn active" onclick="setModalCatFilter('', event)">全て</button>
+                <button class="cat-btn" onclick="setModalCatFilter('成人', event)">成人</button>
+                <button class="cat-btn" onclick="setModalCatFilter('小児', event)">小児</button>
+                <button class="cat-btn" onclick="setModalCatFilter('外用', event)">外用</button>
+                <button class="cat-btn" onclick="setModalCatFilter('検査', event)">検査</button>
+            </div>
+            <div class="modal-filter-bar" id="modal-weight-filter">
+                <span class="weight-filter-label">体重別:</span>
+                <button class="weight-btn" onclick="setModalWeightFilter('', event)">解除</button>
+                <button class="weight-btn" onclick="setModalWeightFilter('6m', event)">6ヶ月</button>
+                <button class="weight-btn" onclick="setModalWeightFilter('1y', event)">1歳</button>
+                <button class="weight-btn" onclick="setModalWeightFilter('3y', event)">3歳</button>
+                <button class="weight-btn" onclick="setModalWeightFilter('5y', event)">5歳</button>
+                <button class="weight-btn" onclick="setModalWeightFilter('7y', event)">7歳</button>
+            </div>
+            <div id="modal-breadcrumb" class="modal-breadcrumb" style="display:none;"></div>
+            <div class="medicine-list" id="modal-list">
+                <!-- 薬品リストがここに表示される -->
+            </div>
+            <div class="modal-add-bar" id="modal-add-bar">
+                <span id="modal-select-count" style="font-size:14px;font-weight:600;">0件選択中</span>
+                <button class="modal-add-btn" onclick="addModalSelected()">一括追加</button>
+                <button class="modal-clear-btn" onclick="clearModalSelected()">解除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 送信確認ポップアップ -->
+    <div class="confirm-overlay" id="confirm-overlay" onclick="closeConfirm()">
+        <div class="confirm-box" onclick="event.stopPropagation()">
+            <div class="confirm-title" id="confirm-title">送信内容の確認</div>
+            <div id="confirm-items"></div>
+            <div class="confirm-meta" id="confirm-meta"></div>
+            <div class="confirm-buttons">
+                <button class="confirm-cancel" onclick="closeConfirm()">キャンセル</button>
+                <button class="confirm-ok" onclick="confirmAndSubmit()">送信する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- トースト -->
+    <div class="toast" id="toast"></div>
+
+    <!-- スキャン通知ポップアップ -->
+    <div class="scan-popup-overlay" id="scan-popup-overlay" onclick="closeScanPopup()">
+        <div class="scan-popup" onclick="event.stopPropagation()">
+            <div class="scan-popup-icon" id="scan-popup-icon">💊</div>
+            <div class="scan-popup-name" id="scan-popup-name">-</div>
+            <div class="scan-popup-detail" id="scan-popup-detail">-</div>
+            <div class="scan-popup-badge stacked" id="scan-popup-badge">リストに追加しました</div>
+        </div>
+    </div>
+
+    <script>
+        // ===== GAS連携設定 =====
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycby1zgHFyfsxTyqXTf-UXhu25ef5Hhp2ZvSkQ9ETYzCJIJumoYiKkuQl2IclDHpfrfuJ9w/exec';
+        // GAS側 Code.gs の API_TOKEN と同じ値（無差別CSRF/drive-by遮断用・トークン必須化済み）
+        const GAS_TOKEN = 'dtp_f929bbd860e2e96224ded613cd06177e';
+        const USE_GAS = true;
+
+        // ===== Supabase連携設定 =====
+        const SB_URL = 'https://vypwgxkqtxuzqfaaeamf.supabase.co';
+        const SB_KEY = 'sb_publishable_WVbE1jJE6sBDli7qO-xSJA_GqDqu4OE';
+        const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
+
+        async function sbFetch(path, opts = {}) {
+            try {
+                const res = await fetch(SB_URL + '/rest/v1/' + path, { ...opts, headers: { ...SB_HEADERS, ...(opts.headers || {}) } });
+                if (!res.ok) throw new Error('SB ' + res.status);
+                const text = await res.text();
+                return text ? JSON.parse(text) : null;
+            } catch (e) { console.warn('Supabase error:', e.message); return null; }
+        }
+
+        const MASTER_CACHE_KEY = 'dtp_v07_master_cache';
+
+        // Supabaseの1行を画面用の薬品オブジェクトへ変換
+        function toStockItem(r) {
+            return {
+                code: r.code,
+                name: r.name || '',
+                stock: r.current_stock || 0,
+                unit: r.unit || '',
+                threshold: r.threshold || 0,
+                category: r.category || '',
+                usage: r.usage_text || '',
+                price: (r.price === null || r.price === undefined || r.price === 0) ? '' : String(r.price),
+                maker: r.maker || '',
+                target: '',
+                csvGroup: r.csv_group || 'master',
+                // v0.7: 原価・仕入・コード体系
+                rezeptCode: r.rezept_code || '',
+                packSize: r.pack_size || null,
+                costPerPack: r.cost_per_pack === null || r.cost_per_pack === undefined ? null : Number(r.cost_per_pack),
+                costPerUnit: r.cost_per_unit === null || r.cost_per_unit === undefined ? null : Number(r.cost_per_unit),
+                supplierId: r.supplier_id || null,
+                supplierName: r.supplier_name || '',
+                marginPerUnit: r.margin_per_unit === null || r.margin_per_unit === undefined ? null : Number(r.margin_per_unit),
+                marginRate: r.margin_rate_pct === null || r.margin_rate_pct === undefined ? null : Number(r.margin_rate_pct),
+                officialName: r.official_name || '',
+                officialStatus: r.official_status || '',
+                stockUntracked: !!r.stock_untracked,
+                legacyCodes: Array.isArray(r.legacy_codes) ? r.legacy_codes : []
+            };
+        }
+
+        // 薬品マスタ本体をSupabaseから読み込む（一覧の生成元）
+        // v0.7: pharmacy_v_medicines（採用薬＋仕入先＋厚労省マスタの統合ビュー）を読む
+        async function loadMasterFromSupabase() {
+            const cols = 'code,name,current_stock,unit,threshold,category,usage_text,price,csv_group,'
+                       + 'rezept_code,pack_size,cost_per_pack,cost_per_unit,supplier_id,supplier_name,'
+                       + 'maker,margin_per_unit,margin_rate_pct,official_name,official_status,stock_untracked,legacy_codes';
+            let data = await sbFetch('pharmacy_v_medicines?select=' + cols + '&order=code');
+            // ビューが無い環境（旧DB）へのフォールバック
+            if (!data) data = await sbFetch('pharmacy_medicines?select=code,name,current_stock,unit,threshold,category,usage_text,price,csv_group&order=code');
+            if (!data || data.length === 0) return false;
+            stockData = data.map(toStockItem);
+            try {
+                localStorage.setItem(MASTER_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), items: stockData }));
+            } catch (e) { console.warn('マスタキャッシュ保存失敗:', e.message); }
+            console.log('薬品マスタ読込(Supabase): ' + stockData.length + '件');
+            return true;
+        }
+
+        // Supabaseに届かないときの保険。前回読めたマスタを使う
+        function loadMasterFromCache() {
+            try {
+                const raw = localStorage.getItem(MASTER_CACHE_KEY);
+                if (!raw) return false;
+                const cached = JSON.parse(raw);
+                if (!cached || !Array.isArray(cached.items) || cached.items.length === 0) return false;
+                stockData = cached.items;
+                console.log('薬品マスタ読込(キャッシュ): ' + stockData.length + '件');
+                return true;
+            } catch (e) { return false; }
+        }
+
+        // 後方互換: 旧名の呼び出しはマスタ読込へ委譲
+        async function loadStockFromSupabase() { return loadMasterFromSupabase(); }
+
+        async function syncToSupabase(items) {
+            if (!items || items.length === 0) return;
+            const txRows = items.map(item => ({
+                medicine_code: item.medicine.code,
+                transaction_type: item.mode,
+                quantity: item.quantity,
+                patient_id: item.patient?.id || null,
+                patient_name: item.patient?.name || null,
+                note: item.operator ? '担当:' + item.operator : null
+            }));
+            await sbFetch('pharmacy_transactions', { method: 'POST', body: JSON.stringify(txRows) });
+            for (const item of items) {
+                const code = item.medicine.code;
+                const idx = stockData.findIndex(m => normalizeCode(m.code) === normalizeCode(code));
+                if (idx < 0) continue;
+                const newStock = stockData[idx].stock;
+                await sbFetch('pharmacy_medicines?code=eq.' + code, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ current_stock: newStock, last_updated: new Date().toISOString() })
+                });
+            }
+        }
+
+        // ===== GAS API関数 =====
+        async function gasGet(action, params = {}) {
+            if (!USE_GAS) return null;
+            try {
+                const url = new URL(GAS_URL);
+                url.searchParams.append('action', action);
+                url.searchParams.append('token', GAS_TOKEN);
+                Object.entries(params).forEach(([k, v]) => url.searchParams.append(k, String(v)));
+                // キャッシュ防止（ブラウザが同一URLのGETをキャッシュして2件目を送信しない問題の対策）
+                url.searchParams.append('_t', Date.now() + '_' + Math.random().toString(36).slice(2));
+                const res = await fetch(url.toString(), { cache: 'no-store' });
+                return await res.json();
+            } catch (e) {
+                console.error('GAS GET error:', e);
+                showToast('サーバー通信エラー: ' + e.message, 'error');
+                return null;
+            }
+        }
+
+        async function gasPost(action, data) {
+            if (!USE_GAS) return null;
+            try {
+                // redirect:manual → GASは処理するが302リダイレクトを追わない
+                // これによりリダイレクト先のCORS問題を完全に回避
+                const res = await fetch(GAS_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ action, token: GAS_TOKEN, ...data }),
+                    redirect: 'manual'
+                });
+                // res.type === 'opaqueredirect', status === 0 が正常
+                // GASは302を返す前にdoPost()を実行済み
+                return { success: true, message: '送信完了' };
+            } catch (e) {
+                // ネットワーク完全断のみここに来る
+                console.error('GAS POST error:', e);
+                return { success: false, error: e.message };
+            }
+        }
+
+        // GASから在庫データを取得。
+        // 通常はSupabaseが正で、これはSupabaseにもキャッシュにも届かないときの最後の保険。
+        // GASの在庫サマリーには区切り行と旧コードの同名重複が混ざっているため、それらを落として使う。
+        async function loadStockFromGAS() {
+            const result = await gasGet('getStock');
+            if (result && result.success && stockData.length === 0) {
+                const picked = {};
+                result.stock.forEach(s => {
+                    const nm = String(s.name || '').trim();
+                    if (!nm || nm.indexOf('---') >= 0) return;   // 「--- 以下：薬品マスタ外品目 ---」等の区切り行
+                    const cur = picked[nm];
+                    // 同名が複数ある場合は在庫数が多い行（＝実際に使われている行）を採用
+                    if (!cur || (s.currentStock || 0) > (cur.currentStock || 0)) picked[nm] = s;
+                });
+                stockData = Object.keys(picked).map(nm => ({
+                    code: String(picked[nm].code), name: nm, stock: picked[nm].currentStock || 0,
+                    unit: picked[nm].unit || '', threshold: picked[nm].threshold || 0,
+                    category: '', usage: '', price: '', maker: '', target: '', csvGroup: 'master'
+                }));
+                renderStockList();
+                showToast('DBに接続できないため、在庫サマリーから簡易表示しています', 'error');
+                return;
+            }
+            if (result && result.success) {
+                const byCode = {};
+                const byName = {};
+                result.stock.forEach(s => {
+                    byCode[String(s.code)] = s;
+                    const nm = String(s.name).trim();
+                    // 同名重複がある場合は在庫数が大きい方を優先（CSV版を優先し、DT旧コード0を無視）
+                    if (!byName[nm] || (s.currentStock || 0) > (byName[nm].currentStock || 0)) {
+                        byName[nm] = s;
+                    }
+                });
+                let matched = 0;
+                stockData.forEach(m => {
+                    const gs = byCode[m.code] || byName[String(m.name).trim()];
+                    if (gs) {
+                        m.stock = gs.currentStock;
+                        if (gs.unit) m.unit = gs.unit;
+                        if (gs.threshold) m.threshold = gs.threshold;
+                        matched++;
+                    }
+                });
+                renderStockList();
+                showToast('在庫数を同期しました (' + matched + '/' + result.stock.length + '件)', 'success');
+            } else if (result && result.error) {
+                showToast('データ取得エラー: ' + result.error, 'error');
+            }
+        }
+
+        // GASから履歴を取得
+        let allHistoryData = []; // full dataset from GAS
+        let historyDisplayCount = 50; // how many to show initially
+        const HISTORY_PAGE_SIZE = 50;
+
+        // JST(日本時間)変換ヘルパー
+        function _sbToJst(iso) {
+            const d = new Date(iso);
+            const date = d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' }); // YYYY-MM-DD
+            const time = d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' });
+            return { date, time };
+        }
+
+        // Supabase(pharmacy_transactions)から履歴を取得。GAS非依存でトークン露出を回避。
+        // 注: Supabase移行前の旧GAS履歴(1000件超)はこのテーブルには含まれない。
+        async function loadHistoryFromSupabase() {
+            const rows = await sbFetch('pharmacy_transactions?select=id,medicine_code,transaction_type,quantity,patient_name,note,created_at&order=created_at.desc&limit=5000');
+            if (!rows) return;
+            allHistoryData = rows.map(r => {
+                const t = _sbToJst(r.created_at);
+                const med = stockData.find(m => normalizeCode(m.code) === normalizeCode(r.medicine_code));
+                const operator = (r.note && /^担当[:：]/.test(r.note)) ? r.note.replace(/^担当[:：]/, '').trim() : '';
+                return {
+                    date: t.date,
+                    time: t.time,
+                    timestamp: r.created_at,
+                    type: r.transaction_type,
+                    medicine: med ? med.name : (r.medicine_code || ''),
+                    code: r.medicine_code,
+                    quantity: r.quantity,
+                    unit: med ? (med.unit || '') : '',
+                    patient: r.patient_name || null,
+                    operator: operator,
+                    _sbId: r.id
+                };
+            });
+            historyDisplayCount = HISTORY_PAGE_SIZE;
+            applyHistoryFilter();
+        }
+
+        // 後方互換: 旧名の呼び出しはSupabase版へ委譲（引数は無視し全件ローカル絞り込み）
+        async function loadHistoryFromGAS() { return loadHistoryFromSupabase(); }
+
+        // ===== 薬品マスタ =====
+        // 唯一の正は Supabase の pharmacy_medicines テーブル。
+        // 以前はここに84品目をHTML直書きしていたため、DBに薬を足しても画面に出なかった。
+        // 起動時に loadMasterFromSupabase() が全件を読み込んで組み立てる。
+        let stockData = [];
+        let historyData = [];
+        let historyDeleteMode = false;
+        let historySelectedForDelete = new Set();
+
+        let patientData = [
+            { id: '90220', name: '薛 悌吉', furigana: 'セツ テイキチ' },
+            { id: '90205', name: '臼井 ユキ', furigana: 'ウスイ ユキ' },
+            { id: '90219', name: '長野 光雄', furigana: 'ナガノ ミツオ' },
+            { id: '90001', name: '山田 太郎', furigana: 'ヤマダ タロウ' },
+            { id: '90002', name: '佐藤 花子', furigana: 'サトウ ハナコ' },
+            { id: '90003', name: '田中 一郎', furigana: 'タナカ イチロウ' },
+        ];
+
+        // ===== 状態管理 =====
+        let currentMode = 'out';
+        let selectedMedicine = null;
+        let quantity = 1;
+        let selectedPatient = null;
+        let html5QrCode = null;
+        let batchItems = [];
+        let scanPopupTimer = null;
+        let lastScannedCode = null;
+        let scanCooldown = false;
+
+        // ===== モード切替 =====
+        let currentMajorMode = 'dispense'; // 'manage' or 'dispense'
+
+        function setMajorMode(major) {
+            currentMajorMode = major;
+            const btnManage = document.getElementById('btn-major-manage');
+            const btnDispense = document.getElementById('btn-major-dispense');
+            const subManage = document.getElementById('sub-mode-manage');
+            const addForm = document.getElementById('add-medicine-form');
+
+            btnManage.className = 'major-mode-btn';
+            btnDispense.className = 'major-mode-btn';
+
+            if (major === 'manage') {
+                btnManage.className = 'major-mode-btn active-manage';
+                subManage.style.display = 'flex';
+                // Default to first sub-mode if not already in manage sub-mode
+                if (currentMode !== 'in' && currentMode !== 'adjust' && currentMode !== 'addmed') {
+                    setMode('in');
+                }
+            } else {
+                btnDispense.className = 'major-mode-btn active-dispense';
+                subManage.style.display = 'none';
+                addForm.classList.remove('visible');
+                setMode('out');
+            }
+        }
+
+        function setMode(mode) {
+            if (mode === 'in' && currentMode !== 'in') {
+                if (!confirm('こちらは入庫メニューです。間違いありませんか？')) {
+                    return;
+                }
+            }
+            if (mode === 'adjust' && currentMode !== 'adjust') {
+                if (!confirm('こちらは棚卸修正メニューです。間違いありませんか？')) {
+                    return;
+                }
+            }
+            if (batchItems.length > 0 && batchItems[0].mode !== mode) {
+                batchItems = [];
+                renderBatchList();
+            }
+            currentMode = mode;
+            const btnIn = document.getElementById('btn-in');
+            const btnAdjust = document.getElementById('btn-adjust');
+            const btnAddmed = document.getElementById('btn-addmed');
+            const patientCard = document.getElementById('patient-card');
+            const addForm = document.getElementById('add-medicine-form');
+
+            // Reset sub-mode buttons
+            if (btnIn) btnIn.className = 'sub-mode-btn';
+            if (btnAdjust) btnAdjust.className = 'sub-mode-btn';
+            if (btnAddmed) btnAddmed.className = 'sub-mode-btn';
+
+            // Hide add medicine form by default
+            addForm.classList.remove('visible');
+
+            if (mode === 'in') {
+                if (btnIn) btnIn.className = 'sub-mode-btn active-in';
+                patientCard.style.display = 'none';
+            } else if (mode === 'adjust') {
+                if (btnAdjust) btnAdjust.className = 'sub-mode-btn active-adjust';
+                patientCard.style.display = 'none';
+            } else if (mode === 'addmed') {
+                if (btnAddmed) btnAddmed.className = 'sub-mode-btn active-addmed';
+                patientCard.style.display = 'none';
+                addForm.classList.add('visible');
+            } else {
+                // out (dispense)
+                patientCard.style.display = 'block';
+            }
+            updateActionButtons();
+        }
+
+        function selectUnit(btn, unit) {
+            document.querySelectorAll('.add-medicine-form .cat-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('newmed-unit').value = unit;
+            document.getElementById('newmed-unit-custom').value = '';
+        }
+
+        // ===== 薬品マスタの整合性チェック =====
+        // 電子カルテの薬品マスタ（夜間外来DB）と、この在庫マスタは別々に管理されている。
+        // カルテ側に薬を足しても在庫側には入らず、気づかないまま在庫を記録できない薬が生まれる。
+        // それを取りこぼさないよう、1日1回だけ突合して画面上部に出す。
+        const KARTE_API_URL = 'https://script.google.com/macros/s/AKfycbwWCL1aVy4RcCZsr2Wzrpy5JE8LU8pGWa2u_CY7qo7OGMgXrB0OZGir6rGJZiiV6hRd/exec';
+        const DRIFT_CHECK_KEY = 'dtp_v06_drift_checked_on';
+        let missingDrugs = [];
+
+        function normalizeName(s) {
+            return String(s || '').normalize('NFKC').replace(/[\s　]/g, '').replace(/^後）/, '').toLowerCase();
+        }
+
+        // カルテ側の大まかな分類から、この画面で使う分類を推定する。
+        // 「外用」に振ると出庫しても在庫が減らなくなるため、剤形が明らかなものだけに限る。
+        function guessCategory(name, karteCategory) {
+            const SUB = {
+                '解熱鎮痛': '解熱鎮痛剤', '咳・痰': '咳止め', '胃腸': '整腸剤', 'アレルギー': '抗アレルギー剤',
+                '抗菌': '抗生剤', '抗ウイルス': '抗ウイルス薬', 'めまい': '鎮暈剤', '気管支': '気管支拡張剤',
+                '救急': '救急', '検査キット': '検査キット', '坐剤': '坐剤', '内服': '内服', '外用': '外用'
+            };
+            const sub = SUB[karteCategory] || karteCategory || 'その他';
+            const n = String(name || '');
+            if (karteCategory === '検査キット') return '検査/' + sub;
+            if (/点眼|軟膏|クリーム|ローション|テープ|吸入/.test(n)) return '外用/' + sub;
+            if (/DS|ドライシロップ|細粒|シロップ|小児/.test(n)) return '小児/' + sub;
+            return '成人/' + sub;
+        }
+
+        // カルテ側の薬品一覧と突き合わせて、在庫マスタに無い薬を洗い出す
+        function recomputeMissing(karteDrugs) {
+            const haveName = new Set(stockData.map(m => normalizeName(m.name)));
+            const haveCode = new Set();
+            stockData.forEach(m => {
+                haveCode.add(normalizeCode(m.code));
+                (m.legacyCodes || []).forEach(c => haveCode.add(normalizeCode(c)));
+            });
+            // カルテ側の薬品マスタは列構成が変わることがあり、薬品名の欄に院内管理ID（M100等）が
+            // 入って返ってくる場合がある。その場合は名前ではなくコードで突合しないと、
+            // 登録済みの薬まで「マスタに無い」と誤検知する。
+            missingDrugs = (karteDrugs || []).filter(d => {
+                const raw = String(d.name || '').trim();
+                if (!raw) return false;
+                if (/^M\d{2,4}$/i.test(raw)) return !haveCode.has(normalizeCode(raw));
+                return !haveName.has(normalizeName(raw));
+            });
+            renderMasterAlert();
+        }
+
+        async function checkMasterDrift(force) {
+            const today = new Date().toLocaleDateString('sv-SE');
+            let cached = null;
+            try { cached = JSON.parse(localStorage.getItem(DRIFT_CHECK_KEY) || 'null'); } catch (e) { cached = null; }
+
+            // マイナス在庫の警告はカルテ側の取得を待たずに出す
+            renderMasterAlert();
+
+            // カルテ側の取得は重い（数十秒）ので1日1回。
+            // ただし判定自体は毎回やり直す。そうしないと同じ日の2回目以降に警告が消えてしまう。
+            if (cached && Array.isArray(cached.drugs)) recomputeMissing(cached.drugs);
+            if (!force && cached && cached.date === today) return;
+
+            try {
+                const url = KARTE_API_URL + '?action=all&token=' + encodeURIComponent(GAS_TOKEN) +
+                    '&date_from=' + today + '&date_to=' + today;
+                const data = await (await fetch(url)).json();
+                if (!data || !Array.isArray(data.drugs)) return;
+                localStorage.setItem(DRIFT_CHECK_KEY, JSON.stringify({
+                    date: today,
+                    drugs: data.drugs.map(d => ({ name: d.name, category: d.category }))
+                }));
+                recomputeMissing(data.drugs);
+                console.log('マスタ突合: カルテ' + data.drugs.length + '件中、在庫マスタに無い薬 ' + missingDrugs.length + '件');
+            } catch (e) {
+                console.warn('マスタ突合に失敗:', e.message);
+            }
+        }
+
+        function renderMasterAlert() {
+            const el = document.getElementById('master-alert');
+            if (!el) return;
+            const blocks = [];
+            if (missingDrugs.length) {
+                blocks.push('<div class="master-alert-item">' +
+                    '<b>⚠ 電子カルテにあって、在庫マスタに無い薬が ' + missingDrugs.length + ' 件あります</b>' +
+                    'このままではその薬の在庫を記録できません。' +
+                    '<div class="names">' + missingDrugs.map(d => d.name).join('、') + '</div>' +
+                    '<button class="master-alert-btn" onclick="startRegisterMissing()">1件ずつ登録する</button>' +
+                    '</div>');
+            }
+            const negatives = stockData.filter(m => (m.stock || 0) < 0);
+            if (negatives.length) {
+                blocks.push('<div class="master-alert-item danger">' +
+                    '<b>⚠ 在庫数がマイナスの薬が ' + negatives.length + ' 件あります</b>' +
+                    '出庫が入庫を上回っています。棚卸修正で実数を入れてください。' +
+                    '<div class="names">' + negatives.map(m => m.name + '（' + m.stock + m.unit + '）').join('、') + '</div>' +
+                    '</div>');
+            }
+            el.innerHTML = blocks.join('');
+            el.className = blocks.length ? 'master-alert visible' : 'master-alert';
+        }
+
+        // 未登録の薬を追加フォームに1件ずつ流し込む。
+        // 分類は推定値を入れるが、在庫の増減に関わるので必ず人が確認して登録する。
+        function startRegisterMissing() {
+            if (!missingDrugs.length) { showToast('未登録の薬はありません', 'success'); return; }
+            const d = missingDrugs[0];
+            switchTab('scan');
+            currentMajorMode = 'manage';
+            document.getElementById('btn-major-manage').className = 'major-mode-btn active-manage';
+            document.getElementById('btn-major-dispense').className = 'major-mode-btn';
+            document.getElementById('sub-mode-manage').style.display = 'flex';
+            setMode('addmed');
+            document.getElementById('newmed-name').value = d.name;
+            document.getElementById('newmed-furigana').value = '';
+            document.getElementById('newmed-stock').value = '0';
+            document.getElementById('newmed-threshold').value = '10';
+            document.getElementById('newmed-price').value = '';
+            const guess = guessCategory(d.name, d.category);
+            const sel = document.getElementById('newmed-category');
+            const custom = document.getElementById('newmed-category-custom');
+            if ([...sel.options].some(o => o.value === guess)) { sel.value = guess; custom.value = ''; }
+            else { sel.value = ''; custom.value = guess; }
+            showToast('未登録 残り' + missingDrugs.length + '件。分類を確認して登録してください', '');
+            document.getElementById('add-medicine-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // 薬品コードの採番。M+3桁の最大値+1。Supabaseの主キーなので重複すれば登録が弾かれる
+        function nextMedicineCode() {
+            let max = 0;
+            stockData.forEach(m => {
+                const hit = /^M(\d+)$/.exec(String(m.code).trim());
+                if (hit) max = Math.max(max, parseInt(hit[1], 10));
+            });
+            return 'M' + String(max + 1).padStart(3, '0');
+        }
+
+        // 分類プルダウンを現在のマスタから作る（分類は色分け・外用薬判定・絞り込みに使う）
+        function populateCategoryOptions() {
+            const sel = document.getElementById('newmed-category');
+            if (!sel) return;
+            const cats = [...new Set(stockData.map(m => m.category).filter(Boolean))].sort();
+            sel.innerHTML = '<option value="">選択してください</option>' +
+                cats.map(c => `<option value="${c}">${c}</option>`).join('');
+        }
+
+        async function submitNewMedicine() {
+            const name = document.getElementById('newmed-name').value.trim();
+            const furigana = document.getElementById('newmed-furigana').value.trim();
+            const customUnit = document.getElementById('newmed-unit-custom').value.trim();
+            const unit = customUnit || document.getElementById('newmed-unit').value;
+            const initialStock = parseInt(document.getElementById('newmed-stock').value) || 0;
+            const threshold = parseInt(document.getElementById('newmed-threshold').value) || 10;
+            const price = parseFloat(document.getElementById('newmed-price').value) || 0;
+            const customCategory = document.getElementById('newmed-category-custom').value.trim();
+            const category = customCategory || document.getElementById('newmed-category').value;
+
+            if (!name) {
+                showToast('薬品名を入力してください', 'error');
+                document.getElementById('newmed-name').focus();
+                return;
+            }
+            if (!unit) {
+                showToast('単位を選択してください', 'error');
+                return;
+            }
+            if (!category) {
+                showToast('分類を選んでください（例: 成人/解熱鎮痛剤）', 'error');
+                document.getElementById('newmed-category').focus();
+                return;
+            }
+
+            if (!confirm(`「${name}」を薬品マスタに登録します。よろしいですか？`)) return;
+
+            const btn = document.querySelector('.add-medicine-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ 登録中...';
+
+            try {
+                if (USE_GAS) {
+                    // 薬品コードはこちらで採番し、Supabase（正）とGAS（在庫サマリー）に同じ番号で登録する。
+                    // 旧実装はGASの採番結果を待っていたが、POSTがopaqueで応答を読めず
+                    // 一覧に反映されないまま消えていた。
+                    const newCode = nextMedicineCode();
+                    const inserted = await sbFetch('pharmacy_medicines', {
+                        method: 'POST',
+                        headers: { 'Prefer': 'return=representation' },
+                        body: JSON.stringify({
+                            code: newCode, name, furigana, unit,
+                            price: price || null, threshold, current_stock: initialStock,
+                            category: category, csv_group: 'master', usage_text: '',
+                            // v0.7: 薬価マスタから選んだ場合はレセプト電算コードを持たせる
+                            rezept_code: (window._dmPicked && window._dmPicked.name === name) ? window._dmPicked.rezept_code : null,
+                            pack_size: parseInt(document.getElementById('newmed-packsize').value) || null,
+                            cost_per_pack: parseFloat(document.getElementById('newmed-costpack').value) || null
+                        })
+                    });
+                    if (!inserted) {
+                        showToast('薬品マスタ(DB)への登録に失敗しました', 'error');
+                        btn.disabled = false;
+                        btn.textContent = '➕ 薬品マスタに登録';
+                        return;
+                    }
+                    const result = await gasPost('addMedicine', {
+                        name, furigana, unit, initialStock, threshold, price,
+                        receiptCode: '', code: newCode
+                    });
+                    if (result && result.success) {
+                        showToast(`「${name}」を ${newCode} で登録しました`, 'success');
+                        stockData.push(toStockItem(Array.isArray(inserted) ? inserted[0] : inserted));
+                        stockData.sort((a, b) => String(a.code).localeCompare(String(b.code)));
+                        renderStockList();
+                        populateCategoryOptions();
+                        // カルテ側との差を解消できた分を警告から消し、残りがあれば次の1件を出す
+                        const wasMissing = missingDrugs.length > 0;
+                        missingDrugs = missingDrugs.filter(d => normalizeName(d.name) !== normalizeName(name));
+                        renderMasterAlert();
+                        if (wasMissing && missingDrugs.length) setTimeout(startRegisterMissing, 800);
+                        // Clear form
+                        document.getElementById('newmed-name').value = '';
+                        document.getElementById('newmed-furigana').value = '';
+                        document.getElementById('newmed-stock').value = '0';
+                        document.getElementById('newmed-threshold').value = '10';
+                        document.getElementById('newmed-price').value = '';
+                        document.getElementById('newmed-unit-custom').value = '';
+                        document.getElementById('newmed-category').value = '';
+                        document.getElementById('newmed-category-custom').value = '';
+                    } else {
+                        showToast('登録に失敗しました: ' + (result?.error || '不明なエラー'), 'error');
+                    }
+                } else {
+                    // Demo mode
+                    const newCode = 'M' + String(stockData.length + 1).padStart(3, '0');
+                    stockData.push({
+                        code: newCode, name, stock: initialStock, unit, threshold,
+                        category: '', usage: '', price: String(price), maker: '', target: ''
+                    });
+                    showToast(`「${name}」を登録しました（デモ）`, 'success');
+                    document.getElementById('newmed-name').value = '';
+                    document.getElementById('newmed-furigana').value = '';
+                    document.getElementById('newmed-stock').value = '0';
+                    document.getElementById('newmed-threshold').value = '10';
+                    document.getElementById('newmed-price').value = '';
+                    document.getElementById('newmed-unit-custom').value = '';
+                }
+            } catch(e) {
+                showToast('エラーが発生しました', 'error');
+            }
+
+            btn.disabled = false;
+            btn.textContent = '➕ 薬品マスタに登録';
+        }
+
+        // ===== QRスキャナー =====
+        function startScanner() {
+            document.getElementById('qr-placeholder').style.display = 'none';
+            html5QrCode = new Html5Qrcode("qr-reader");
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                onScanSuccess,
+                onScanFailure
+            ).catch(err => {
+                console.error('Camera error:', err);
+                showToast('カメラを起動できませんでした', 'error');
+                document.getElementById('qr-placeholder').style.display = 'block';
+            });
+        }
+
+        // コードの正規化（先頭ゼロの有無を吸収）
+        function normalizeCode(code) {
+            if (!code) return '';
+            const s = String(code).replace(/^[A-Za-z]+/, '');
+            const n = parseInt(s, 10);
+            return isNaN(n) ? String(code).trim() : String(n);
+        }
+
+        function onScanSuccess(decodedText) {
+            // 重複防止（同じコードを1.5秒間無視）
+            const normalizedScanned = normalizeCode(decodedText);
+            if (scanCooldown && lastScannedCode === normalizedScanned) return;
+
+            const medicine = stockData.find(m => normalizeCode(m.code) === normalizedScanned);
+
+            if (medicine) {
+                lastScannedCode = normalizedScanned;
+                scanCooldown = true;
+                setTimeout(() => { scanCooldown = false; }, 1500);
+
+                if (navigator.vibrate) navigator.vibrate(100);
+
+                // 即バッチ追加 + ポップアップ通知
+                addToBatchDirect(medicine);
+                showScanPopup(medicine, true);
+            } else {
+                const stockCodes = stockData.slice(0, 3).map(m => `${m.code}→${normalizeCode(m.code)}`).join(', ');
+                const debugMsg = `未登録の薬品です\n\nスキャン: ${decodedText}\n正規化後: ${normalizedScanned}\n\nデータ数: ${stockData.length}件\n登録コード例:\n${stockCodes}`;
+                alert(debugMsg);
+            }
+        }
+
+        function onScanFailure(error) {
+        }
+
+        // ===== 患者オートコンプリート =====
+        function showPatientAutocomplete(query) {
+            const container = document.getElementById('patient-autocomplete');
+            if (!query || query.length < 1) {
+                container.classList.remove('show');
+                return;
+            }
+            const queryLower = query.toLowerCase();
+            const filtered = patientData.filter(p =>
+                p.id.includes(query) ||
+                p.name.includes(query) ||
+                (p.furigana && p.furigana.toLowerCase().includes(queryLower))
+            ).slice(0, 5);
+            if (filtered.length === 0) {
+                container.classList.remove('show');
+                return;
+            }
+            container.innerHTML = filtered.map(p => `
+                <div class="patient-autocomplete-item" onclick="selectPatientFromAutocomplete('${p.id}', '${p.name}')">
+                    <div class="patient-name">${p.name}</div>
+                    <div class="patient-id">ID: ${p.id}${p.furigana ? ' / ' + p.furigana : ''}</div>
+                </div>
+            `).join('');
+            container.classList.add('show');
+        }
+
+        function selectPatientFromAutocomplete(id, name) {
+            selectedPatient = { id, name };
+            document.getElementById('patient-input').value = name;
+            document.getElementById('patient-autocomplete').classList.remove('show');
+            updateActionButtons();
+        }
+
+        function hidePatientAutocomplete() {
+            setTimeout(() => {
+                document.getElementById('patient-autocomplete').classList.remove('show');
+            }, 200);
+        }
+
+        // ===== ボタン状態管理 =====
+        function updateActionButtons() {
+            const submitBtn = document.getElementById('submit-btn');
+
+            const totalItems = batchItems.length;
+            if (totalItems > 0) {
+                submitBtn.style.display = 'flex';
+                submitBtn.disabled = false;
+                const modeLabel = currentMode === 'in' ? '入庫' : currentMode === 'adjust' ? '修正（棚卸）' : currentMode === 'addmed' ? '' : '出庫';
+                const modeIcon = currentMode === 'in' ? '📥' : currentMode === 'adjust' ? '📝' : currentMode === 'addmed' ? '' : '📤';
+                const modeClass = currentMode === 'in' ? 'in-mode' : currentMode === 'adjust' ? 'in-mode' : currentMode === 'addmed' ? 'in-mode' : 'out-mode';
+                submitBtn.className = `submit-btn ${modeClass}`;
+                submitBtn.innerHTML = `${modeIcon} まとめて${modeLabel}（${totalItems}件）`;
+            } else {
+                submitBtn.style.display = 'none';
+            }
+        }
+
+
+
+        function removeBatchItem(index) {
+            const item = batchItems[index];
+            if (!item) return;
+            const name = item.medicine ? item.medicine.name : '';
+            if (!confirm(`「${name}」をリストから削除しますか？`)) return;
+            batchItems.splice(index, 1);
+            renderBatchList();
+            updateActionButtons();
+        }
+
+        function changeBatchQty(index, delta) {
+            const item = batchItems[index];
+            item.quantity = Math.max(1, item.quantity + delta);
+            renderBatchList();
+            if (navigator.vibrate) navigator.vibrate(30);
+        }
+
+        function setAdjustQty(index, value) {
+            const qty = parseInt(value, 10);
+            if (isNaN(qty) || qty < 0) return;
+            batchItems[index].quantity = qty;
+            if (navigator.vibrate) navigator.vibrate(30);
+        }
+
+        function setOutQty(index, value) {
+            const qty = parseInt(value, 10);
+            if (isNaN(qty) || qty < 1) return;
+            batchItems[index].quantity = qty;
+            if (navigator.vibrate) navigator.vibrate(30);
+        }
+
+        function setInQty(index, value) {
+            const qty = parseInt(value, 10);
+            if (isNaN(qty) || qty < 1) return;
+            batchItems[index].quantity = qty;
+            if (navigator.vibrate) navigator.vibrate(30);
+        }
+
+        function renderBatchList() {
+            const card = document.getElementById('batch-card');
+            const list = document.getElementById('batch-list');
+            const count = document.getElementById('batch-count');
+
+            if (batchItems.length === 0) {
+                card.style.display = 'none';
+                return;
+            }
+
+            card.style.display = 'block';
+            count.textContent = batchItems.length;
+
+            list.innerHTML = batchItems.map((item, i) => `
+                <div class="batch-item">
+                    <div class="batch-item-info">
+                        <div class="batch-item-name">${item.medicine.name}</div>
+                        <div class="batch-item-detail">${item.patient ? item.patient.name : ''}</div>
+                    </div>
+                    <div class="batch-item-controls">
+                        ${item.mode === 'adjust' ? `
+                        <span style="color:#f59e0b;font-weight:700;font-size:13px;">→</span>
+                        <input type="number" class="adjust-input" min="0" value="${item.quantity}"
+                            onchange="setAdjustQty(${i}, this.value)" onfocus="this.select()">
+                        <span style="color:var(--text-muted);font-size:12px;">${item.medicine.unit || ''}</span>
+                        ` : item.mode === 'out' ? `
+                        <span style="color:var(--danger);font-weight:700;font-size:13px;">−</span>
+                        <input type="number" class="out-input" min="1" value="${item.quantity}"
+                            onchange="setOutQty(${i}, this.value)" onfocus="this.select()">
+                        <span style="color:var(--text-muted);font-size:12px;">${item.medicine.unit || ''}</span>
+                        ` : item.mode === 'in' ? `
+                        <span style="color:var(--success);font-weight:700;font-size:13px;">＋</span>
+                        <input type="number" class="out-input" min="1" value="${item.quantity}"
+                            onchange="setInQty(${i}, this.value)" onfocus="this.select()">
+                        <span style="color:var(--text-muted);font-size:12px;">${item.medicine.unit || ''}</span>
+                        ` : `
+                        <button class="batch-qty-btn" onclick="changeBatchQty(${i}, -1)">−</button>
+                        <span class="batch-item-qty ${item.mode}">${item.mode === 'in' ? '+' : '-'}${item.quantity}</span>
+                        <button class="batch-qty-btn" onclick="changeBatchQty(${i}, 1)">＋</button>
+                        `}
+                    </div>
+                    <button class="batch-remove-btn" onclick="removeBatchItem(${i})">✕</button>
+                </div>
+            `).join('');
+        }
+
+        // ===== 一括送信 =====
+        async function submitAll() {
+            if (batchItems.length === 0) return;
+
+            // 担当者必須チェック
+            const operator = document.getElementById('operator-select').value;
+            if (!operator) {
+                showToast('担当者を選択してください', 'error');
+                document.getElementById('operator-select').focus();
+                return;
+            }
+
+            // 出庫モードでは患者入力を必須チェック
+            if (currentMode === 'out') {
+                const patientInputVal = document.getElementById('patient-input').value;
+                if (!patientInputVal) {
+                    showToast('患者を入力してから送信してください', 'error');
+                    document.getElementById('patient-input').focus();
+                    return;
+                }
+                // 在庫を超える出庫はその場で知らせる。
+                // 黙って通すと在庫がマイナスのまま積み上がり、実数が分からなくなる。
+                const short = batchItems.filter(it => {
+                    if (it.mode !== 'out') return false;
+                    if ((it.medicine.category || '').replace('[旧]', '').startsWith('外用')) return false;  // 外用薬は在庫を減らさない
+                    const m = stockData.find(x => normalizeCode(x.code) === normalizeCode(it.medicine.code));
+                    return m && it.quantity > (m.stock || 0);
+                });
+                if (short.length) {
+                    const detail = short.map(it => {
+                        const m = stockData.find(x => normalizeCode(x.code) === normalizeCode(it.medicine.code));
+                        return `・${it.medicine.name}　在庫${m.stock}${m.unit} に対して ${it.quantity}${m.unit}`;
+                    }).join('\n');
+                    if (!confirm('在庫数を超える出庫があります。\n\n' + detail +
+                        '\n\n在庫の記録が実際とずれている可能性があります。このまま送信しますか？\n' +
+                        '（棚卸修正で実数を入れてから出庫するのが確実です）')) return;
+                }
+            }
+
+            // 確認ポップアップを表示
+            showConfirmPopup();
+        }
+
+        async function doSubmitAll() {
+            const operator = document.getElementById('operator-select').value;
+            const entryDate = document.getElementById('entry-date').value;
+
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '⏳ 送信中...';
+
+            // 送信時点の情報を全アイテムに付与
+            for (const item of batchItems) {
+                item.operator = operator;
+                item.entryDate = entryDate;
+            }
+            if (currentMode === 'out') {
+                const patientInputVal = document.getElementById('patient-input').value;
+                for (const item of batchItems) {
+                    item.patient = {
+                        id: selectedPatient?.id || '',
+                        name: patientInputVal
+                    };
+                }
+            }
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            if (USE_GAS) {
+                // 全件を1リクエストのバッチで送信（複数リクエスト問題を根本回避）
+                const batchData = batchItems.map(item => {
+                    const note = item.entryDate ? '診察日:' + item.entryDate : '';
+                    if (item.mode === 'in') {
+                        return { action: 'stockIn', code: item.medicine.code, medicineName: item.medicine.name, quantity: item.quantity, operator: item.operator || '担当者', note: note };
+                    } else if (item.mode === 'adjust') {
+                        return { action: 'stockAdjust', code: item.medicine.code, medicineName: item.medicine.name, newQuantity: item.quantity, reason: '棚卸', operator: item.operator || '担当者', note: note };
+                    } else {
+                        const outData = { action: 'stockOut', code: item.medicine.code, medicineName: item.medicine.name, quantity: item.quantity, patientId: item.patient?.id || '', patientName: item.patient?.name || '', operator: item.operator || '担当者', note: note };
+                        // 外用薬は出庫履歴に記録するが在庫数は変更しない
+                        if ((item.medicine.category || '').replace('[旧]','').startsWith('外用')) {
+                            outData.skipStockUpdate = true;
+                        }
+                        return outData;
+                    }
+                });
+                try {
+                    // POST送信（GETだとURLクエリパラメータの長さ制限で棚卸等の大量データが失敗する)
+                    const result = await gasPost('batch', { items: batchData });
+                    if (result && result.success) {
+                        successCount = batchItems.length;
+                    } else if (result && result.results) {
+                        successCount = result.results.filter(r => r.result && r.result.success).length;
+                        errorCount = batchItems.length - successCount;
+                    } else {
+                        errorCount = batchItems.length;
+                        console.error('GAS batch error:', result);
+                    }
+                } catch (e) {
+                    errorCount = batchItems.length;
+                    console.error('GAS batch request failed:', e);
+                }
+            } else {
+                successCount = batchItems.length;
+            }
+
+            // 出庫の場合、処方履歴（夜間休日外来DB）にも記録
+            if (USE_GAS && currentMode === 'out' && successCount > 0) {
+                const patientInputVal = document.getElementById('patient-input').value;
+                const drugsForPrescription = batchItems
+                    .filter(item => item.mode === 'out')
+                    .map(item => ({ name: item.medicine.name, quantity: item.quantity }));
+                if (patientInputVal && drugsForPrescription.length > 0) {
+                    try {
+                        const prescResult = await gasGet('recordPrescription', {
+                            patientName: patientInputVal,
+                            operator: operator,
+                            entryDate: entryDate,
+                            drugs: JSON.stringify(drugsForPrescription)
+                        });
+                        if (prescResult && prescResult.success) {
+                            const matchMsg = prescResult.matched ? '患者一致' : '名前不一致→右セクション';
+                            console.log('処方履歴記録成功:', matchMsg);
+                        } else {
+                            console.warn('処方履歴記録失敗:', prescResult);
+                        }
+                    } catch (e) {
+                        console.error('処方履歴記録エラー:', e);
+                    }
+                }
+            }
+
+            // ローカル在庫データ・履歴を更新
+            for (const item of batchItems) {
+                const normalizedCode = normalizeCode(item.medicine.code);
+                const idx = stockData.findIndex(m => normalizeCode(m.code) === normalizedCode);
+                if (idx >= 0) {
+                    const isExt = (stockData[idx].category || '').replace('[旧]','').startsWith('外用');
+                    if (item.mode === 'adjust') {
+                        stockData[idx].stock = item.quantity;
+                    } else if (item.mode === 'in') {
+                        stockData[idx].stock += item.quantity;
+                    } else if (!isExt) {
+                        // 外用薬は出庫時に在庫数を減算しない
+                        stockData[idx].stock -= item.quantity;
+                    }
+                }
+
+                historyData.unshift({
+                    date: item.entryDate || new Date().toISOString().split('T')[0],
+                    time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+                    type: item.mode,
+                    medicine: item.medicine.name,
+                    code: item.medicine.code,
+                    quantity: item.quantity,
+                    unit: item.medicine.unit,
+                    patient: item.patient?.name || null
+                });
+            }
+
+            // Supabaseにもトランザクション記録+在庫更新
+            syncToSupabase(batchItems).catch(e => console.warn('Supabase sync error:', e));
+            renderMasterAlert();   // 出庫の結果マイナスになった薬をその場で表に出す
+
+            const modeLabel = currentMode === 'in' ? '入庫' : currentMode === 'adjust' ? '棚卸修正' : '出庫';
+            showToast(`${successCount}件の${modeLabel}を送信しました`, 'success');
+
+            batchItems = [];
+            renderBatchList();
+            updateActionButtons();
+
+            // 送信後にフォームをクリア（患者名・担当者・薬品選択）
+            document.getElementById('patient-input').value = '';
+            document.getElementById('operator-select').value = '';
+            // 診察日は当日にリセット
+            document.getElementById('entry-date').value = new Date().toISOString().split('T')[0];
+            selectedPatient = null;
+            selectedMedicine = null;
+            document.querySelectorAll('.patient-chip').forEach(c => c.classList.remove('selected'));
+
+            // 送信後にGASから最新在庫を再取得して正確な値に更新
+            if (USE_GAS) {
+                setTimeout(async () => {
+                    await loadStockFromGAS();
+                    renderStockList();
+                }, 3000);
+            } else {
+                renderStockList();
+            }
+        }
+
+        function resetForm() {
+            selectedMedicine = null;
+            quantity = 1;
+            selectedPatient = null;
+            document.getElementById('patient-input').value = '';
+            document.querySelectorAll('.patient-chip').forEach(c => c.classList.remove('selected'));
+            updateActionButtons();
+        }
+
+        // ===== スキャン通知ポップアップ =====
+        function showScanPopup(medicine, wasStacked) {
+            const overlay = document.getElementById('scan-popup-overlay');
+            document.getElementById('scan-popup-icon').textContent = '💊';
+            document.getElementById('scan-popup-name').textContent = medicine.name;
+            const catInfo = medicine.category ? `　${medicine.category}` : '';
+            document.getElementById('scan-popup-detail').textContent = `コード: ${medicine.code}　現在庫: ${medicine.stock} ${medicine.unit}${catInfo}`;
+
+            const badge = document.getElementById('scan-popup-badge');
+            badge.textContent = `リストに追加しました（${batchItems.length}件目）`;
+            badge.className = 'scan-popup-badge stacked';
+
+            overlay.classList.add('show');
+
+            if (scanPopupTimer) clearTimeout(scanPopupTimer);
+            const duration = 1200;
+            scanPopupTimer = setTimeout(() => {
+                overlay.classList.remove('show');
+            }, duration);
+        }
+
+        function closeScanPopup() {
+            document.getElementById('scan-popup-overlay').classList.remove('show');
+            if (scanPopupTimer) clearTimeout(scanPopupTimer);
+        }
+
+        // ===== 即バッチ追加 =====
+        function addToBatchDirect(medicine) {
+            const item = {
+                mode: currentMode,
+                medicine: { ...medicine },
+                quantity: currentMode === 'adjust' ? medicine.stock : 1,
+            };
+
+            batchItems.push(item);
+            renderBatchList();
+            updateActionButtons();
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+
+        // ===== トースト通知 =====
+        function showToast(message, type = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // ===== タブ切替 =====
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+            const tabIndex = ['scan', 'stock', 'receive', 'order', 'history', 'consumption'].indexOf(tabName);
+            if (tabIndex >= 0) document.querySelectorAll('.nav-item')[tabIndex].classList.add('active');
+            if (tabName === 'stock') renderStockList();
+            if (tabName === 'receive') rcInit();
+            if (tabName === 'order') odLoad();
+            if (tabName === 'consumption' && !window._consumptionLoaded) loadMonthlyConsumption();
+            if (tabName === 'history') {
+                renderHistory();
+                if (USE_GAS) loadHistoryFromGAS();
+            }
+        }
+
+        // ===== 在庫一覧 =====
+        let currentCategoryFilter = '';
+        let multiSelectMode = true; // デフォルト: 複数選択モード
+        let multiSelectedCodes = new Set();
+        let currentWeightFilter = '';
+
+        // 体重別用量マッピング（画像テーブル準拠）
+        const weightDoseMap = {
+            '6m': {
+                label: '6ヶ月(7kg)',
+                codes: ['M005','M010','M016','M015','M031','M026','M032'],
+                notes: { 'M015': '0.3g×1包', 'M031': '1.0g処方' }
+            },
+            '1y': {
+                label: '1歳(10kg)',
+                codes: ['M001','M006','M011','M017','M015','M031','M027','M033'],
+                notes: { 'M015': '0.3g×1包', 'M031': '1.5g処方' }
+            },
+            '3y': {
+                label: '3歳(15kg)',
+                codes: ['M002','M007','M012','M018','M015','M031','M023','M028','M034'],
+                notes: { 'M015': '0.6g×2包', 'M031': '2.0g処方' }
+            },
+            '5y': {
+                label: '5歳(20kg)',
+                codes: ['M003','M008','M013','M019','M015','M031','M024','M029','M035'],
+                notes: { 'M015': '0.6g×2包', 'M031': '3.0g処方' }
+            },
+            '7y': {
+                label: '7歳(25kg)',
+                codes: ['M004','M009','M014','M020','M015','M031','M025','M030','M036'],
+                notes: { 'M015': '0.6g×2包', 'M031': '3.5g処方' }
+            }
+        };
+
+        function setWeightFilter(weight) {
+            currentWeightFilter = weight;
+            // ボタンのactive状態を更新
+            document.querySelectorAll('.weight-btn').forEach(b => b.classList.remove('active'));
+            if (weight) {
+                event.target.classList.add('active');
+                // 体重選択時は自動で小児カテゴリに切替
+                currentCategoryFilter = '小児';
+                document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.cat-btn').forEach(b => {
+                    if (b.textContent === '小児') b.classList.add('active');
+                });
+            }
+            filterStock();
+        }
+
+        function toggleMultiSelect() {
+            multiSelectMode = document.getElementById('multi-select-toggle').checked;
+            multiSelectedCodes.clear();
+            updateMultiSelectBar();
+            renderStockList(document.getElementById('stock-search')?.value || '');
+        }
+
+        function toggleStockCheck(code, ev) {
+            ev.stopPropagation();
+            if (multiSelectedCodes.has(code)) {
+                multiSelectedCodes.delete(code);
+            } else {
+                multiSelectedCodes.add(code);
+            }
+            // チェック状態のUI更新
+            const el = ev.target.closest('.stock-item');
+            if (el) el.classList.toggle('checked', multiSelectedCodes.has(code));
+            updateMultiSelectBar();
+        }
+
+        function updateMultiSelectBar() {
+            const bar = document.getElementById('multi-select-bar');
+            const count = multiSelectedCodes.size;
+            document.getElementById('multi-select-count').textContent = `${count}件選択中`;
+            bar.classList.toggle('show', count > 0);
+        }
+
+        function addMultiSelected() {
+            if (multiSelectedCodes.size === 0) return;
+            for (const code of multiSelectedCodes) {
+                const medicine = stockData.find(m => m.code === code);
+                if (medicine) addToBatchDirect(medicine);
+            }
+            showToast(`${multiSelectedCodes.size}件をリストに追加しました`, 'success');
+            multiSelectedCodes.clear();
+            updateMultiSelectBar();
+            renderStockList(document.getElementById('stock-search')?.value || '');
+            switchTab('scan');
+            setTimeout(() => {
+                const batchCard = document.getElementById('batch-card');
+                if (batchCard) batchCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+
+        function clearMultiSelect() {
+            multiSelectedCodes.clear();
+            updateMultiSelectBar();
+            document.querySelectorAll('.stock-item.checked').forEach(el => el.classList.remove('checked'));
+        }
+
+        function setCategoryFilter(cat) {
+            currentCategoryFilter = cat;
+            // カテゴリ変更時は体重フィルタを解除
+            if (cat !== '小児') {
+                currentWeightFilter = '';
+                document.querySelectorAll('.weight-btn').forEach(b => b.classList.remove('active'));
+            }
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            filterStock();
+        }
+
+        function getCatColorClass(category) {
+            const cat = (category || '').toLowerCase();
+            if (cat.includes('解熱') || cat.includes('鎮痛')) return 'cat-fever';
+            if (cat.includes('咳止め')) return 'cat-cough';
+            if (cat.includes('去痰')) return 'cat-phlegm';
+            if (cat.includes('抗生') || cat.includes('抗菌')) return 'cat-antibiotic';
+            if (cat.includes('アレルギー')) return 'cat-allergy';
+            if (cat.includes('整腸') || cat.includes('消化') || cat.includes('潰瘍')) return 'cat-stomach';
+            if (cat.includes('吐気')) return 'cat-nausea';
+            if (cat.includes('インフルエンザ')) return 'cat-flu';
+            if (cat.includes('漢方')) return 'cat-kampo';
+            if (cat.includes('検査')) return 'cat-test';
+            return '';
+        }
+
+        function renderStockItem(m) {
+            const isExternal = (m.category || '').replace('[旧]','').startsWith('外用');
+            const baseClass = (m.category || '').startsWith('小児') ? 'child' : isExternal ? 'external' : '';
+            const colorClass = getCatColorClass(m.category);
+            const catClass = colorClass || baseClass;
+            const subCat = (m.category || '').split('/').slice(1).join('/');
+            const metaParts = [m.usage, m.price ? `¥${m.price}` : '', m.target && m.target !== '成人' ? m.target : ''].filter(Boolean);
+            if (isExternal) metaParts.unshift('外用');
+            const isChecked = multiSelectedCodes.has(m.code);
+            const clickAction = multiSelectMode
+                ? `toggleStockCheck('${m.code}', event)`
+                : `selectFromStock('${m.code}')`;
+            // 体重別ノート（フェキソフェナジン・クラリスロマイシン等の特記事項）
+            const wMap = currentWeightFilter ? weightDoseMap[currentWeightFilter] : null;
+            const doseNote = wMap && wMap.notes && wMap.notes[m.code] ? wMap.notes[m.code] : '';
+            return `
+            <div class="stock-item${isChecked ? ' checked' : ''}" onclick="${clickAction}" style="cursor:pointer;">
+                ${multiSelectMode ? `<input type="checkbox" class="stock-checkbox" ${isChecked ? 'checked' : ''} onclick="toggleStockCheck('${m.code}', event)">` : ''}
+                <div class="stock-info">
+                    <div class="stock-name">${m.name}</div>
+                    <div class="stock-code">${m.code}${subCat ? ` <span class="stock-category ${catClass}">${subCat}</span>` : ''}${doseNote ? ` <span class="weight-dose-badge">${doseNote}</span>` : ''}</div>
+                    ${metaParts.length ? `<div class="stock-meta">${metaParts.join(' ｜ ')}</div>` : ''}
+                    ${(m.costPerUnit != null || m.rezeptCode) ? `<div class="cost-line">${
+                        [ m.rezeptCode ? `レセ電 ${m.rezeptCode}` : '',
+                          m.costPerUnit != null ? `原価 ¥${m.costPerUnit.toFixed(2)}/${m.unit}` : '',
+                          m.marginRate != null ? `薬価差 ${m.marginRate}%` : '',
+                          m.supplierName || '' ].filter(Boolean).join(' ｜ ')
+                    }</div>` : ''}
+                </div>
+                <div style="text-align:right">
+                    <span class="stock-qty" style="${m.stock <= m.threshold ? 'color:var(--danger)' : ''}">${m.stock}</span>
+                    <span class="stock-unit">${m.unit}</span>
+                    ${m.costPerUnit != null ? `<div class="cost-line">${YEN(m.costPerUnit * m.stock)}</div>` : ''}
+                </div>
+            </div>`;
+        }
+
+        let otherDrugsOpen = false;
+
+        function toggleOtherDrugs() {
+            otherDrugsOpen = !otherDrugsOpen;
+            const toggle = document.getElementById('other-drugs-toggle');
+            const list = document.getElementById('other-drugs-list');
+            if (toggle) toggle.className = 'other-drugs-toggle' + (otherDrugsOpen ? ' open' : '');
+            if (list) list.className = 'other-drugs-list' + (otherDrugsOpen ? ' open' : '');
+        }
+
+        function renderStockList(filter = '') {
+            const container = document.getElementById('stock-list');
+            const lf = filter.toLowerCase();
+            const wMap = currentWeightFilter ? weightDoseMap[currentWeightFilter] : null;
+            const filtered = stockData.filter(m => {
+                const matchText = !lf ||
+                    m.name.toLowerCase().includes(lf) ||
+                    m.code.includes(filter) ||
+                    (m.category || '').toLowerCase().includes(lf) ||
+                    (m.maker || '').toLowerCase().includes(lf);
+                const matchCat = !currentCategoryFilter ||
+                    (m.category || '').startsWith(currentCategoryFilter);
+                // 体重フィルタ: 選択中は該当コードのみ表示
+                const matchWeight = !wMap || wMap.codes.includes(m.code);
+                return matchText && matchCat && matchWeight;
+            });
+            const csvItems = filtered.filter(m => m.csvGroup === 'csv' || m.csvGroup === 'master');
+            const otherItems = filtered.filter(m => m.csvGroup !== 'csv' && m.csvGroup !== 'master');
+
+            let html = '';
+            if (wMap) {
+                html += `<div style="grid-column:1/-1; background:#fff3e0; padding:8px 12px; border-radius:8px; font-size:13px; color:#e65100; font-weight:600; margin-bottom:4px;">
+                    📏 ${wMap.label} の処方用量で表示中</div>`;
+            }
+            html += csvItems.map(m => renderStockItem(m)).join('');
+
+            if (!wMap && otherItems.length > 0) {
+                html += `<div id="other-drugs-toggle" class="other-drugs-toggle${otherDrugsOpen ? ' open' : ''}" onclick="toggleOtherDrugs()">
+                    <span>▼ CSV外の薬剤（${otherItems.length}品目）</span>
+                    <span class="toggle-arrow">▾</span>
+                </div>
+                <div id="other-drugs-list" class="other-drugs-list${otherDrugsOpen ? ' open' : ''}">
+                    ${otherItems.map(m => renderStockItem(m)).join('')}
+                </div>`;
+            }
+
+            const titleEl = container.parentElement.querySelector('.card-title');
+            if (wMap) {
+                titleEl.innerHTML = `📏 体重別選択: ${wMap.label}（${csvItems.length}品目）`;
+            } else {
+                // 旧「CSV○品目＋その他○品目」はCSV取込を廃止した名残で、常に CSV 0品目 と出ていた
+                titleEl.innerHTML = `🔍 薬品検索（薬品マスタ ${stockData.length}品目）`;
+            }
+
+            container.innerHTML = html;
+            if (typeof renderStockValueBand === 'function') renderStockValueBand();
+        }
+
+        function filterStock() {
+            const query = document.getElementById('stock-search').value;
+            renderStockList(query);
+        }
+
+        function selectFromStock(code) {
+            const normalizedCode = normalizeCode(code);
+            const medicine = stockData.find(m => normalizeCode(m.code) === normalizedCode);
+            if (!medicine) return;
+            addToBatchDirect(medicine);
+            showScanPopup(medicine, true);
+            if (navigator.vibrate) navigator.vibrate(50);
+            switchTab('scan');
+            setTimeout(() => {
+                const batchCard = document.getElementById('batch-card');
+                if (batchCard) batchCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+
+        // ===== 履歴 =====
+        let historyViewMode = 'timeline'; // 'timeline' or 'patient'
+
+        function setHistoryView(mode) {
+            historyViewMode = mode;
+            document.querySelectorAll('.history-view-toggle button').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            historyDisplayCount = HISTORY_PAGE_SIZE;
+            renderHistoryPaged();
+        }
+
+        function renderHistory() {
+            applyHistoryFilter();
+        }
+
+        // 履歴フィルタ（ローカルフィルタリング）
+        let filteredHistoryData = [];
+
+        function filterHistory() {
+            // 全履歴をローカル保持しているため再取得不要。日付・検索はローカルで絞り込み。
+            historyDisplayCount = HISTORY_PAGE_SIZE;
+            applyHistoryFilter();
+        }
+
+        function applyHistoryFilter() {
+            const search = (document.getElementById('history-search')?.value || '').toLowerCase();
+            const dateFrom = document.getElementById('history-date-from')?.value || '';
+            const dateTo = document.getElementById('history-date-to')?.value || '';
+
+            filteredHistoryData = allHistoryData.filter(h => {
+                if (search && !h.medicine.toLowerCase().includes(search)
+                    && !(h.patient && h.patient.toLowerCase().includes(search))
+                    && !(h.operator && h.operator.toLowerCase().includes(search))) return false;
+                if (dateFrom && h.date < dateFrom) return false;
+                if (dateTo && h.date > dateTo) return false;
+                return true;
+            });
+
+            renderHistoryPaged();
+        }
+
+        function renderHistoryItem(h, idx) {
+            let icon, qtyClass, qtyText;
+            if (h.type === 'adjust') {
+                icon = '📝'; qtyClass = 'adjust'; qtyText = `→${h.quantity}${h.unit}`;
+            } else if (h.type === 'in') {
+                icon = '📥'; qtyClass = 'in'; qtyText = `+${h.quantity}${h.unit}`;
+            } else {
+                icon = '📤'; qtyClass = 'out'; qtyText = `-${h.quantity}${h.unit}`;
+            }
+            const isSelected = historySelectedForDelete.has(idx);
+            return `
+                <div class="history-item${isSelected ? ' selected-for-delete' : ''}" ${historyDeleteMode ? `onclick="toggleHistorySelect(${idx})" style="cursor:pointer;"` : ''}>
+                    ${historyDeleteMode ? `<input type="checkbox" class="history-checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleHistorySelect(${idx})">` : ''}
+                    <div class="history-icon ${h.type}">${icon}</div>
+                    <div class="history-content">
+                        <div class="history-medicine">${h.medicine}</div>
+                        <div class="history-detail">${h.date} ${h.time}${h.operator ? ' • ' + h.operator : ''}${h.patient ? ' • ' + h.patient : ''}${h.type === 'adjust' ? ' • 棚卸修正' : ''}</div>
+                    </div>
+                    <div class="history-qty ${qtyClass}">${qtyText}</div>
+                </div>
+            `;
+        }
+
+        function renderHistoryPaged() {
+            const container = document.getElementById('history-list');
+            const total = filteredHistoryData.length;
+
+            if (total === 0) {
+                container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">該当する履歴がありません</div>';
+                return;
+            }
+
+            let deleteBar = '';
+            if (historyDeleteMode && historySelectedForDelete.size > 0) {
+                deleteBar = `<div class="history-delete-bar">
+                    <span class="delete-count">${historySelectedForDelete.size}件選択中</span>
+                    <div style="display:flex; gap:6px;">
+                        <button class="history-delete-cancel-btn" onclick="clearHistorySelection()">選択解除</button>
+                        <button class="history-delete-btn" onclick="confirmDeleteHistory()">🗑 削除</button>
+                    </div>
+                </div>`;
+            }
+
+            if (historyViewMode === 'patient') {
+                // 患者別グループ表示
+                const groups = {};
+                const noPatient = [];
+                filteredHistoryData.forEach((h, i) => {
+                    h._filteredIdx = i;
+                    const key = h.patient || '';
+                    if (!key) { noPatient.push(h); return; }
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(h);
+                });
+                // 患者名を最終操作日時の新しい順にソート
+                const sortedKeys = Object.keys(groups).sort((a, b) => {
+                    const aLatest = groups[a][0]?.date + ' ' + groups[a][0]?.time || '';
+                    const bLatest = groups[b][0]?.date + ' ' + groups[b][0]?.time || '';
+                    return bLatest.localeCompare(aLatest);
+                });
+                let html = deleteBar;
+                for (const name of sortedKeys) {
+                    const items = groups[name];
+                    html += `<div class="history-group-header">
+                        <span>${name}</span>
+                        <span class="group-count">${items.length}件</span>
+                    </div>`;
+                    html += items.map(h => renderHistoryItem(h, h._filteredIdx)).join('');
+                }
+                if (noPatient.length > 0) {
+                    html += `<div class="history-group-header" style="background: var(--text-muted);">
+                        <span>入庫・棚卸（患者なし）</span>
+                        <span class="group-count">${noPatient.length}件</span>
+                    </div>`;
+                    html += noPatient.map(h => renderHistoryItem(h, h._filteredIdx)).join('');
+                }
+                html += `<div style="text-align:center; padding:12px; color:var(--text-muted); font-size:13px;">
+                    全 ${total} 件（${sortedKeys.length + (noPatient.length ? 1 : 0)} グループ）</div>`;
+                container.innerHTML = html;
+            } else {
+                // 時系列表示（従来通り）
+                const showing = Math.min(historyDisplayCount, total);
+                const slice = filteredHistoryData.slice(0, showing);
+                let html = deleteBar;
+                html += slice.map((h, i) => renderHistoryItem(h, i)).join('');
+
+                html += `<div style="text-align:center; padding:12px; color:var(--text-muted); font-size:13px;">
+                    ${showing} / ${total} 件表示`;
+                if (showing < total) {
+                    html += ` <button onclick="loadMoreHistory()" style="margin-left:8px; padding:6px 16px; border:1px solid var(--primary); border-radius:6px; background:white; color:var(--primary); font-size:13px; cursor:pointer;">さらに${Math.min(HISTORY_PAGE_SIZE, total - showing)}件読み込む</button>`;
+                }
+                html += `</div>`;
+                container.innerHTML = html;
+            }
+        }
+
+        function loadMoreHistory() {
+            historyDisplayCount += HISTORY_PAGE_SIZE;
+            renderHistoryPaged();
+        }
+
+        function toggleHistoryDeleteMode() {
+            historyDeleteMode = !historyDeleteMode;
+            historySelectedForDelete.clear();
+            const btn = document.getElementById('history-edit-btn');
+            btn.classList.toggle('active', historyDeleteMode);
+            btn.textContent = historyDeleteMode ? '完了' : '編集';
+            renderHistoryPaged();
+        }
+
+        function toggleHistorySelect(idx) {
+            if (historySelectedForDelete.has(idx)) {
+                historySelectedForDelete.delete(idx);
+            } else {
+                historySelectedForDelete.add(idx);
+            }
+            renderHistoryPaged();
+        }
+
+        function clearHistorySelection() {
+            historySelectedForDelete.clear();
+            renderHistoryPaged();
+        }
+
+        async function confirmDeleteHistory() {
+            const count = historySelectedForDelete.size;
+            if (count === 0) return;
+
+            const confirmed = confirm(`選択した ${count} 件の履歴を削除しますか？\n\n在庫数も自動的に調整されます。\n（入庫→在庫減算、出庫→在庫加算）`);
+            if (!confirmed) return;
+
+            // 選択された履歴エントリを取得
+            const toDelete = [];
+            for (const idx of historySelectedForDelete) {
+                if (filteredHistoryData[idx]) {
+                    toDelete.push(filteredHistoryData[idx]);
+                }
+            }
+
+            if (USE_GAS) {
+                // Supabaseから該当トランザクションを削除（idベース）。GAS非依存。
+                const ids = toDelete.map(h => h._sbId).filter(v => v != null);
+                if (ids.length === 0) {
+                    showToast('この履歴はSupabaseに存在しないため削除できません', 'error');
+                    return;
+                }
+                const delRes = await sbFetch('pharmacy_transactions?id=in.(' + ids.join(',') + ')', {
+                    method: 'DELETE',
+                    headers: { 'Prefer': 'return=representation' }
+                });
+                if (!delRes) {
+                    showToast('削除に失敗しました', 'error');
+                    return;
+                }
+                showToast(`${count}件の履歴を削除しました`, 'success');
+
+                // ローカルデータと在庫を同期し、Supabaseの在庫数も戻す
+                for (const h of toDelete) {
+                    const localIdx = historyData.indexOf(h);
+                    if (localIdx >= 0) historyData.splice(localIdx, 1);
+                    const allIdx = allHistoryData.indexOf(h);
+                    if (allIdx >= 0) allHistoryData.splice(allIdx, 1);
+
+                    const normalizedCode = normalizeCode(h.code);
+                    const stockIdx = stockData.findIndex(m => normalizeCode(m.code) === normalizedCode);
+                    if (stockIdx >= 0) {
+                        if (h.type === 'in') {
+                            stockData[stockIdx].stock -= h.quantity;
+                        } else if (h.type === 'out') {
+                            const isExt = (stockData[stockIdx].category || '').replace('[旧]','').startsWith('外用');
+                            if (!isExt) stockData[stockIdx].stock += h.quantity;
+                        }
+                        // Supabaseの在庫数も更新（adjustは元値不明のため在庫調整しない＝GAS版と同じ挙動）
+                        if (h.type === 'in' || h.type === 'out') {
+                            await sbFetch('pharmacy_medicines?code=eq.' + encodeURIComponent(stockData[stockIdx].code), {
+                                method: 'PATCH',
+                                body: JSON.stringify({ current_stock: stockData[stockIdx].stock, last_updated: new Date().toISOString() })
+                            });
+                        }
+                    }
+                }
+                renderStockList();
+            } else {
+                // ローカルモード：ローカルデータのみ操作
+                for (const h of toDelete) {
+                    const localIdx = historyData.indexOf(h);
+                    if (localIdx >= 0) historyData.splice(localIdx, 1);
+                    const allIdx = allHistoryData.indexOf(h);
+                    if (allIdx >= 0) allHistoryData.splice(allIdx, 1);
+
+                    const normalizedCode = normalizeCode(h.code);
+                    const stockIdx = stockData.findIndex(m => normalizeCode(m.code) === normalizedCode);
+                    if (stockIdx >= 0) {
+                        if (h.type === 'in') {
+                            stockData[stockIdx].stock -= h.quantity;
+                        } else if (h.type === 'out') {
+                            stockData[stockIdx].stock += h.quantity;
+                        }
+                    }
+                }
+                showToast(`${count}件の履歴を削除しました`, 'success');
+            }
+
+            historySelectedForDelete.clear();
+            historyDeleteMode = false;
+            const btn = document.getElementById('history-edit-btn');
+            btn.classList.remove('active');
+            btn.textContent = '編集';
+            applyHistoryFilter();
+            renderStockList();
+        }
+
+        function setHistoryDatePreset(preset) {
+            const today = new Date();
+            const toStr = today.toISOString().split('T')[0];
+            let fromStr;
+
+            if (preset === 'today') {
+                fromStr = toStr;
+            } else if (preset === 'week') {
+                const d = new Date(today);
+                d.setDate(d.getDate() - 7);
+                fromStr = d.toISOString().split('T')[0];
+            } else if (preset === 'month') {
+                const d = new Date(today);
+                d.setDate(d.getDate() - 30);
+                fromStr = d.toISOString().split('T')[0];
+            } else {
+                // all - clear dates
+                document.getElementById('history-date-from').value = '';
+                document.getElementById('history-date-to').value = '';
+                filterHistory();
+                return;
+            }
+
+            document.getElementById('history-date-from').value = fromStr;
+            document.getElementById('history-date-to').value = toStr;
+            filterHistory();
+        }
+
+        // ===== 手動選択モーダル（カテゴリドリルダウン） =====
+        let modalDrillPath = []; // e.g. [] → ['成人'] → ['成人','解熱鎮痛剤']
+
+        // カテゴリ→アイコンマッピング
+        const catIcons = {
+            '成人': '🧑', '小児': '👶', '外用': '💊',
+            '解熱鎮痛剤': '🌡️', '咳止め': '😷', '止血剤': '🩹', '去痰剤': '💨',
+            '整腸剤': '🫁', '抗アレルギー剤': '🤧', '吐気止め': '🤢', '鎮暈剤': '😵',
+            '消化性潰瘍用剤': '💊', '抗生剤': '💉', '漢方薬': '🍃', '抗インフルエンザ薬': '🦠',
+            '口腔用剤': '👄', 'ホルモン剤': '⚗️', '抗菌剤': '🧫', '抗ヘルペスウィルス薬': '🧬',
+            '睡眠導入剤': '😴', '降圧剤': '❤️', '止痢剤': '🚿', '下剤': '🚽',
+            '解熱薬': '🌡️', '熱性けいれん緩和剤': '⚡',
+            '抗生剤/セフェム系': '💉', '抗生剤/マクロライド系': '💉', '抗生剤/ペニシリン系': '💉',
+            '抗生物質製剤': '🧴', '副腎皮質ホルモン剤': '🧴', 'ステロイド': '🧴',
+            '血行促進・皮膚保湿剤': '🧴', '軟膏基剤': '🧴', 'ヒスタミンH1受容体拮抗薬': '👁️',
+            '気管支拡張剤': '🫁', '気管支痙攣の緩解': '🫁', '解熱鎮痛消炎剤': '🌡️',
+            'Flu+Covid19': '🧪', 'StrepA': '🧪',
+            '鎮痙剤': '💊', '消炎鎮痛剤': '🩹', '浣腸剤': '🚿', '点眼薬': '👁️',
+            '検査キット': '🧪', '救急薬': '🚑', '抗不安薬': '😌', '消炎剤': '🩹',
+            '保湿剤': '🧴',
+        };
+
+        // ===== モーダル薬品選択（在庫タブと同じフィルタ方式） =====
+        let modalCatFilter = '';
+        let modalWeightFilter = '';
+        let modalSelectedCodes = new Set();
+
+        function openManualSelect() {
+            modalCatFilter = '';
+            modalWeightFilter = '';
+            modalSelectedCodes.clear();
+            document.getElementById('modal-search').value = '';
+            // フィルタボタンリセット
+            document.querySelectorAll('#modal-cat-filter .cat-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('#modal-cat-filter .cat-btn').classList.add('active');
+            document.querySelectorAll('#modal-weight-filter .weight-btn').forEach(b => b.classList.remove('active'));
+            updateModalAddBar();
+            document.getElementById('manual-modal').classList.add('show');
+            renderModalList();
+        }
+
+        function closeManualSelect() {
+            document.getElementById('manual-modal').classList.remove('show');
+        }
+
+        function setModalCatFilter(cat, ev) {
+            modalCatFilter = cat;
+            if (cat !== '小児') modalWeightFilter = '';
+            document.querySelectorAll('#modal-cat-filter .cat-btn').forEach(b => b.classList.remove('active'));
+            ev.target.classList.add('active');
+            if (cat !== '小児') {
+                document.querySelectorAll('#modal-weight-filter .weight-btn').forEach(b => b.classList.remove('active'));
+            }
+            renderModalList();
+        }
+
+        function setModalWeightFilter(w, ev) {
+            modalWeightFilter = w;
+            document.querySelectorAll('#modal-weight-filter .weight-btn').forEach(b => b.classList.remove('active'));
+            if (w) {
+                ev.target.classList.add('active');
+                modalCatFilter = '小児';
+                document.querySelectorAll('#modal-cat-filter .cat-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('#modal-cat-filter .cat-btn').forEach(b => {
+                    if (b.textContent === '小児') b.classList.add('active');
+                });
+            }
+            renderModalList();
+        }
+
+        function toggleModalCheck(code, ev) {
+            ev.stopPropagation();
+            if (modalSelectedCodes.has(code)) {
+                modalSelectedCodes.delete(code);
+            } else {
+                modalSelectedCodes.add(code);
+            }
+            const el = ev.target.closest('.stock-item');
+            if (el) el.classList.toggle('checked', modalSelectedCodes.has(code));
+            const cb = el?.querySelector('.stock-checkbox');
+            if (cb) cb.checked = modalSelectedCodes.has(code);
+            updateModalAddBar();
+        }
+
+        function updateModalAddBar() {
+            const bar = document.getElementById('modal-add-bar');
+            const count = modalSelectedCodes.size;
+            document.getElementById('modal-select-count').textContent = `${count}件選択中`;
+            bar.classList.toggle('show', count > 0);
+        }
+
+        function addModalSelected() {
+            if (modalSelectedCodes.size === 0) return;
+            for (const code of modalSelectedCodes) {
+                const medicine = stockData.find(m => m.code === code);
+                if (medicine) addToBatchDirect(medicine);
+            }
+            showToast(`${modalSelectedCodes.size}件をリストに追加しました`, 'success');
+            modalSelectedCodes.clear();
+            updateModalAddBar();
+            closeManualSelect();
+            setTimeout(() => {
+                const batchCard = document.getElementById('batch-card');
+                if (batchCard) batchCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+
+        function clearModalSelected() {
+            modalSelectedCodes.clear();
+            updateModalAddBar();
+            document.querySelectorAll('#modal-list .stock-item.checked').forEach(el => el.classList.remove('checked'));
+            document.querySelectorAll('#modal-list .stock-checkbox').forEach(cb => cb.checked = false);
+        }
+
+        function renderModalList() {
+            const container = document.getElementById('modal-list');
+            const search = (document.getElementById('modal-search').value || '').trim().toLowerCase();
+            const wMap = modalWeightFilter ? weightDoseMap[modalWeightFilter] : null;
+
+            let filtered = stockData.filter(m => {
+                if (search && !m.name.toLowerCase().includes(search) && !m.code.includes(search) && !(m.category || '').toLowerCase().includes(search)) return false;
+                if (modalCatFilter && !(m.category || '').startsWith(modalCatFilter)) return false;
+                if (wMap && !wMap.codes.includes(m.code)) return false;
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;">該当なし</div>';
+                return;
+            }
+
+            let html = '';
+            if (wMap) {
+                html += `<div style="background:#fff3e0; padding:8px 12px; border-radius:8px; font-size:13px; color:#e65100; font-weight:600; margin-bottom:8px;">
+                    📏 ${wMap.label} の処方用量で表示中</div>`;
+            }
+            html += filtered.map(m => {
+                const subCat = (m.category || '').split('/').slice(1).join('/');
+                const isExt = (m.category || '').replace('[旧]','').startsWith('外用');
+                const colorClass = getCatColorClass(m.category);
+                const baseClass = (m.category || '').startsWith('小児') ? 'child' : isExt ? 'external' : '';
+                const catClass = colorClass || baseClass;
+                const metaParts = [m.usage, m.price ? `¥${m.price}` : '', m.target && m.target !== '成人' ? m.target : ''].filter(Boolean);
+                if (isExt) metaParts.unshift('外用');
+                const isChecked = modalSelectedCodes.has(m.code);
+                const doseNote = wMap && wMap.notes && wMap.notes[m.code] ? wMap.notes[m.code] : '';
+                return `
+                <div class="stock-item${isChecked ? ' checked' : ''}" onclick="toggleModalCheck('${m.code}', event)" style="cursor:pointer;">
+                    <input type="checkbox" class="stock-checkbox" ${isChecked ? 'checked' : ''} onclick="toggleModalCheck('${m.code}', event)">
+                    <div class="stock-info">
+                        <div class="stock-name">${m.name}${doseNote ? ` <span class="weight-dose-badge">${doseNote}</span>` : ''}</div>
+                        <div class="stock-code">${m.code}${subCat ? ` <span class="stock-category ${catClass}">${subCat}</span>` : ''}</div>
+                        ${metaParts.length ? `<div class="stock-meta">${metaParts.join(' ｜ ')}</div>` : ''}
+                    </div>
+                    <div style="text-align:right">
+                        <span class="stock-qty" style="${!isExt && m.stock <= m.threshold ? 'color:var(--danger)' : ''}">${isExt ? '外部' : m.stock}</span>
+                        <span class="stock-unit">${isExt ? '' : m.unit}</span>
+                    </div>
+                </div>`;
+            }).join('');
+            container.innerHTML = html;
+        }
+
+        function filterModalList() {
+            renderModalList();
+        }
+
+        // ===== 送信確認ポップアップ =====
+        function showConfirmPopup() {
+            const modeLabel = currentMode === 'in' ? '入庫' : currentMode === 'adjust' ? '棚卸修正' : '出庫';
+            document.getElementById('confirm-title').textContent = `${modeLabel}内容の確認（${batchItems.length}件）`;
+
+            let html = batchItems.map(item => `
+                <div class="confirm-item">
+                    <div class="confirm-item-name">${item.medicine.name}</div>
+                    <div class="confirm-item-qty">${currentMode === 'adjust' ? '→' : currentMode === 'in' ? '+' : '-'}${item.quantity}${item.medicine.unit}</div>
+                </div>
+            `).join('');
+            document.getElementById('confirm-items').innerHTML = html;
+
+            const operator = document.getElementById('operator-select').value;
+            const entryDate = document.getElementById('entry-date').value;
+            const patient = currentMode === 'out' ? document.getElementById('patient-input').value : '';
+            let meta = `担当者: ${operator} ｜ 診察日: ${entryDate}`;
+            if (patient) meta += ` ｜ 患者: ${patient}`;
+            document.getElementById('confirm-meta').textContent = meta;
+
+            document.getElementById('confirm-overlay').classList.add('show');
+        }
+
+        function closeConfirm() {
+            document.getElementById('confirm-overlay').classList.remove('show');
+        }
+
+        function confirmAndSubmit() {
+            closeConfirm();
+            doSubmitAll();
+        }
+
+        // ===== 月別消費量 =====
+        let _consumptionData = null;
+
+        // Supabase(pharmacy_transactions)の out(出庫=消費)を月次集計。GAS非依存。
+        async function loadMonthlyConsumption() {
+            const loading = document.getElementById('consumption-loading');
+            const tableWrap = document.getElementById('consumption-table-wrap');
+            const summary = document.getElementById('consumption-summary');
+            loading.style.display = 'block';
+            tableWrap.style.display = 'none';
+            summary.innerHTML = '';
+
+            const rows = await sbFetch('pharmacy_transactions?select=medicine_code,quantity,transaction_type,created_at&transaction_type=eq.out&order=created_at.asc&limit=20000');
+            loading.style.display = 'none';
+
+            if (!rows) {
+                summary.innerHTML = '<div style="color:var(--danger);padding:10px;">データ取得エラー: 通信失敗</div>';
+                return;
+            }
+
+            // 月リスト（データが存在する月・直近6ヶ月に限定）
+            const monthSet = new Set();
+            rows.forEach(r => monthSet.add(_sbToJst(r.created_at).date.slice(0, 7)));
+            let months = [...monthSet].sort();
+            if (months.length > 6) months = months.slice(-6);
+            const shown = new Set(months);
+
+            // 薬品コードごとに月次集計
+            const byCode = {};
+            rows.forEach(r => {
+                const mo = _sbToJst(r.created_at).date.slice(0, 7);
+                if (!shown.has(mo)) return;
+                const code = r.medicine_code;
+                if (!byCode[code]) byCode[code] = { monthly: {}, total: 0 };
+                byCode[code].monthly[mo] = (byCode[code].monthly[mo] || 0) + (r.quantity || 0);
+                byCode[code].total += (r.quantity || 0);
+            });
+
+            const drugs = Object.keys(byCode).map(code => {
+                const med = stockData.find(m => normalizeCode(m.code) === normalizeCode(code));
+                return {
+                    name: med ? med.name : code,
+                    code: code,
+                    stock: med ? (med.stock || 0) : 0,
+                    monthly: byCode[code].monthly,
+                    total: byCode[code].total
+                };
+            });
+
+            window._consumptionLoaded = true;
+            _consumptionData = { months, drugs };
+            renderConsumption();
+        }
+
+        function renderConsumption() {
+            if (!_consumptionData) return;
+            const { months, drugs } = _consumptionData;
+            const search = (document.getElementById('consumption-search').value || '').trim().toLowerCase();
+            const sortKey = document.getElementById('consumption-sort').value;
+
+            let filtered = drugs;
+            if (search) {
+                filtered = filtered.filter(d => d.name.toLowerCase().includes(search));
+            }
+
+            filtered = [...filtered];
+            switch (sortKey) {
+                case 'name': filtered.sort((a, b) => a.name.localeCompare(b.name, 'ja')); break;
+                case 'total-desc': filtered.sort((a, b) => b.total - a.total); break;
+                case 'total-asc': filtered.sort((a, b) => a.total - b.total); break;
+                case 'stock-asc': filtered.sort((a, b) => a.stock - b.stock); break;
+            }
+
+            const totalDrugs = filtered.length;
+            const totalConsumption = filtered.reduce((s, d) => s + d.total, 0);
+            const lowStock = filtered.filter(d => d.stock <= 5).length;
+            const summary = document.getElementById('consumption-summary');
+            summary.innerHTML = `
+                <div style="flex:1;min-width:100px;background:#f0f4ff;border-radius:8px;padding:8px 12px;text-align:center;">
+                    <div style="font-size:11px;color:#666;">薬品数</div>
+                    <div style="font-size:20px;font-weight:700;color:#2563eb;">${totalDrugs}</div>
+                </div>
+                <div style="flex:1;min-width:100px;background:#f0fdf4;border-radius:8px;padding:8px 12px;text-align:center;">
+                    <div style="font-size:11px;color:#666;">総消費量</div>
+                    <div style="font-size:20px;font-weight:700;color:#16a34a;">${totalConsumption}</div>
+                </div>
+                <div style="flex:1;min-width:100px;background:${lowStock > 0 ? '#fef2f2' : '#f9fafb'};border-radius:8px;padding:8px 12px;text-align:center;">
+                    <div style="font-size:11px;color:#666;">在庫少(≤5)</div>
+                    <div style="font-size:20px;font-weight:700;color:${lowStock > 0 ? '#dc2626' : '#666'};">${lowStock}</div>
+                </div>
+                <div style="flex:1;min-width:110px;background:#fff7ed;border-radius:8px;padding:8px 12px;text-align:center;">
+                    <div style="font-size:11px;color:#666;">消費額（仕入原価）</div>
+                    <div style="font-size:20px;font-weight:700;color:#c2410c;">${YEN(filtered.reduce((s, d) => {
+                        const med = stockData.find(m => normalizeCode(m.code) === normalizeCode(d.code));
+                        return s + (med && med.costPerUnit != null ? med.costPerUnit * d.total : 0);
+                    }, 0))}</div>
+                </div>
+                <div style="flex:1;min-width:110px;background:#f5f3ff;border-radius:8px;padding:8px 12px;text-align:center;">
+                    <div style="font-size:11px;color:#666;">同（薬価ベース）</div>
+                    <div style="font-size:20px;font-weight:700;color:#6d28d9;">${YEN(filtered.reduce((s, d) => {
+                        const med = stockData.find(m => normalizeCode(m.code) === normalizeCode(d.code));
+                        return s + (med && med.price ? Number(med.price) * d.total : 0);
+                    }, 0))}</div>
+                </div>
+            `;
+
+            const thead = document.getElementById('consumption-thead');
+            let hdrHtml = '<tr><th style="position:sticky;left:0;background:#f8fafc;padding:8px 6px;border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap;">薬品名</th>';
+            hdrHtml += '<th style="padding:8px 6px;border-bottom:2px solid #e2e8f0;text-align:right;white-space:nowrap;">在庫</th>';
+            for (const m of months) {
+                hdrHtml += `<th style="padding:8px 6px;border-bottom:2px solid #e2e8f0;text-align:right;white-space:nowrap;">${m}</th>`;
+            }
+            hdrHtml += '<th style="padding:8px 6px;border-bottom:2px solid #e2e8f0;text-align:right;white-space:nowrap;font-weight:700;">合計</th></tr>';
+            thead.innerHTML = hdrHtml;
+
+            const tbody = document.getElementById('consumption-tbody');
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="' + (months.length + 3) + '" style="text-align:center;padding:20px;color:#999;">該当する薬品がありません</td></tr>';
+            } else {
+                let bodyHtml = '';
+                for (const d of filtered) {
+                    const stockColor = d.stock <= 5 ? '#dc2626' : d.stock <= 10 ? '#f59e0b' : '#333';
+                    bodyHtml += `<tr style="border-bottom:1px solid #f1f5f9;">`;
+                    bodyHtml += `<td style="position:sticky;left:0;background:white;padding:6px;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis;" title="${d.name}">${d.name}</td>`;
+                    bodyHtml += `<td style="padding:6px;text-align:right;font-weight:600;color:${stockColor};">${d.stock}</td>`;
+                    for (const m of months) {
+                        const val = d.monthly[m] || 0;
+                        const bg = val > 0 ? `background:rgba(37,99,235,${Math.min(val / 20, 0.15)})` : '';
+                        bodyHtml += `<td style="padding:6px;text-align:right;${bg}">${val || '-'}</td>`;
+                    }
+                    bodyHtml += `<td style="padding:6px;text-align:right;font-weight:700;">${d.total}</td>`;
+                    bodyHtml += '</tr>';
+                }
+                tbody.innerHTML = bodyHtml;
+            }
+
+            document.getElementById('consumption-table-wrap').style.display = 'block';
+        }
+
+        function filterConsumption() {
+            renderConsumption();
+        }
+
+        // ===== 初期化 =====
+        const patientInput = document.getElementById('patient-input');
+
+        patientInput.addEventListener('input', function() {
+            selectedPatient = null;
+            showPatientAutocomplete(this.value);
+            updateActionButtons();
+        });
+
+        patientInput.addEventListener('blur', function() {
+            hidePatientAutocomplete();
+        });
+
+        patientInput.addEventListener('focus', function() {
+            if (this.value) {
+                showPatientAutocomplete(this.value);
+            }
+        });
+
+        // 診察日を当日に初期化
+        document.getElementById('entry-date').value = new Date().toISOString().split('T')[0];
+
+        setMode(currentMode);
+        renderStockList();
+
+        // iPhoneでキーボード表示時、入力中の文字が隠れないよう自動スクロール
+        document.querySelectorAll('#add-medicine-form input, #add-medicine-form select').forEach(el => {
+            el.addEventListener('focus', function() {
+                setTimeout(() => {
+                    this.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300); // キーボード出現を待つ
+            });
+        });
+
+        // ==========================================================
+        // v0.7 追加機能
+        //   ① 入荷登録（ロット・使用期限・仕入単価）
+        //   ② 発注リスト／発注書
+        //   ③ 在庫評価額・原価の表示
+        //   ④ 厚労省 医薬品マスタからの薬品追加
+        // ==========================================================
+        const YEN = n => (n === null || n === undefined || isNaN(n)) ? '—' : '¥' + Math.round(n).toLocaleString();
+        const todayJst = () => {
+            const d = new Date(Date.now() + 9 * 3600 * 1000);
+            return d.toISOString().slice(0, 10);
+        };
+        let suppliers = [];
+        let rcTarget = null;
+
+        async function loadSuppliers() {
+            if (suppliers.length) return suppliers;
+            suppliers = (await sbFetch('pharmacy_suppliers?select=id,name&active=is.true&order=name')) || [];
+            return suppliers;
+        }
+
+        // ---------- ① 入荷 ----------
+        async function rcInit() {
+            await loadSuppliers();
+            const sel = document.getElementById('rc-supplier');
+            if (sel && !sel.dataset.filled) {
+                sel.innerHTML = '<option value="">選択してください</option>' +
+                    suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                sel.dataset.filled = '1';
+            }
+            const dt = document.getElementById('rc-date');
+            if (dt && !dt.value) dt.value = todayJst();
+            rcRenderCandidates();
+            rcLoadRecent();
+            rcLoadExpiry();
+        }
+
+        function rcRenderCandidates() {
+            const q = (document.getElementById('rc-search').value || '').trim().toLowerCase();
+            const box = document.getElementById('rc-candidates');
+            if (!q) { box.innerHTML = ''; return; }
+            const hits = stockData.filter(m =>
+                String(m.name).toLowerCase().includes(q) || String(m.code).toLowerCase().includes(q)
+            ).slice(0, 20);
+            box.innerHTML = hits.length ? hits.map(m => `
+                <div class="rc-item" onclick="rcSelect('${m.code}')">
+                    <div class="rc-item-name">${m.name}</div>
+                    <div class="rc-item-sub">${m.code}｜在庫 ${m.stock}${m.unit}｜入数 ${m.packSize || '—'}｜仕入 ${m.costPerPack != null ? YEN(m.costPerPack) : '未設定'}</div>
+                </div>`).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:6px;">該当なし</div>';
+        }
+
+        function rcSelect(code) {
+            rcTarget = stockData.find(m => m.code === code);
+            if (!rcTarget) return;
+            document.getElementById('rc-candidates').innerHTML = '';
+            document.getElementById('rc-search').value = '';
+            const box = document.getElementById('rc-selected');
+            box.style.display = 'block';
+            box.innerHTML = `<div class="rc-item-name">${rcTarget.name}</div>
+                <div class="rc-item-sub">${rcTarget.code}｜現在庫 ${rcTarget.stock}${rcTarget.unit}｜入数 ${rcTarget.packSize || '未設定'}｜レセ電 ${rcTarget.rezeptCode || '未設定'}</div>
+                <button onclick="rcClear()" style="margin-top:6px;padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:white;font-size:11px;cursor:pointer;">選び直す</button>`;
+            document.getElementById('rc-form').style.display = 'block';
+            document.getElementById('rc-unit').textContent = rcTarget.unit || '単位';
+            if (rcTarget.supplierId) document.getElementById('rc-supplier').value = String(rcTarget.supplierId);
+            if (rcTarget.costPerPack != null) document.getElementById('rc-cost').value = rcTarget.costPerPack;
+            document.getElementById('rc-packs').value = 1;
+            rcSyncQty('packs');
+        }
+
+        function rcClear() {
+            rcTarget = null;
+            document.getElementById('rc-selected').style.display = 'none';
+            document.getElementById('rc-form').style.display = 'none';
+        }
+
+        // ロット数 ⇄ 数量 を入数で連動させる（現場は「3箱来た」で数える）
+        function rcSyncQty(from) {
+            if (!rcTarget) return;
+            const ps = Number(rcTarget.packSize) || 0;
+            const packsEl = document.getElementById('rc-packs');
+            const qtyEl = document.getElementById('rc-qty');
+            if (from === 'packs' && ps > 0) qtyEl.value = Math.round((Number(packsEl.value) || 0) * ps);
+            if (from === 'qty' && ps > 0) packsEl.value = +((Number(qtyEl.value) || 0) / ps).toFixed(2);
+            const qty = Number(qtyEl.value) || 0;
+            const cost = Number(document.getElementById('rc-cost').value);
+            const unitCost = ps > 0 && cost ? cost / ps : (rcTarget.costPerUnit || null);
+            document.getElementById('rc-preview').innerHTML =
+                `在庫 <b>${rcTarget.stock}</b> → <b>${rcTarget.stock + qty}</b> ${rcTarget.unit}<br>` +
+                `1${rcTarget.unit}あたり仕入原価 <b>${unitCost != null ? '¥' + unitCost.toFixed(2) : '—'}</b>` +
+                (rcTarget.price ? `　／　薬価 ¥${rcTarget.price}` : '') +
+                (unitCost != null && rcTarget.price ? `　→　薬価差 <b>¥${(Number(rcTarget.price) - unitCost).toFixed(2)}</b>／${rcTarget.unit}` : '') +
+                `<br>入荷金額 <b>${unitCost != null ? YEN(unitCost * qty) : '—'}</b>`;
+        }
+
+        async function rcSubmit() {
+            if (!rcTarget) return;
+            const qty = parseInt(document.getElementById('rc-qty').value) || 0;
+            if (qty <= 0) { showToast('数量を入力してください', 'error'); return; }
+            const supplierId = document.getElementById('rc-supplier').value || null;
+            const costPack = parseFloat(document.getElementById('rc-cost').value);
+            const ps = Number(rcTarget.packSize) || 0;
+            const unitCost = (ps > 0 && costPack) ? +(costPack / ps).toFixed(4) : (rcTarget.costPerUnit ?? null);
+            const receivedOn = document.getElementById('rc-date').value || todayJst();
+            const expiry = document.getElementById('rc-expiry').value || null;
+            const lotNo = document.getElementById('rc-lot').value.trim() || null;
+            const operator = document.getElementById('rc-operator').value.trim() || null;
+
+            if (!confirm(`${rcTarget.name} を ${qty}${rcTarget.unit} 入荷登録します。\n在庫 ${rcTarget.stock} → ${rcTarget.stock + qty} になります。`)) return;
+
+            const btn = document.getElementById('rc-submit');
+            btn.disabled = true; btn.textContent = '⏳ 登録中...';
+            try {
+                const lot = await sbFetch('pharmacy_lots', {
+                    method: 'POST',
+                    headers: { 'Prefer': 'return=representation' },
+                    body: JSON.stringify({
+                        medicine_code: rcTarget.code, lot_no: lotNo, expiry_on: expiry,
+                        received_on: receivedOn, qty_received: qty, qty_remaining: qty,
+                        pack_count: ps > 0 ? +(qty / ps).toFixed(2) : null,
+                        unit_cost: unitCost, supplier_id: supplierId ? Number(supplierId) : null,
+                        note: operator ? '担当:' + operator : null, source: 'app'
+                    })
+                });
+                if (!lot) { showToast('入荷ロットの登録に失敗しました', 'error'); return; }
+                const lotId = Array.isArray(lot) ? lot[0].id : lot.id;
+
+                await sbFetch('pharmacy_transactions', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        medicine_code: rcTarget.code, transaction_type: 'in', quantity: qty,
+                        note: operator ? '担当:' + operator : '入荷', occurred_on: receivedOn,
+                        unit_cost: unitCost, supplier_id: supplierId ? Number(supplierId) : null,
+                        lot_id: lotId, operator: operator, source: 'app'
+                    })
+                });
+
+                const patch = { current_stock: rcTarget.stock + qty, last_updated: new Date().toISOString() };
+                // 仕入単価・仕入先が未設定なら、今回の入荷を採用薬マスタにも反映する
+                if (costPack && rcTarget.costPerPack == null) patch.cost_per_pack = costPack;
+                if (supplierId && !rcTarget.supplierId) patch.supplier_id = Number(supplierId);
+                await sbFetch('pharmacy_medicines?code=eq.' + rcTarget.code, { method: 'PATCH', body: JSON.stringify(patch) });
+
+                showToast(`${rcTarget.name} を ${qty}${rcTarget.unit} 入荷しました`, 'success');
+                await loadMasterFromSupabase();
+                renderStockList();
+                rcClear();
+                rcLoadRecent(); rcLoadExpiry();
+            } catch (e) {
+                showToast('入荷登録でエラー: ' + e.message, 'error');
+            }
+            btn.disabled = false; btn.textContent = '📥 入荷を登録して在庫に反映';
+        }
+
+        async function rcLoadRecent() {
+            const rows = await sbFetch('pharmacy_lots?select=medicine_code,received_on,qty_received,unit_cost,lot_no,source&order=received_on.desc,id.desc&limit=15');
+            const el = document.getElementById('rc-recent');
+            if (!rows || !rows.length) { el.innerHTML = '<span style="color:var(--text-muted)">まだ入荷記録がありません</span>'; return; }
+            el.innerHTML = rows.map(r => {
+                const m = stockData.find(x => x.code === r.medicine_code);
+                const amt = r.unit_cost ? YEN(r.unit_cost * r.qty_received) : '—';
+                return `<div style="padding:6px 0;border-bottom:1px solid var(--border);">
+                    <b>${m ? m.name : r.medicine_code}</b> ${r.qty_received}${m ? m.unit : ''}
+                    <span style="color:var(--text-muted);font-size:11px;">　${r.received_on}　${amt}${r.source === 'import_sheet' ? '　<span class="od-badge b-untracked">取込</span>' : ''}</span>
+                </div>`;
+            }).join('');
+        }
+
+        async function rcLoadExpiry() {
+            const rows = await sbFetch('pharmacy_v_expiry?status=in.(expired,soon)&select=medicine_code,name,lot_no,expiry_on,qty_remaining,days_to_expiry,status&order=expiry_on.asc&limit=20');
+            const el = document.getElementById('rc-expiry-list');
+            if (!rows || !rows.length) { el.innerHTML = '<span style="color:var(--text-muted)">期限が近いロットはありません</span>'; return; }
+            el.innerHTML = rows.map(r => `<div style="padding:6px 0;border-bottom:1px solid var(--border);">
+                <span class="od-badge ${r.status === 'expired' ? 'b-out' : 'b-low'}">${r.status === 'expired' ? '期限切れ' : 'あと' + r.days_to_expiry + '日'}</span>
+                <b>${r.name}</b> 残${r.qty_remaining}　<span style="color:var(--text-muted);font-size:11px;">${r.expiry_on}${r.lot_no ? '　Lot:' + r.lot_no : ''}</span>
+            </div>`).join('');
+        }
+
+        // ---------- ② 発注 ----------
+        let odRows = [];
+        let odFilter = 'alert';
+        let odCart = {};
+
+        async function odLoad(force) {
+            if (odRows.length && !force) { odRender(); return; }
+            document.getElementById('od-list').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">読み込み中...</div>';
+            odRows = (await sbFetch('pharmacy_v_reorder?select=*&order=priority.asc,days_left.asc.nullslast,current_stock.asc')) || [];
+            await loadSuppliers();
+            odRender();
+        }
+
+        function odSetFilter(f, ev) {
+            odFilter = f;
+            document.querySelectorAll('#tab-order .cat-btn').forEach(b => b.classList.remove('active'));
+            if (ev) ev.target.classList.add('active');
+            odRender();
+        }
+
+        function odBadge(r) {
+            if (r.status === 'out_of_stock') return '<span class="od-badge b-out">在庫切れ</span>';
+            if (r.status === 'runs_out_soon') return '<span class="od-badge b-soon">まもなく切れる</span>';
+            if (r.status === 'below_threshold') return '<span class="od-badge b-low">発注点割れ</span>';
+            if (r.status === 'not_stocked') return '<span class="od-badge b-untracked">未仕入</span>';
+            if (r.status === 'untracked') return '<span class="od-badge b-untracked">在庫非減算</span>';
+            return '';
+        }
+
+        function odRender() {
+            const list = odRows.filter(r =>
+                odFilter === 'all' ? true :
+                odFilter === 'notstocked' ? r.status === 'not_stocked' :
+                ['out_of_stock', 'below_threshold', 'runs_out_soon'].includes(r.status));
+            const nOut = odRows.filter(r => r.status === 'out_of_stock').length;
+            const nLow = odRows.filter(r => r.status === 'below_threshold').length;
+            const nSoon = odRows.filter(r => r.status === 'runs_out_soon').length;
+            const nNot = odRows.filter(r => r.status === 'not_stocked').length;
+            document.getElementById('od-summary').innerHTML = `
+                <div class="kpi-band" style="width:100%">
+                  <div class="kpi-cell"><div class="kpi-label">在庫切れ</div><div class="kpi-value ${nOut ? 'warn' : ''}">${nOut}</div></div>
+                  <div class="kpi-cell"><div class="kpi-label">発注点割れ</div><div class="kpi-value">${nLow}</div></div>
+                  <div class="kpi-cell"><div class="kpi-label">30日以内に切れる</div><div class="kpi-value">${nSoon}</div></div>
+                  <div class="kpi-cell"><div class="kpi-label">未仕入（登録のみ）</div><div class="kpi-value">${nNot}</div></div>
+                </div>`;
+            document.getElementById('od-list').innerHTML = list.length ? list.map(r => {
+                const cls = r.status === 'out_of_stock' ? 'alert' : (r.status === 'below_threshold' || r.status === 'runs_out_soon' ? 'soon' : '');
+                const packs = odCart[r.code] ?? (r.suggest_packs || (r.status === 'out_of_stock' ? 1 : 0));
+                return `<div class="od-row ${cls}">
+                    <input type="checkbox" ${odCart[r.code] ? 'checked' : ''} onchange="odToggle('${r.code}', this.checked)" style="margin-top:4px;accent-color:var(--primary);width:18px;height:18px;">
+                    <div class="od-main">
+                        <div class="od-name">${odBadge(r)}${r.name}</div>
+                        <div class="od-sub">
+                            在庫 <b>${r.current_stock}</b>${r.unit || ''}（発注点 ${r.threshold}）
+                            ${r.daily_usage > 0 ? `／1日 ${r.daily_usage}${r.unit || ''}消費` : '／消費実績なし'}
+                            ${r.days_left != null ? `／残り <b>${r.days_left}日</b>` : ''}<br>
+                            ${r.supplier_name || '仕入先未設定'}
+                            ${r.pack_size ? `／1ロット ${r.pack_size}${r.unit || ''}` : ''}
+                            ${r.cost_per_pack ? `／${YEN(r.cost_per_pack)}／ロット` : ''}${r.cost_per_unit != null ? `／原価 ¥${Number(r.cost_per_unit).toFixed(2)}` : ''}
+                        </div>
+                    </div>
+                    <div style="text-align:center;">
+                        <input type="number" class="od-packs" min="0" step="1" value="${packs}" onchange="odSetPacks('${r.code}', this.value)">
+                        <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">ロット</div>
+                    </div>
+                </div>`;
+            }).join('') : '<div style="padding:20px;text-align:center;color:var(--text-muted)">該当なし</div>';
+            odRenderCart();
+        }
+
+        function odToggle(code, on) {
+            const r = odRows.find(x => x.code === code);
+            if (on) odCart[code] = odCart[code] || r.suggest_packs || 1;
+            else delete odCart[code];
+            odRenderCart();
+        }
+        function odSetPacks(code, v) {
+            const n = parseInt(v) || 0;
+            if (n > 0) odCart[code] = n; else delete odCart[code];
+            odRenderCart();
+        }
+
+        function odCartItems() {
+            return Object.entries(odCart).map(([code, packs]) => {
+                const r = odRows.find(x => x.code === code) || {};
+                const qty = (r.pack_size || 0) * packs;
+                const amount = (r.cost_per_pack || 0) * packs;
+                return { code, name: r.name, supplier: r.supplier_name || '未設定', supplier_id: r.supplier_id,
+                         packs, qty, unit: r.unit, cost_per_pack: r.cost_per_pack, amount };
+            });
+        }
+
+        function odRenderCart() {
+            const items = odCartItems();
+            const el = document.getElementById('od-cart');
+            if (!items.length) { el.innerHTML = '発注リストからチェックすると、ここに集計されます。'; return; }
+            const bySup = {};
+            items.forEach(i => { (bySup[i.supplier] = bySup[i.supplier] || []).push(i); });
+            const total = items.reduce((s, i) => s + i.amount, 0);
+            el.innerHTML = Object.entries(bySup).map(([sup, list]) => `
+                <div style="margin-bottom:10px;">
+                  <div style="font-weight:700;border-bottom:2px solid var(--text);padding-bottom:3px;margin-bottom:5px;">${sup}</div>
+                  ${list.map(i => `<div style="display:flex;justify-content:space-between;padding:3px 0;">
+                      <span>${i.name} × ${i.packs}ロット<span style="color:var(--text-muted);font-size:11px;">（${i.qty}${i.unit || ''}）</span></span>
+                      <span>${i.cost_per_pack ? YEN(i.amount) : '—'}</span></div>`).join('')}
+                </div>`).join('') +
+                `<div style="display:flex;justify-content:space-between;border-top:2px solid var(--text);padding-top:6px;font-weight:700;">
+                   <span>合計 ${items.length}品目</span><span>${YEN(total)}</span></div>`;
+        }
+
+        async function odMakeOrder() {
+            const items = odCartItems();
+            if (!items.length) { showToast('発注する品目を選んでください', 'error'); return; }
+            const bySup = {};
+            items.forEach(i => { (bySup[i.supplier_id || 'none'] = bySup[i.supplier_id || 'none'] || []).push(i); });
+            const d = todayJst().replace(/-/g, '');
+            let made = 0;
+            for (const [sid, list] of Object.entries(bySup)) {
+                const order = await sbFetch('pharmacy_orders', {
+                    method: 'POST', headers: { 'Prefer': 'return=representation' },
+                    body: JSON.stringify({
+                        order_no: 'PO-' + d + '-' + (++made) + '-' + Math.random().toString(36).slice(2, 5),
+                        supplier_id: sid === 'none' ? null : Number(sid),
+                        ordered_on: todayJst(), status: 'draft'
+                    })
+                });
+                if (!order) continue;
+                const oid = Array.isArray(order) ? order[0].id : order.id;
+                await sbFetch('pharmacy_order_items', {
+                    method: 'POST',
+                    body: JSON.stringify(list.map(i => ({
+                        order_id: oid, medicine_code: i.code, pack_count: i.packs,
+                        qty: i.qty, unit_cost: i.cost_per_pack, amount: i.amount
+                    })))
+                });
+            }
+            showToast(`発注書を ${made} 件保存しました`, 'success');
+            odCart = {}; odRender();
+        }
+
+        function odExportCsv() {
+            const items = odCartItems();
+            if (!items.length) { showToast('発注する品目を選んでください', 'error'); return; }
+            const head = ['仕入先', '薬品コード', '薬品名', 'ロット数', '数量', '単位', 'ロット単価', '金額'];
+            const body = items.map(i => [i.supplier, i.code, i.name, i.packs, i.qty, i.unit || '', i.cost_per_pack ?? '', i.amount || '']);
+            const csv = '﻿' + [head, ...body].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+            a.download = '発注書_' + todayJst() + '.csv';
+            document.body.appendChild(a); a.click(); a.remove();
+        }
+
+        // ---------- ③ 在庫評価額バンド ----------
+        async function renderStockValueBand() {
+            const el = document.getElementById('stock-value-band');
+            if (!el) return;
+            const items = stockData;
+            const cost = items.reduce((s, m) => s + (m.costPerUnit || 0) * (m.stock || 0), 0);
+            const list = items.reduce((s, m) => s + (Number(m.price) || 0) * (m.stock || 0), 0);
+            const low = items.filter(m => !m.stockUntracked && m.stock < (m.threshold || 0)).length;
+            const noCost = items.filter(m => m.costPerUnit == null).length;
+            // 逆ザヤ＝薬価より仕入原価が高い。出せば出すほど赤字になるので必ず表に出す
+            const reverse = items.filter(m => m.marginPerUnit != null && m.marginPerUnit < 0);
+            el.innerHTML = `
+                <div class="kpi-cell"><div class="kpi-label">在庫評価額（仕入原価）</div><div class="kpi-value">${YEN(cost)}</div></div>
+                <div class="kpi-cell"><div class="kpi-label">同（薬価ベース）</div><div class="kpi-value">${YEN(list)}</div></div>
+                <div class="kpi-cell"><div class="kpi-label">発注点割れ</div><div class="kpi-value ${low ? 'warn' : ''}">${low}品目</div></div>
+                <div class="kpi-cell" ${reverse.length ? `style="cursor:pointer" title="${reverse.map(m => m.name + ' 原価¥' + m.costPerUnit.toFixed(2) + ' / 薬価¥' + m.price).join('&#10;')}"` : ''}>
+                    <div class="kpi-label">逆ザヤ（薬価＜原価）</div>
+                    <div class="kpi-value ${reverse.length ? 'warn' : ''}">${reverse.length}品目</div></div>
+                <div class="kpi-cell"><div class="kpi-label">原価未設定</div><div class="kpi-value">${noCost}品目</div></div>`;
+        }
+
+        // ---------- ④ 厚労省マスタから薬品を追加 ----------
+        let dmTimer = null;
+        function dmSearch() {
+            clearTimeout(dmTimer);
+            dmTimer = setTimeout(async () => {
+                const q = document.getElementById('dm-query').value.trim();
+                const box = document.getElementById('dm-results');
+                if (q.length < 2) { box.innerHTML = ''; return; }
+                box.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:6px;">検索中...</div>';
+                const enc = encodeURIComponent('*' + q + '*');
+                const rows = await sbFetch(`pharmacy_drug_master?select=rezept_code,name,kana,unit,price,form,generic_flag,status&status=eq.${encodeURIComponent('有効')}&or=(name.like.${enc},kana.like.${enc})&order=name&limit=20`);
+                if (!rows || !rows.length) { box.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:6px;">該当なし</div>'; return; }
+                box.innerHTML = rows.map(r => `
+                    <div class="dm-hit" onclick='dmPick(${JSON.stringify(r).replace(/'/g, "&apos;")})'>
+                        <div class="rc-item-name">${r.name}</div>
+                        <div class="rc-item-sub">レセ電 ${r.rezept_code}｜薬価 ¥${r.price}／${r.unit || ''}｜${r.form || ''}${r.generic_flag === '1' ? '｜後発' : ''}</div>
+                    </div>`).join('');
+            }, 300);
+        }
+
+        function dmPick(r) {
+            document.getElementById('newmed-name').value = r.name;
+            if (r.kana) document.getElementById('newmed-furigana').value = r.kana;
+            if (r.price) document.getElementById('newmed-price').value = r.price;
+            const unitSel = document.getElementById('newmed-unit');
+            const opt = [...unitSel.options].find(o => o.value === r.unit);
+            if (opt) unitSel.value = r.unit; else document.getElementById('newmed-unit-custom').value = r.unit || '';
+            window._dmPicked = r;
+            document.getElementById('dm-results').innerHTML =
+                `<div style="padding:8px;background:#eff6ff;border-left:4px solid var(--primary);font-size:12px;">
+                   <b>${r.name}</b><br>レセプト電算コード <b>${r.rezept_code}</b> ／ 薬価 ¥${r.price} を反映しました。分類だけ選んで登録してください。</div>`;
+            document.getElementById('newmed-category').focus();
+        }
+
+        (async function initLoad() {
+            showToast('データを読み込み中...', '');
+            // まず前回のマスタで即描画し、待たせない
+            if (loadMasterFromCache()) renderStockList();
+            populateCategoryOptions();
+            const sbOk = await loadMasterFromSupabase();
+            if (!sbOk && USE_GAS) {
+                console.log('Supabase失敗 → GASの在庫サマリーで簡易表示');
+                await loadStockFromGAS();
+            }
+            populateCategoryOptions();
+            if (USE_GAS) loadHistoryFromGAS();
+            renderStockList();
+            loadSuppliers();
+            // カルテ側マスタとの突合は時間がかかるので、一覧を出したあとに背景で回す
+            checkMasterDrift();
+        })();
+    </script>
+</body>
+</html>
