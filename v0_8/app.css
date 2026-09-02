@@ -419,6 +419,11 @@ tr.st-diff td { background: var(--warn-bg); }
 @media (max-width: 767px) { .hide-mobile { display: none !important; } }
 @media (min-width: 768px) { .hide-desktop { display: none !important; } }
 
+/* 夜間は減彩赤(#e05d5d)に白文字だとコントラスト3.6:1で不足するため、文字を墨にする */
+html[data-theme="night"] .bdg.red,
+html[data-theme="night"] .side-badge:not(.amber),
+html[data-theme="night"] .btn.danger { color: #12161a; }
+
 /* ---------- reduced motion（全動作を無効化） ---------- */
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0s !important; animation-iteration-count: 1 !important; transition-duration: 0s !important; }
