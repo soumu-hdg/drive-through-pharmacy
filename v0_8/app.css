@@ -119,6 +119,7 @@ main { padding: 62px 12px calc(76px + env(safe-area-inset-bottom)); max-width: 1
   .sidebar { display: flex; }
   .tabbar { display: none; }
   .app-header { left: 200px; }
+  .app-header .brand { visibility: hidden; } /* サイドバーのロゴと重複するため */
   main { margin-left: 200px; padding: 66px 26px 48px; }
   body { font-size: 14.5px; }
 }
@@ -414,9 +415,9 @@ tr.st-diff td { background: var(--warn-bg); }
 .right { text-align: right; }
 .flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .grow { flex: 1; }
-.hide-desktop { display: block; }
-.hide-mobile { display: none; }
-@media (min-width: 768px) { .hide-desktop { display: none; } .hide-mobile { display: block; } }
+/* 表示切替は「隠す」側だけを指定し、要素本来のdisplay(flex/grid等)を壊さない */
+@media (max-width: 767px) { .hide-mobile { display: none !important; } }
+@media (min-width: 768px) { .hide-desktop { display: none !important; } }
 
 /* ---------- reduced motion（全動作を無効化） ---------- */
 @media (prefers-reduced-motion: reduce) {
