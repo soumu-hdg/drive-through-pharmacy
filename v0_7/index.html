@@ -4024,7 +4024,7 @@
                 const amt = r.unit_cost ? YEN(r.unit_cost * r.qty_received) : '—';
                 return `<div style="padding:6px 0;border-bottom:1px solid var(--border);">
                     <b>${m ? m.name : r.medicine_code}</b> ${r.qty_received}${m ? m.unit : ''}
-                    <span style="color:var(--text-muted);font-size:11px;">　${r.received_on}　${amt}${r.source === 'import_sheet' ? '　<span class="od-badge b-untracked">取込</span>' : ''}</span>
+                    <span style="color:var(--text-muted);font-size:11px;">　${r.received_on}　${amt}${r.source !== 'app' ? '　<span class="od-badge b-untracked">過去分</span>' : ''}</span>
                 </div>`;
             }).join('');
         }
