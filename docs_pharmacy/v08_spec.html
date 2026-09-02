@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>薬品在庫管理 v0.8 実装仕様書</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Noto+Serif+JP:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#f6f3ec; --ink:#1a1c1e; --sub:#5c5a52; --line:#d8d2c4; --teal:#0e7c66; --amber:#c9821f; --red:#b3372f;}
+body{font-family:'Noto Sans JP',sans-serif; background:var(--paper); color:var(--ink); margin:0; line-height:1.75; font-size:14.5px;}
+main{max-width:1000px; margin:0 auto; padding:48px 40px 120px}
+.eyebrow{font-family:'Noto Serif JP',serif; font-size:13px; letter-spacing:.22em; color:var(--teal); margin-bottom:6px}
+h1{font-weight:900; font-size:34px; line-height:1.35; margin:0 0 8px}
+h2{font-weight:900; font-size:24px; margin:64px 0 12px; padding-top:18px; border-top:2px solid var(--ink)}
+h2 small{font-family:'Noto Serif JP',serif; font-weight:600; font-size:12px; color:var(--teal); display:block; letter-spacing:.18em}
+h3{font-weight:700; font-size:16px; margin:26px 0 8px; border-left:4px solid var(--teal); padding-left:10px}
+h4{font-size:14px; margin:18px 0 6px}
+table{width:100%; border-collapse:collapse; font-size:13px; margin:12px 0}
+th{font-size:11.5px; letter-spacing:.05em; color:var(--sub); text-align:left; border-bottom:2px solid var(--ink); padding:7px 9px}
+td{border-bottom:1px solid var(--line); padding:8px 9px; vertical-align:top}
+code{background:#eee8da; padding:1px 5px; font-size:12.5px; border-radius:2px}
+pre{background:#1a1c1e; color:#e8e4da; font-size:12px; line-height:1.6; padding:14px 16px; overflow-x:auto; border-left:4px solid var(--teal)}
+pre code{background:none; padding:0; color:inherit}
+.note{border-left:4px solid var(--amber); background:#fdf6e8; padding:10px 14px; font-size:13px; margin:12px 0}
+.danger{border-left:4px solid var(--red); background:#faeeec; padding:10px 14px; font-size:13px; margin:12px 0}
+.ok{border-left:4px solid var(--teal); background:#edf4f1; padding:10px 14px; font-size:13px; margin:12px 0}
+.badge{display:inline-block; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:2px; margin-right:6px; vertical-align:1px}
+.badge.t{background:var(--teal); color:#fff}
+.badge.a{background:var(--amber); color:#fff}
+.badge.o{border:1px solid var(--sub); color:var(--sub)}
+ul,ol{padding-left:22px}
+li{margin-bottom:4px}
+.small{font-size:12px; color:var(--sub)}
+.toc{columns:2; font-size:13px; border:1px solid var(--line); background:#fffdf7; padding:14px 20px 14px 24px; margin:20px 0; list-style:none}
+.toc li{margin-bottom:2px}
+.toc a{color:var(--ink); text-decoration:none}
+.toc a:hover{color:var(--teal)}
+</style>
+</head>
+<body>
+<main>
+
+<div class="eyebrow">薬品在庫管理システム v0.8 ｜ 実装仕様書 ｜ 2026-09-02</div>
+<h1>v0.8 実装仕様書</h1>
+<p>本書は企画書（薬品在庫v08_企画書_20260902.html）で確定したUI・情報設計を、実装可能な粒度に落としたものです。対象読者は実装担当（Opus）。作業順序・検証手順は別紙「薬品在庫v08_実装指示_opus.md」を参照。</p>
+
+<ol class="toc">
+<li><a href="#a1">1. アーキテクチャとファイル構成</a></li>
+<li><a href="#a2">2. テーマ／レイアウト切替</a></li>
+<li><a href="#a3">3. DB変更（追加のみ・v0.7と同居）</a></li>
+<li><a href="#a4">4. 共通コンポーネント</a></li>
+<li><a href="#a5">5. 画面仕様：夜間出庫</a></li>
+<li><a href="#a6">6. 画面仕様：今日の状態</a></li>
+<li><a href="#a7">7. 画面仕様：在庫</a></li>
+<li><a href="#a8">8. 画面仕様：棚卸</a></li>
+<li><a href="#a9">9. 画面仕様：薬品追加ウィザード</a></li>
+<li><a href="#a10">10. 画面仕様：マスタ整備</a></li>
+<li><a href="#a11">11. 画面仕様：発注・入荷受入</a></li>
+<li><a href="#a12">12. 画面仕様：分析（履歴・消費量）</a></li>
+<li><a href="#a13">13. GAS連携の扱い</a></li>
+<li><a href="#a14">14. 受け入れ条件（総括表）</a></li>
+</ol>
+
+<!-- ============ 1 ============ -->
+<h2 id="a1"><small>SECTION 1</small>アーキテクチャとファイル構成</h2>
+<table>
+<tr><th style="width:190px">項目</th><th>規定</th></tr>
+<tr><td>構成</td><td>静的HTML＋Supabase REST（anonキー）直読み。<b>ビルド工程なし・フレームワークなし</b>（v0.7と同一の制約）。外部CDNは Google Fonts（Noto Sans JP）と html5-qrcode@2.3.8（unpkg）のみ</td></tr>
+<tr><td>配置</td><td><code>drive-through-pharmacy/v0_8/</code> 新設。既存 <code>v0_7/</code>・ルートは無変更</td></tr>
+<tr><td>DB</td><td>既存の pharmacy_* テーブル群を共用。変更は「列追加・ビュー差替え・関数追加」のみ（§3）。<b>既存列の削除・型変更・リネームは禁止</b></td></tr>
+<tr><td>接続情報</td><td>SB_URL / SB_KEY（publishable）は v0.7 と同値を流用。GAS_URL/GAS_TOKEN は §13 の範囲でのみ使用</td></tr>
+</table>
+
+<h3>ファイル分割（単一4,400行の反省）</h3>
+<pre><code>v0_8/
+├── index.html        … 全画面のDOM骨格（テンプレート）とscriptタグのみ。目標500行以下
+├── app.css           … デザイントークン＋全スタイル（day/night両テーマ）
+└── js/
+    ├── db.js         … sbFetch / オフラインキュー / GASアダプタ（fetchラッパはここに集約）
+    ├── store.js      … stockData等のアプリ状態・マスタキャッシュ(localStorage)・派生計算
+    ├── theme.js      … テーマ判定/切替・レイアウト判定
+    ├── ui.js         … トースト・長押しボタン・数値ロール・モーダル等の共通部品
+    ├── screen-dispense.js  … 出庫（夜間主役）
+    ├── screen-home.js      … 今日の状態
+    ├── screen-stock.js     … 在庫
+    ├── screen-stocktake.js … 棚卸
+    ├── screen-master.js    … マスタ整備＋追加ウィザード
+    ├── screen-order.js     … 発注・入荷・受入
+    └── screen-analytics.js … 分析（履歴＋消費量）</code></pre>
+<p class="small">ESモジュールは使わず <code>&lt;script defer&gt;</code> の順次読込（file://での動作確認とiOS旧Safari互換のため）。グローバルは <code>window.P8 = {}</code> 名前空間1個に集約する。</p>
+
+<h3>流用してよい既存実装（v0_7/index.html より）</h3>
+<table>
+<tr><th>関数・ロジック</th><th>扱い</th></tr>
+<tr><td><code>sbFetch</code> / <code>toStockItem</code> / <code>loadMasterFromSupabase</code> / <code>loadMasterFromCache</code></td><td>ほぼそのまま移植（db.js / store.js へ）</td></tr>
+<tr><td><code>normalizeCode</code> / <code>normalizeName</code> / <code>_sbToJst</code> / <code>todayJst</code> / <code>YEN</code></td><td>そのまま移植</td></tr>
+<tr><td>QRスキャン（<code>startScanner</code>/<code>onScanSuccess</code>・1.5秒クールダウン・振動）</td><td>移植。ただし自動起動化（§5）</td></tr>
+<tr><td>カルテ突合（<code>checkMasterDrift</code>/<code>recomputeMissing</code>/<code>guessCategory</code>・1日1回キャッシュ）</td><td>移植。表示先を「今日の状態」に変更</td></tr>
+<tr><td>入荷登録（<code>rcSubmit</code>: lots→transactions→medicines PATCH の3段書き込み）</td><td>移植し、発注書受入（§11）はRPCに置換</td></tr>
+<tr><td>発注リスト（<code>odLoad</code>/<code>odRender</code>/<code>odExportCsv</code>、v_reorder読み）</td><td>移植</td></tr>
+<tr><td>履歴（Supabase読み・編集モード削除・患者別グループ）／月別消費量</td><td>移植（分析画面へ統合）</td></tr>
+<tr><td>体重別フィルタ <code>weightDoseMap</code>（M001〜M036直書き）</td><td>そのまま移植（DB化は将来課題・要確認事項⑤）</td></tr>
+<tr><td>厚労省マスタ検索（<code>dmSearch</code>/<code>dmPick</code>・like検索・300msデバウンス）</td><td>移植（ウィザードStep1の中核）</td></tr>
+</table>
+<div class="danger"><b>移植禁止：</b>v0_7の <code>patientData</code> 配列（患者名がハードコードされている。§5参照）／「CSV外の薬剤」折りたたみ（csv_group='master'のみの現状では死にコード）／スキャン成功の中央ポップアップ（企画書§6で廃止決定）。</div>
+
+<!-- ============ 2 ============ -->
+<h2 id="a2"><small>SECTION 2</small>テーマ／レイアウト切替</h2>
+<h3>2.1 テーマ（配色）</h3>
+<ul>
+<li><code>html[data-theme="day"|"night"]</code> で切替。CSS変数はすべて意味名（<code>--bg --surface --ink --ink-sub --act --warn --danger --line</code>）。値は企画書§07のトークン表に従う。</li>
+<li>判定順序：① localStorage <code>p8_theme</code> が <code>day|night</code> なら常にそれ ② <code>auto</code>（既定）なら JSTの時刻で <b>20:00–5:59 = night</b>、それ以外 day。</li>
+<li>手動切替UI：ヘッダー右端のボタン（🌙/☀️）。タップで day→night→auto の3状態巡回。auto時はラベルに「自動」と現在の判定結果を併記。</li>
+<li>自動切替の再判定は <code>setInterval</code> 60秒ごと。切替時は <code>transition: background-color .2s, color .2s</code>（bodyと主要面のみ。全要素 * への transition 指定は禁止＝再描画コスト）。</li>
+<li><code>prefers-reduced-motion: reduce</code> 時は全 transition/animation を 0s に（app.css 末尾で一括上書き）。</li>
+</ul>
+<h3>2.2 レイアウト（画面構成）</h3>
+<ul>
+<li>テーマとは独立に<b>画面幅</b>で決定：<code>&lt;768px</code>=モバイル（ボトム4タブ：出庫・在庫・履歴・管理）／<code>≥768px</code>=デスクトップ（左サイドバー8項目）。CSSメディアクエリで同一DOMを出し分ける。</li>
+<li>モバイルの「管理」タブはメニューリスト（今日の状態・入荷・発注・棚卸・マスタ整備・分析・テーマ切替）。</li>
+<li>初期画面：モバイル=出庫、デスクトップ=今日の状態。</li>
+<li>サイドバーのバッジ：在庫切れ＋発注点割れ＋切迫（v_reorder集計）→発注、原価未設定数（v_master_gaps）→マスタ整備、要対応合計→今日の状態。数値はマスタ読込後に1回計算。</li>
+</ul>
+
+<!-- ============ 3 ============ -->
+<h2 id="a3"><small>SECTION 3</small>DB変更（追加のみ・v0.7と同居）</h2>
+<p>新規SQLファイル <code>scripts/pharmacy_v07/10_v08_support.sql</code> として作成し、<code>node scripts/rsv_db.js</code> で適用する。<b>すべて追加系。</b>v0.7が読む列・ビュー列は1つも消さない（ビュー差替えは「列追加のみ」の差替え）。</p>
+
+<h3>3.1 列追加</h3>
+<pre><code>alter table pharmacy_medicines
+  add column if not exists stock_tracking   boolean,        -- null=従来判定(category like '外用%')
+  add column if not exists master_gap_exempt boolean not null default false;  -- 穴チェック対象外
+comment on column pharmacy_medicines.stock_tracking is
+  '出庫で在庫を減らすか。null=旧ロジック（分類が外用/で始まるなら減らさない）。v0.8以降は明示値を入れる';</code></pre>
+<div class="note"><b>互換規約：</b>v0.8で <code>stock_tracking=false</code> にする薬は、同時に category も「外用/…」形式にする（ウィザードが強制）。逆に category が外用でも stock_tracking=true なら v0.8 は在庫を減らすが、v0.7 は減らさない＝<b>不一致が起きる組合せは作らない</b>。判定は常に <code>stock_untracked</code>（ビュー算出値）を参照し、画面側で category 文字列を直接判定するコードを書かないこと。</div>
+
+<h3>3.2 ビュー差替え（列追加のみ）</h3>
+<pre><code>-- pharmacy_v_medicines: stock_untracked の定義を stock_tracking 優先に変更し、
+-- master_gap_exempt / stock_tracking を末尾列として追加（既存列の並び・名前は不変）
+--   stock_untracked = case when m.stock_tracking is not null then not m.stock_tracking
+--                          else (m.category is not null and m.category like '外用%') end
+-- pharmacy_v_reorder: 'untracked' 判定を同じ式に差替え
+-- pharmacy_v_master_gaps: where 句に and not master_gap_exempt を追加し、
+--   充足率算出用に select 側へ total/filled を出す集計ビュー pharmacy_v_master_gap_stats を新設:
+create or replace view pharmacy_v_master_gap_stats as
+select count(*)::int as total,
+       count(*) filter (where rezept_code  is not null or master_gap_exempt)::int as ok_rezept,
+       count(*) filter (where cost_per_pack is not null or master_gap_exempt)::int as ok_cost,
+       count(*) filter (where pack_size    is not null or master_gap_exempt)::int as ok_pack,
+       count(*) filter (where price        is not null or master_gap_exempt)::int as ok_price
+from pharmacy_medicines where active;</code></pre>
+
+<h3>3.3 関数（RPC）3本</h3>
+<h4>① コード採番 <code>pharmacy_next_code()</code></h4>
+<pre><code>create or replace function pharmacy_next_code() returns text
+language plpgsql as $$
+declare n int;
+begin
+  perform pg_advisory_xact_lock(hashtext('pharmacy_next_code'));
+  select coalesce(max((regexp_match(code,'^M(\d+)$'))[1]::int),0)+1 into n
+    from pharmacy_medicines where code ~ '^M\d+$';
+  return 'M' || lpad(n::text, 3, '0');
+end $$;
+grant execute on function pharmacy_next_code() to anon, authenticated;</code></pre>
+<p class="small">呼び出しは <code>POST /rest/v1/rpc/pharmacy_next_code</code>。採番→INSERTの間に他端末が同番号を取る可能性は残るが、PK衝突でINSERTが弾かれるため二重登録にはならない（失敗時は再採番してリトライ1回）。</p>
+
+<h4>② 棚卸の一括反映 <code>pharmacy_apply_stocktake(...)</code></h4>
+<pre><code>create or replace function pharmacy_apply_stocktake(
+  _taken_on date, _operator text, _rows jsonb   -- [{code, counted, note}]
+) returns jsonb language plpgsql as $$
+declare r record; _sys int; _applied int := 0; _diff int;
+begin
+  for r in select * from jsonb_to_recordset(_rows) as x(code text, counted int, note text) loop
+    select current_stock into _sys from pharmacy_medicines where code = r.code for update;
+    if not found then continue; end if;
+    insert into pharmacy_stocktakes (taken_on, medicine_code, system_qty, counted_qty, operator, note)
+      values (_taken_on, r.code, _sys, r.counted, _operator, r.note);
+    _diff := r.counted - _sys;
+    if _diff &lt;&gt; 0 then
+      insert into pharmacy_transactions (medicine_code, transaction_type, quantity,
+        note, operator, occurred_on, source)
+        values (r.code, 'adjust', r.counted,
+                '棚卸' || coalesce('・'||nullif(r.note,''),''), _operator, _taken_on, 'app');
+      update pharmacy_medicines set current_stock = r.counted, last_updated = now()
+        where code = r.code;
+    end if;
+    _applied := _applied + 1;
+  end loop;
+  return jsonb_build_object('applied', _applied);
+end $$;
+grant execute on function pharmacy_apply_stocktake(date,text,jsonb) to anon, authenticated;</code></pre>
+<p class="small">adjust の quantity には「新しい在庫数（絶対値）」を入れる＝v0.7の stockAdjust と同じ意味論。全行が1トランザクションで確定し、途中失敗時は全ロールバック。</p>
+
+<h4>③ 発注書の受入 <code>pharmacy_receive_order(...)</code></h4>
+<pre><code>create or replace function pharmacy_receive_order(
+  _order_id bigint, _received_on date, _operator text,
+  _rows jsonb   -- [{item_id, qty, expiry_on, lot_no}]  qty=今回受入する単位数
+) returns jsonb language plpgsql as $$
+-- 各行: pharmacy_lots へ INSERT（unit_cost は order_items.unit_cost/pack_size から換算、
+--        expiry_on/lot_no は引数値）→ in トランザクション INSERT（lot_id 紐付け）
+--        → pharmacy_medicines.current_stock 加算 → order_items.received_qty 加算
+-- 最後に: 全 items で received_qty >= qty なら orders.status='received'、
+--          1件でも受入があれば 'partial'、を判定して更新
+-- 戻り値: {received_items: n, order_status: '...'}
+$$;</code></pre>
+<p class="small">本文はOpusが②と同じ流儀で実装（for update・1トランザクション）。<code>pharmacy_orders.status</code> の取りうる値に <code>partial</code> を追加する（text列のため制約変更不要。画面表示名=「一部受入」）。</p>
+
+<h3>3.4 適用後の検証SQL（10_v08_support.sql 末尾に含める）</h3>
+<pre><code>select pharmacy_next_code();                       -- 現状 'M203' が返る（既存最大コードは M202。M1xx/M2xx帯が既に使用済みのため「103品目=最大M103」ではない点に注意）
+select count(*) from pharmacy_v_medicines;         -- 103（差替え前後で件数不変）
+select * from pharmacy_v_master_gap_stats;         -- total=103
+-- v0.7互換: stock_untracked の件数が差替え前後で一致すること（=15）
+select count(*) from pharmacy_v_medicines where stock_untracked;</code></pre>
+
+<!-- ============ 4 ============ -->
+<h2 id="a4"><small>SECTION 4</small>共通コンポーネント（ui.js / db.js）</h2>
+<table>
+<tr><th style="width:200px">部品</th><th>仕様</th></tr>
+<tr><td>トースト</td><td>v0.7流用。夜間テーマでは背景 <code>--surface</code>・文字 <code>--ink</code>（純白トーストは眩しいので不可）</td></tr>
+<tr><td>長押しボタン <code>holdButton(el, onCommit)</code></td><td>pointerdown で0.6秒タイマー＋CSSリング進行（<code>conic-gradient</code>を<code>--p</code>変数で更新 or 疑似要素width）。pointerup/leave/cancel で中断・巻き戻し（150ms）。満了時 <code>navigator.vibrate([40,60,40])</code>＋onCommit。commit後は完了表示までdisabled。<code>prefers-reduced-motion</code>時はリング無しの0.6秒保持のみ</td></tr>
+<tr><td>数値ロール <code>rollNumber(el, from, to)</code></td><td>300ms・requestAnimationFrameでカウント。差が20超なら即時表示（長時間回さない）</td></tr>
+<tr><td>確認モーダル</td><td>v0.7の confirm-overlay 流用（棚卸差分確認・受入確認で共用）。<code>window.confirm</code> の新規使用は禁止（夜間モードで白ダイアログが出るため）。既存流用コード内のconfirmも置換する</td></tr>
+<tr><td>オフラインキュー（db.js）</td><td>出庫送信に限り適用。送信失敗（fetch reject / res.ok=false）時、ペイロードを localStorage <code>p8_txqueue</code>（配列）へ退避しトースト「送信できませんでした。電波の届く場所で自動再送します」。再送契機= ①<code>online</code>イベント ②画面表示ごと ③60秒間隔。再送成功でキューから除去し琥珀バー→ティール→消滅（企画書§06）。キュー保持中は画面上端に琥珀の細バー＋件数を常時表示。<b>入荷・棚卸・マスタ編集はキュー対象外</b>（日中・屋内前提のため失敗はその場でエラー表示のみ）</td></tr>
+<tr><td>書き込み結果の検証</td><td>すべての Supabase 書き込みは <code>Prefer: return=representation</code>（またはRPCの戻り値）で<b>結果を確認してから成功トースト</b>を出す。「送りっぱなしで成功表示」を書かない</td></tr>
+</table>
+
+<!-- ============ 5 ============ -->
+<h2 id="a5"><small>SECTION 5</small>画面仕様：出庫（夜間モードの主役）</h2>
+<h3>5.1 DOM構成</h3>
+<pre><code>#scr-dispense
+├── .qr-zone          … html5-qrcode ビュー（高さ約30vh・上部固定）
+│     └ .qr-fallback  … カメラ不可時「薬品リストから選ぶ」ボタン
+├── .batch-list       … 出庫予定リスト（スキャン/選択で追加）
+│     └ .batch-row × n  … 品名/コード/在庫→残の表示・[−][数値][＋]・スワイプ or ✕で削除
+├── .low-warns        … 発注点割れ警告行（動的挿入）
+├── .meta-row
+│     ├ 患者入力（フリーテキスト・datalist=最近の入力上位10件）
+│     └ 担当者（select・前回値を自動選択）
+└── .commit-hold      … 長押し確定ボタン（品目数と合計点数を表示）</code></pre>
+<h3>5.2 状態・動作</h3>
+<ul>
+<li><b>QR自動起動：</b>画面表示時に <code>startScanner()</code> を自動実行。失敗（権限拒否等）時は fallback 表示。カメラは他画面へ移動したら <code>stop()</code>（電池対策）。</li>
+<li>スキャン成功：<code>batchItems</code> へ追加（同一薬の再スキャンは数量+1に集約。v0.7の別行追加をやめる）。行が上から160msで挿入され、行内に「在庫 162包 → 160包」を即時表示。振動1回。</li>
+<li>在庫不足（数量&gt;現在庫・在庫管理対象のみ）：行を琥珀枠にし、確定時の確認モーダルに不足一覧を出す（v0.7のconfirm文言を流用・モーダル化）。</li>
+<li>出庫で発注点を割る薬：<code>.low-warns</code> に「⚠ ○○は残り15包（発注点180）」を1回フェードインで追加。消費ペースで数日内に切れる薬（v_reorder相当の簡易判定）も同様。</li>
+<li>担当者：localStorage <code>p8_operator</code> に保存し次回自動選択。担当者リストはv0.7の10名を定数移植（要確認事項③）。</li>
+<li>患者：<b>フリーテキストのみ</b>。過去に自分が入力した患者名を localStorage <code>p8_recent_patients</code>（最大20件）から datalist 候補に出す。<span class="badge a">重要</span>v0_7の <code>patientData</code> ハードコード配列は移植しない。DBからの患者一覧取得も行わない。</li>
+<li>長押し確定 → 書き込みシーケンス（v0.7の doSubmitAll を整理移植）：<br>
+① <code>pharmacy_transactions</code> へ一括INSERT（operator列・occurred_on列を正式使用。note="担当:"の埋め込みは廃止し operator 列へ）<br>
+② 在庫管理対象のみ <code>pharmacy_medicines.current_stock</code> をPATCH<br>
+③ GAS <code>recordPrescription</code>（§13・fire-and-forget）<br>
+①が失敗したらオフラインキューへ（②③もキュー内に保持し再送時に同順で実行）。</li>
+<li>完了：ボタンがチェック表示（800ms）→リスト/患者クリア。担当者は保持。</li>
+</ul>
+<h3>5.3 使用API</h3>
+<table>
+<tr><th>操作</th><th>API</th></tr>
+<tr><td>マスタ読込</td><td><code>GET pharmacy_v_medicines?select=…&order=code</code>（store.js起動時1回＋操作後再取得）</td></tr>
+<tr><td>出庫記録</td><td><code>POST pharmacy_transactions</code>（配列一括・Prefer: return=representation）</td></tr>
+<tr><td>在庫更新</td><td><code>PATCH pharmacy_medicines?code=eq.{code}</code>（current_stock, last_updated）</td></tr>
+</table>
+<h3>5.4 受け入れ条件</h3>
+<ol>
+<li>画面を開いて3秒以内にQRスキャナが起動している（カメラ許可済み端末）。</li>
+<li>QR読取→数量調整→長押し0.6秒、の3操作で出庫が完了し、Supabaseの transactions に operator・occurred_on 入りの行が増え、medicines.current_stock が減っている。</li>
+<li>同じQRを2回読むと行が2本にならず数量が2になる。</li>
+<li>外用薬（stock_untracked=true）を出庫しても current_stock が変わらず、transactions には記録される。</li>
+<li>長押しを0.3秒で離すと送信されない。</li>
+<li>機内モードで確定→トーストと琥珀バー表示→通信復帰で自動再送され、二重送信になっていない（transactions件数で確認）。</li>
+<li>出庫の結果 threshold を下回った薬の警告行が表示される。</li>
+<li>21時台の初回アクセスで夜間配色、11時台で日中配色になる。手動で☀️に切り替えた状態はリロード後も保持される。</li>
+</ol>
+
+<!-- ============ 6 ============ -->
+<h2 id="a6"><small>SECTION 6</small>画面仕様：今日の状態（デスクトップ初期画面）</h2>
+<h3>6.1 DOM構成</h3>
+<pre><code>#scr-home
+├── .kpi-band      … 在庫評価額(原価) / 在庫切れ / 30日以内に切れる / 発注点割れ / 逆ザヤ
+├── .todo-table    … 要対応リスト（種別バッジ・品名列挙・行き先リンク）
+├── .po-table      … 受入待ち発注書（status in sent,partial）→「受け入れる」で§11へ
+└── .recent        … 直近の操作10件（履歴の先頭）</code></pre>
+<h3>6.2 要対応リストの生成規則（上から重い順）</h3>
+<table>
+<tr><th>種別</th><th>条件（データ源）</th><th>行き先</th></tr>
+<tr><td><span class="badge" style="background:var(--red);color:#fff">在庫切れ</span></td><td>v_reorder.status='out_of_stock'（品名を最大5つ列挙＋「ほか n 品目」）</td><td>発注</td></tr>
+<tr><td><span class="badge" style="background:var(--red);color:#fff">マイナス在庫</span></td><td>current_stock&lt;0（現状0件だが検知は維持）</td><td>棚卸</td></tr>
+<tr><td><span class="badge" style="background:var(--red);color:#fff">逆ザヤ</span></td><td>v_medicines.margin_per_unit&lt;0（原価・薬価を併記）</td><td>マスタ整備</td></tr>
+<tr><td><span class="badge a">期限切れ/切迫</span></td><td>v_expiry.status in (expired,soon)</td><td>入荷</td></tr>
+<tr><td><span class="badge a">まもなく切れる</span></td><td>v_reorder.status='runs_out_soon'（days_left併記）</td><td>発注</td></tr>
+<tr><td><span class="badge a">発注点割れ</span></td><td>v_reorder.status='below_threshold'</td><td>発注</td></tr>
+<tr><td><span class="badge a">期限未登録ロット</span></td><td><code>GET pharmacy_lots?select=count&expiry_on=is.null&qty_remaining=gt.0</code>（件数のみ）</td><td>入荷&gt;期限未登録一覧</td></tr>
+<tr><td><span class="badge a">カルテ突合</span></td><td>checkMasterDrift の missingDrugs（既存ロジック）</td><td>追加ウィザード（連続登録）</td></tr>
+</table>
+<p class="small">異常が0件のときは「✅ 要対応はありません」を1行表示（空白のままにしない）。</p>
+<h3>6.3 受け入れ条件</h3>
+<ol>
+<li>デスクトップ幅で開くと本画面が初期表示され、KPI5個と要対応リストが3秒以内に埋まる。</li>
+<li>逆ザヤ行に品名・原価・薬価が実数で出る（現DBならロキソプロフェン錠60mg）。</li>
+<li>各行のリンクで該当画面へ遷移し、該当フィルタが適用済みである（例:「在庫切れ→発注」で要発注フィルタON）。</li>
+<li>受入待ち発注書が「発注済/一部受入」のもののみ表示される。</li>
+</ol>
+
+<!-- ============ 7 ============ -->
+<h2 id="a7"><small>SECTION 7</small>画面仕様：在庫</h2>
+<ul>
+<li><b>デスクトップ：</b>ソート可能な表（列: コード/薬品名/分類/在庫/発注点/原価単価/薬価/状態）。列ヘッダクリックでソート。状態列は 在庫切れ&gt;逆ザヤ&gt;発注点割れ&gt;残n日&gt;OK の優先で1個表示。外用薬は在庫欄「—」＋状態「在庫非管理」。</li>
+<li><b>モバイル：</b>v0.7のカードグリッド（2列）を配色トークン化して踏襲。体重別フィルタ・カテゴリフィルタ・複数選択→出庫リストへ、も踏襲。</li>
+<li>検索・フィルタ状態はURLハッシュに載せない（SPA化しない。画面内状態のみ）。</li>
+<li>行クリック（デスクトップ）で詳細ドロワー：ロット一覧（期限つき）・直近の入出庫10件・マスタ項目。ここから「棚卸で修正」「発注に追加」へ接続。</li>
+</ul>
+<h3>受け入れ条件</h3>
+<ol>
+<li>103品目が表示され、在庫合計・評価額が現行v0.7の表示値と一致する。</li>
+<li>「在庫」ヘッダクリックで昇順/降順が切り替わる。</li>
+<li>外用薬15品目の在庫欄が「—」表示である（0と区別できる）。</li>
+<li>モバイル幅でカード表示に切り替わり、体重別「3歳(15kg)」で該当薬のみに絞られる（v0.7と同一の結果）。</li>
+</ol>
+
+<!-- ============ 8 ============ -->
+<h2 id="a8"><small>SECTION 8</small>画面仕様：棚卸</h2>
+<h3>8.1 DOM構成・動作</h3>
+<pre><code>#scr-stocktake
+├── .st-head    … 棚卸日(date・既定=今日) / 担当者(select) / 進捗 n/88・進捗バー
+├── .st-table   … 行=在庫管理対象の全品目（stock_untracked除外・分類→コード順）
+│     列: 薬品名 / システム在庫 / 実地数(input) / 差分(自動) / メモ(input)
+└── .st-foot    … 差分サマリ ／ [下書き保存] [差分を確認して反映]</code></pre>
+<ul>
+<li>実地数input：Enter/Tabで次行の実地数へフォーカス移動（表を上から流し込める）。数値のみ・空=未入力。</li>
+<li>差分セル：入力の都度 <code>counted - system</code> を計算。0=ティール「±0」、非0=琥珀「＋n/−n」＋行ハイライト＋600msパルス1回。</li>
+<li><b>下書き：</b>localStorage <code>p8_stocktake_draft</code> = {taken_on, operator, rows:{code:{counted,note}}}。画面を開いた際、同日付の下書きがあれば復元を提案。反映成功で破棄。</li>
+<li><b>反映：</b>確認モーダルに「差分のある品目一覧（±0と未入力は載せない）」→ 確定で <code>POST /rpc/pharmacy_apply_stocktake</code>（入力済みの<b>全行</b>を送る。±0の行も棚卸実績として stocktakes に記録される）。</li>
+<li>反映後：マスタ再読込・在庫画面の数値ロール・トースト「88品目を棚卸し、差分2件を反映しました」。</li>
+<li><b>モバイル（1品モード）：</b>QRスキャン→その薬の実地数を大きなテンキーで入力→「次の薬へ」。内部的には同じ draft に積み、反映は同じRPC。</li>
+</ul>
+<h3>8.2 受け入れ条件</h3>
+<ol>
+<li>実地数を2品目だけ入れて反映すると、①stocktakes に2行 ②差分のあった品目だけ adjust トランザクション ③medicines.current_stock が実地数どおり、になる。未入力品目は一切変化しない。</li>
+<li>差分0の品目は stocktakes に記録されるが transactions は増えない。</li>
+<li>反映前にリロードしても下書きが復元される。</li>
+<li>同じ内容で反映を2回実行できない（成功後はボタンが初期化され、draftが消えている）。</li>
+<li>反映後の在庫一覧・v0.7側の在庫表示も同じ数値になる（DB共有の確認）。</li>
+</ol>
+
+<!-- ============ 9 ============ -->
+<h2 id="a9"><small>SECTION 9</small>画面仕様：薬品追加ウィザード</h2>
+<h3>9.1 3ステップ</h3>
+<table>
+<tr><th style="width:110px">STEP</th><th>内容</th></tr>
+<tr><td>① 選ぶ</td><td>厚労省マスタ検索（dmSearch流用・status=有効のみ）。選択で name/kana/price/unit/rezept_code/form を取り込み。「マスタに無い院内品を手入力で登録」リンクで空フォームへ（rezept_code=null・master_gap_exempt の初期値=ON を提案表示）</td></tr>
+<tr><td>② 在庫の扱い</td><td>・分類=guessCategory(name, form由来)で自動推定→プルダウン＋自由入力（v0.7流用）<br>・<b>在庫トグル「出庫で在庫を減らす」</b>：drug_master.form が「外用薬」なら初期OFF、それ以外ON。説明文併記。<br>　OFF選択時：category が「外用/」で始まらなければ自動で「外用/」を前置し、その旨を表示（互換規約§3.1）<br>・入数/仕入単価/仕入先/発注点/初期在庫/単位（マスタ値を既定に）</td></tr>
+<tr><td>③ 確認</td><td>全項目の確認表＋採番結果（rpc/pharmacy_next_code で取得した Mxxx を表示）→「登録」</td></tr>
+</table>
+<h3>9.2 書き込み</h3>
+<pre><code>POST pharmacy_medicines  (Prefer: return=representation)
+{ code, name, furigana, unit, price, threshold, current_stock, category,
+  csv_group:'master', usage_text:'', rezept_code, pack_size, cost_per_pack,
+  supplier_id, stock_tracking, master_gap_exempt }</code></pre>
+<ul>
+<li>PK衝突（23505）時は再採番して1回だけ自動リトライ。それでも失敗ならエラー表示。</li>
+<li><b>GASへの addMedicine 送信は行わない</b>（§13・要確認事項②）。</li>
+<li>初期在庫&gt;0 の場合は in トランザクションを1件記録する（v0.7は初期在庫が履歴に残らず、後から出どころ不明になっていた）。note='新規登録時の初期在庫'。</li>
+<li>カルテ突合の未登録薬からの連続起動：missingDrugs[0] の名称・分類推定を①③に流し込み、登録成功→残があれば次を提案（v0.7の startRegisterMissing 相当）。</li>
+</ul>
+<h3>9.3 受け入れ条件</h3>
+<ol>
+<li>厚労省マスタから選ぶと、名称・カナ・薬価・単位・レセ電コードが手入力なしで埋まっている。</li>
+<li>登録された薬が v0.8 と v0.7 の両方の在庫一覧に出る（コード重複なし）。</li>
+<li>外用薬（form=外用薬）を選ぶとトグルが初期OFFで、そのまま登録した薬は出庫しても在庫が減らない（v0.7画面から出庫しても同様）。</li>
+<li>2窓で同時に登録しても、連番の次番号と次々番号（例: M203とM204）に分かれて採番される（または自動リトライで解消する）。</li>
+<li>初期在庫30で登録した薬の履歴に「+30」の入庫記録がある。</li>
+</ol>
+
+<!-- ============ 10 ============ -->
+<h2 id="a10"><small>SECTION 10</small>画面仕様：マスタ整備</h2>
+<ul>
+<li>上部：穴KPIバンド（原価/レセ電/入数/薬価の未設定数＋充足率）。データ源=<code>pharmacy_v_master_gap_stats</code>＋<code>pharmacy_v_master_gaps</code>。</li>
+<li>フィルタ：原価未設定/レセ電未設定/入数未設定/薬価未設定/すべての穴/全品目。「今日の状態」からの遷移でフィルタ指定を受け取る。</li>
+<li>表のセル直接編集：pack_size / cost_per_pack / price / threshold / supplier_id（select）/ category。編集セルは琥珀枠、[変更を保存(n件)] でまとめて <code>PATCH pharmacy_medicines?code=eq.…</code> を品目ごとに実行（成功件数をトースト）。</li>
+<li>レセ電の紐付け：行内「マスタから紐付け」→ 薬名で drug_master を検索するミニモーダル → 選択で rezept_code をセット（このとき単位が薬とマスタで不一致なら注意表示。§09_price_refresh の unit_comparable と同じ正規化で判定）。</li>
+<li>「対象外にする」トグル → <code>master_gap_exempt=true</code>。逆ザヤ品目（margin_per_unit&lt;0）のリストも本画面上部に表示。</li>
+<li>薬品追加ウィザード（§9）への入口ボタンを右上に固定。</li>
+</ul>
+<h3>受け入れ条件</h3>
+<ol>
+<li>KPIの未設定数が実DB（現状: 原価60/レセ電27/入数14/薬価14）と一致する。</li>
+<li>2品目の原価を入れて保存すると、未設定数が2減り、在庫画面の原価列・評価額に即反映される。</li>
+<li>検査キットを「対象外にする」と、未設定数から抜け、充足率が上がる。</li>
+<li>レセ電を紐付けた薬に厚労省マスタの正式名称・薬価が結合されて表示される（v_medicines経由）。</li>
+</ol>
+
+<!-- ============ 11 ============ -->
+<h2 id="a11"><small>SECTION 11</small>画面仕様：発注・入荷受入</h2>
+<h3>11.1 発注（v0.7を土台に拡張）</h3>
+<ul>
+<li>発注リスト（v_reorder・フィルタ・ロット数調整・仕入先別集計）はv0.7を移植。</li>
+<li>「発注書を作成」→ status='draft' で保存（現行どおり）→ 発注書一覧に出る。</li>
+<li><b>発注書一覧（新設）：</b><code>GET pharmacy_orders?select=*,pharmacy_suppliers(name),pharmacy_order_items(*)&order=ordered_on.desc</code>。状態バッジ: 下書き(draft)/発注済(sent)/一部受入(partial)/受入済(received)/取消(cancelled)。draft→「発注した」ボタンで sent へ（発注行為自体は電話/FAX等の外部作業）。CSV書き出しは現行流用。</li>
+</ul>
+<h3>11.2 入荷（個別入荷＋発注書受入＋期限後追い）</h3>
+<ul>
+<li><b>個別入荷：</b>v0.7 の rc系を移植。期限入力を「年月4桁」方式に変更（下記）。</li>
+<li><b>期限の年月4桁入力：</b><code>inputmode="numeric" maxlength="4"</code>。「2807」→ 2028-07-31（月末日）に変換して表示確認。西暦下2桁は 26〜49 を 20xx と解釈。4桁未満・不正値は未設定扱い。<code>type="date"</code> での完全指定も「詳しく入力」リンクで可能。</li>
+<li><b>発注書から受入：</b>「今日の状態」or 発注書一覧から起動。品目×（発注数−受入済数）が初期値の受入表を表示。行ごとに 今回受入数/期限4桁/ロット番号。「下の行に同じ期限を適用」ボタン。確定→<code>POST /rpc/pharmacy_receive_order</code>→結果のstatusをトースト（「受入済になりました」「一部受入として保存しました」）。</li>
+<li><b>期限未登録ロット一覧：</b><code>GET pharmacy_lots?expiry_on=is.null&qty_remaining=gt.0&order=received_on.desc</code>。行ごとに期限4桁を入れて <code>PATCH pharmacy_lots?id=eq.…</code>。任意作業（全部埋める義務は課さない）。</li>
+</ul>
+<h3>11.3 受け入れ条件</h3>
+<ol>
+<li>発注書を draft→sent にし、「受け入れる」で全量受入すると、lots（期限つき）＋in トランザクション＋在庫加算＋received_qty＋status='received' が一括で成立する。</li>
+<li>1品目だけ半量で受入すると status='partial' になり、残量が再受入画面の初期値に出る。</li>
+<li>「2807」input が 2028-07-31 として lots に入り、期限アラート（v_expiry）の計算対象になる。</li>
+<li>個別入荷（発注書なし）が現行同様に動く。</li>
+<li>期限未登録ロットに期限を入れると「今日の状態」の未登録件数が減る。</li>
+</ol>
+
+<!-- ============ 12 ============ -->
+<h2 id="a12"><small>SECTION 12</small>画面仕様：分析（履歴・消費量）</h2>
+<ul>
+<li>画面内サブタブ「履歴」「月別消費量」。中身はv0.7の該当実装を移植（Supabase読み・編集モード削除・患者別グループ・6ヶ月集計・原価/薬価ベース金額）。</li>
+<li>変更点：①配色トークン化 ②履歴削除の confirm をモーダル化 ③消費量表に「月次入荷金額（v_monthly_purchase）」の小計行を追加（仕入と消費を同じ画面で見比べる）。</li>
+</ul>
+<h3>受け入れ条件</h3>
+<ol>
+<li>履歴の件数・内容がv0.7と一致する。削除→在庫巻き戻しの挙動も一致する。</li>
+<li>月別消費の数値がv0.7の同機能と一致する。</li>
+</ol>
+
+<!-- ============ 13 ============ -->
+<h2 id="a13"><small>SECTION 13</small>GAS連携の扱い</h2>
+<table>
+<tr><th>v0.7でのGAS用途</th><th>v0.8での扱い</th><th>理由</th></tr>
+<tr><td>出庫時の処方履歴記録（recordPrescription→夜間外来DB）</td><td><span class="badge t">維持</span>fire-and-forget で送信</td><td>カルテ運用・夜間外来KPIが参照している可能性があり、勝手に切れない（要確認事項①）</td></tr>
+<tr><td>batch（stockIn/stockOut/stockAdjust→在庫サマリーシート）</td><td><span class="badge a">廃止（要確認）</span></td><td>Supabaseが唯一の正（v0.6で確立）。シート側の同名重複・区切り行問題の温床。凍結を明示したい</td></tr>
+<tr><td>addMedicine（薬品マスタのGAS登録）</td><td><span class="badge a">廃止（要確認）</span></td><td>二重登録の解消（課題1）。GASシートは今後参照しない</td></tr>
+<tr><td>getStock（Supabase不通時のフォールバック表示）</td><td><span class="badge a">廃止（要確認）</span>localStorageキャッシュのみで代替</td><td>「DBに繋がらない時は前回キャッシュ＋読み取り専用」の方が安全（GASサマリーは信頼できないと判明済み）</td></tr>
+<tr><td>カルテ薬品マスタ突合（KARTE_API_URL・読み取り）</td><td><span class="badge t">維持</span>1日1回・今日の状態に表示</td><td>未登録薬の取りこぼし防止に有効（実績あり）</td></tr>
+</table>
+<div class="danger">GAS_TOKEN はページ内に露出する（v0.7と同条件）。v0.8で新たな秘密情報を追加しないこと。</div>
+
+<!-- ============ 14 ============ -->
+<h2 id="a14"><small>SECTION 14</small>受け入れ条件（総括）</h2>
+<p>各画面の受け入れ条件（§5〜12）に加え、リリース判定として以下を満たすこと。</p>
+<table>
+<tr><th style="width:60px">#</th><th>条件</th></tr>
+<tr><td>R-1</td><td>v0_7/ のファイルと挙動が一切変わっていない（git diff で v0_7 配下に変更なし）</td></tr>
+<tr><td>R-2</td><td>DB適用後も v0.7 画面が正常動作する（マスタ読込・出庫・入荷・発注の動作確認）</td></tr>
+<tr><td>R-3</td><td>iPhone Safari 実機（またはDevToolsのiPhoneエミュレーション）で夜間出庫の受け入れ条件§5.4がすべて通る</td></tr>
+<tr><td>R-4</td><td>PC Chrome で §6〜12 の受け入れ条件がすべて通る</td></tr>
+<tr><td>R-5</td><td>day/night 両テーマ×モバイル/デスクトップ両レイアウトの4通りで全画面のスクリーンショットを撮り、崩れ・コントラスト不足（文字と背景のコントラスト比4.5:1未満）がない</td></tr>
+<tr><td>R-6</td><td>console にエラーが出ていない（警告は既知のhtml5-qrcode由来のみ許容）</td></tr>
+<tr><td>R-7</td><td>患者名・認証キー（GAS_TOKEN除く既存分）・個人情報が新規にコードへハードコードされていない</td></tr>
+<tr><td>R-8</td><td>本番反映前にテスト用データ（棚卸・発注・受入のテスト行）をDBから削除済み</td></tr>
+</table>
+
+<div style="margin-top:56px; border-top:1px solid var(--line); padding-top:10px; font-size:10px; color:var(--sub)">薬品在庫管理システム v0.8 実装仕様書 ｜ 2026-09-02 ｜ 企画書・実装指示書とセットで参照のこと</div>
+</main>
+</body>
+</html>
