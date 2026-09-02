@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>薬品在庫管理 v0.8 要件定義・UI企画書</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Noto+Serif+JP:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f6f3ec; --ink:#1a1c1e; --sub:#5c5a52; --line:#d8d2c4;
+  --teal:#0e7c66; --amber:#c9821f; --red:#b3372f;
+  --n-bg:#12161a; --n-surface:#1a2026; --n-ink:#e8e4da; --n-teal:#2ea88a; --n-amber:#d9a441; --n-red:#e05d5d; --n-line:#2b333b;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Noto Sans JP',sans-serif; background:var(--paper); color:var(--ink);
+  margin:0; line-height:1.75; font-size:15px;
+}
+/* ---- 左レール ---- */
+.rail{
+  position:fixed; left:0; top:0; bottom:0; width:168px; border-right:1px solid var(--line);
+  padding:28px 0 0 22px; background:var(--paper); z-index:50;
+}
+.rail .brand{font-family:'Noto Serif JP',serif; font-size:12px; letter-spacing:.18em; color:var(--teal); border-bottom:2px solid var(--ink); padding-bottom:8px; margin-right:22px}
+.rail nav{margin-top:20px}
+.rail a{display:block; font-size:11px; color:var(--sub); text-decoration:none; padding:5px 0; letter-spacing:.05em}
+.rail a:hover{color:var(--teal)}
+.rail a b{font-family:'Noto Serif JP',serif; color:var(--ink); margin-right:6px; font-weight:600}
+main{margin-left:168px; max-width:1040px; padding:0 48px 120px}
+@media(max-width:900px){ .rail{display:none} main{margin-left:0; padding:0 20px 80px} }
+
+section{padding-top:72px}
+.eyebrow{font-family:'Noto Serif JP',serif; font-size:13px; letter-spacing:.22em; color:var(--teal); margin-bottom:6px}
+h1{font-weight:900; font-size:42px; line-height:1.3; letter-spacing:.01em; margin:0 0 10px}
+h2{font-weight:900; font-size:29px; line-height:1.4; margin:0 0 14px}
+h3{font-weight:700; font-size:17px; margin:26px 0 8px; border-left:4px solid var(--teal); padding-left:10px}
+.lead{color:var(--sub); font-size:14.5px; max-width:760px}
+em{font-style:normal; background:linear-gradient(transparent 62%, rgba(14,124,102,.22) 62%); font-weight:700}
+.num{font-weight:900; color:var(--amber)}
+
+/* KPIバンド */
+.band{display:flex; border-top:2px solid var(--ink); border-bottom:1px solid var(--line); margin:22px 0}
+.band>div{flex:1; padding:14px 18px 12px; border-right:1px solid var(--line)}
+.band>div:last-child{border-right:none}
+.band .l{font-size:11px; color:var(--sub); letter-spacing:.08em}
+.band .v{font-size:30px; font-weight:900; line-height:1.2}
+.band .v small{font-size:13px; font-weight:700; color:var(--sub)}
+.band .v.warn{color:var(--red)}
+.band .v.ok{color:var(--teal)}
+
+/* カード・バッジ */
+.cards{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:18px 0}
+.card{border-left:4px solid var(--teal); background:#fffdf7; padding:14px 18px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); border-right:1px solid var(--line)}
+.card.warn{border-left-color:var(--red)}
+.card.amber{border-left-color:var(--amber)}
+.card h4{margin:0 0 4px; font-size:15px; font-weight:700}
+.card p{margin:0; font-size:13px; color:var(--sub)}
+.badge{display:inline-block; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:2px; letter-spacing:.06em; vertical-align:2px; margin-right:6px}
+.badge.t{background:var(--teal); color:#fff}
+.badge.a{background:var(--amber); color:#fff}
+.badge.r{background:var(--red); color:#fff}
+.badge.o{background:transparent; border:1px solid var(--sub); color:var(--sub)}
+.badge.n{background:var(--n-bg); color:var(--n-teal)}
+
+/* 表 */
+table{width:100%; border-collapse:collapse; font-size:13px; margin:14px 0}
+th{font-size:11.5px; letter-spacing:.06em; color:var(--sub); text-align:left; border-bottom:2px solid var(--ink); padding:8px 10px; white-space:nowrap}
+td{border-bottom:1px solid var(--line); padding:9px 10px; vertical-align:top}
+tr.hl td{background:rgba(14,124,102,.06)}
+
+/* Before/After */
+.ba{display:grid; grid-template-columns:1fr 34px 1fr; gap:0; align-items:stretch; margin:16px 0}
+.ba .col{border:1px solid var(--line); padding:14px 18px; background:#fffdf7}
+.ba .col.before{border-top:3px solid var(--sub)}
+.ba .col.after{border-top:3px solid var(--teal)}
+.ba .arrow{display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--teal); font-weight:900}
+.ba h5{margin:0 0 6px; font-size:12px; letter-spacing:.12em; color:var(--sub)}
+.ba .col.after h5{color:var(--teal)}
+.ba ul{margin:0; padding-left:18px; font-size:13px}
+.ba li{margin-bottom:4px}
+
+/* ============ ワイヤーフレーム部品 ============ */
+.wf-row{display:flex; gap:26px; flex-wrap:wrap; align-items:flex-start; margin:20px 0 8px}
+.wf-note{flex:1; min-width:260px; font-size:13px}
+.wf-note ol{padding-left:20px; margin:8px 0}
+.wf-note li{margin-bottom:7px}
+.wf-note .k{font-weight:700; color:var(--teal)}
+
+/* スマホ枠（夜間） */
+.phone{width:322px; flex-shrink:0; background:#000; border-radius:26px; padding:10px 8px; box-shadow:0 14px 34px rgba(26,28,30,.35)}
+.phone .scr{background:var(--n-bg); border-radius:18px; overflow:hidden; color:var(--n-ink); font-size:11px; line-height:1.5; position:relative}
+.phone .notch{height:20px; display:flex; justify-content:center; align-items:center}
+.phone .notch i{width:78px; height:9px; background:#000; border-radius:6px; display:block}
+
+/* PCブラウザ枠（日中） */
+.browser{flex:1 1 560px; min-width:520px; border:1px solid var(--line); background:#fff; box-shadow:0 10px 26px rgba(26,28,30,.12)}
+.browser .bar{display:flex; align-items:center; gap:6px; background:#e9e4d8; padding:7px 12px; border-bottom:1px solid var(--line)}
+.browser .bar i{width:9px; height:9px; border-radius:50%; background:#c9c2b2; display:block}
+.browser .bar .url{flex:1; background:#fffdf7; border:1px solid var(--line); font-size:10px; color:var(--sub); padding:2px 10px; border-radius:2px}
+.browser .bar .tag{font-size:9px; font-weight:900; letter-spacing:.1em; background:var(--teal); color:#fff; padding:2px 6px; border-radius:2px}
+.browser .scr{background:var(--paper); font-size:11px; line-height:1.5; color:var(--ink)}
+
+/* 共通WF部品（日中） */
+.d-shell{display:flex; min-height:360px}
+.d-nav{width:118px; background:#efeadd; border-right:1px solid var(--line); padding:10px 0}
+.d-nav .logo{font-size:9px; letter-spacing:.14em; color:var(--teal); font-family:'Noto Serif JP',serif; padding:2px 12px 8px; border-bottom:1px solid var(--line); margin-bottom:6px}
+.d-nav a{display:flex; justify-content:space-between; align-items:center; padding:6px 12px; font-size:10.5px; color:var(--sub); text-decoration:none}
+.d-nav a.on{background:var(--paper); color:var(--ink); font-weight:700; border-left:3px solid var(--teal); padding-left:9px}
+.d-nav .cnt{font-size:9px; font-weight:900; color:#fff; background:var(--red); padding:0 5px; border-radius:2px}
+.d-nav .cnt.a{background:var(--amber)}
+.d-main{flex:1; padding:12px 14px}
+.d-h{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px}
+.d-h b{font-size:14px; font-weight:900}
+.d-h span{font-size:10px; color:var(--sub)}
+.wf-btn{display:inline-block; background:var(--teal); color:#fff; font-weight:700; font-size:10.5px; padding:5px 12px; border-radius:2px}
+.wf-btn.ghost{background:transparent; border:1px solid var(--sub); color:var(--sub)}
+.wf-btn.amber{background:var(--amber)}
+.wf-input{background:#fff; border:1px solid var(--line); color:var(--sub); padding:4px 8px; font-size:10px; border-radius:2px}
+.wf-kpi{display:flex; border-top:2px solid var(--ink); border-bottom:1px solid var(--line); background:#fffdf7; margin-bottom:10px}
+.wf-kpi>div{flex:1; padding:6px 10px 5px; border-right:1px solid var(--line)}
+.wf-kpi>div:last-child{border-right:none}
+.wf-kpi .l{font-size:8.5px; color:var(--sub)}
+.wf-kpi .v{font-size:16px; font-weight:900; line-height:1.2}
+.wf-kpi .v.warn{color:var(--red)}
+.wf-tbl{width:100%; border-collapse:collapse; font-size:10px; background:#fffdf7}
+.wf-tbl th{font-size:9px; color:var(--sub); border-bottom:1.5px solid var(--ink); padding:4px 6px; text-align:left}
+.wf-tbl td{border-bottom:1px solid var(--line); padding:4px 6px}
+.wf-tbl td.r, .wf-tbl th.r{text-align:right}
+.gapdot{display:inline-block; width:7px; height:7px; background:var(--red)}
+.gapok{display:inline-block; width:7px; height:7px; background:var(--teal)}
+
+/* 夜間WF部品 */
+.n-head{display:flex; justify-content:space-between; align-items:center; padding:8px 12px 4px}
+.n-head b{font-size:12px; letter-spacing:.04em}
+.n-head .mode{font-size:8.5px; color:var(--n-teal); border:1px solid var(--n-teal); padding:1px 6px; border-radius:2px}
+.n-scan{margin:8px 12px; background:#0a0d10; border:1px solid var(--n-line); height:104px; position:relative; display:flex; align-items:center; justify-content:center; color:#57636e; font-size:10px}
+.n-scan .frame{position:absolute; inset:18px 60px; border:1.5px solid var(--n-teal); opacity:.8}
+.n-scan .frame:before{content:''; position:absolute; left:4px; right:4px; top:46%; height:1.5px; background:var(--n-teal); box-shadow:0 0 8px var(--n-teal)}
+.n-item{display:flex; align-items:center; gap:8px; margin:0 12px 6px; background:var(--n-surface); border:1px solid var(--n-line); border-left:3px solid var(--n-teal); padding:7px 9px}
+.n-item .nm{flex:1}
+.n-item .nm b{font-size:11px; display:block}
+.n-item .nm span{font-size:8.5px; color:#8b95a0}
+.n-item .st{display:flex; align-items:center; gap:6px}
+.n-item .st i{width:24px; height:24px; border:1px solid var(--n-line); border-radius:2px; display:flex; align-items:center; justify-content:center; font-style:normal; font-size:13px; color:var(--n-ink); background:#12181d}
+.n-item .st b{font-size:15px; min-width:20px; text-align:center; color:var(--n-amber)}
+.n-warn{margin:0 12px 6px; border-left:3px solid var(--n-amber); background:rgba(217,164,65,.08); color:var(--n-amber); font-size:9px; padding:5px 9px}
+.n-field{display:flex; gap:6px; margin:0 12px 6px}
+.n-field>div{flex:1; background:var(--n-surface); border:1px solid var(--n-line); padding:5px 9px}
+.n-field .l{font-size:8px; color:#8b95a0}
+.n-field .v{font-size:11px}
+.n-hold{margin:10px 12px 8px; background:var(--n-teal); color:#06231c; text-align:center; padding:11px 0 9px; font-weight:900; font-size:13px; border-radius:2px; position:relative; overflow:hidden}
+.n-hold:after{content:''; position:absolute; left:0; top:0; bottom:0; width:58%; background:rgba(255,255,255,.28)}
+.n-hold span{position:relative}
+.n-hold small{display:block; font-weight:500; font-size:8px; opacity:.75}
+.n-tabs{display:flex; border-top:1px solid var(--n-line); background:#0e1215}
+.n-tabs div{flex:1; text-align:center; padding:7px 0 9px; font-size:9px; color:#77828d}
+.n-tabs div.on{color:var(--n-teal); font-weight:700; border-top:2px solid var(--n-teal); margin-top:-1px}
+.n-tabs div i{display:block; font-style:normal; font-size:14px}
+
+/* 動きの設計表 */
+.mv td:first-child{font-weight:700; white-space:nowrap}
+
+/* トークン表示 */
+.tokens{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin:18px 0}
+.tokpanel{border:1px solid var(--line); padding:16px 18px}
+.tokpanel.night{background:var(--n-bg); color:var(--n-ink); border-color:var(--n-line)}
+.tokpanel h4{margin:0 0 10px; font-size:13px; letter-spacing:.1em}
+.tok{display:flex; align-items:center; gap:10px; margin-bottom:7px; font-size:11.5px}
+.tok i{width:34px; height:22px; display:block; border:1px solid rgba(128,128,128,.35)}
+.tok code{font-size:11px; color:inherit; opacity:.75}
+.foot{margin-top:64px; border-top:1px solid var(--line); padding-top:10px; font-size:10px; color:var(--sub)}
+.caption{font-size:11.5px; color:var(--sub); margin:4px 0 0}
+.small{font-size:12px; color:var(--sub)}
+</style>
+</head>
+<body>
+
+<aside class="rail">
+  <div class="brand">PHARMACY v0.8</div>
+  <nav>
+    <a href="#s1"><b>01</b>コンセプト</a>
+    <a href="#s2"><b>02</b>現状の課題</a>
+    <a href="#s3"><b>03</b>2モード設計</a>
+    <a href="#s4"><b>04</b>情報設計</a>
+    <a href="#s5"><b>05</b>ワイヤーフレーム</a>
+    <a href="#s6"><b>06</b>動きの設計</a>
+    <a href="#s7"><b>07</b>デザイントークン</a>
+    <a href="#s8"><b>08</b>効果と進め方</a>
+  </nav>
+</aside>
+
+<main>
+
+<!-- ================= 01 ================= -->
+<section id="s1">
+  <div class="eyebrow">薬品在庫管理システム v0.8 ｜ 要件定義・UI企画書 ｜ 2026-09-02</div>
+  <h1>夜は3タップで出せる。<br>昼はすべてが繋がる。</h1>
+  <p class="lead">
+    夜間休日診療の薬品在庫管理を、<em>「夜間の診察中（スマホ・片手・暗所）」と「日中の事務（PC・腰を据えた管理）」の2つの現場</em>に合わせて作り分けます。
+    v0.7で溜めてきたデータ基盤（採用薬103品目・取引1,811件・厚労省マスタ18,515件）はそのままに、UIを総合的に一新します。
+  </p>
+  <div class="band">
+    <div><div class="l">採用薬マスタ</div><div class="v">103<small> 品目</small></div></div>
+    <div><div class="l">入出庫トランザクション</div><div class="v">1,811<small> 件</small></div></div>
+    <div><div class="l">操作が17時以降に発生</div><div class="v">53<small> %</small></div></div>
+    <div><div class="l">棚卸修正の実績（画面が無いのに）</div><div class="v warn">252<small> 件</small></div></div>
+  </div>
+  <p class="small">※ 数値はすべて 2026-09-02 時点の本番DB（Supabase）実測値。以降の数値も同様です。</p>
+</section>
+
+<!-- ================= 02 ================= -->
+<section id="s2">
+  <div class="eyebrow">02 ｜ ISSUES</div>
+  <h2>v0.7は「記録はできる」が、<br>登録・数合わせ・仕入の流れで手が止まる</h2>
+  <p class="lead">現場で実際に詰まっている7点を、現行システムの実データで確認しました。</p>
+
+  <table>
+    <tr><th style="width:30px">#</th><th style="width:210px">使いにくさ</th><th>実データによる裏付け</th><th style="width:230px">v0.8での解き方</th></tr>
+    <tr>
+      <td>1</td><td><b>薬品追加が煩雑</b></td>
+      <td>分類を人が選ばないと登録できず、「外用/」で始まる分類名にすると<em>出庫しても在庫が減らない</em>という副作用が分類名に隠れている。コード採番は画面側で最大値+1。SupabaseとGASの二重登録も残る。</td>
+      <td>3ステップの<b>追加ウィザード</b>。分類は剤形から自動推定、「在庫を減らすか」は独立したスイッチに分離。採番はDB関数化。</td>
+    </tr>
+    <tr class="hl">
+      <td>2</td><td><b>数合わせの画面が無い</b></td>
+      <td>棚卸専用画面が無いのに、調整モードでの棚卸修正が<span class="num">252件</span>発生（6月173件・8月79件）。棚卸テーブル（pharmacy_stocktakes）は<span class="num">利用0件</span>。</td>
+      <td><b>棚卸ワークシート</b>を新設。全品目に実数を流し込み→差分一覧→まとめて反映。</td>
+    </tr>
+    <tr>
+      <td>3</td><td><b>マスタの穴が埋めにくい</b></td>
+      <td>103品目中、原価未設定<span class="num">60</span>・レセプト電算コード未設定<span class="num">27</span>・入数未設定<span class="num">14</span>・薬価未設定<span class="num">14</span>。現状は1品ずつ探して直すしかない。</td>
+      <td><b>マスタ整備画面</b>を新設。穴だけを一覧化し、その場で埋める。埋まり率を見える化。</td>
+    </tr>
+    <tr>
+      <td>4</td><td><b>発注と入荷が繋がっていない</b></td>
+      <td>発注書の保存機能はあるが保存実績<span class="num">0件</span>。作っても納品時にゼロから入荷登録し直すため、使う動機が無い。</td>
+      <td>発注書に「<b>受け入れる</b>」ボタン。発注内容が入荷フォームに流れ、残受入数も追跡。</td>
+    </tr>
+    <tr class="hl">
+      <td>5</td><td><b>使用期限が育たない</b></td>
+      <td>入荷ロット<span class="num">182件</span>のうち使用期限入りは<span class="num">0件</span>。期限アラート機能は既にあるが、餌となるデータが1件も無い。</td>
+      <td>入荷時の期限入力を「<b>2604</b>」式の年月4桁に簡略化。期限未登録ロットの後追い入力導線も用意。</td>
+    </tr>
+    <tr>
+      <td>6</td><td><b>異常が数字でしか出ない</b></td>
+      <td>逆ザヤ<span class="num">1品目</span>・在庫切れ<span class="num">8品目</span>・発注点割れ<span class="num">5品目</span>・30日以内に切れる<span class="num">5品目</span>。KPIバンドに数字は出るが、タブの奥で気づかれない。</td>
+      <td>日中モードの入口を「<b>今日の状態</b>」ダッシュボードに。異常はそこに実名で並ぶ。</td>
+    </tr>
+    <tr>
+      <td>7</td><td><b>夜のスマホ操作がつらい</b></td>
+      <td>操作の<span class="num">53%</span>が17時以降・深夜0時にも発生。現行は白背景・小さめのボタン・6タブ構成で、暗所・片手・急ぎの3条件を考慮していない。</td>
+      <td><b>夜間ダークモード</b>（20:00–6:00自動）＋出庫特化の3タブ＋親指圏に大型ボタン。</td>
+    </tr>
+  </table>
+
+  <h3>異常検知の実例（今この瞬間のDBから）</h3>
+  <div class="cards">
+    <div class="card warn">
+      <h4><span class="badge r">逆ザヤ</span>ロキソプロフェン錠60mg</h4>
+      <p>仕入原価 19.08円/錠 に対し薬価 10.5円/錠。<b>出すほど1錠あたり約8.6円の持ち出し</b>。v0.7ではKPIセルの「1品目」という数字の中に隠れている。v0.8ではダッシュボードに品名で出す。</p>
+    </div>
+    <div class="card amber">
+      <h4><span class="badge a">在庫切れ</span>実績のある薬の在庫0が8品目</h4>
+      <p>「登録しただけで未仕入」14品目とは区別済み（v0.7で改良済のロジックを踏襲）。夜の診察中に「無い」と気づくのが最悪のケース。日中のうちにダッシュボードで拾う。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 03 ================= -->
+<section id="s3">
+  <div class="eyebrow">03 ｜ CONCEPT</div>
+  <h2>1枚のHTMLの中に「夜間モード」と「日中モード」の<br>2つの顔を持たせる</h2>
+  <p class="lead">
+    構成は現行どおり<em>静的HTML 1枚＋Supabase REST 直読み（ビルド無し・フレームワーク無し）</em>を維持します。
+    変えるのは顔の作りです。時刻とデバイスで顔を切り替えます。
+  </p>
+
+  <table>
+    <tr><th></th><th>🌙 夜間モード（20:00–6:00 自動）</th><th>☀️ 日中モード</th></tr>
+    <tr><td><b>想定シーン</b></td><td>診察中。スタッフがスマホ片手でQRを読んで出庫</td><td>事務時間。PCで入荷・発注・棚卸・マスタ整備</td></tr>
+    <tr><td><b>配色</b></td><td>墨ダーク <code>#12161a</code>＋ティール <code>#2ea88a</code>。暗所で眩しくない</td><td>象牙紙 <code>#f6f3ec</code>＋墨＋ティール <code>#0e7c66</code></td></tr>
+    <tr><td><b>ナビ</b></td><td>ボトム3タブ（出庫・在庫・履歴）＋その他メニュー</td><td>左サイドバー8項目（アラート件数バッジ付き）</td></tr>
+    <tr><td><b>初期画面</b></td><td>出庫（QRスキャナ即起動）</td><td>今日の状態（ダッシュボード）</td></tr>
+    <tr><td><b>操作系</b></td><td>親指圏に56px以上のボタン・長押し確定・振動フィードバック</td><td>表形式・一括編集・キーボード操作</td></tr>
+  </table>
+
+  <div class="cards">
+    <div class="card">
+      <h4>切替ルール</h4>
+      <p>①時刻（20:00–6:00は夜間テーマ）を既定とし、②ヘッダーの月/太陽ボタンでいつでも手動切替（選択はlocalStorageに保存、「自動に戻す」も用意）。③画面構成はテーマとは独立に<b>画面幅</b>で切替（768px未満=モバイルレイアウト）。「昼にスマホで出庫」「夜にPCで棚卸」もそのまま成立します。</p>
+    </div>
+    <div class="card">
+      <h4>実測が裏付ける自動切替</h4>
+      <p>操作の53%が17時以降に発生し、20時以降だけでも全体の23%。深夜0時の操作も記録されています。夜間帯の自動ダーク化は装飾ではなく、<b>暗い駐車場・車内での視認性と眩惑防止</b>という実務要件です。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 04 ================= -->
+<section id="s4">
+  <div class="eyebrow">04 ｜ INFORMATION ARCHITECTURE</div>
+  <h2>6タブ均等並びをやめ、<br>「夜の3タブ」と「昼の8メニュー」に組み替える</h2>
+  <p class="lead">現行はスキャン/在庫/入荷/発注/履歴/消費量の6タブがスマホでもPCでも同じ並びで出ます。使用者と場面で必要な機能が違うのに、入口が同じ形をしているのが根本の窮屈さです。</p>
+
+  <div class="ba">
+    <div class="col before">
+      <h5>BEFORE ─ v0.7（全端末共通・ボトム6タブ）</h5>
+      <ul>
+        <li>スキャン（出庫/入庫/棚卸/薬品追加を1画面に同居）</li>
+        <li>在庫 ／ 入荷 ／ 発注 ／ 履歴 ／ 消費量</li>
+        <li>PCでは間延び、スマホでは6分割で押しにくい</li>
+        <li>棚卸・マスタ整備・異常確認は「画面が無い」</li>
+      </ul>
+    </div>
+    <div class="arrow">→</div>
+    <div class="col after">
+      <h5>AFTER ─ v0.8（場面で出し分け）</h5>
+      <ul>
+        <li><b>🌙 モバイル：</b>出庫 ／ 在庫 ／ 履歴 ＋「管理」メニュー（残機能を格納）</li>
+        <li><b>☀️ PC：</b>今日の状態 ／ 出庫・入庫 ／ 在庫 ／ 入荷 ／ 発注 ／ <b>棚卸（新設）</b> ／ <b>マスタ整備（新設）</b> ／ 分析（履歴＋消費量を統合）</li>
+        <li>サイドバーに異常件数バッジ（在庫切れ・要対応数）</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>機能の行き先 対応表</h3>
+  <table>
+    <tr><th>v0.7の機能</th><th>v0.8での行き先</th><th>備考</th></tr>
+    <tr><td>スキャンタブ（出庫）</td><td>出庫画面（夜間モードの主役）</td><td>QR起動を初期状態に。患者・担当者入力は下部固定</td></tr>
+    <tr><td>スキャンタブ内の「入庫」</td><td>入荷画面へ統合</td><td>「入庫」と「入荷」の二重口を一本化（要確認事項①）</td></tr>
+    <tr><td>スキャンタブ内の「棚卸(調整)」</td><td>棚卸ワークシートへ</td><td>1品ずつの調整も棚卸画面の行操作として残す</td></tr>
+    <tr><td>スキャンタブ内の「薬品追加」</td><td>マスタ整備内の追加ウィザードへ</td><td>カルテ突合で見つかった未登録薬の連続登録も同導線</td></tr>
+    <tr><td>在庫タブ</td><td>在庫画面（PC=表・モバイル=カード）</td><td>体重別フィルタ・複数選択は踏襲</td></tr>
+    <tr><td>入荷タブ</td><td>入荷画面</td><td>「発注書から受入」を追加。期限の年月4桁入力</td></tr>
+    <tr><td>発注タブ</td><td>発注画面</td><td>発注書に状態（下書き/発注済/受入済）を持たせる</td></tr>
+    <tr><td>履歴タブ・消費量タブ</td><td>分析画面に統合</td><td>タブ内サブ切替。履歴削除は編集モードのまま踏襲</td></tr>
+    <tr><td>（なし）</td><td><b>今日の状態（新設）</b></td><td>日中モードの初期画面。異常・やること・入荷予定</td></tr>
+    <tr><td>マスタ整合性警告（画面上部帯）</td><td>今日の状態＋マスタ整備に整理</td><td>カルテ側との突合ロジックは流用</td></tr>
+  </table>
+</section>
+
+<!-- ================= 05 ================= -->
+<section id="s5">
+  <div class="eyebrow">05 ｜ WIREFRAMES</div>
+  <h2>主要7画面のワイヤーフレーム</h2>
+  <p class="lead">数値・品目名は本番DBの実データ、または実データと同じ形式のダミーです。</p>
+
+  <!-- ===== WF1 夜間出庫 ===== -->
+  <h3>WF-1 夜間モード：出庫（スマホ）── 主役画面</h3>
+  <div class="wf-row">
+    <div class="phone"><div class="scr">
+      <div class="notch"><i></i></div>
+      <div class="n-head"><b>💊 出庫</b><span class="mode">🌙 夜間 21:47</span></div>
+      <div class="n-scan">
+        <div class="frame"></div>
+        QRをかざしてください
+      </div>
+      <div class="n-item">
+        <div class="nm"><b>カロナール細粒50% 0.3g</b><span>M101 ｜ 在庫 162包 → 160包</span></div>
+        <div class="st"><i>−</i><b>2</b><i>＋</i></div>
+      </div>
+      <div class="n-item">
+        <div class="nm"><b>カルボシステインDS50% 0.6g</b><span>M110 ｜ 在庫 18包 → 15包</span></div>
+        <div class="st"><i>−</i><b>3</b><i>＋</i></div>
+      </div>
+      <div class="n-warn">⚠ カルボシステインDS50% 0.6g は残り15包。今の消費ペースだと約3日で切れます</div>
+      <div class="n-field">
+        <div><div class="l">患者</div><div class="v">やまだ たろう</div></div>
+        <div><div class="l">担当者（前回: 森）</div><div class="v">森</div></div>
+      </div>
+      <div class="n-hold"><span>長押しで出庫を確定（2品目）<small>0.6秒 押し続けると送信されます</small></span></div>
+      <div class="n-tabs">
+        <div class="on"><i>💊</i>出庫</div>
+        <div><i>📦</i>在庫</div>
+        <div><i>📋</i>履歴</div>
+        <div><i>≡</i>管理</div>
+      </div>
+    </div></div>
+    <div class="wf-note">
+      <p><b>設計意図：QR→数量→長押しの3動作で完結させる。</b></p>
+      <ol>
+        <li><span class="k">画面を開いた瞬間にQRスキャナが生きている</span>（現行は「カメラを起動」ボタンを押してから）。カメラ許可は初回のみ。</li>
+        <li>読み取った薬は即座にリストへ滑り込み、<span class="k">「在庫 162包 → 160包」と結果の姿</span>で表示。数量ボタンは40px角で片手の親指圏。</li>
+        <li>担当者は<span class="k">前回値を自動セット</span>（localStorage）。患者はフリーテキスト＋最近の入力候補。</li>
+        <li>確定は<span class="k">長押し0.6秒</span>。夜の急ぎ操作での誤送信をタップ回数を増やさずに防ぐ。押している間リングが満ちる。</li>
+        <li>発注点を割った薬・消費ペースで数日以内に切れる薬は<span class="k">その場で琥珀色の1行警告</span>。夜のうちに「明日発注」へ心づもりできる。</li>
+        <li>電波の弱い駐車場を想定し、送信失敗時は<span class="k">端末に退避して再送</span>（オフラインキュー）。</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ===== WF2 今日の状態 ===== -->
+  <h3>WF-2 日中モード：今日の状態（ダッシュボード）── 日中の入口</h3>
+  <div class="wf-row">
+    <div class="browser">
+      <div class="bar"><i></i><i></i><i></i><span class="url">soumu-hdg.github.io/drive-through-pharmacy/v0_8/</span><span class="tag">WIREFRAME</span></div>
+      <div class="scr"><div class="d-shell">
+        <div class="d-nav">
+          <div class="logo">薬品在庫 v0.8</div>
+          <a class="on">🏠 今日の状態<span class="cnt">14</span></a>
+          <a>💊 出庫・入庫</a>
+          <a>📦 在庫</a>
+          <a>📥 入荷</a>
+          <a>🛒 発注<span class="cnt a">18</span></a>
+          <a>📝 棚卸</a>
+          <a>🧰 マスタ整備<span class="cnt a">60</span></a>
+          <a>📊 分析</a>
+        </div>
+        <div class="d-main">
+          <div class="d-h"><b>今日の状態</b><span>2026-09-02（火）☀️ 日中モード</span></div>
+          <div class="wf-kpi">
+            <div><div class="l">在庫評価額（原価）</div><div class="v">¥476,459</div></div>
+            <div><div class="l">在庫切れ</div><div class="v warn">8品目</div></div>
+            <div><div class="l">30日以内に切れる</div><div class="v warn">5品目</div></div>
+            <div><div class="l">発注点割れ</div><div class="v">5品目</div></div>
+            <div><div class="l">逆ザヤ</div><div class="v warn">1品目</div></div>
+          </div>
+          <table class="wf-tbl">
+            <tr><th colspan="3">⚠ 要対応（クリックで該当画面へ）</th></tr>
+            <tr><td><span style="color:var(--red);font-weight:900">在庫切れ</span></td><td>プリンペラン錠5mg、レスプレン錠30mg ほか6品目</td><td class="r">→ 発注へ</td></tr>
+            <tr><td><span style="color:var(--red);font-weight:900">逆ザヤ</span></td><td>ロキソプロフェン錠60mg（原価19.08円 &gt; 薬価10.5円）</td><td class="r">→ マスタ整備へ</td></tr>
+            <tr><td><span style="color:var(--amber);font-weight:900">まもなく切れる</span></td><td>カルボシステインDS50% 0.6g（残り3日）ほか4品目</td><td class="r">→ 発注へ</td></tr>
+            <tr><td><span style="color:var(--amber);font-weight:900">期限未登録</span></td><td>残数のあるロット182件に使用期限が入っていません</td><td class="r">→ 入荷へ</td></tr>
+            <tr><td><span style="color:var(--amber);font-weight:900">カルテ突合</span></td><td>カルテにあって在庫マスタに無い薬（毎朝1回突合・検出時のみ表示）</td><td class="r">→ 追加ウィザードへ</td></tr>
+          </table>
+          <table class="wf-tbl" style="margin-top:8px">
+            <tr><th colspan="3">📥 受入待ちの発注書</th></tr>
+            <tr><td>PO-20260901-1</td><td>アルフレッサ ｜ 4品目 ¥23,180 ｜ 9/1 発注済</td><td class="r"><span class="wf-btn" style="font-size:9px;padding:3px 8px">受け入れる</span></td></tr>
+          </table>
+        </div>
+      </div></div>
+    </div>
+    <div class="wf-note">
+      <p><b>設計意図：数字ではなく「品名＋行き先」で異常を出す。</b></p>
+      <ol>
+        <li>KPIバンドは10秒理解用。<span class="k">その下の要対応リストが本体</span>で、1行ずつ該当画面へのジャンプ付き。「気づく→直す」を1クリックで繋ぐ。</li>
+        <li>サイドバーの<span class="k">件数バッジ</span>で、どの画面に仕事が溜まっているかが常時見える。</li>
+        <li>受入待ちの発注書をここに出すことで、<span class="k">発注→入荷の連動</span>（課題4）を毎朝の視界に入れる。</li>
+        <li>現行の「マスタ整合性警告帯」（カルテ突合・マイナス在庫）もここに整理統合。</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ===== WF3 在庫 ===== -->
+  <h3>WF-3 日中モード：在庫（PC＝表型）</h3>
+  <div class="wf-row">
+    <div class="browser">
+      <div class="bar"><i></i><i></i><i></i><span class="url">…/v0_8/ ─ 在庫</span><span class="tag">WIREFRAME</span></div>
+      <div class="scr"><div class="d-shell">
+        <div class="d-nav">
+          <div class="logo">薬品在庫 v0.8</div>
+          <a>🏠 今日の状態<span class="cnt">14</span></a>
+          <a>💊 出庫・入庫</a>
+          <a class="on">📦 在庫</a>
+          <a>📥 入荷</a><a>🛒 発注<span class="cnt a">18</span></a><a>📝 棚卸</a><a>🧰 マスタ整備<span class="cnt a">60</span></a><a>📊 分析</a>
+        </div>
+        <div class="d-main">
+          <div class="d-h"><b>在庫一覧（103品目）</b><span><span class="wf-input">🔍 薬品名・コード・分類</span>　成人｜小児｜外用｜検査　体重別▾</span></div>
+          <table class="wf-tbl">
+            <tr><th>コード</th><th>薬品名</th><th>分類</th><th class="r">在庫</th><th class="r">発注点</th><th class="r">原価/単位</th><th class="r">薬価</th><th>状態</th></tr>
+            <tr><td>M002</td><td>アセトアミノフェン錠500mg</td><td>成人/解熱鎮痛剤</td><td class="r"><b>335</b>錠</td><td class="r">200</td><td class="r">¥9.98</td><td class="r">¥11.2</td><td><span style="color:var(--teal)">OK</span></td></tr>
+            <tr><td>M003</td><td>ロキソプロフェン錠60mg</td><td>成人/解熱鎮痛剤</td><td class="r"><b>240</b>錠</td><td class="r">100</td><td class="r">¥19.08</td><td class="r">¥10.5</td><td><span style="color:var(--red);font-weight:700">逆ザヤ</span></td></tr>
+            <tr><td>M110</td><td>カルボシステインDS50% 0.6g</td><td>小児/去痰剤</td><td class="r" style="color:var(--red)"><b>18</b>包</td><td class="r">180</td><td class="r">未設定</td><td class="r">¥12.5</td><td><span style="color:var(--amber);font-weight:700">残3日</span></td></tr>
+            <tr><td>M055</td><td>ツロブテロールテープ0.5mg</td><td>外用/気管支拡張剤</td><td class="r">—</td><td class="r">—</td><td class="r">¥20.81</td><td class="r">¥22.9</td><td><span style="color:var(--sub)">在庫非管理</span></td></tr>
+            <tr><td>M015</td><td>ビオフェルミン錠剤</td><td>成人/整腸剤</td><td class="r" style="color:var(--red)"><b>0</b>錠</td><td class="r">100</td><td class="r">未設定</td><td class="r">¥6.1</td><td><span style="color:var(--red);font-weight:700">在庫切れ</span></td></tr>
+          </table>
+          <div style="margin-top:8px; font-size:9.5px; color:var(--sub)">☑ 3件選択中 → <span class="wf-btn" style="font-size:9px;padding:3px 8px">出庫リストへ</span> <span class="wf-btn ghost" style="font-size:9px;padding:3px 8px">棚卸へ</span></div>
+        </div>
+      </div></div>
+    </div>
+    <div class="wf-note">
+      <p><b>設計意図：PCは表、スマホはカード。同じデータの別レイアウト。</b></p>
+      <ol>
+        <li>PCでは<span class="k">ソート可能な密度の高い表</span>。現行の3列カードグリッドはPCの横幅を浪費していた。</li>
+        <li>状態列に<span class="k">逆ザヤ・在庫切れ・期限を文字で直接表示</span>（色だけに頼らない）。</li>
+        <li>外用薬（在庫非減算）は在庫欄を「—」表示にし、<span class="k">「数字の0」と「管理していない」を見分けられる</span>ようにする。</li>
+        <li>スマホ表示では現行同様のカード2列＋体重別フィルタ（小児用量早見）を踏襲。夜間テーマでは配色のみ反転。</li>
+        <li>複数選択からの「出庫リストへ」「棚卸へ」で他画面と接続。</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ===== WF4 棚卸 ===== -->
+  <h3>WF-4 日中モード：棚卸ワークシート（新設）</h3>
+  <div class="wf-row">
+    <div class="browser">
+      <div class="bar"><i></i><i></i><i></i><span class="url">…/v0_8/ ─ 棚卸</span><span class="tag">WIREFRAME</span></div>
+      <div class="scr"><div class="d-shell">
+        <div class="d-nav">
+          <div class="logo">薬品在庫 v0.8</div>
+          <a>🏠 今日の状態<span class="cnt">14</span></a><a>💊 出庫・入庫</a><a>📦 在庫</a><a>📥 入荷</a><a>🛒 発注<span class="cnt a">18</span></a>
+          <a class="on">📝 棚卸</a>
+          <a>🧰 マスタ整備<span class="cnt a">60</span></a><a>📊 分析</a>
+        </div>
+        <div class="d-main">
+          <div class="d-h"><b>棚卸 2026-09-02 ｜ 担当: 森</b><span>進捗 42 / 88品目（外用15品目は対象外）</span></div>
+          <div style="height:5px; background:#e5dfd0; margin-bottom:8px"><div style="height:5px; width:48%; background:var(--teal)"></div></div>
+          <table class="wf-tbl">
+            <tr><th>薬品名</th><th class="r">システム在庫</th><th class="r" style="width:74px">実地数</th><th class="r">差分</th><th>メモ</th></tr>
+            <tr><td>アセトアミノフェン錠500mg</td><td class="r">335</td><td class="r"><span class="wf-input" style="display:inline-block;width:40px;text-align:right">335</span></td><td class="r" style="color:var(--teal)">±0</td><td></td></tr>
+            <tr style="background:rgba(217,130,31,.09)"><td>カルボシステインDS50% 0.6g</td><td class="r">18</td><td class="r"><span class="wf-input" style="display:inline-block;width:40px;text-align:right;border-color:var(--amber)">23</span></td><td class="r" style="color:var(--amber);font-weight:900">＋5</td><td style="color:var(--sub)">戸棚2段目に発見</td></tr>
+            <tr><td>トラネキサム酸錠250mg</td><td class="r">294</td><td class="r"><span class="wf-input" style="display:inline-block;width:40px;text-align:right">292</span></td><td class="r" style="color:var(--amber);font-weight:900">−2</td><td></td></tr>
+            <tr><td>ビオフェルミン錠剤</td><td class="r">0</td><td class="r"><span class="wf-input" style="display:inline-block;width:40px;color:#bbb">未入力</span></td><td class="r">—</td><td></td></tr>
+          </table>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px">
+            <span style="font-size:9.5px;color:var(--sub)">差分あり <b style="color:var(--amber)">2品目</b>（＋5 / −2）｜ 未入力 46品目は変更されません</span>
+            <span><span class="wf-btn ghost" style="font-size:9px;padding:3px 10px">下書き保存</span> <span class="wf-btn amber" style="font-size:9px;padding:3px 10px">差分を確認して反映</span></span>
+          </div>
+        </div>
+      </div></div>
+    </div>
+    <div class="wf-note">
+      <p><b>設計意図：「実地棚卸→差分一覧→まとめて反映」を1画面で。</b></p>
+      <ol>
+        <li>在庫管理対象の全品目が<span class="k">数えやすい順（分類→コード順）</span>で並び、実地数を上から流し込む。Enterで次の行へ。</li>
+        <li>差分はその場で計算・色分け。<span class="k">差分のある行だけ琥珀でハイライト</span>し、反映前に差分一覧の確認モーダルを挟む。</li>
+        <li>反映すると <code>pharmacy_stocktakes</code> に記録を残し、在庫の書き換えは adjust トランザクションで行う（設計済みのテーブルをようやく使う）。</li>
+        <li><span class="k">未入力の品目は変更しない</span>。全品目を一度に数え切れなくても、途中まで下書き保存して翌日続きから再開できる。</li>
+        <li>スマホではQRスキャン→その薬の実地数入力、の1品ずつモードを提供（棚を回りながら数える使い方）。</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ===== WF5 追加ウィザード ===== -->
+  <h3>WF-5 薬品追加ウィザード（マスタ整備内・3ステップ）</h3>
+  <div class="wf-row">
+    <div class="browser">
+      <div class="bar"><i></i><i></i><i></i><span class="url">…/v0_8/ ─ マスタ整備 › 薬品追加</span><span class="tag">WIREFRAME</span></div>
+      <div class="scr" style="padding:14px 18px">
+        <div style="display:flex; gap:0; margin-bottom:12px; font-size:10px">
+          <div style="flex:1; border-bottom:3px solid var(--teal); padding-bottom:4px; font-weight:900; color:var(--teal)">① 厚労省マスタから選ぶ</div>
+          <div style="flex:1; border-bottom:3px solid var(--teal); padding-bottom:4px; font-weight:900; color:var(--teal)">② 在庫の扱いを決める</div>
+          <div style="flex:1; border-bottom:3px solid var(--line); padding-bottom:4px; color:var(--sub)">③ 確認して登録</div>
+        </div>
+        <div style="display:flex; gap:14px">
+          <div style="flex:1">
+            <div style="font-size:9px; color:var(--sub); margin-bottom:3px">STEP① 検索（18,515件から）</div>
+            <span class="wf-input" style="display:block; margin-bottom:6px">🔍 アモキシシリン</span>
+            <div style="border:1px solid var(--teal); background:#fff; padding:6px 9px; font-size:10px; border-left:3px solid var(--teal)">
+              <b>アモキシシリン細粒20%「TCK」200mg</b><br>
+              <span style="color:var(--sub); font-size:9px">レセ電 621072701 ｜ 薬価 ¥11.8/g ｜ 内用薬</span>
+            </div>
+            <div style="font-size:9px; color:var(--sub); margin-top:5px">→ 名称・カナ・薬価・単位・レセ電コードが自動で入ります。<br>マスタに無い院内独自品（検査キット等）は「手入力で登録」へ。</div>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:9px; color:var(--sub); margin-bottom:3px">STEP② 在庫の扱い（自動推定済み・変更可）</div>
+            <div style="background:#fff; border:1px solid var(--line); padding:8px 10px; font-size:10px">
+              分類：<b>小児/抗生剤</b> <span class="badge t" style="font-size:8px">剤形から自動推定</span><br>
+              <div style="margin-top:6px; padding:6px 8px; background:rgba(14,124,102,.07); border-left:3px solid var(--teal)">
+                <b>出庫で在庫を減らす</b>　<span style="font-weight:900; color:var(--teal)">［ ON ］</span><br>
+                <span style="font-size:8.5px; color:var(--sub)">軟膏・点眼など「院内で使い回す薬」はOFF。<br>OFFの薬は出庫記録は残るが在庫数は動きません。</span>
+              </div>
+              <div style="margin-top:6px">入数/1ロット：<b>100</b>g　仕入単価：<b>¥890</b>　発注点：<b>30</b></div>
+              <div style="margin-top:4px; font-size:8.5px; color:var(--sub)">コードは <b>M203</b> を自動採番（DB側で重複なく発行）</div>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:right; margin-top:10px"><span class="wf-btn ghost" style="font-size:9px;padding:4px 10px">戻る</span> <span class="wf-btn" style="font-size:9px;padding:4px 12px">③ 確認へ進む</span></div>
+      </div>
+    </div>
+    <div class="wf-note">
+      <p><b>設計意図：課題1「薬品追加が煩雑」の根治。</b></p>
+      <ol>
+        <li>厚労省マスタ検索を<span class="k">第1ステップに固定</span>。現行は任意の補助機能で、使わないとレセ電コードの穴（27品目）が増える構造だった。</li>
+        <li>最大の罠だった<span class="k">「外用/」分類の隠れ挙動を、独立スイッチ「出庫で在庫を減らす」に分離</span>。厚労省マスタの剤形（内用/外用）から初期値を自動推定し、意味を説明文つきで見せる。</li>
+        <li>互換のため、スイッチOFF時はDBの新列 <code>stock_tracking=false</code> と同時に従来の「外用/」分類も維持し、<span class="k">v0.7と同居しても挙動が食い違わない</span>ようにする。</li>
+        <li>コード採番はDB関数（連番の払い出し）に移し、画面側の「最大値+1」ロジックの競合リスクを除去。</li>
+        <li>GASへの二重登録は行わない（Supabaseが唯一の正・要確認事項②）。</li>
+        <li>カルテ突合で見つかった未登録薬は、名称・分類推定が流し込まれた状態でこのウィザードが連続起動（現行の導線を改良移植）。</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ===== WF6 マスタ整備 ===== -->
+  <h3>WF-6 マスタ整備（新設）── 穴を一覧で埋める</h3>
+  <div class="wf-row">
+    <div class="browser">
+      <div class="bar"><i></i><i></i><i></i><span class="url">…/v0_8/ ─ マスタ整備</span><span class="tag">WIREFRAME</span></div>
+      <div class="scr"><div class="d-shell">
+        <div class="d-nav">
+          <div class="logo">薬品在庫 v0.8</div>
+          <a>🏠 今日の状態<span class="cnt">14</span></a><a>💊 出庫・入庫</a><a>📦 在庫</a><a>📥 入荷</a><a>🛒 発注<span class="cnt a">18</span></a><a>📝 棚卸</a>
+          <a class="on">🧰 マスタ整備<span class="cnt a">60</span></a><a>📊 分析</a>
+        </div>
+        <div class="d-main">
+          <div class="d-h"><b>マスタ整備</b><span><span class="wf-btn" style="font-size:9px;padding:3px 10px">＋ 薬品を追加</span></span></div>
+          <div class="wf-kpi">
+            <div><div class="l">仕入原価 未設定</div><div class="v warn">60</div></div>
+            <div><div class="l">レセ電コード 未設定</div><div class="v warn">27</div></div>
+            <div><div class="l">入数 未設定</div><div class="v">14</div></div>
+            <div><div class="l">薬価 未設定</div><div class="v">14</div></div>
+            <div><div class="l">マスタ充足率</div><div class="v" style="color:var(--teal)">72%</div></div>
+          </div>
+          <div style="font-size:9.5px; color:var(--sub); margin-bottom:4px">表示: <b style="color:var(--ink)">原価未設定(60)</b> ｜ レセ電未設定(27) ｜ 入数未設定(14) ｜ すべての穴</div>
+          <table class="wf-tbl">
+            <tr><th>薬品名</th><th>レセ電</th><th class="r">薬価</th><th class="r" style="width:80px">入数/ロット</th><th class="r" style="width:90px">仕入単価/ロット</th><th>仕入先</th></tr>
+            <tr><td>カルボシステインDS50% 0.6g</td><td><span class="gapdot"></span> <u style="color:var(--teal)">マスタから紐付け</u></td><td class="r">¥12.5</td><td class="r">45包</td><td class="r"><span class="wf-input" style="display:inline-block;width:56px;border-color:var(--red)">未</span></td><td>仕入先を選ぶ ▾</td></tr>
+            <tr><td>ヘパリン類似物質ローション3%</td><td><span class="gapdot"></span> <u style="color:var(--teal)">マスタから紐付け</u></td><td class="r">¥6.3</td><td class="r">10本</td><td class="r"><span class="wf-input" style="display:inline-block;width:56px;border-color:var(--red)">未</span></td><td>仕入先を選ぶ ▾</td></tr>
+            <tr><td>クイックナビ StrepA</td><td><span class="gapdot"></span> <span style="color:var(--sub)">対象外にする</span></td><td class="r">¥776.4</td><td class="r">10キット</td><td class="r">¥7,674</td><td>スズケン ▾</td></tr>
+          </table>
+          <div style="text-align:right; margin-top:6px"><span class="wf-btn" style="font-size:9px;padding:3px 12px">変更を保存（2件）</span></div>
+        </div>
+      </div></div>
+    </div>
+    <div class="wf-note">
+      <p><b>設計意図：課題3「穴がどこにあるか分からない」の解消。</b></p>
+      <ol>
+        <li>既設の <code>pharmacy_v_master_gaps</code> ビューを初めて画面化。<span class="k">穴の種類ごとのフィルタ</span>で「今日は原価だけ埋める」という作業ができる。</li>
+        <li>セルは<span class="k">その場で直接編集</span>。1品ずつ詳細画面を開かない。変更はまとめて保存。</li>
+        <li>レセ電コードの紐付けは行内から厚労省マスタ検索を呼び出し。<span class="k">院内独自品は「対象外にする」で穴の集計から除外</span>できる（未設定14品目には検査キット等マスタに存在しない品が含まれるため、永遠に警告が残るのを防ぐ）。</li>
+        <li>充足率の帯グラフで<span class="k">整備の進み具合が数字で残る</span>＝手すきの時間の作業対象になる。</li>
+        <li>逆ザヤ検知もこの画面に表示（原価か薬価の入力ミス起因が多いため、修正の場と同居させる）。</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ===== WF7 発注→入荷 ===== -->
+  <h3>WF-7 発注 → 入荷受入（連動フロー）</h3>
+  <div class="wf-row">
+    <div class="browser">
+      <div class="bar"><i></i><i></i><i></i><span class="url">…/v0_8/ ─ 入荷 › 発注書から受入</span><span class="tag">WIREFRAME</span></div>
+      <div class="scr" style="padding:14px 18px">
+        <div style="font-size:10px; color:var(--sub); margin-bottom:6px">発注書 <b style="color:var(--ink)">PO-20260901-1</b>（アルフレッサ ｜ 9/1 発注済）を受け入れます</div>
+        <table class="wf-tbl">
+          <tr><th>薬品名</th><th class="r">発注</th><th class="r" style="width:70px">今回受入</th><th class="r" style="width:88px">使用期限(年月)</th><th style="width:70px">ロット番号</th></tr>
+          <tr><td>カロナール細粒50% 0.3g</td><td class="r">2ロット(90包)</td><td class="r"><span class="wf-input" style="display:inline-block;width:40px;text-align:right">90</span></td><td class="r"><span class="wf-input" style="display:inline-block;width:52px;text-align:center">2807</span></td><td><span class="wf-input" style="display:inline-block;width:56px">A5F231</span></td></tr>
+          <tr><td>カルボシステインDS50% 0.6g</td><td class="r">2ロット(90包)</td><td class="r"><span class="wf-input" style="display:inline-block;width:40px;text-align:right">90</span></td><td class="r"><span class="wf-input" style="display:inline-block;width:52px;text-align:center">2803</span></td><td><span class="wf-input" style="display:inline-block;width:56px">—</span></td></tr>
+          <tr style="background:rgba(217,130,31,.09)"><td>トラネキサム酸錠250mg</td><td class="r">2ロット(1000錠)</td><td class="r"><span class="wf-input" style="display:inline-block;width:40px;text-align:right;border-color:var(--amber)">500</span></td><td class="r"><span class="wf-input" style="display:inline-block;width:52px;text-align:center">2712</span></td><td><span class="wf-input" style="display:inline-block;width:56px">—</span></td></tr>
+        </table>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:9.5px; color:var(--sub)">
+          <span>⚠ トラネキサム酸錠は500錠分納 → 発注書は「<b>一部受入</b>」のまま残り、次回の納品時に続きを受入できます</span>
+          <span class="wf-btn" style="font-size:9px;padding:4px 12px">受入を確定（在庫へ反映）</span>
+        </div>
+        <div style="margin-top:10px; border-top:1px solid var(--line); padding-top:6px; font-size:9px; color:var(--sub)">
+          期限入力は「<b>2807</b>」= 2028年7月 の4桁。月末日として登録します。個別入荷（発注書なし）も従来どおり可能。
+        </div>
+      </div>
+    </div>
+    <div class="wf-note">
+      <p><b>設計意図：課題4と5をまとめて解く。</b></p>
+      <ol>
+        <li>発注書を保存する動機を「<span class="k">納品日に入力が9割済んでいる</span>」で作る。品目・ロット数・単価が発注時の値で埋まった受入表が出る。</li>
+        <li>数量修正は例外時のみ。<span class="k">分納は received_qty で追跡</span>し、発注書は自動で「一部受入→受入済」と遷移。</li>
+        <li>使用期限は<span class="k">年月4桁のテンキー入力</span>（箱の刻印は「2028.07」形式が大半で、日まで入れる意味が薄い）。1行入れたら「下の行に同じ期限を適用」も1タップ。</li>
+        <li>受入確定で <code>pharmacy_lots</code>（期限つき）＋ in トランザクション＋在庫加算＋発注書ステータス更新が一括で走る。</li>
+        <li>既存182ロットの期限は「期限未登録ロット一覧」から後追い入力できる導線を入荷画面内に用意（全件埋める義務は課さない）。</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 06 ================= -->
+<section id="s6">
+  <div class="eyebrow">06 ｜ MOTION DESIGN</div>
+  <h2>動きはすべて「操作の手応え」か「危険の予告」のために使う</h2>
+  <p class="lead">医療現場のツールなので、装飾のためのアニメーションは入れません。以下の一覧が全てで、これ以外の動きは実装しない、という縛りとして定義します。全動作 <code>prefers-reduced-motion</code> に対応します。</p>
+  <table class="mv">
+    <tr><th style="width:180px">何が</th><th style="width:170px">いつ</th><th>どう動く</th><th style="width:230px">なぜ（実務上の価値）</th></tr>
+    <tr><td>スキャン成功カード</td><td>QR読み取り成功時</td><td>リスト先頭へ160msで滑り込み＋端末振動。読み取り枠が一瞬ティール発光</td><td>画面を見ずに「読めた」が分かる。現行の中央ポップアップ（1.2秒視界を塞ぐ）を廃止</td></tr>
+    <tr><td>在庫数の表示</td><td>出庫・入荷・棚卸の反映時</td><td>数字がロール（74→72）で変化。300ms</td><td>「操作の結果、数がどうなったか」の視認。静的差し替えだと変化を見落とす</td></tr>
+    <tr><td>確定ボタン（夜間出庫）</td><td>長押し中</td><td>0.6秒かけてリングが満ち、満了で送信。途中で離すと巻き戻る</td><td>誤タップによる誤出庫の防止。確認ダイアログを増やさずに達成する</td></tr>
+    <tr><td>送信ボタン全般</td><td>送信中→完了</td><td>ボタン内スピナー→チェックマークに変形。完了までボタンは非活性</td><td>二度押し（二重送信）の物理的防止と、通信中である事実の明示</td></tr>
+    <tr><td>発注点割れ警告</td><td>出庫で発注点を割った瞬間</td><td>琥珀の警告行が1回だけフェードイン。点滅はしない</td><td>危険な状態遷移を「起きたその瞬間」に知らせる。常時点滅は夜間の目に毒なので禁止</td></tr>
+    <tr><td>棚卸の差分セル</td><td>実地数がシステム在庫と食い違った時</td><td>差分セルが1回だけ琥珀にパルス（600ms）</td><td>数え間違い・入力ミスの即時セルフチェックを促す</td></tr>
+    <tr><td>テーマ切替</td><td>20:00/6:00の自動切替・手動切替時</td><td>背景と文字色を200msクロスフェード</td><td>瞬間切替は暗所で眩しい。「モードが変わった」ことの認知</td></tr>
+    <tr><td>サイドバーの件数バッジ</td><td>ページ読込後、集計確定時</td><td>1回だけスケールイン（0.9→1.0）</td><td>「今日は仕事がある」ことへの注意誘導。以降は静止</td></tr>
+    <tr><td>オフライン再送キュー</td><td>送信失敗→再送成功時</td><td>画面上端に細い琥珀バー常駐→成功でティールに変わり消える</td><td>電波の弱い駐車場での「送れたのか不安」を解消。失敗の黙殺をしない</td></tr>
+  </table>
+  <div class="cards">
+    <div class="card warn">
+      <h4>実装しないもの（明示的に却下）</h4>
+      <p>ページ遷移の派手なトランジション／背景のパララックス／ホバーで浮き上がるカード／スケルトンのきらめきループ／常時点滅のアラート。いずれも夜間の視認性・操作速度に寄与しないため。</p>
+    </div>
+    <div class="card">
+      <h4>触覚・音</h4>
+      <p>スキャン成功=短振動1回、確定完了=短振動2回（現行のvibrate実装を踏襲・拡張）。音は診察環境を考慮して既定OFF。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 07 ================= -->
+<section id="s7">
+  <div class="eyebrow">07 ｜ DESIGN TOKENS</div>
+  <h2>カラートークンとタイポグラフィ</h2>
+  <p class="lead">CSS変数はライト（日中）を既定とし、<code>html[data-theme="night"]</code> で夜間値へ切り替えます。意味名で統一し、画面側は意味名だけを参照します。</p>
+  <div class="tokens">
+    <div class="tokpanel">
+      <h4>☀️ DAY ─ 象牙紙×墨×ティール</h4>
+      <div class="tok"><i style="background:#f6f3ec"></i><code>--bg: #f6f3ec</code>　背景（象牙紙）</div>
+      <div class="tok"><i style="background:#fffdf7"></i><code>--surface: #fffdf7</code>　面（カード・表）</div>
+      <div class="tok"><i style="background:#1a1c1e"></i><code>--ink: #1a1c1e</code>　文字（墨）</div>
+      <div class="tok"><i style="background:#5c5a52"></i><code>--ink-sub: #5c5a52</code>　補助文字</div>
+      <div class="tok"><i style="background:#0e7c66"></i><code>--act: #0e7c66</code>　主操作・選択（ティール）</div>
+      <div class="tok"><i style="background:#c9821f"></i><code>--warn: #c9821f</code>　注意・数値強調（琥珀）</div>
+      <div class="tok"><i style="background:#b3372f"></i><code>--danger: #b3372f</code>　危険・在庫切れ</div>
+      <div class="tok"><i style="background:#d8d2c4"></i><code>--line: #d8d2c4</code>　罫線</div>
+    </div>
+    <div class="tokpanel night">
+      <h4 style="color:var(--n-teal)">🌙 NIGHT ─ 墨ダーク×ティール</h4>
+      <div class="tok"><i style="background:#12161a"></i><code>--bg: #12161a</code>　背景（墨ダーク）</div>
+      <div class="tok"><i style="background:#1a2026"></i><code>--surface: #1a2026</code>　面</div>
+      <div class="tok"><i style="background:#e8e4da"></i><code>--ink: #e8e4da</code>　文字（生成り）</div>
+      <div class="tok"><i style="background:#8b95a0"></i><code>--ink-sub: #8b95a0</code>　補助文字</div>
+      <div class="tok"><i style="background:#2ea88a"></i><code>--act: #2ea88a</code>　主操作（明ティール）</div>
+      <div class="tok"><i style="background:#d9a441"></i><code>--warn: #d9a441</code>　注意（明琥珀）</div>
+      <div class="tok"><i style="background:#e05d5d"></i><code>--danger: #e05d5d</code>　危険（減彩の赤）</div>
+      <div class="tok"><i style="background:#2b333b"></i><code>--line: #2b333b</code>　罫線</div>
+    </div>
+  </div>
+  <h3>タイポグラフィ・形状ルール</h3>
+  <table>
+    <tr><th style="width:200px">項目</th><th>規定</th></tr>
+    <tr><td>書体</td><td>UI全体: <code>'Noto Sans JP', -apple-system, sans-serif</code>（外部フォント読込はこの1族のみ。夜間の初期表示速度を優先しシステムフォールバック必須）</td></tr>
+    <tr><td>数値</td><td>在庫数・金額は <code>font-variant-numeric: tabular-nums</code> で桁揃え。主要数値は900ウェイト</td></tr>
+    <tr><td>最小サイズ</td><td>モバイル本文14px・補助12px。入力欄は16px（iOSの自動ズーム防止）</td></tr>
+    <tr><td>タップ目標</td><td>夜間モードの操作要素は最小44px、主ボタンは56px高</td></tr>
+    <tr><td>角丸・影</td><td>角丸は2px（バッジ）〜6px（ボタン）まで。ふわっとした汎用影は使わず、面の区別は罫線と左ボーダー（3px solid）で行う</td></tr>
+    <tr><td>禁止事項</td><td>紫系グラデーション・h1グラデ文字・12px角丸白カード・丸ピルバッジ(999px)・グラス効果は使用しない（社内デザイン規約）</td></tr>
+    <tr><td>ダーク時の彩度</td><td>夜間は純色を避け、危険色も減彩（#e05d5d）。純白(#fff)は使わず最大輝度は #e8e4da</td></tr>
+  </table>
+</section>
+
+<!-- ================= 08 ================= -->
+<section id="s8">
+  <div class="eyebrow">08 ｜ OUTCOME</div>
+  <h2>操作ステップで測る Before → After</h2>
+  <table>
+    <tr><th>業務</th><th>v0.7（現行）</th><th>v0.8</th></tr>
+    <tr><td><b>夜間の出庫1件</b></td><td>タブ移動→カメラ起動→スキャン→ポップアップ待ち→患者→担当者→送信→確認ダイアログ（<b>約8操作</b>・白画面）</td><td>起動即スキャン→数量→長押し確定（<b>3操作</b>・担当者は前回値・ダーク画面）</td></tr>
+    <tr><td><b>薬品追加</b></td><td>フォーム11項目を手動入力＋分類選択（罠つき）＋GAS二重登録</td><td>ウィザード3ステップ・大半が自動入力・在庫挙動は明示スイッチ</td></tr>
+    <tr><td><b>月次の数合わせ</b></td><td>調整モードで1品ずつ252回の修正操作</td><td>棚卸ワークシートに実数を流し込み→1回で反映・記録も残る</td></tr>
+    <tr><td><b>納品の受入</b></td><td>発注書と無関係に1品ずつ入荷登録（だから発注書が使われない: 保存0件）</td><td>発注書から受入表を開き数量確認→確定。分納も追跡</td></tr>
+    <tr><td><b>異常への気づき</b></td><td>タブを開けばKPIの数字はある（開かなければ気づかない）</td><td>日中の入口が「今日の状態」。品名と行き先つきで並ぶ</td></tr>
+  </table>
+
+  <h3>作らないもの（スコープ外）</h3>
+  <p class="small">ログイン/権限管理（現行同様のanonキー運用を維持）／ネイティブアプリ化／カルテとの在庫自動連動（突合警告まで）／過去182ロットの期限一括復元（データが存在しないため、後追い入力の導線提供まで）。</p>
+
+  <h3>リスクと費用</h3>
+  <table>
+    <tr><th style="width:210px">項目</th><th>内容</th></tr>
+    <tr><td>費用</td><td><b>追加費用ゼロ。</b>既存のSupabase（Proプラン内）とGitHub Pagesのみ。新規の有料API・外部サービスは使用しない。外部CDNはGoogle Fonts（Noto Sans JP）とhtml5-qrcode（現行同様unpkg）のみ</td></tr>
+    <tr><td>v0.7との同居</td><td>v0_8/ フォルダに新規配置し、既存 v0_7/ は無変更で並行稼働。DB変更は「列追加・ビュー追加・関数追加」のみで破壊的変更なし。切替は現場の合意後にポータルの案内先を変える</td></tr>
+    <tr><td>律速工程</td><td>実装の律速は<b>「出庫→棚卸→受入」のDB書き込み系の整合性検証</b>。画面の見た目より先にこの3経路の受け入れテストを通す工程順とする（実装指示書に明記）</td></tr>
+    <tr><td>データ品質</td><td>マスタの穴60件は画面ができても自動では埋まらない。運用開始後に事務作業として計画（マスタ整備画面の充足率で進捗管理）</td></tr>
+  </table>
+
+  <div class="foot">薬品在庫管理システム v0.8 企画書 ｜ 2026-09-02 ｜ 数値はSupabase本番DB実測。仕様詳細は「薬品在庫v08_仕様書_20260902.html」、実装手順は「薬品在庫v08_実装指示_opus.md」を参照。</div>
+</section>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>夜間休日 薬剤在庫管理 v0.7 報告｜2026-09-02</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Noto+Serif+JP:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1a1c1e; --ink-soft:#33373b; --paper:#f6f3ec; --card:#ffffff;
+  --teal:#0e7c66; --teal-deep:#0b5344; --teal-wash:#e9f1ee;
+  --amber:#c9821f; --amber-wash:#f6ecda;
+  --mute:#8a8578; --mute-2:#a8a294; --line:#e2ddd2;
+  --font-d:"Noto Sans JP",sans-serif; --font-s:"Noto Serif JP",serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--font-d);color:var(--ink);-webkit-font-smoothing:antialiased;background:#cfc9bd;}
+.slide{width:1280px;height:720px;margin:36px auto;position:relative;overflow:hidden;background:var(--paper);page-break-after:always;display:flex;}
+.rail{width:64px;flex-shrink:0;border-right:1px solid var(--line);display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:26px 0;}
+.rail .rno{font-family:var(--font-s);font-weight:600;font-size:15px;color:var(--ink);}
+.rail .rtag{writing-mode:vertical-rl;font-size:11px;letter-spacing:.32em;color:var(--mute);text-transform:uppercase;font-weight:700;}
+.rail .rdot{width:7px;height:7px;background:var(--teal);border-radius:50%;}
+.stage{flex:1;padding:44px 52px 40px;display:flex;flex-direction:column;position:relative;min-width:0;}
+.eyebrow{font-family:var(--font-s);font-weight:600;font-size:15px;color:var(--teal);letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:10px;}
+.eyebrow::before{content:"";width:26px;height:2px;background:var(--teal);display:inline-block;}
+.title{font-weight:900;font-size:33px;line-height:1.28;color:var(--ink);margin-bottom:6px;}
+.title .hl{color:var(--teal);} .title .amb{color:var(--amber);}
+.lead{font-size:15px;color:var(--ink-soft);line-height:1.7;max-width:960px;}
+.foot{position:absolute;bottom:16px;left:52px;right:52px;display:flex;justify-content:space-between;align-items:center;font-size:10.5px;color:var(--mute-2);letter-spacing:.04em;border-top:1px solid var(--line);padding-top:8px;}
+.foot .fp{font-family:var(--font-s);font-weight:600;color:var(--mute);}
+.tag{display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:2px;}
+.tag-new{background:var(--teal);color:#fff;} .tag-fix{background:var(--ink);color:#fff;}
+.tag-data{border:1.5px solid var(--amber);color:var(--amber);} .tag-line{border:1.5px solid var(--mute);color:var(--mute);}
+.band{display:flex;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+.band-i{flex:1;padding:20px 26px 20px 0;}
+.band-i + .band-i{border-left:1px solid var(--line);padding-left:26px;}
+.band-i .bk{font-size:13px;color:var(--mute);font-weight:700;margin-bottom:10px;}
+.band-i .bv{font-weight:900;font-size:42px;line-height:1;color:var(--ink);letter-spacing:-.01em;}
+.band-i .bv .u{font-size:16px;color:var(--teal);font-weight:700;margin-left:3px;}
+.band-i.tealv .bv{color:var(--teal);} .band-i.amberv .bv{color:var(--amber);}
+.band-i .bs{font-size:12px;color:var(--mute);margin-top:8px;line-height:1.5;}
+.cols{display:flex;gap:32px;flex:1;min-height:0;}
+.col{flex:1;display:flex;flex-direction:column;min-width:0;}
+.col.w60{flex:1.5;} .col.w40{flex:1;}
+.mh{font-weight:900;font-size:15px;color:var(--ink);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.mh::before{content:"";width:4px;height:15px;background:var(--teal);display:inline-block;}
+.mh.amb::before{background:var(--amber);}
+.elist{list-style:none;display:flex;flex-direction:column;}
+.eitem{display:flex;gap:16px;padding:12px 0;border-bottom:1px solid var(--line);align-items:flex-start;}
+.eitem:last-child{border-bottom:none;}
+.eitem .en{font-family:var(--font-s);font-weight:600;font-size:22px;color:var(--teal);line-height:1;flex-shrink:0;width:26px;}
+.eitem .etx .t{font-size:14.5px;font-weight:700;color:var(--ink);line-height:1.45;}
+.eitem .etx .d{font-size:12.5px;color:var(--mute);margin-top:4px;line-height:1.6;}
+.kmsg{background:var(--ink);color:#fff;padding:22px 26px;}
+.kmsg .q{font-family:var(--font-s);font-weight:600;font-size:20px;line-height:1.55;color:#fff;}
+.kmsg .q .hl{color:var(--teal);} .kmsg .q .amb{color:var(--amber);}
+.kmsg .sub{font-size:13px;color:#c9c4b8;margin-top:11px;line-height:1.7;}
+.scard{background:var(--card);border:1px solid var(--line);padding:15px 19px;}
+.scard.teal{border-left:4px solid var(--teal);} .scard.amber{border-left:4px solid var(--amber);} .scard.ink{border-left:4px solid var(--ink);}
+.scard .ct{font-size:13px;font-weight:800;margin-bottom:7px;}
+.scard.teal .ct{color:var(--teal);} .scard.amber .ct{color:var(--amber);}
+.scard .cb{font-size:12.5px;line-height:1.7;color:var(--ink-soft);}
+.scard .cb strong{color:var(--ink);}
+.ba{display:flex;gap:20px;flex:1;min-height:0;}
+.ba-c{flex:1;padding:20px 24px;display:flex;flex-direction:column;}
+.ba-b{background:#fbf1ec;border-top:3px solid #b5502f;} .ba-a{background:var(--teal-wash);border-top:3px solid var(--teal);}
+.ba-l{font-size:12px;font-weight:800;letter-spacing:.14em;margin-bottom:14px;}
+.ba-b .ba-l{color:#b5502f;} .ba-a .ba-l{color:var(--teal-deep);}
+.ba-step{list-style:none;}
+.ba-step li{font-size:13px;padding:8px 0;border-bottom:1px dashed rgba(0,0,0,.09);color:var(--ink-soft);display:flex;gap:10px;line-height:1.55;}
+.ba-step li:last-child{border-bottom:none;}
+.ba-step li .sn{font-family:var(--font-s);font-weight:600;color:var(--mute);flex-shrink:0;}
+.ba-tot{margin-top:auto;padding-top:14px;font-weight:900;font-size:15px;}
+.ba-b .ba-tot{color:#b5502f;} .ba-a .ba-tot{color:var(--teal-deep);}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;padding:8px 10px;border-bottom:2px solid var(--ink);color:var(--ink);font-weight:800;font-size:11.5px;}
+td{padding:7px 10px;border-bottom:1px solid var(--line);color:var(--ink-soft);}
+tr:last-child td{border-bottom:none;}
+td .ok{color:var(--teal);font-weight:800;} td .up{color:var(--amber);font-weight:800;} td .ng{color:#b5502f;font-weight:800;}
+.stats{display:flex;gap:16px;}
+.stat{flex:1;background:var(--card);border:1px solid var(--line);border-top:3px solid var(--teal);padding:15px 16px;text-align:center;}
+.stat.a{border-top-color:var(--amber);}
+.stat .sv{font-weight:900;font-size:34px;line-height:1;color:var(--teal);}
+.stat.a .sv{color:var(--amber);}
+.stat .sk{font-size:12px;font-weight:700;color:var(--ink);margin-top:8px;}
+.stat .sd{font-size:11px;color:var(--mute);margin-top:3px;line-height:1.5;}
+.browser{border:1px solid var(--line);background:#fff;box-shadow:0 6px 24px rgba(26,28,30,.10);display:flex;flex-direction:column;overflow:hidden;flex:1;min-height:0;}
+.browser .bbar{height:28px;background:#ece7dc;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 12px;gap:6px;flex-shrink:0;}
+.browser .bbar i{width:8px;height:8px;border-radius:50%;background:#c9c2b3;display:inline-block;}
+.browser .bbar .url{margin-left:12px;font-size:10px;color:var(--mute);background:#fff;border:1px solid var(--line);border-radius:3px;padding:2px 12px;font-family:var(--font-s);}
+.browser .shot{flex:1;overflow:hidden;position:relative;background:#fff;}
+.browser .shot img{width:100%;display:block;}
+.livetag{position:absolute;top:10px;right:10px;background:var(--teal);color:#fff;font-size:10px;font-weight:800;letter-spacing:.08em;padding:4px 10px;border-radius:2px;z-index:2;display:flex;align-items:center;gap:6px;}
+.livetag::before{content:"";width:6px;height:6px;background:#fff;border-radius:50%;box-shadow:0 0 0 3px rgba(255,255,255,.35);}
+.cover,.end{background:var(--ink);color:#fff;display:block;padding:0;}
+.cover .cwrap,.end .ewrap{height:100%;padding:70px 84px;display:flex;flex-direction:column;justify-content:center;position:relative;}
+.cover h1,.end h1{font-weight:900;font-size:56px;line-height:1.2;margin-bottom:20px;}
+.cover h1 .a,.end h1 .a{color:var(--teal);}
+.cover h1 .b{display:inline-block;border-bottom:5px solid var(--amber);padding-bottom:4px;}
+.end h1 .amb{color:var(--amber);}
+.cover .rune,.end .rune{position:absolute;right:-40px;bottom:-60px;font-family:var(--font-s);font-weight:700;font-size:280px;color:rgba(255,255,255,.03);line-height:1;user-select:none;}
+.cover .csub{font-family:var(--font-s);font-size:17px;color:#c9c4b8;line-height:1.9;max-width:840px;}
+.cover .cmeta{margin-top:44px;font-size:12px;color:#8f8a7e;letter-spacing:.08em;}
+@media print{ body{background:#fff;} .slide{margin:0;} }
+</style>
+</head>
+<body>
+
+<!-- 1 表紙 -->
+<div class="slide cover">
+  <div class="cwrap">
+    <div style="font-family:var(--font-s);font-size:15px;color:var(--teal);letter-spacing:.18em;margin-bottom:22px;">2026.09.02 ／ 夜間休日診療 薬剤在庫</div>
+    <h1>「今いくつあるか」から<br><span class="b">「いくら分あり、いつ切れるか」</span>まで<br><span class="a">分かる在庫管理へ</span></h1>
+    <div class="csub">
+      入荷・原価・使用期限・発注を1つのデータベースに載せ、薬剤在庫管理を v0.7 に更新しました。<br>
+      現場の使い方（QRスキャンでの出庫）は変えずに、経営側で見たい数字が出るようになっています。
+    </div>
+    <div class="cmeta">薬品在庫管理 v0.7 ／ 本番稼働中 ／ 佐川</div>
+    <div class="rune">薬</div>
+  </div>
+</div>
+
+<!-- 2 課題 -->
+<div class="slide">
+  <div class="rail"><div class="rno">02</div><div class="rtag">Issue</div><div class="rdot"></div></div>
+  <div class="stage">
+    <div class="eyebrow">これまでの状態</div>
+    <div class="title">在庫システムは<span class="amb">「今いくつあるか」しか持っていなかった</span></div>
+    <div class="lead" style="margin-bottom:20px;">
+      QRスキャンでの出庫記録は正確に動いていましたが、その手前と先——仕入れ・原価・期限・発注——がシステムの外にありました。
+    </div>
+
+    <div class="cols">
+      <div class="col w60">
+        <ul class="elist">
+          <li class="eitem"><div class="en">1</div><div class="etx">
+            <div class="t">入荷の記録が1件も無かった</div>
+            <div class="d">何をいくつ仕入れたかがシステムに残らず、減った分しか追えませんでした。</div></div></li>
+          <li class="eitem"><div class="en">2</div><div class="etx">
+            <div class="t">仕入原価を持っていなかった</div>
+            <div class="d">在庫がいくら分あるのか、1回の処方でいくら原価がかかっているのかを出せませんでした。</div></div></li>
+          <li class="eitem"><div class="en">3</div><div class="etx">
+            <div class="t">使用期限を管理していなかった</div>
+            <div class="d">期限切れは棚を見て初めて気づく状態でした。</div></div></li>
+          <li class="eitem"><div class="en">4</div><div class="etx">
+            <div class="t">発注の判断が経験と勘だった</div>
+            <div class="d">「減ってきたから頼む」しか手掛かりが無く、切らすか持ちすぎるかのどちらかに振れます。</div></div></li>
+          <li class="eitem"><div class="en">5</div><div class="etx">
+            <div class="t">レセプトのコードと繋がっていなかった</div>
+            <div class="d">薬品名の文字列でしか薬を特定できず、カルテ・レセプトと機械的に突き合わせられませんでした。</div></div></li>
+        </ul>
+      </div>
+      <div class="col w40">
+        <div class="kmsg" style="margin-top:8px;">
+          <div class="q">在庫の数だけ合っていても、<span class="amb">お金の話にならない</span>。</div>
+          <div class="sub">在庫は資産です。数量しか持っていないシステムは、棚の管理はできても経営判断の材料にはなりません。今回はここを埋めました。</div>
+        </div>
+        <div class="scard amber" style="margin-top:18px;">
+          <div class="ct">方針</div>
+          <div class="cb">現場の操作は増やさない。<strong>入荷を1回登録すれば、原価・在庫金額・期限・発注推奨がすべて自動で動く</strong>設計にする。</div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>夜間休日 薬剤在庫管理 v0.7 報告</span><span class="fp">02</span></div>
+  </div>
+</div>
+
+<!-- 3 基盤 -->
+<div class="slide">
+  <div class="rail"><div class="rno">03</div><div class="rtag">Base</div><div class="rdot"></div></div>
+  <div class="stage">
+    <div class="eyebrow">対応①　土台を作る</div>
+    <div class="title">薬1つ1つに<span class="hl">公式コードと原価</span>を持たせ、過去に遡って記録を入れた</div>
+    <div class="lead" style="margin-bottom:18px;">
+      機能を作る前に、計算の元になるデータを揃えました。ここが無いと在庫金額も発注推奨も出せません。
+    </div>
+
+    <div class="stats" style="margin-bottom:20px;">
+      <div class="stat"><div class="sv">76</div><div class="sk">レセプト電算コード</div><div class="sd">採用薬に付与。レセプトと同じコードで薬を一意に特定できる</div></div>
+      <div class="stat"><div class="sv">43</div><div class="sk">仕入単価・入数・仕入先</div><div class="sd">1単位あたりの原価が自動計算される</div></div>
+      <div class="stat a"><div class="sv">182</div><div class="sk">入荷記録</div><div class="sd">4月以降の入荷を遡って登録</div></div>
+      <div class="stat a"><div class="sv">693</div><div class="sk">過去の出庫</div><div class="sd">4〜6月分。月別消費を4月から追える</div></div>
+      <div class="stat"><div class="sv">18,515</div><div class="sk">厚労省 医薬品マスタ</div><div class="sd">薬を追加するとき検索して選ぶだけになる</div></div>
+    </div>
+
+    <div class="cols">
+      <div class="col">
+        <div class="mh">データベースの構成（役割ごとに分けた）</div>
+        <table>
+          <tr><th style="width:12%">区分</th><th style="width:33%">テーブル</th><th>内容</th></tr>
+          <tr><td rowspan="3">マスタ</td><td>pharmacy_drug_master</td><td>厚生労働省 医薬品マスタ 18,515件（薬価・単位・剤形の正）</td></tr>
+          <tr><td>pharmacy_medicines</td><td>院内採用薬 103品目（＋原価・レセプト電算コード）</td></tr>
+          <tr><td>pharmacy_suppliers</td><td>仕入先マスタ</td></tr>
+          <tr><td rowspan="2">台帳</td><td>pharmacy_transactions</td><td>入荷・出庫・調整をすべて1本に記録</td></tr>
+          <tr><td>pharmacy_lots</td><td>入荷ロット（使用期限・仕入単価）</td></tr>
+          <tr><td rowspan="2">業務</td><td>pharmacy_orders / _items</td><td>発注書</td></tr>
+          <tr><td>pharmacy_stocktakes</td><td>棚卸の記録</td></tr>
+          <tr><td>集計</td><td>pharmacy_v_*（7本）</td><td>在庫評価額・月別消費・発注推奨・使用期限アラート</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="foot"><span>夜間休日 薬剤在庫管理 v0.7 報告</span><span class="fp">03</span></div>
+  </div>
+</div>
+
+<!-- 4 足した機能 -->
+<div class="slide">
+  <div class="rail"><div class="rno">04</div><div class="rtag">Build</div><div class="rdot"></div></div>
+  <div class="stage">
+    <div class="eyebrow">対応②　機能を足す</div>
+    <div class="title">入荷を1回入れれば、<span class="hl">原価・金額・期限・発注</span>がすべて動く</div>
+    <div class="cols" style="margin-top:16px;">
+      <div class="col w60">
+        <ul class="elist">
+          <li class="eitem"><div class="en">1</div><div class="etx">
+            <div class="t">入荷登録　<span class="tag tag-new">新規</span></div>
+            <div class="d">「3箱来た」と入れると入数から数量を自動換算。仕入単価・ロット番号・使用期限をその場で記録し、在庫に即反映します。</div></div></li>
+          <li class="eitem"><div class="en">2</div><div class="etx">
+            <div class="t">発注リストと発注書　<span class="tag tag-new">新規</span></div>
+            <div class="d">発注点割れだけでなく、直近90日の消費ペースから「あと何日で切れるか」を計算。仕入先ごとに発注書を作ってCSVに書き出せます。</div></div></li>
+          <li class="eitem"><div class="en">3</div><div class="etx">
+            <div class="t">在庫評価額と薬価差　<span class="tag tag-new">新規</span></div>
+            <div class="d">在庫を仕入原価と薬価の両方で金額表示。薬価より原価が高い「逆ザヤ」を自動で検出します。</div></div></li>
+          <li class="eitem"><div class="en">4</div><div class="etx">
+            <div class="t">使用期限アラート　<span class="tag tag-new">新規</span></div>
+            <div class="d">入荷ロット単位で期限を持ち、期限切れ・60日以内を画面上部に出します。</div></div></li>
+          <li class="eitem"><div class="en">5</div><div class="etx">
+            <div class="t">薬価マスタから薬を追加　<span class="tag tag-new">新規</span></div>
+            <div class="d">名前を2文字入れると厚労省マスタ18,515件から候補が出て、選ぶだけでレセプト電算コード・薬価・単位が入ります。手入力の打ち間違いが無くなります。</div></div></li>
+        </ul>
+      </div>
+      <div class="col w40">
+        <div class="mh amb">在庫の金額が出るようになった</div>
+        <div class="scard amber" style="margin-bottom:14px;">
+          <div class="cb" style="font-size:14px;line-height:2.1;">
+            在庫評価額（仕入原価）　<strong style="font-size:20px;">¥476,459</strong><br>
+            同（薬価ベース）　　　　<strong style="font-size:20px;">¥568,753</strong>
+          </div>
+        </div>
+        <div class="mh">現場の使い方は変えていない</div>
+        <div class="scard teal" style="margin-bottom:10px;">
+          <div class="cb">QRスキャンでの出庫、患者名の紐付け、履歴、月別消費量は従来どおりです。夜間の運用手順を覚え直す必要はありません。</div>
+        </div>
+        <div class="scard ink">
+          <div class="ct">v0.6も残してあります</div>
+          <div class="cb">問題があればv0.6に戻せます。同じデータベースを見ているため、どちらを使っても在庫は一致します。</div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>夜間休日 薬剤在庫管理 v0.7 報告</span><span class="fp">04</span></div>
+  </div>
+</div>
+
+<!-- 5 実画面 発注 -->
+<div class="slide">
+  <div class="rail"><div class="rno">05</div><div class="rtag">Live</div><div class="rdot"></div></div>
+  <div class="stage">
+    <div class="eyebrow">実画面　発注</div>
+    <div class="title">「発注点を割った」ではなく<span class="hl">「あと何日で切れる」</span>で並ぶ</div>
+    <div class="lead" style="margin-bottom:14px;">消費ペースを持っているので、在庫数だけでは見えない「もうすぐ切れる薬」が上に来ます。チェックすると仕入先ごとに集計され、そのまま発注書になります。</div>
+    <div class="browser">
+      <div class="bbar"><i></i><i></i><i></i><span class="url">soumu-hdg.github.io/drive-through-pharmacy/v0_7/index.html</span></div>
+      <div class="shot"><span class="livetag">LIVE</span><img src="meeting_assets/v07_order.png" alt="発注タブ"></div>
+    </div>
+    <div class="foot"><span>夜間休日 薬剤在庫管理 v0.7 報告</span><span class="fp">05</span></div>
+  </div>
+</div>
+
+<!-- 6 実画面 入荷・在庫 -->
+<div class="slide">
+  <div class="rail"><div class="rno">06</div><div class="rtag">Live</div><div class="rdot"></div></div>
+  <div class="stage">
+    <div class="eyebrow">実画面　入荷／在庫</div>
+    <div class="title">数えるのは<span class="hl">現物だけ</span>。計算はすべてシステムがやる</div>
+    <div class="cols" style="margin-top:14px;">
+      <div class="col">
+        <div class="browser">
+          <div class="bbar"><i></i><i></i><i></i><span class="url">v0_7 ／ 入荷登録</span></div>
+          <div class="shot"><span class="livetag">LIVE</span><img src="meeting_assets/v07_receive.png" alt="入荷タブ"></div>
+        </div>
+        <div style="font-size:11.5px;color:var(--mute);margin-top:8px;line-height:1.6;">ロット数「1」で入数45から45包を自動計算。仕入先も薬品マスタから自動で入る。</div>
+      </div>
+      <div class="col">
+        <div class="browser">
+          <div class="bbar"><i></i><i></i><i></i><span class="url">v0_7 ／ 在庫一覧</span></div>
+          <div class="shot"><span class="livetag">LIVE</span><img src="meeting_assets/v07_stock.png" alt="在庫タブ"></div>
+        </div>
+        <div style="font-size:11.5px;color:var(--mute);margin-top:8px;line-height:1.6;">薬ごとにレセプト電算コード・1単位あたり原価・薬価差・仕入先・在庫金額を表示。</div>
+      </div>
+    </div>
+    <div class="foot"><span>夜間休日 薬剤在庫管理 v0.7 報告</span><span class="fp">06</span></div>
+  </div>
+</div>
+
+<!-- 7 見つかった不具合 -->
+<div class="slide">
+  <div class="rail"><div class="rno">07</div><div class="rtag">Found</div><div class="rdot"></div></div>
+  <div class="stage">
+    <div class="eyebrow">副産物</div>
+    <div class="title">土台を整える過程で、<span class="amb">気づけていなかった不具合4件</span>が表に出た</div>
+    <div class="cols" style="margin-top:18px;">
+      <div class="col">
+        <div class="scard amber" style="margin-bottom:12px;">
+          <div class="ct">① 薬価が9品目、2026年4月改定前のまま　<span class="tag tag-fix">修正済</span></div>
+          <div class="cb">
+            フェキソフェナジン 10.8→<strong>21.9</strong>、ツロブテロールテープ0.5mg 13.1→<strong>22.9</strong>、レボフロキサシン 24.7→<strong>31.3</strong> など。
+            厚労省マスタ（2026-08-12版）の値に更新し、変更履歴も残しました。<strong>薬価が古いと請求額の見込みも粗利計算もずれます。</strong>
+          </div>
+        </div>
+        <div class="scard ink" style="margin-bottom:12px;">
+          <div class="ct">② 履歴の削除が無言で失敗していた　<span class="tag tag-fix">修正済</span></div>
+          <div class="cb">v0.6の「履歴削除」はデータベース側の削除権限が無く、<strong>画面上は成功に見えて実際には消えていませんでした</strong>。権限を付与して解消しています。</div>
+        </div>
+        <div class="scard amber">
+          <div class="ct">③ ロキソプロフェン錠60mg が逆ザヤ表示　<span class="tag tag-line">要確認</span></div>
+          <div class="cb">
+            仕入単価1,908円 ÷ 入数100錠 ＝ 原価19.08円に対し、薬価は10.5円。同じ薬の別銘柄は954円／100錠＝9.54円で正常です。
+            <strong>入数が実際は200錠ではないか</strong>、確認が必要です。
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="scard" style="border-left:4px solid #b5502f;margin-bottom:12px;">
+          <div class="ct" style="color:#b5502f;">④ 電子カルテの薬品名がコード表示になっている　<span class="tag tag-line">要判断</span></div>
+          <div class="cb">
+            カルテが参照している薬品マスタの列構成が変わり、<strong>薬品名の欄に院内管理IDが入っています</strong>。カルテ側はその列を薬品名として読むため、
+            APIは <code style="background:#f1ede4;padding:1px 5px;">{name:"M100"}</code> を返しています。
+            <strong>89件すべてが「M100」「M101」…という表示</strong>になっている可能性が高く、処方入力で薬を選べません。
+          </div>
+        </div>
+        <div class="kmsg">
+          <div class="q">壊れていることに<span class="amb">誰も気づけない</span>のが一番こわい。</div>
+          <div class="sub">
+            削除できていない履歴も、古いままの薬価も、コード表示になったカルテも、画面を見ているだけでは分かりませんでした。
+            機械で突き合わせる仕組みを持って初めて表に出ます。v0.7では、この突き合わせを毎日自動で回します。
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>夜間休日 薬剤在庫管理 v0.7 報告</span><span class="fp">07</span></div>
+  </div>
+</div>
+
+<!-- 8 これから -->
+<div class="slide">
+  <div class="rail"><div class="rno">08</div><div class="rtag">Next</div><div class="rdot"></div></div>
+  <div class="stage">
+    <div class="eyebrow">次にやること</div>
+    <div class="title">運用を<span class="hl">「入荷も記録する」</span>に切り替える</div>
+    <div class="ba" style="margin-top:20px;">
+      <div class="ba-c ba-b">
+        <div class="ba-l">これまで</div>
+        <ul class="ba-step">
+          <li><span class="sn">1</span>夜間の出庫をQRスキャンで記録</li>
+          <li><span class="sn">2</span>入荷は記録されず、在庫は減る一方に見える</li>
+          <li><span class="sn">3</span>棚を見て「減ってきたから頼む」で発注</li>
+          <li><span class="sn">4</span>期限切れは棚を見て初めて気づく</li>
+        </ul>
+        <div class="ba-tot">在庫の数量しか分からない</div>
+      </div>
+      <div class="ba-c ba-a">
+        <div class="ba-l">これから</div>
+        <ul class="ba-step">
+          <li><span class="sn">1</span>出庫はこれまでどおりQRスキャン</li>
+          <li><span class="sn">2</span>入荷は v0.7 の入荷タブで登録（仕入単価・期限も同時に）</li>
+          <li><span class="sn">3</span>発注タブの「残り日数」を見て、必要な分だけ発注書を出す</li>
+          <li><span class="sn">4</span>期限60日前に画面がアラートを出す</li>
+        </ul>
+        <div class="ba-tot">在庫金額・原価・期限まで分かる</div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <div class="mh amb">確認・依頼したいこと</div>
+      <table>
+        <tr><th style="width:32%">項目</th><th>内容</th></tr>
+        <tr><td>棚卸の実施</td><td>全103品目の実数を数えて確定する。差はv0.7の調整記録として残り、以後の在庫金額が正確になる</td></tr>
+        <tr><td>銘柄違いの4品目</td><td>後発切替で銘柄が増えた薬（ロキソプロフェン・カルボシステイン・ツロブテロールテープ2規格）の現物がどちらの銘柄か数えて振り分ける</td></tr>
+        <tr><td>ロキソプロフェン錠60mgの入数</td><td>1,908円のロットが100錠か200錠かを確認する</td></tr>
+        <tr><td>カルテの薬品マスタ</td><td>薬品名の列を元に戻すか、カルテ側が列見出しで読むよう直すかを決める（現状カルテの薬品名が失われている）</td></tr>
+      </table>
+    </div>
+    <div class="foot"><span>夜間休日 薬剤在庫管理 v0.7 報告</span><span class="fp">08</span></div>
+  </div>
+</div>
+
+<!-- 9 結び -->
+<div class="slide end">
+  <div class="ewrap">
+    <h1>入荷・原価・発注まで<br><span class="a">1つのシステム</span>で完結する</h1>
+    <div style="font-family:var(--font-s);font-size:17px;color:#c9c4b8;line-height:1.9;max-width:860px;">
+      薬に公式コードと原価を持たせ、入荷を記録できるようにしただけで、在庫金額・薬価差・使用期限・発注推奨が自動で出るようになりました。<br>
+      現場が増やす作業は「入荷を1回登録する」だけです。
+    </div>
+    <div style="margin-top:40px;font-size:13px;color:#8f8a7e;line-height:2;">
+      薬品在庫管理 v0.7　https://soumu-hdg.github.io/drive-through-pharmacy/v0_7/index.html<br>
+      2026-09-02 ／ 佐川
+    </div>
+    <div class="rune">庫</div>
+  </div>
+</div>
+
+</body>
+</html>
