@@ -7,14 +7,35 @@
   'use strict';
   var U = null;
 
+  // 月次消費額（原価）の推移 → 評価額セルのスパークライン（既存ビューの読み取りのみ）
+  var trend = null, trendLoading = false;
+  async function loadTrend() {
+    if (trend || trendLoading) return;
+    trendLoading = true;
+    var rows = await P8.db.get('pharmacy_v_monthly_consumption?select=ym,cost_amount');
+    trendLoading = false;
+    if (!rows || !rows.length) return;
+    var byYm = {};
+    rows.forEach(function (r) {
+      var k = String(r.ym || '').slice(0, 7);
+      if (!k) return;
+      byYm[k] = (byYm[k] || 0) + (Number(r.cost_amount) || 0);
+    });
+    trend = Object.keys(byYm).sort().slice(-6).map(function (k) { return byYm[k]; });
+    if (trend.length < 2) { trend = null; return; }
+    if (document.getElementById('scr-home').classList.contains('active')) kpi();
+  }
+
   function kpi() {
     var st = P8.store;
     var out = st.reorderCount(['out_of_stock']);
     var soon = st.reorderCount(['runs_out_soon']);
     var low = st.reorderCount(['below_threshold']);
     var rev = st.reverseMargins().length;
+    var sparkHtml = trend
+      ? '<div class="kpi-spark">' + P8.ui.spark(trend, 72, 16) + '<span>月次消費' + trend.length + 'ヶ月</span></div>' : '';
     document.getElementById('home-kpi').innerHTML =
-      '<div class="kpi-cell"><div class="kpi-label">在庫評価額（原価）</div><div class="kpi-value">' + U.YEN(st.stockCostValue()) + '</div></div>' +
+      '<div class="kpi-cell"><div class="kpi-label">在庫評価額（原価）</div><div class="kpi-value">' + U.YEN(st.stockCostValue()) + '</div>' + sparkHtml + '</div>' +
       '<div class="kpi-cell"><div class="kpi-label">在庫切れ</div><div class="kpi-value' + (out ? ' warn' : ' ok') + '">' + out + '<small>品目</small></div></div>' +
       '<div class="kpi-cell"><div class="kpi-label">30日以内に切れる</div><div class="kpi-value' + (soon ? ' amber' : '') + '">' + soon + '<small>品目</small></div></div>' +
       '<div class="kpi-cell"><div class="kpi-label">発注点割れ</div><div class="kpi-value' + (low ? ' amber' : '') + '">' + low + '<small>品目</small></div></div>' +
@@ -34,7 +55,7 @@
       rows.push('<tr class="clickable" data-go="' + navName + '" data-params="' + U.esc(JSON.stringify(navParams || {})) + '">' +
         '<td style="width:110px"><span class="bdg ' + badgeCls + '">' + badge + '</span></td>' +
         '<td>' + text + '</td>' +
-        '<td class="r" style="white-space:nowrap;color:var(--act)">→ ' + linkLabel + '</td></tr>');
+        '<td class="r" style="white-space:nowrap;color:var(--info)">→ ' + linkLabel + '</td></tr>');
     }
     var out = st.reorder.filter(function (r) { return r.status === 'out_of_stock'; });
     if (out.length) row('red', '在庫切れ', names(out, 5), 'order', { filter: 'alert' }, '発注へ');
@@ -122,6 +143,7 @@
     loadPo();
     loadRecent();
     loadExpiry();
+    loadTrend();
   }
 
   P8.screens = P8.screens || {};

@@ -217,20 +217,22 @@
 
     var thead = '<tr><th>薬品名</th><th class="r">在庫</th>' +
       months.map(function (m) { return '<th class="r">' + m + '</th>'; }).join('') +
-      '<th class="r">合計</th></tr>';
+      '<th>推移</th><th class="r">合計</th></tr>';
     var body = list.map(function (d) {
       return '<tr><td style="white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis" title="' + U.esc(d.name) + '">' + U.esc(d.name) + '</td>' +
         '<td class="r' + (d.stock <= 5 ? '" style="color:var(--danger);font-weight:700' : '') + '">' + d.stock + '</td>' +
         months.map(function (m) { return '<td class="r">' + (d.monthly[m] || '-') + '</td>'; }).join('') +
+        '<td class="spk-cell">' + P8.ui.spark(months.map(function (m) { return d.monthly[m] || 0; }), 56, 14) + '</td>' +
         '<td class="r" style="font-weight:700">' + d.total + '</td></tr>';
     }).join('');
     // 月次入荷金額の小計行（仕入と消費を同じ画面で見比べる）
     var totalPurchase = months.reduce(function (s, m) { return s + (csData.purchaseByYm[m] || 0); }, 0);
-    var purchaseRow = '<tr style="border-top:2px solid var(--ink)"><td style="font-weight:700">📥 月次入荷金額（仕入）</td><td class="r">—</td>' +
+    var purchaseRow = '<tr style="border-top:2px solid var(--line2)"><td style="font-weight:700">📥 月次入荷金額（仕入）</td><td class="r">—</td>' +
       months.map(function (m) {
         return '<td class="r" style="font-weight:700;color:var(--warn)">' + (csData.purchaseByYm[m] ? U.YEN(csData.purchaseByYm[m]) : '-') + '</td>';
       }).join('') +
-      '<td class="r" style="font-weight:900;color:var(--warn)">' + U.YEN(totalPurchase) + '</td></tr>';
+      '<td class="spk-cell" style="color:var(--warn)">' + P8.ui.spark(months.map(function (m) { return csData.purchaseByYm[m] || 0; }), 56, 14) + '</td>' +
+      '<td class="r" style="font-weight:700;color:var(--warn)">' + U.YEN(totalPurchase) + '</td></tr>';
     document.getElementById('cs-table').innerHTML = thead + body + purchaseRow;
   }
 
