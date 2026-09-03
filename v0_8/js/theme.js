@@ -35,7 +35,7 @@
     if (document.documentElement.getAttribute('data-theme') !== t) {
       document.documentElement.setAttribute('data-theme', t);
       var meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) meta.setAttribute('content', t === 'night' ? '#12161a' : '#f6f3ec');
+      if (meta) meta.setAttribute('content', t === 'night' ? '#22262a' : '#e3e7e0');
     }
     renderChip();
   }

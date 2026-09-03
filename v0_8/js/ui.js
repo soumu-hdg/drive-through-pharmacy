@@ -44,7 +44,10 @@
   function holdButton(el, fillEl, onCommit) {
     var HOLD_MS = 600;
     var raf = null, start = 0, held = false;
-    function setFill(pct) { if (fillEl) fillEl.style.width = pct + '%'; }
+    function setFill(pct) {
+      if (fillEl) fillEl.style.width = pct + '%';
+      el.style.setProperty('--hp', pct); /* リング充填（conic-gradientの角度） */
+    }
     function tick(ts) {
       if (!held) return;
       var p = Math.min(1, (ts - start) / HOLD_MS);
@@ -116,6 +119,27 @@
     else { btn.disabled = false; }
   }
 
+  // ---- 状態LED（ヘッダー。g=正常 / a=注意 / r=異常） ----
+  function setLed(id, cls) {
+    var el = document.getElementById(id);
+    if (el) el.className = 'led' + (cls ? ' ' + cls : '');
+  }
+
+  // ---- スパークライン（数値の隣の小さな推移。SVG文字列を返す） ----
+  function spark(values, w, h) {
+    w = w || 64; h = h || 16;
+    var v = (values || []).map(Number).filter(function (x) { return !isNaN(x); });
+    if (!v.length) return '';
+    if (v.length === 1) v = [v[0], v[0]];
+    var min = Math.min.apply(null, v), max = Math.max.apply(null, v);
+    var span = (max - min) || 1;
+    var pts = v.map(function (x, i) {
+      return (i * (w - 2) / (v.length - 1) + 1).toFixed(1) + ',' + (h - 2 - (x - min) / span * (h - 4) + 1).toFixed(1);
+    }).join(' ');
+    return '<svg class="spk" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" aria-hidden="true">' +
+      '<polyline points="' + pts + '" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+  }
+
   // ---- オフラインキューのバー ----
   var barOkTimer = null;
   function queueBar(state) {
@@ -127,6 +151,7 @@
       bar.className = 'show ok';
       bar.textContent = '✓ 未送信分をすべて送信しました';
       document.body.classList.add('has-queuebar');
+      setLed('led-sync', 'g');
       barOkTimer = setTimeout(function () { queueBar(); }, 2500);
       return;
     }
@@ -134,9 +159,11 @@
       bar.className = 'show';
       bar.textContent = '⚠ 未送信の出庫が ' + n + ' 件あります。電波の届く場所で自動再送します';
       document.body.classList.add('has-queuebar');
+      setLed('led-sync', 'a');
     } else {
       bar.className = '';
       document.body.classList.remove('has-queuebar');
+      setLed('led-sync', 'g');
     }
   }
 
@@ -224,7 +251,8 @@
 
   P8.ui = {
     toast: toast, modal: modal, holdButton: holdButton, rollNumber: rollNumber,
-    busy: busy, queueBar: queueBar, updateBadges: updateBadges, reduced: reduced
+    busy: busy, queueBar: queueBar, updateBadges: updateBadges, reduced: reduced,
+    setLed: setLed, spark: spark
   };
   P8.nav = nav;
   P8.scan = { start: scanStart, stop: scanStop, running: function () { return scanRunning; } };
@@ -273,6 +301,8 @@
 
     // データ読込（キャッシュ→ネットワーク）
     P8.store.init().then(function (ok) {
+      // DB状態LED: g=接続中 / a=キャッシュ表示 / r=接続不可
+      setLed('led-db', ok ? 'g' : (P8.store.stock.length ? 'a' : 'r'));
       if (!ok && !P8.store.stock.length) {
         toast('DBに接続できません。前回キャッシュも無いため表示できるデータがありません', 'error');
       }
