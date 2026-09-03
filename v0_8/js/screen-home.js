@@ -248,6 +248,7 @@
 
   // 日付行のモード名だけを描き直す（テーマ切替のたびに全体を再取得しない）
   function renderDateLine() {
+    if (!U) U = P8.util; // 起動直後のp8:themeはDOMContentLoadedより先に届く
     var el = document.getElementById('home-date');
     if (!el) return;
     var wd = ['日', '月', '火', '水', '木', '金', '土'][new Date().getDay()];
