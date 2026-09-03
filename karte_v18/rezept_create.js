@@ -1,8 +1,8 @@
 /* ============================================================
-   レセプト作成モーダル（M3デジカル準拠レイアウト）
+   レセプト作成モーダル（旧システム準拠レイアウト）
    2026-09-03 追加。
 
-   ・画面レイアウトは digikar.jp の「レセプト作成」ダイアログに合わせている
+   ・画面レイアウトは旧システムの「レセプト作成」ダイアログに合わせている
      （ヘッダ緑 #0a4d12／本文背景 #f4f6f5／枠 #d2dbd8／リンク #337ab7、
        タブ 医療保険・労災・自賠責、月次/日次セレクト、診療月・請求年月日、
        社保/国保、適応症チェックの出力、結果カード、返戻再請求、月遅れ、
@@ -43,7 +43,7 @@ function rzDatesInMonth(ym) {
   return out;
 }
 
-// 「2026-08」→「2026/8」（M3の結果カード表記に合わせる）
+// 「2026-08」→「2026/8」（旧システムの結果カード表記に合わせる）
 function rzMonthLabel(ym) {
   const parts = String(ym || '').split('-');
   return parts[0] + '/' + parseInt(parts[1], 10);
@@ -59,7 +59,7 @@ function openRezeptCreate() {
   const el = document.getElementById('rezeptCreateModal');
   if (!el) return;
 
-  // 初期値：診療月＝前月、請求年月日＝当月1日（M3の既定と同じ）
+  // 初期値：診療月＝前月、請求年月日＝当月1日（旧システムの既定と同じ）
   const month = document.getElementById('rzTargetMonth');
   const day   = document.getElementById('rzTargetDate');
   const claim = document.getElementById('rzClaimDate');
@@ -116,7 +116,7 @@ function rzOnModeChange() {
   rzRenderSections();
 }
 
-// 白いフィールドの表示テキストを更新する（M3は 2026/08 ・ 2026/09/01 (火) の表記）
+// 白いフィールドの表示テキストを更新する（旧システムは 2026/08 ・ 2026/09/01 (火) の表記）
 function rzSyncFieldTexts() {
   const m = document.getElementById('rzTargetMonth').value;
   document.getElementById('rzTargetMonthTxt').textContent = m ? m.replace('-', '/') : '----/--';
@@ -138,7 +138,7 @@ function rzOnFieldChange() {
   rzRenderSections();
 }
 
-// 日付／月ピッカーを開く（表示はM3と同じ体裁の白いボタン、実体は隠した input）
+// 日付／月ピッカーを開く（表示は旧システムと同じ体裁の白いボタン、実体は隠した input）
 function rzPick(id) {
   const el = document.getElementById(id);
   if (!el) return;
