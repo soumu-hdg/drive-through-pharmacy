@@ -1,0 +1,176 @@
+/* ============================================================
+   レセプト作成モーダル（M3デジカル準拠レイアウト）
+   2026-09-03 追加。実測値ベース：
+     ヘッダ #0a4d12 / 42px、本文 #f4f6f5 / 14px #242927、枠 #d2dbd8、
+     リンク #337ab7、補足文字 #5e6b67、チェック #007aff、
+     タブ 140x30 / 13px、ボタン 高さ36(小30) / radius 2px、モーダル幅 1024px
+   命名は rzm- 接頭で既存の .modal 系と完全に分離している。
+   ============================================================ */
+
+.rzm-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0, 0, 0, 0.5);
+  display: none; align-items: flex-start; justify-content: center;
+  padding: 15px;
+}
+.rzm-overlay.show { display: flex; }
+
+.rzm {
+  width: 1024px; max-width: 100%;
+  height: calc(100vh - 30px); max-height: calc(100vh - 30px);
+  display: flex; flex-direction: column;
+  background: #f4f6f5;
+  font-family: "ヒラギノ角ゴ ProN", "Hiragino Kaku Gothic ProN", メイリオ, Meiryo,
+               verdana, Osaka, "ＭＳ Ｐゴシック", "MS PGothic", sans-serif;
+  font-size: 14px; color: #242927;
+}
+.rzm, .rzm * { box-sizing: border-box; }
+
+/* ---- ヘッダ ---- */
+.rzm-head {
+  flex: none; height: 42px; background: #0a4d12; color: #fff;
+  display: flex; align-items: center; gap: 8px; padding: 0 6px 0 15px;
+}
+.rzm-head h2 { font-size: 18px; font-weight: 400; margin: 0; line-height: 1; }
+.rzm-head .rzm-spacer { flex: 1; }
+.rzm-quick {
+  font-size: 11px; line-height: 1; padding: 6px 10px; border-radius: 2px;
+  background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.55);
+  cursor: pointer; font-family: inherit; white-space: nowrap;
+}
+.rzm-quick:hover { background: rgba(255,255,255,0.14); }
+.rzm-x {
+  width: 42px; height: 42px; background: none; border: none; border-radius: 2px;
+  color: #fff; font-size: 22px; line-height: 1; cursor: pointer;
+}
+.rzm-x:hover { background: rgba(255,255,255,0.14); }
+
+/* ---- 本文（スクロール域） ---- */
+.rzm-body { flex: 1; overflow-y: auto; }
+
+/* ---- タブ ---- */
+.rzm-tabs { list-style: none; display: flex; height: 32px; margin: 0; padding: 0; align-items: flex-end; }
+.rzm-tabs li {
+  width: 140px; height: 30px; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; cursor: pointer;
+  background: rgba(0, 52, 36, 0.12); color: #242927;
+}
+.rzm-tabs li.active { background: #0a4d12; color: #fff; height: 31px; }
+
+/* ---- セクション ---- */
+.rzm-sec { padding: 15px; }
+.rzm-sec + .rzm-sec { padding-top: 0; }
+
+/* 上段：左＝条件、右＝ヘルプリンク */
+.rzm-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.rzm-cond { display: flex; flex-direction: column; gap: 3px; }
+.rzm-row { display: flex; align-items: center; height: 30px; gap: 12px; }
+.rzm-field { display: flex; align-items: center; gap: 6px; }
+.rzm-lb { font-size: 14px; white-space: nowrap; }
+
+.rzm-select {
+  height: 30px; font-size: 13px; font-family: inherit; color: #242927;
+  background: #fff; border: 1px solid #d2dbd8; border-radius: 3px;
+  padding: 0 6px; min-width: 136px; cursor: pointer;
+}
+
+/* 白いフィールド（M3の日付ボタンと同じ見え方：表示は 2026/08 ・ 2026/09/01 (火) ） */
+.rzm-pick { position: relative; display: inline-flex; }
+.rzm-date {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 30px; padding: 0 6px; cursor: pointer;
+  background: #fff; border-radius: 3px; border: none;
+  box-shadow: rgba(0,0,0,0.3) 0 0.5px 2.5px 0, rgba(0,0,0,0.05) 0 0 0 0.5px;
+  font-size: 16px; font-family: inherit; color: #242927; white-space: nowrap;
+}
+.rzm-date:hover { background: #f7f9f8; }
+/* ピッカー用の実入力欄（画面には出さず showPicker() の受け皿にする） */
+.rzm-hidden-input {
+  position: absolute; left: 0; bottom: 0; width: 1px; height: 1px;
+  opacity: 0; border: 0; padding: 0; margin: 0; pointer-events: none;
+}
+/* showPicker() が使えない環境向けフォールバック */
+.rzm-date-input-fallback {
+  height: 30px; padding: 0 6px; font-size: 16px; font-family: inherit; color: #242927;
+  background: #fff; border: 1px solid #d2dbd8; border-radius: 3px;
+}
+
+/* チェックボックス */
+.rzm-cb { display: inline-flex; align-items: center; gap: 3px; font-size: 14px; font-weight: 400; cursor: pointer; }
+.rzm-cb input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 16px; height: 16px; margin: 0; flex: none; position: relative; cursor: pointer;
+  background: #fff; border: 1px solid #b9c4c0; border-radius: 3px;
+}
+.rzm-cb input[type="checkbox"]:checked { background: #007aff; border-color: #007aff; }
+.rzm-cb input[type="checkbox"]:checked::after {
+  content: ''; position: absolute; left: 5px; top: 1px;
+  width: 4px; height: 9px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+
+/* ヘルプリンク */
+.rzm-links { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; padding-top: 5px; }
+.rzm-links a { color: #337ab7; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+.rzm-links a:hover { text-decoration: underline; }
+.rzm-q {
+  width: 18px; height: 18px; flex: none; border: 1px solid currentColor; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1;
+}
+
+/* 適応症チェックの出力 */
+.rzm-adapt { display: flex; align-items: center; gap: 12px; font-weight: 700; margin-top: 5px; }
+.rzm-adapt .rzm-cb { font-weight: 400; }
+
+/* 結果カード */
+.rzm-result {
+  margin-top: 15px; background: #fff; border: 2px solid #d2dbd8; border-radius: 3px;
+  padding: 12px 24px; display: flex; align-items: center; gap: 12px;
+}
+.rzm-result-icon { flex: none; width: 36px; height: 36px; color: #0a4d12; }
+.rzm-result-main { flex: 1; min-width: 0; }
+.rzm-result-title { font-size: 14px; display: block; }
+.rzm-result-meta { font-size: 13px; color: #5e6b67; display: flex; gap: 12px; flex-wrap: wrap; margin-top: 3px; }
+
+/* 折りたたみ（返戻再請求／月遅れ） */
+.rzm-acc { margin-bottom: 12px; }
+.rzm-acc-head { display: flex; align-items: center; gap: 6px; height: 34px; padding: 2px 2px 2px 0; }
+.rzm-caret {
+  width: 30px; height: 30px; flex: none; background: none; border: none; border-radius: 2px;
+  color: #0a4d12; font-size: 13px; cursor: pointer; line-height: 1;
+}
+.rzm-caret:hover { background: rgba(0, 52, 36, 0.08); }
+.rzm-acc-title { font-size: 14px; }
+.rzm-acc-head .rzm-spacer { flex: 1; }
+.rzm-box {
+  background: #fff; border: 1px solid #d2dbd8; padding: 12px; font-size: 14px; min-height: 48px;
+}
+.rzm-box-list { padding: 0; }
+.rzm-late-row { display: flex; gap: 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid #eef1f0; font-size: 13px; }
+.rzm-late-row:last-child { border-bottom: none; }
+.rzm-late-date { width: 92px; flex: none; color: #5e6b67; }
+.rzm-late-name { width: 120px; flex: none; }
+.rzm-late-bm { width: 120px; flex: none; }
+.rzm-late-rs { flex: 1; color: #5e6b67; }
+
+/* 未対応タブの案内 */
+.rzm-empty { padding: 40px 15px; text-align: center; color: #5e6b67; font-size: 14px; }
+
+/* ---- フッタ ---- */
+.rzm-foot { flex: none; background: #f4f6f5; padding: 6px 12px; display: flex; justify-content: flex-end; }
+.rzm-foot-btns { display: flex; gap: 6px; }
+
+/* ---- ボタン ---- */
+.rzm-btn {
+  height: 36px; min-width: 90px; padding: 3px 12px; font-size: 14px; font-family: inherit;
+  background: #fff; color: #242927; border: none; border-radius: 2px; cursor: pointer;
+  box-shadow: rgba(0,0,0,0.3) 0 0.5px 2.5px 0, rgba(0,0,0,0.05) 0 0 0 0.5px;
+}
+.rzm-btn:hover { background: #f2f4f3; }
+.rzm-btn-p { background: #0a4d12; color: #fff; min-width: 100px; }
+.rzm-btn-p:hover { background: #0d6018; }
+.rzm-btn-sm { height: 30px; min-width: 0; font-size: 13px; padding: 3px 10px; }
+
+@media (max-width: 1060px) {
+  .rzm-top { flex-direction: column; }
+  .rzm-links { align-items: flex-start; }
+}
