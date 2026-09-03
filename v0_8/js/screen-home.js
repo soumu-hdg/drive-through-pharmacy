@@ -1,6 +1,6 @@
 /* =========================================================
    v0.8 screen-home.js ― 今日の状態（デスクトップ初期画面）
-   KPIバンド / 要対応リスト（品名＋行き先） / 受入待ち発注書 /
+   KPIバンド / 要対応テーブル（1行1品目・残/発注点/7日出庫/週次推移） / 受入待ち発注書 /
    直近の操作10件 / カルテ突合の表示先
    ========================================================= */
 (function () {
@@ -48,46 +48,159 @@
     return U.esc(arr.join('、')) + (rest > 0 ? ' ほか' + rest + '品目' : '');
   }
 
+  // ---- 直近8日の出庫（7日出庫と週次推移。1回だけ取得し画面側で日別集計） ----
+  var txAgg = null, txLoading = false;
+  function jstDate(offsetDays) {
+    var d = new Date(Date.now() + 9 * 3600 * 1000);
+    d.setUTCDate(d.getUTCDate() + (offsetDays || 0));
+    return d.toISOString().slice(0, 10);
+  }
+  async function loadTx() {
+    if (txAgg || txLoading) return;
+    txLoading = true;
+    var rows = await P8.db.get('pharmacy_transactions?select=medicine_code,quantity,occurred_on' +
+      '&transaction_type=eq.out&occurred_on=gte.' + jstDate(-7) + '&limit=2000');
+    txLoading = false;
+    txAgg = {};
+    (rows || []).forEach(function (r) {
+      var code = U.normalizeCode(r.medicine_code);
+      var day = String(r.occurred_on || '').slice(0, 10);
+      if (!code || !day) return;
+      var m = txAgg[code] || (txAgg[code] = {});
+      m[day] = (m[day] || 0) + (Number(r.quantity) || 0);
+    });
+    if (document.getElementById('scr-home').classList.contains('active')) todo();
+  }
+  // 8点（7日前〜今日）の日別出庫。読込中=undefined／期間内に出庫ゼロ=null（線を描かない）
+  function txSeries(code) {
+    if (!txAgg) return undefined;
+    var codes = [U.normalizeCode(code)];
+    var m = P8.store.findByCode(code);
+    if (m) (m.legacyCodes || []).forEach(function (c) { codes.push(U.normalizeCode(c)); });
+    var found = false;
+    var vals = [];
+    for (var i = 7; i >= 0; i--) {
+      var day = jstDate(-i), s = 0;
+      codes.forEach(function (c) {
+        var a = txAgg[c];
+        if (a && a[day] != null) { s += a[day]; found = true; }
+      });
+      vals.push(s);
+    }
+    return found ? vals : null;
+  }
+  function sum7(vals) { // 直近7日合計（8点の先頭=8日前を除く）
+    return vals.slice(1).reduce(function (s, v) { return s + v; }, 0);
+  }
+
+  // ---- 要対応（1行1品目・style06のデータ密度） ----
+  var REASON = {
+    out_of_stock:    { label: '在庫切れ',     cell: 't-dn', spk: 'spk-dn' },
+    runs_out_soon:   { label: 'まもなく切れる', cell: 't-wr', spk: 'spk-mut' },
+    below_threshold: { label: '発注点割れ',   cell: 't-wr', spk: 'spk-wr' }
+  };
+  function sparkCell(vals, spkCls) {
+    if (vals === undefined) return '<span class="t-mut">…</span>';
+    if (vals === null) return '<span class="t-mut">—</span>';
+    return '<span class="' + spkCls + '">' + P8.ui.spark(vals, 64, 14) + '</span>';
+  }
+  function out7Cell(vals) {
+    if (vals === undefined) return '…';
+    if (vals === null) return '<span class="t-mut">—</span>';
+    return String(sum7(vals));
+  }
+  function trOpen(pri, go, params) {
+    return '<tr class="clickable" data-go="' + go + '" data-params="' + U.esc(JSON.stringify(params || {})) + '">' +
+      '<td class="hide-mobile"><span class="lvl p' + pri + '">P' + pri + '</span></td>';
+  }
+  function reorderRow(r) {
+    var rs = REASON[r.status];
+    var vals = txSeries(r.code);
+    var reason = rs.label + (r.status === 'runs_out_soon' && r.days_left != null ? '（残' + r.days_left + '日）' : '');
+    var stockCls = r.status === 'out_of_stock' ? ' t-dn' : ' t-wr';
+    return trOpen(r.priority, 'order', { filter: 'alert' }) +
+      '<td><b>' + U.esc(r.name) + '</b></td>' +
+      '<td class="' + rs.cell + '" style="white-space:nowrap">' + reason + '</td>' +
+      '<td class="r' + stockCls + '">' + (r.current_stock || 0) + '<small class="t-mut">' + U.esc(r.unit || '') + '</small></td>' +
+      '<td class="r hide-mobile">' + (r.threshold != null ? r.threshold : '—') + '</td>' +
+      '<td class="r hide-mobile">' + out7Cell(vals) + '</td>' +
+      '<td class="hide-mobile">' + sparkCell(vals, rs.spk) + '</td>' +
+      '<td class="r"><button class="btn ghost sm go" type="button">発注</button></td></tr>';
+  }
+  function marginRow(m) {
+    var vals = txSeries(m.code);
+    var diff = Math.abs(m.marginPerUnit);
+    return trOpen(3, 'master', { filter: 'all' }) +
+      '<td><b>' + U.esc(m.name) + '</b></td>' +
+      '<td class="t-dn" style="white-space:nowrap">逆ザヤ</td>' +
+      '<td class="r">' + (m.stock || 0) + '<small class="t-mut">' + U.esc(m.unit || '') + '</small></td>' +
+      '<td class="r hide-mobile">' + (m.threshold != null ? m.threshold : '—') + '</td>' +
+      '<td class="r hide-mobile">' + out7Cell(vals) + '</td>' +
+      // 逆ザヤに在庫推移の線は意味が薄い → 原価と薬価の差額（この行の判断材料）を出す
+      '<td class="hide-mobile t-dn" style="white-space:nowrap" title="原価 ¥' + m.costPerUnit.toFixed(2) + ' ＞ 薬価 ¥' + m.price + '">−¥' + diff.toFixed(2) + '/' + U.esc(m.unit || '単位') + '</td>' +
+      '<td class="r"><button class="btn ghost sm go" type="button">価格</button></td></tr>';
+  }
+
   function todo() {
     var st = P8.store;
-    var rows = [];
-    function row(badgeCls, badge, text, navName, navParams, linkLabel) {
-      rows.push('<tr class="clickable" data-go="' + navName + '" data-params="' + U.esc(JSON.stringify(navParams || {})) + '">' +
-        '<td style="width:110px"><span class="bdg ' + badgeCls + '">' + badge + '</span></td>' +
-        '<td>' + text + '</td>' +
-        '<td class="r" style="white-space:nowrap;color:var(--info)">→ ' + linkLabel + '</td></tr>');
-    }
-    var out = st.reorder.filter(function (r) { return r.status === 'out_of_stock'; });
-    if (out.length) row('red', '在庫切れ', names(out, 5), 'order', { filter: 'alert' }, '発注へ');
-    var neg = st.stock.filter(function (m) { return (m.stock || 0) < 0; });
-    if (neg.length) row('red', 'マイナス在庫', names(neg, 5) + '（出庫が入庫を上回っています。実数を入れてください）', 'stocktake', {}, '棚卸へ');
-    var rev = st.reverseMargins();
-    rev.forEach(function (m) {
-      row('red', '逆ザヤ', U.esc(m.name) + '（原価 ¥' + m.costPerUnit.toFixed(2) + ' ＞ 薬価 ¥' + m.price + '）', 'master', { filter: 'all' }, 'マスタ整備へ');
+
+    // 品目ごとの要対応（在庫切れ／まもなく切れる／発注点割れ／逆ザヤ）
+    var items = [];
+    st.reorder.forEach(function (r) {
+      if (r.priority >= 1 && r.priority <= 3 && REASON[r.status]) items.push({ kind: 'reorder', r: r, pri: r.priority });
     });
+    st.reverseMargins().forEach(function (m) { items.push({ kind: 'margin', m: m, pri: 3 }); });
+    items.sort(function (a, b) { return a.pri - b.pri; }); // 安定ソート＝同優先度はビューの並び（残少ない順）を維持
+
+    var MAX = 10;
+    var shown = items.slice(0, MAX);
+    var rest = items.length - shown.length;
+    var body = shown.map(function (it) { return it.kind === 'margin' ? marginRow(it.m) : reorderRow(it.r); }).join('');
+    if (rest > 0) {
+      body += '<tr class="clickable todo-rest" data-go="order" data-params="' + U.esc(JSON.stringify({ filter: 'alert' })) + '">' +
+        '<td colspan="8">ほか ' + rest + ' 件 — 全件は発注画面で →</td></tr>';
+    }
+    var head = '<thead><tr>' +
+      '<th class="hide-mobile" style="width:36px">優先</th><th>薬品名</th><th>事由</th>' +
+      '<th class="r">残</th><th class="r hide-mobile">発注点</th><th class="r hide-mobile">7日出庫</th>' +
+      '<th class="hide-mobile" style="width:72px">週次推移</th><th style="width:64px"></th></tr></thead>';
+
+    // 品目単位で出せないもの（ロット・突合・棚卸系）は表の下に1行ずつ
+    var extra = [];
+    function line(badgeCls, badge, text, go, params, label) {
+      extra.push('<div class="todo-line" data-go="' + go + '" data-params="' + U.esc(JSON.stringify(params || {})) + '">' +
+        '<span class="bdg ' + badgeCls + '">' + badge + '</span><span class="grow">' + text + '</span>' +
+        '<span class="todo-go">→ ' + label + '</span></div>');
+    }
+    var neg = st.stock.filter(function (m) { return (m.stock || 0) < 0; });
+    if (neg.length) line('red', 'マイナス在庫', names(neg, 5) + '（出庫が入庫を上回っています。実数を入れてください）', 'stocktake', {}, '棚卸へ');
     if (homeExpiry && homeExpiry.length) {
       var expired = homeExpiry.filter(function (r) { return r.status === 'expired'; });
       var soon2 = homeExpiry.filter(function (r) { return r.status === 'soon'; });
-      if (expired.length) row('amber', '期限切れ', names(expired, 4), 'receive', {}, '入荷へ');
-      if (soon2.length) row('amber', '期限切迫', names(soon2, 4), 'receive', {}, '入荷へ');
+      if (expired.length) line('amber', '期限切れ', names(expired, 4), 'receive', {}, '入荷へ');
+      if (soon2.length) line('amber', '期限切迫', names(soon2, 4), 'receive', {}, '入荷へ');
     }
-    var soon = st.reorder.filter(function (r) { return r.status === 'runs_out_soon'; });
-    if (soon.length) {
-      row('amber', 'まもなく切れる', U.esc(soon.slice(0, 4).map(function (r) {
-        return r.name + (r.days_left != null ? '（残り' + r.days_left + '日）' : '');
-      }).join('、')) + (soon.length > 4 ? ' ほか' + (soon.length - 4) + '品目' : ''), 'order', { filter: 'alert' }, '発注へ');
-    }
-    var low = st.reorder.filter(function (r) { return r.status === 'below_threshold'; });
-    if (low.length) row('amber', '発注点割れ', names(low, 5), 'order', { filter: 'alert' }, '発注へ');
-    if (st.noExpiryCount > 0) {
-      row('amber', '期限未登録', '残数のあるロット' + st.noExpiryCount + '件に使用期限が入っていません', 'receive', {}, '入荷へ');
-    }
+    if (st.noExpiryCount > 0) line('amber', '期限未登録', '残数のあるロット' + st.noExpiryCount + '件に使用期限が入っていません', 'receive', {}, '入荷へ');
     if (st.missingDrugs.length) {
-      row('amber', 'カルテ突合', 'カルテにあって在庫マスタに無い薬が' + st.missingDrugs.length + '件（' +
+      line('amber', 'カルテ突合', 'カルテにあって在庫マスタに無い薬が' + st.missingDrugs.length + '件（' +
         names(st.missingDrugs, 3) + '）', 'master', { wizard: true, missing: true }, '追加ウィザードへ');
     }
-    document.getElementById('home-todo').innerHTML = rows.length ? rows.join('')
-      : '<tr><td style="color:var(--act);font-weight:700;padding:12px 8px">✅ 要対応はありません</td></tr>';
+
+    var wrap = document.getElementById('home-todo-wrap');
+    var tbl = document.getElementById('home-todo');
+    if (items.length) {
+      wrap.hidden = false;
+      tbl.innerHTML = head + '<tbody>' + body + '</tbody>';
+    } else if (extra.length) {
+      wrap.hidden = true;
+      tbl.innerHTML = '';
+    } else {
+      wrap.hidden = false;
+      tbl.innerHTML = '<tbody><tr><td style="color:var(--act);font-weight:700;padding:12px 8px">✅ 要対応はありません</td></tr></tbody>';
+    }
+    document.getElementById('home-todo-extra').innerHTML = extra.join('');
+    document.getElementById('home-todo-count').textContent =
+      items.length ? items.length + '件・優先度順／行クリックで該当画面へ' : 'クリックで該当画面へ';
   }
 
   var homeExpiry = null;
@@ -151,6 +264,7 @@
     loadRecent();
     loadExpiry();
     loadTrend();
+    loadTx();
   }
 
   P8.screens = P8.screens || {};
@@ -161,12 +275,12 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     U = P8.util;
-    document.getElementById('home-todo').addEventListener('click', function (e) {
-      var tr = e.target.closest('tr.clickable');
-      if (!tr) return;
+    document.getElementById('home-todo-panel').addEventListener('click', function (e) {
+      var t = e.target.closest('tr.clickable, .todo-line');
+      if (!t) return;
       var params = {};
-      try { params = JSON.parse(tr.getAttribute('data-params') || '{}'); } catch (err) {}
-      P8.nav(tr.getAttribute('data-go'), params);
+      try { params = JSON.parse(t.getAttribute('data-params') || '{}'); } catch (err) {}
+      P8.nav(t.getAttribute('data-go'), params);
     });
     document.getElementById('home-po').addEventListener('click', function (e) {
       var b = e.target.closest('button[data-id]');
