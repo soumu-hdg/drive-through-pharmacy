@@ -207,6 +207,12 @@ a { color: var(--info); }
   transition: transform .07s, box-shadow .07s;
 }
 .theme-btn:active { transform: translateY(2px); box-shadow: inset 0 1px 0 var(--edge-hi), 0 0 0 var(--key-edge), 0 1px 2px var(--drop); }
+/* レイアウト切替（テーマボタンと同じ物理キー。自動判定中は「自動」の小表示＝青:情報） */
+#layout-btn { position: relative; }
+#layout-btn[data-pref="auto"]::after {
+  content: '自動'; position: absolute; right: 2px; bottom: 1px;
+  font-size: 8px; line-height: 1; color: var(--info); font-weight: 700;
+}
 
 /* ---------- サイドバー（左レール＝キー列） ---------- */
 .sidebar {
@@ -270,14 +276,13 @@ main { padding: 62px 12px calc(84px + env(safe-area-inset-bottom)); max-width: 1
 .scr-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .scr-head .sub { font-size: 11.5px; color: var(--ink-sub); }
 
-@media (min-width: 768px) {
-  .sidebar { display: flex; }
-  .tabbar { display: none; }
-  .app-header { left: 200px; }
-  .app-header .brand { visibility: hidden; } /* サイドバーの銘板と重複するため */
-  main { margin-left: 200px; padding: 64px 24px 48px; }
-  body { font-size: 14px; }
-}
+/* レイアウトは html.is-mobile クラス駆動（幅768px自動判定＋p8_layoutでの強制。theme.jsとhead内スクリプトが付与） */
+html:not(.is-mobile) .sidebar { display: flex; }
+html:not(.is-mobile) .tabbar { display: none; }
+html:not(.is-mobile) .app-header { left: 200px; }
+html:not(.is-mobile) .app-header .brand { visibility: hidden; } /* サイドバーの銘板と重複するため */
+html:not(.is-mobile) main { margin-left: 200px; padding: 64px 24px 48px; }
+html:not(.is-mobile) body { font-size: 14px; }
 
 /* ---------- パネル（凸モジュール＋状態LED） ---------- */
 .panel {
@@ -436,7 +441,7 @@ html[data-theme="night"] .kpi-value.amber { text-shadow: 0 0 9px var(--warn-glow
 #toast.error::before { background: var(--danger-fill); box-shadow: 0 0 6px var(--danger-glow); }
 #toast.warn::before { background: var(--warn-fill); box-shadow: 0 0 6px var(--warn-glow); }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-@media (min-width: 768px) { #toast { bottom: 34px; } }
+html:not(.is-mobile) #toast { bottom: 34px; }
 
 /* ---------- オフライン再送バー（琥珀=注意） ---------- */
 #queue-bar {
@@ -470,10 +475,8 @@ body.has-queuebar .sidebar { top: 22px; }
 .modal-box.danger .modal-title::before { background: var(--danger-fill); box-shadow: 0 0 6px var(--danger-glow); }
 .modal-body { font-size: 13px; }
 .modal-buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
-@media (min-width: 768px) {
-  .modal-overlay { align-items: center; padding: 20px; }
-  .modal-box { border-radius: 10px; box-shadow: inset 0 1px 0 var(--edge-hi), 0 2px 0 var(--panel-edge), 0 14px 34px rgba(0, 0, 0, .4); }
-}
+html:not(.is-mobile) .modal-overlay { align-items: center; padding: 20px; }
+html:not(.is-mobile) .modal-box { border-radius: 10px; box-shadow: inset 0 1px 0 var(--edge-hi), 0 2px 0 var(--panel-edge), 0 14px 34px rgba(0, 0, 0, .4); }
 
 /* ---------- 出庫画面 ---------- */
 .qr-zone {
@@ -601,7 +604,7 @@ body.has-queuebar .sidebar { top: 22px; }
   padding: 8px 12px; display: none; align-items: center; gap: 10px; margin-top: 10px; z-index: 5;
 }
 .multi-bar.show { display: flex; }
-@media (min-width: 768px) { .multi-bar { bottom: 12px; } }
+html:not(.is-mobile) .multi-bar { bottom: 12px; }
 
 .drawer {
   position: fixed; top: 0; right: 0; bottom: 0; width: min(430px, 96vw); z-index: 70;
@@ -647,7 +650,7 @@ tr.st-diff td { background: var(--warn-bg); }
   padding: 8px 12px; margin-top: 10px; z-index: 5;
 }
 .save-bar.show { display: flex; }
-@media (min-width: 768px) { .save-bar { bottom: 12px; } }
+html:not(.is-mobile) .save-bar { bottom: 12px; }
 
 /* ---------- ウィザード ---------- */
 .wz-steps { display: flex; gap: 6px; margin-bottom: 14px; }
@@ -802,8 +805,8 @@ html[data-theme="night"] .switch::after { background: linear-gradient(180deg, #4
 .flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .grow { flex: 1; }
 /* 表示切替は「隠す」側だけを指定し、要素本来のdisplay(flex/grid等)を壊さない */
-@media (max-width: 767px) { .hide-mobile { display: none !important; } }
-@media (min-width: 768px) { .hide-desktop { display: none !important; } }
+html.is-mobile .hide-mobile { display: none !important; }
+html:not(.is-mobile) .hide-desktop { display: none !important; }
 
 /* ---------- reduced motion（全動作を無効化） ---------- */
 @media (prefers-reduced-motion: reduce) {

@@ -1,8 +1,9 @@
 /* =========================================================
-   v0.8 theme.js ― テーマ（day/night/auto）とレイアウト判定
-   自動: 20:00–5:59 = night（JST）。60秒ごとに再判定。
-   手動: ヘッダーのボタンで day → night → auto を巡回。
-   テーマとレイアウト（768px）は独立。
+   v0.8 theme.js ― テーマ（day/night/auto）とレイアウト（auto/mobile/pc）
+   テーマ自動: 20:00–5:59 = night（JST）。60秒ごとに再判定。
+   レイアウト自動: 幅768pxで判定。手動でスマホ/PC表示を強制できる。
+   どちらもヘッダーのボタンで3状態を巡回。テーマとレイアウトは独立。
+   CSS側は html.is-mobile クラス駆動（メディアクエリ非依存）。
    ========================================================= */
 (function () {
   'use strict';
@@ -73,16 +74,74 @@
     }
   }
 
-  function isMobile() { return window.matchMedia('(max-width: 767px)').matches; }
+  // ---- レイアウト（auto / mobile / pc。テーマと同じ3状態巡回） ----
+  var LKEY = 'p8_layout';
+  function layoutPref() {
+    try {
+      var v = localStorage.getItem(LKEY);
+      return (v === 'mobile' || v === 'pc') ? v : 'auto';
+    } catch (e) { return 'auto'; }
+  }
+  function layoutEffective() {
+    var p = layoutPref();
+    if (p !== 'auto') return p;
+    return window.matchMedia('(max-width: 767px)').matches ? 'mobile' : 'pc';
+  }
+  // JS側の判定も必ずレイアウト設定を尊重する（幅だけで判定するとCSSと食い違う）
+  function isMobile() { return layoutEffective() === 'mobile'; }
+
+  var lastLayout = null;
+  function applyLayout() {
+    var eff = layoutEffective();
+    var el = document.documentElement;
+    el.classList.toggle('is-mobile', eff === 'mobile');
+    el.setAttribute('data-layout', layoutPref());
+    renderLayoutBtn();
+    if (lastLayout !== eff) {
+      var first = lastLayout === null;
+      lastLayout = eff;
+      // レイアウトが変わったことを画面側へ知らせる（p8:themeと同じ轍を踏まない）
+      if (!first) document.dispatchEvent(new CustomEvent('p8:layout', { detail: eff }));
+    }
+  }
+  function renderLayoutBtn() {
+    var btn = document.getElementById('layout-btn');
+    if (!btn) return;
+    var p = layoutPref();
+    btn.textContent = layoutEffective() === 'mobile' ? '📱' : '🖥';
+    btn.setAttribute('data-pref', p);
+    btn.title = p === 'auto' ? 'レイアウト自動（画面幅で判定。タップでスマホ表示に固定）'
+      : (p === 'mobile' ? 'スマホ表示に固定中（タップでPC表示に固定）' : 'PC表示に固定中（タップで自動に戻す）');
+  }
+  // auto → mobile → pc → auto の3状態巡回
+  function cycleLayout() {
+    var p = layoutPref();
+    var next = p === 'auto' ? 'mobile' : (p === 'mobile' ? 'pc' : 'auto');
+    try { localStorage.setItem(LKEY, next); } catch (e) {}
+    applyLayout();
+    if (P8.ui) {
+      var msg = next === 'auto' ? 'レイアウトを自動判定に戻しました（画面幅で切替）'
+        : (next === 'mobile' ? 'スマホ表示に固定しました' : 'PC表示に固定しました');
+      P8.ui.toast(msg);
+    }
+  }
 
   function init() {
     apply();
+    applyLayout();
     setInterval(apply, 60000); // 60秒ごとに再判定（時刻表示の更新も兼ねる）
     var btn = document.getElementById('theme-btn');
     if (btn) btn.addEventListener('click', cycle);
     var mt = document.getElementById('menu-theme');
     if (mt) mt.addEventListener('click', function () { cycle(); });
+    var lb = document.getElementById('layout-btn');
+    if (lb) lb.addEventListener('click', cycleLayout);
+    window.addEventListener('resize', applyLayout); // autoのとき幅の変化に追従（強制中はeffが不変なので何も起きない）
   }
 
-  P8.theme = { init: init, apply: apply, cycle: cycle, effective: effective, pref: pref, isMobile: isMobile };
+  P8.theme = {
+    init: init, apply: apply, cycle: cycle, effective: effective, pref: pref,
+    isMobile: isMobile, layoutPref: layoutPref, layoutEffective: layoutEffective,
+    applyLayout: applyLayout, cycleLayout: cycleLayout
+  };
 })();

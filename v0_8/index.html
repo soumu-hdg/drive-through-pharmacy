@@ -8,7 +8,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=0.9.2">
+<script>
+/* レイアウト（auto/mobile/pc）を最初の描画前に確定してチラつきを防ぐ。本体は js/theme.js */
+(function () {
+  var v = null;
+  try { v = localStorage.getItem('p8_layout'); } catch (e) {}
+  if (v !== 'mobile' && v !== 'pc') v = 'auto';
+  var m = v === 'mobile' || (v === 'auto' && window.matchMedia('(max-width: 767px)').matches);
+  document.documentElement.classList.toggle('is-mobile', m);
+  document.documentElement.setAttribute('data-layout', v);
+})();
+</script>
+<link rel="stylesheet" href="app.css?v=0.9.3">
 </head>
 <body>
 
@@ -20,6 +31,7 @@
     <span class="led-cluster hide-mobile"><span><i class="led" id="led-db"></i>DB</span><span><i class="led" id="led-sync"></i>送信</span></span>
     <span class="mode-chip" id="mode-chip"></span>
     <button class="theme-btn" id="theme-btn" title="テーマ切替">🌙</button>
+    <button class="theme-btn" id="layout-btn" title="レイアウト切替">🖥</button>
   </div>
 </header>
 
@@ -422,16 +434,16 @@
 <div id="toast"></div>
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script defer src="js/db.js?v=0.9.2"></script>
-<script defer src="js/store.js?v=0.9.2"></script>
-<script defer src="js/theme.js?v=0.9.2"></script>
-<script defer src="js/ui.js?v=0.9.2"></script>
-<script defer src="js/screen-dispense.js?v=0.9.2"></script>
-<script defer src="js/screen-home.js?v=0.9.2"></script>
-<script defer src="js/screen-stock.js?v=0.9.2"></script>
-<script defer src="js/screen-stocktake.js?v=0.9.2"></script>
-<script defer src="js/screen-master.js?v=0.9.2"></script>
-<script defer src="js/screen-order.js?v=0.9.2"></script>
-<script defer src="js/screen-analytics.js?v=0.9.2"></script>
+<script defer src="js/db.js?v=0.9.3"></script>
+<script defer src="js/store.js?v=0.9.3"></script>
+<script defer src="js/theme.js?v=0.9.3"></script>
+<script defer src="js/ui.js?v=0.9.3"></script>
+<script defer src="js/screen-dispense.js?v=0.9.3"></script>
+<script defer src="js/screen-home.js?v=0.9.3"></script>
+<script defer src="js/screen-stock.js?v=0.9.3"></script>
+<script defer src="js/screen-stocktake.js?v=0.9.3"></script>
+<script defer src="js/screen-master.js?v=0.9.3"></script>
+<script defer src="js/screen-order.js?v=0.9.3"></script>
+<script defer src="js/screen-analytics.js?v=0.9.3"></script>
 </body>
 </html>
