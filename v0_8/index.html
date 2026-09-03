@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=0.9.1">
+<link rel="stylesheet" href="app.css?v=0.9.2">
 </head>
 <body>
 
@@ -42,9 +42,10 @@
   <section id="scr-home" class="screen">
     <div class="scr-head"><h2>今日の状態</h2><span class="sub" id="home-date"></span></div>
     <div class="kpi-band" id="home-kpi"></div>
-    <div class="panel warn">
-      <div class="panel-title">⚠ 要対応<span class="mini">クリックで該当画面へ</span></div>
-      <div class="tbl-wrap"><table class="tbl" id="home-todo"></table></div>
+    <div class="panel warn" id="home-todo-panel">
+      <div class="panel-title">⚠ 要対応<span class="mini" id="home-todo-count">クリックで該当画面へ</span></div>
+      <div class="tbl-wrap" id="home-todo-wrap"><table class="tbl" id="home-todo"></table></div>
+      <div id="home-todo-extra"></div>
     </div>
     <div class="panel">
       <div class="panel-title">📥 受入待ちの発注書</div>
@@ -421,16 +422,16 @@
 <div id="toast"></div>
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script defer src="js/db.js?v=0.9.1"></script>
-<script defer src="js/store.js?v=0.9.1"></script>
-<script defer src="js/theme.js?v=0.9.1"></script>
-<script defer src="js/ui.js?v=0.9.1"></script>
-<script defer src="js/screen-dispense.js?v=0.9.1"></script>
-<script defer src="js/screen-home.js?v=0.9.1"></script>
-<script defer src="js/screen-stock.js?v=0.9.1"></script>
-<script defer src="js/screen-stocktake.js?v=0.9.1"></script>
-<script defer src="js/screen-master.js?v=0.9.1"></script>
-<script defer src="js/screen-order.js?v=0.9.1"></script>
-<script defer src="js/screen-analytics.js?v=0.9.1"></script>
+<script defer src="js/db.js?v=0.9.2"></script>
+<script defer src="js/store.js?v=0.9.2"></script>
+<script defer src="js/theme.js?v=0.9.2"></script>
+<script defer src="js/ui.js?v=0.9.2"></script>
+<script defer src="js/screen-dispense.js?v=0.9.2"></script>
+<script defer src="js/screen-home.js?v=0.9.2"></script>
+<script defer src="js/screen-stock.js?v=0.9.2"></script>
+<script defer src="js/screen-stocktake.js?v=0.9.2"></script>
+<script defer src="js/screen-master.js?v=0.9.2"></script>
+<script defer src="js/screen-order.js?v=0.9.2"></script>
+<script defer src="js/screen-analytics.js?v=0.9.2"></script>
 </body>
 </html>
