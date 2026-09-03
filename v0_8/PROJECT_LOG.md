@@ -120,3 +120,19 @@ v0_8/
 - スパークラインは実データ（直近8日の out 取引45行）から描画。ダミー座標なし
 - 逆ザヤ実物=ロキソプロフェン錠60mg（原価¥19.08＞薬価¥10.5＝−¥8.58/錠）の表示確認
 - DB書き込みゼロ・スキーマ変更なし・他7画面は未変更
+
+## 2026-09-03 スマホ/PC表示切替（レイアウト強制）＋起動時エラー修正
+
+### レイアウト切替（`8cffdfe`）
+- ヘッダーのテーマボタン隣に **レイアウトボタン**（auto→mobile→pc の3状態巡回・`p8_layout` に保存）を追加。自動判定中はボタン右下に小さく「自動」（青=情報）
+- レイアウトCSSをメディアクエリから **`html.is-mobile` クラス駆動**へ全面変更（変換6箇所: 骨格/toast/modal/multi-bar/save-bar/hide-mobile系）。幅768pxの自動判定は維持しつつ、PCでスマホ表示・スマホでPC表示を強制可能に
+- head内インラインスクリプトで**初回描画前にクラス確定**（チラつき防止）。`P8.theme.isMobile()` は強制設定を尊重。実効レイアウト変更時は `p8:layout` CustomEvent を発火
+- 検証: 幅1520でmobile強制（タブバー・4列表）／幅390エミュレーションでpc強制（サイドバー・棚卸ワークシート表示）／リロード後も保持／`p8:layout` は実効変化時のみ発火
+
+### 起動時エラー修正（`93c4fe9`・アセット版数 0.9.4）
+- 起動直後の `p8:theme`（theme.init→apply）が screen-home の DOMContentLoaded より先に届き、`renderDateLine` が `U=null` のまま `todayJst` を読んで毎起動1回 SEVERE になっていた（昨日の `9a47aab` 由来の既存不具合）。`renderDateLine` 冒頭で `P8.util` を遅延取得して解消
+
+### 本番検証（`https://soumu-hdg.github.io/drive-through-pharmacy/v0_8/index.html`）
+- 要対応19件=在庫切れ8/まもなく5/発注点割れ5/逆ザヤ1（ビュー実値と一致）。スパークラインの7日出庫はRESTの独立集計と一致（M110=45 / M121=15）
+- スクショ: `ss/v08prod_todo_{day,night}_{pc,mobile}.png`・`ss/v08prod_layout_pc_forced_narrow.png`・`ss/v08prod_layout_pc_forced_stocktake.png`・`ss/v08prod_layout_mobile_forced_wide.png`
+- 全8画面ナビゲーション退行なし。console SEVERE は favicon 404（サイトルート・従来から）のみ
