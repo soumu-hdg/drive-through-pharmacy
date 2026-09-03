@@ -133,11 +133,18 @@
     todo();
   }
 
+  // 日付行のモード名だけを描き直す（テーマ切替のたびに全体を再取得しない）
+  function renderDateLine() {
+    var el = document.getElementById('home-date');
+    if (!el) return;
+    var wd = ['日', '月', '火', '水', '木', '金', '土'][new Date().getDay()];
+    el.textContent = U.todayJst() + '（' + wd + '）' +
+      (P8.theme.effective() === 'night' ? '🌙 夜間モード' : '☀️ 日中モード');
+  }
+  document.addEventListener('p8:theme', renderDateLine);
+
   function render() {
-    var now = new Date();
-    var wd = ['日', '月', '火', '水', '木', '金', '土'][now.getDay()];
-    document.getElementById('home-date').textContent =
-      U.todayJst() + '（' + wd + '）' + (P8.theme.effective() === 'night' ? '🌙 夜間モード' : '☀️ 日中モード');
+    renderDateLine();
     kpi();
     todo();
     loadPo();

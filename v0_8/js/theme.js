@@ -38,6 +38,10 @@
       if (meta) meta.setAttribute('content', t === 'night' ? '#22262a' : '#e3e7e0');
     }
     renderChip();
+    // テーマが変わったことを画面側へ知らせる。
+    // 「今日の状態」の日付行がモード名を出しており、
+    // 再描画しないと手動切替のあと表示が食い違ったままになる。
+    document.dispatchEvent(new CustomEvent('p8:theme', { detail: t }));
   }
 
   function renderChip() {
