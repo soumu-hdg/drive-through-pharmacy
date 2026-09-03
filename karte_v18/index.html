@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=1024">
 <title>ドライブスルー診療 電子カルテ v0.15</title>
 <link rel="stylesheet" href="style.css?v=20260806_v14">
+<link rel="stylesheet" href="rezept_create.css?v=20260903_v1">
 <!-- CDN: バージョン固定 + SRI(改竄検知) + crossorigin。更新時はハッシュも再計算すること -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" integrity="sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -60,7 +61,7 @@
     <div class="spacer"></div>
     <span class="clock" id="clockList">00:00:00</span>
     <span id="authUserBadge" style="display:none;background:#dbeafe;color:#1d4ed8;padding:3px 10px;border-radius:6px;font-size:11px;margin-left:8px;"></span>
-    <button onclick="generateAndOpenReceipt()" title="前月等の確定患者からUKEを生成します（試作）" style="font-size:11px;padding:4px 10px;background:#c9821f;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-left:4px;">&#128203; レセプト作成（試作）</button>
+    <button onclick="openRezeptCreate()" title="レセプト作成（月次／日次）" style="font-size:11px;padding:4px 10px;background:#c9821f;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-left:4px;">&#128203; レセプト作成</button>
     <button onclick="window.open('receipt.html','_blank')" style="font-size:11px;padding:4px 10px;background:#3a6b35;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-left:4px;">&#128203; レセプト点検</button>
     <button onclick="openUserManager()" style="font-size:11px;padding:4px 10px;background:#6366f1;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-left:4px;">ID管理</button>
     <button onclick="handleLogout()" style="font-size:11px;padding:4px 10px;background:#ef4444;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-left:4px;">ログアウト</button>
@@ -949,6 +950,134 @@
   </div>
 </div>
 
+
+<!-- ============================================================
+     レセプト作成モーダル（M3デジカル準拠レイアウト・2026-09-03追加）
+     ・レイアウトは digikar.jp の「レセプト作成」ダイアログに合わせている
+     ・右上［即UKE生成］は従来どおりの generateAndOpenReceipt() を温存したもの
+     ============================================================ -->
+<div class="rzm-overlay" id="rezeptCreateModal">
+  <div class="rzm" role="dialog" aria-modal="true" aria-label="レセプト作成">
+
+    <div class="rzm-head">
+      <h2>レセプト作成</h2>
+      <span class="rzm-spacer"></span>
+      <button class="rzm-quick" onclick="rzQuickUKE()" title="従来どおり、当日の確定カルテからUKEを即生成してレセプト点検を開きます">&#9889; 即UKE生成</button>
+      <button class="rzm-x" onclick="closeRezeptCreate()" aria-label="閉じる">&times;</button>
+    </div>
+
+    <div class="rzm-body">
+      <ul class="rzm-tabs">
+        <li class="active" data-rztab="hoken"  onclick="rzSwitchTab('hoken')">医療保険</li>
+        <li data-rztab="rousai" onclick="rzSwitchTab('rousai')">労災</li>
+        <li data-rztab="jibai"  onclick="rzSwitchTab('jibai')">自賠責</li>
+      </ul>
+
+      <!-- ===== 医療保険 ===== -->
+      <div id="rzPane_hoken">
+        <div class="rzm-sec">
+          <div class="rzm-top">
+            <div class="rzm-cond">
+              <div class="rzm-row">
+                <select class="rzm-select" id="rzMode" onchange="rzOnModeChange()">
+                  <option value="monthly">月次レセプト作成</option>
+                  <option value="daily">日次レセプト作成</option>
+                </select>
+              </div>
+              <div class="rzm-row">
+                <div class="rzm-field">
+                  <span class="rzm-lb" id="rzPeriodLabel">診療月</span>
+                  <span class="rzm-pick" id="rzTargetMonthWrap">
+                    <button type="button" class="rzm-date" style="width:79px;" onclick="rzPick('rzTargetMonth')"><span id="rzTargetMonthTxt">----/--</span></button>
+                    <input type="month" id="rzTargetMonth" class="rzm-hidden-input" onchange="rzOnFieldChange()">
+                  </span>
+                  <span class="rzm-pick" id="rzTargetDateWrap" style="display:none;">
+                    <button type="button" class="rzm-date" style="width:141px;" onclick="rzPick('rzTargetDate')"><span id="rzTargetDateTxt">----/--/--</span></button>
+                    <input type="date" id="rzTargetDate" class="rzm-hidden-input" onchange="rzOnFieldChange()">
+                  </span>
+                </div>
+                <div class="rzm-field">
+                  <span class="rzm-lb">請求年月日</span>
+                  <span class="rzm-pick">
+                    <button type="button" class="rzm-date" style="width:141px;" onclick="rzPick('rzClaimDate')"><span id="rzClaimDateTxt">----/--/--</span></button>
+                    <input type="date" id="rzClaimDate" class="rzm-hidden-input" onchange="rzOnFieldChange()">
+                  </span>
+                </div>
+                <label class="rzm-cb"><input type="checkbox" id="rzShaho" checked onchange="rzRenderSections()"><span>社保</span></label>
+                <label class="rzm-cb"><input type="checkbox" id="rzKokuho" checked onchange="rzRenderSections()"><span>国保</span></label>
+              </div>
+            </div>
+            <div class="rzm-links">
+              <a href="receipt_manual.html" target="_blank" rel="noopener"><span class="rzm-q">?</span>レセプト請求 マニュアル＆ヘルプ</a>
+              <a href="receipt_manual.html" target="_blank" rel="noopener"><span class="rzm-q">?</span>返戻オンライン請求 マニュアル＆ヘルプ</a>
+            </div>
+          </div>
+
+          <div class="rzm-adapt">
+            <span>適応症チェックの出力</span>
+            <label class="rzm-cb"><input type="checkbox" id="rzChkDrug" checked><span>医薬品</span></label>
+            <label class="rzm-cb"><input type="checkbox" id="rzChkProc" checked><span>診療行為</span></label>
+          </div>
+
+          <div class="rzm-result" id="rzResult" style="display:none;">
+            <svg class="rzm-result-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+              <path d="M14 2H6.5A1.5 1.5 0 0 0 5 3.5v17A1.5 1.5 0 0 0 6.5 22h11a1.5 1.5 0 0 0 1.5-1.5V7l-5-5z"/>
+              <path d="M14 2v5h5"/><path d="M8.5 14.5l2 2 4-4.5"/>
+            </svg>
+            <div class="rzm-result-main">
+              <span class="rzm-result-title" id="rzResultTitle">点検用レセプト</span>
+              <div class="rzm-result-meta">
+                <span id="rzResultMonth"></span><span id="rzResultStart"></span><span id="rzResultEnd"></span>
+              </div>
+            </div>
+            <button class="rzm-btn rzm-btn-p" onclick="rzDownload()">ダウンロード</button>
+          </div>
+        </div>
+
+        <div class="rzm-sec">
+          <div class="rzm-acc">
+            <div class="rzm-acc-head">
+              <button class="rzm-caret" data-rzacc="rzHenreiWrap" onclick="rzToggleAcc('rzHenreiWrap')">&#9660;</button>
+              <span class="rzm-acc-title" id="rzHenreiCount">返戻再請求（ 0 件）</span>
+              <span class="rzm-spacer"></span>
+              <button class="rzm-btn rzm-btn-sm" onclick="rzHenreiNotice()">返戻レセプトビューアー</button>
+              <button class="rzm-btn rzm-btn-sm" onclick="rzHenreiNotice()">返戻レセプト取込</button>
+            </div>
+            <div id="rzHenreiWrap"><div class="rzm-box" id="rzHenreiBody">返戻再請求するカルテはありません。</div></div>
+          </div>
+
+          <div class="rzm-acc">
+            <div class="rzm-acc-head">
+              <button class="rzm-caret" data-rzacc="rzLateWrap" onclick="rzToggleAcc('rzLateWrap')">&#9660;</button>
+              <span class="rzm-acc-title" id="rzLateCount">月遅れ（ 0 件）</span>
+            </div>
+            <div id="rzLateWrap"><div class="rzm-box" id="rzLateBody">月遅れするカルテはありません。</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 労災 ===== -->
+      <div id="rzPane_rousai" style="display:none;">
+        <div class="rzm-empty">労災レセプトはこの画面では扱いません。</div>
+      </div>
+
+      <!-- ===== 自賠責 ===== -->
+      <div id="rzPane_jibai" style="display:none;">
+        <div class="rzm-empty">自賠責レセプトはこの画面では扱いません。</div>
+      </div>
+    </div>
+
+    <div class="rzm-foot">
+      <div class="rzm-foot-btns" id="rzFootActions">
+        <button class="rzm-btn" onclick="closeRezeptCreate()">キャンセル</button>
+        <button class="rzm-btn rzm-btn-p" onclick="rzRun('check')">点検用を作成</button>
+        <button class="rzm-btn rzm-btn-p" onclick="rzRun('submit')">提出用を作成</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <script src="insurance_calc.js?v=20260820_v32"></script>
 <script src="name_dict.js?v=20260820_v32"></script>
 <script src="ocr_engine.js?v=20260820_v32"></script>
@@ -966,5 +1095,6 @@
 <script src="patient_photos.js?v=20260806_v30"></script>
 <script src="app.js?v=20260820_v37"></script>
 <script src="uke_generator.js?v=20260820_v33"></script>
+<script src="rezept_create.js?v=20260903_v1"></script>
 </body>
 </html>
