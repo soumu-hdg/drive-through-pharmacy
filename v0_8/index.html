@@ -19,7 +19,7 @@
   document.documentElement.setAttribute('data-layout', v);
 })();
 </script>
-<link rel="stylesheet" href="app.css?v=0.9.4">
+<link rel="stylesheet" href="app.css?v=0.9.5">
 </head>
 <body>
 
@@ -66,6 +66,30 @@
     <div class="panel plain">
       <div class="panel-title">直近の操作</div>
       <div id="home-recent" class="muted">読み込み中...</div>
+    </div>
+
+    <!-- 薬品マスタ一覧（絞り込み7項目＋列ソート） -->
+    <div class="panel plain" id="home-master-panel">
+      <div class="panel-title">
+        🧪 薬品マスタ
+        <span class="mini" id="hm-count"></span>
+        <span class="grow"></span>
+        <button class="btn ghost sm" id="hm-toggle" type="button" aria-expanded="true">絞り込み ▾</button>
+      </div>
+      <div class="filter-grid" id="hm-filters">
+        <label>カテゴリ１（対象）<input id="hm-f-cat1" list="dl-cat1" autocomplete="off" placeholder="小児 / 成人 …"></label>
+        <label>カテゴリ２（用法区分）<input id="hm-f-cat2" list="dl-cat2" autocomplete="off" placeholder="頓服 / 内服 …"></label>
+        <label>カテゴリ３（用法回数）<input id="hm-f-cat3" list="dl-cat3" autocomplete="off" placeholder="分１ / 分２ …"></label>
+        <label>カテゴリ４（服用指示）<input id="hm-f-cat4" list="dl-cat4" autocomplete="off" placeholder="毎食後１日３回 …"></label>
+        <label>カテゴリ５（薬効分類）<input id="hm-f-cat5" list="dl-cat5" autocomplete="off" placeholder="解熱鎮痛剤 …"></label>
+        <label>YJコード<input id="hm-f-yj" list="dl-yj" autocomplete="off" placeholder="個別医薬品コード"></label>
+        <label>レセプト電算コード1<input id="hm-f-rz" list="dl-rz" autocomplete="off" placeholder="9桁"></label>
+        <div class="filter-act"><button class="btn ghost sm" id="hm-clear" type="button">絞り込みを解除</button></div>
+      </div>
+      <datalist id="dl-cat1"></datalist><datalist id="dl-cat2"></datalist><datalist id="dl-cat3"></datalist>
+      <datalist id="dl-cat4"></datalist><datalist id="dl-cat5"></datalist>
+      <datalist id="dl-yj"></datalist><datalist id="dl-rz"></datalist>
+      <div class="tbl-wrap"><table class="tbl" id="hm-table"></table></div>
     </div>
   </section>
 
@@ -253,7 +277,10 @@
 
   <!-- ===== マスタ整備 ===== -->
   <section id="scr-master" class="screen">
-    <div class="scr-head"><h2>マスタ整備</h2><button class="btn act sm" id="btn-wizard">＋ 薬品を追加</button></div>
+    <div class="scr-head"><h2>マスタ整備</h2><span class="flex">
+      <button class="btn ghost sm" id="btn-detail-add">＋ 詳細入力で追加</button>
+      <button class="btn act sm" id="btn-wizard">＋ 薬品を追加</button>
+    </span></div>
     <div class="kpi-band" id="ms-kpi"></div>
     <div id="ms-reverse"></div>
     <div class="chip-row" id="ms-chips">
@@ -425,6 +452,108 @@
   </div>
 </div>
 
+<!-- 薬品マスタ 追加／編集フォーム -->
+<div class="modal-overlay" id="mf-modal">
+  <div class="modal-box wide">
+    <div class="modal-title" id="mf-title">薬品を編集</div>
+    <div class="modal-body">
+      <div class="mf-sub" id="mf-sub"></div>
+
+      <div class="mf-sec" data-sec="basic">
+        <button class="mf-sec-head" type="button">① 基本</button>
+        <div class="wz-grid mf-sec-body">
+          <label>院内管理ID<input id="mf-code" autocomplete="off"></label>
+          <label class="req"><span>薬品名</span><input id="mf-name" autocomplete="off"></label>
+          <label>ふりがな<input id="mf-furigana" autocomplete="off"></label>
+          <label>分類（画面用）<input id="mf-category" list="dl-mf-category" autocomplete="off" placeholder="成人/解熱鎮痛剤"></label>
+        </div>
+      </div>
+
+      <div class="mf-sec" data-sec="cat">
+        <button class="mf-sec-head" type="button">② 分類</button>
+        <div class="wz-grid mf-sec-body">
+          <label>カテゴリ１（対象）<input id="mf-cat1" list="dl-mf-cat1" autocomplete="off"></label>
+          <label>カテゴリ２（用法区分）<input id="mf-cat2" list="dl-mf-cat2" autocomplete="off"></label>
+          <label>カテゴリ３（用法回数）<input id="mf-cat3" list="dl-mf-cat3" autocomplete="off"></label>
+          <label>カテゴリ５（薬効分類）<input id="mf-cat5" list="dl-mf-cat5" autocomplete="off"></label>
+          <label class="span2">カテゴリ４（服用指示）<input id="mf-cat4" list="dl-mf-cat4" autocomplete="off"></label>
+          <label>在庫区分<input id="mf-stockclass" list="dl-mf-stockclass" autocomplete="off"></label>
+        </div>
+      </div>
+
+      <div class="mf-sec" data-sec="item">
+        <button class="mf-sec-head" type="button">③ 品目情報</button>
+        <div class="wz-grid mf-sec-body">
+          <label>メーカー<input id="mf-maker" list="dl-mf-maker" autocomplete="off"></label>
+          <label>名称（屋号）<input id="mf-brand" autocomplete="off" placeholder="「タカタ」など"></label>
+          <label>薬品グループ名<input id="mf-group" list="dl-mf-group" autocomplete="off"></label>
+          <label>剤型<input id="mf-form" list="dl-mf-form" autocomplete="off"></label>
+          <label>規格・分包量<input id="mf-spec" autocomplete="off" placeholder="0.2ｇ / 60ｍｇ"></label>
+          <label class="req"><span>薬剤単位</span><input id="mf-unit" list="dl-mf-unit" autocomplete="off" placeholder="包 / 錠 / 本"></label>
+          <label>発注単位<input id="mf-orderunit" list="dl-mf-orderunit" autocomplete="off" placeholder="ロット / 箱"></label>
+        </div>
+      </div>
+
+      <div class="mf-sec" data-sec="stock">
+        <button class="mf-sec-head" type="button">④ 仕入・在庫</button>
+        <div class="wz-grid mf-sec-body">
+          <label>入数（1発注単位あたり）<input type="number" id="mf-packsize" min="0"></label>
+          <label>仕入単価（1発注単位・円）<input type="number" id="mf-costpack" min="0" step="0.01"></label>
+          <label>仕入先<select id="mf-supplier"><option value="">未設定</option></select></label>
+          <label>発注点<input type="number" id="mf-threshold" min="0"></label>
+          <label id="mf-initial-wrap">初期在庫<input type="number" id="mf-initial" min="0" value="0"></label>
+          <label class="span2 mf-ro">1単位あたり原価（自動計算）<input id="mf-costunit" readonly tabindex="-1"></label>
+        </div>
+        <div class="toggle-box" id="mf-toggle-box">
+          <div class="tg-head">出庫で在庫を減らす <button class="switch on" id="mf-tracking" type="button" aria-label="出庫で在庫を減らす"></button></div>
+          <div class="tg-note">軟膏・点眼など「院内で使い回す薬」はOFF。OFFの薬は出庫記録は残りますが在庫数は動きません。</div>
+          <div class="tg-note" id="mf-cat-forced" style="color:var(--warn)" hidden></div>
+        </div>
+      </div>
+
+      <div class="mf-sec" data-sec="price">
+        <button class="mf-sec-head" type="button">⑤ 薬価</button>
+        <div class="wz-grid mf-sec-body">
+          <label>薬価（在庫1単位あたり・円）<input type="number" id="mf-price" min="0" step="0.01"></label>
+          <label>2026/4 薬価（薬価基準の単位あたり・円）<input type="number" id="mf-priceofficial" min="0" step="0.01"></label>
+          <label>総量（ｇ）<input type="number" id="mf-totalg" min="0" step="0.01"></label>
+          <label class="mf-ro">総量×薬価（自動計算）<input id="mf-lotvalue" readonly tabindex="-1"></label>
+        </div>
+        <div class="tg-note mf-note">「薬価」は在庫1単位（包・錠）あたり、「2026/4 薬価」は薬価基準の単位（散剤ならg）あたりです。別の値なので片方に寄せないでください。</div>
+      </div>
+
+      <div class="mf-sec" data-sec="code">
+        <button class="mf-sec-head" type="button">⑥ コード</button>
+        <div class="wz-grid mf-sec-body">
+          <label>薬価基準収載医薬品コード<input id="mf-yjbase" autocomplete="off"></label>
+          <label>YJコード（個別医薬品コード）<input id="mf-yj" autocomplete="off"></label>
+          <label>レセプト電算コード1<input id="mf-rezept" autocomplete="off"></label>
+          <label>レセプト電算コード2<input id="mf-rezept2" autocomplete="off"></label>
+          <label>HOT7<input id="mf-hot7" autocomplete="off"></label>
+          <label>HOT9<input id="mf-hot9" autocomplete="off"></label>
+          <label>HOT13<input id="mf-hot13" autocomplete="off"></label>
+        </div>
+      </div>
+
+      <div class="mf-sec" data-sec="misc">
+        <button class="mf-sec-head" type="button">⑦ その他</button>
+        <div class="wz-grid mf-sec-body">
+          <label class="span2">用法メモ<input id="mf-usage" autocomplete="off"></label>
+          <label class="span2"><span><input type="checkbox" id="mf-exempt"> マスタ整備の穴チェック対象外にする（院内独自品向け）</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn ghost" id="mf-cancel">キャンセル</button>
+      <button class="btn act" id="mf-save">保存</button>
+    </div>
+  </div>
+</div>
+<datalist id="dl-mf-cat1"></datalist><datalist id="dl-mf-cat2"></datalist><datalist id="dl-mf-cat3"></datalist>
+<datalist id="dl-mf-cat4"></datalist><datalist id="dl-mf-cat5"></datalist><datalist id="dl-mf-maker"></datalist>
+<datalist id="dl-mf-group"></datalist><datalist id="dl-mf-stockclass"></datalist><datalist id="dl-mf-form"></datalist>
+<datalist id="dl-mf-unit"></datalist><datalist id="dl-mf-orderunit"></datalist><datalist id="dl-mf-category"></datalist>
+
 <!-- 在庫詳細ドロワー -->
 <div class="drawer" id="drawer">
   <button class="dr-close" id="drawer-close">✕</button>
@@ -434,16 +563,16 @@
 <div id="toast"></div>
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script defer src="js/db.js?v=0.9.4"></script>
-<script defer src="js/store.js?v=0.9.4"></script>
-<script defer src="js/theme.js?v=0.9.4"></script>
-<script defer src="js/ui.js?v=0.9.4"></script>
-<script defer src="js/screen-dispense.js?v=0.9.4"></script>
-<script defer src="js/screen-home.js?v=0.9.4"></script>
-<script defer src="js/screen-stock.js?v=0.9.4"></script>
-<script defer src="js/screen-stocktake.js?v=0.9.4"></script>
-<script defer src="js/screen-master.js?v=0.9.4"></script>
-<script defer src="js/screen-order.js?v=0.9.4"></script>
-<script defer src="js/screen-analytics.js?v=0.9.4"></script>
+<script defer src="js/db.js?v=0.9.5"></script>
+<script defer src="js/store.js?v=0.9.5"></script>
+<script defer src="js/theme.js?v=0.9.5"></script>
+<script defer src="js/ui.js?v=0.9.5"></script>
+<script defer src="js/screen-dispense.js?v=0.9.5"></script>
+<script defer src="js/screen-home.js?v=0.9.5"></script>
+<script defer src="js/screen-stock.js?v=0.9.5"></script>
+<script defer src="js/screen-stocktake.js?v=0.9.5"></script>
+<script defer src="js/screen-master.js?v=0.9.5"></script>
+<script defer src="js/screen-order.js?v=0.9.5"></script>
+<script defer src="js/screen-analytics.js?v=0.9.5"></script>
 </body>
 </html>

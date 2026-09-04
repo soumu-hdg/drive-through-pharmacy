@@ -257,6 +257,102 @@
   }
   document.addEventListener('p8:theme', renderDateLine);
 
+  // ---- 薬品マスタ一覧（絞り込み7項目＋列ソート） ----
+  // 絞り込み欄と datalist と、値の取り出し方を1か所で定義する
+  var MF = [
+    { id: 'hm-f-cat1', dl: 'dl-cat1', field: 'cat1' },
+    { id: 'hm-f-cat2', dl: 'dl-cat2', field: 'cat2' },
+    { id: 'hm-f-cat3', dl: 'dl-cat3', field: 'cat3' },
+    { id: 'hm-f-cat4', dl: 'dl-cat4', field: 'cat4' },
+    { id: 'hm-f-cat5', dl: 'dl-cat5', field: 'cat5' },
+    { id: 'hm-f-yj', dl: 'dl-yj', field: 'yjCode' },
+    { id: 'hm-f-rz', dl: 'dl-rz', field: 'rezeptCode' }
+  ];
+  // 表示列。key はソート用のプロパティ名
+  var HM_COLS = [
+    { key: 'name', label: '薬品名', num: false },
+    { key: 'maker', label: 'メーカー', num: false },
+    { key: 'groupName', label: '薬品グループ名', num: false },
+    { key: 'packX12', label: '入数×12', num: true },
+    { key: 'lotListValue', label: '総量×薬価', num: true }
+  ];
+  var hmSort = { key: 'code', dir: 1 };
+
+  function hmNorm(s) {
+    return String(s === null || s === undefined ? '' : s).normalize('NFKC').replace(/[\s　]/g, '').toLowerCase();
+  }
+  function hmFilters() {
+    var out = [];
+    MF.forEach(function (f) {
+      var el = document.getElementById(f.id);
+      var v = el ? hmNorm(el.value) : '';
+      if (v) out.push({ field: f.field, q: v });
+    });
+    return out;
+  }
+  function hmList() {
+    var fs = hmFilters();
+    var list = P8.store.stock.filter(function (m) {
+      return fs.every(function (f) { return hmNorm(m[f.field]).indexOf(f.q) >= 0; });
+    });
+    var k = hmSort.key, dir = hmSort.dir;
+    var isNum = k === 'packX12' || k === 'lotListValue';
+    return list.slice().sort(function (a, b) {
+      var x = a[k], y = b[k];
+      // 値なしは並び順に関わらず常に末尾
+      var xe = (x === null || x === undefined || x === ''), ye = (y === null || y === undefined || y === '');
+      if (xe && ye) return String(a.code).localeCompare(String(b.code), 'ja');
+      if (xe) return 1;
+      if (ye) return -1;
+      var c = isNum ? (Number(x) - Number(y)) : String(x).localeCompare(String(y), 'ja');
+      return c !== 0 ? c * dir : String(a.code).localeCompare(String(b.code), 'ja');
+    });
+  }
+  function hmFillDatalists() {
+    MF.forEach(function (f) {
+      var dl = document.getElementById(f.dl);
+      if (!dl) return;
+      dl.innerHTML = P8.store.distinct(f.field).map(function (v) {
+        return '<option value="' + U.esc(v) + '">';
+      }).join('');
+    });
+  }
+  function hmCell(v, isNum, yen) {
+    if (v === null || v === undefined || v === '') return '<span class="t-mut">—</span>';
+    if (!isNum) return U.esc(v);
+    // 総量×薬価は小数第2位まで意味がある（¥122.40 等）。整数に丸めない
+    return yen ? '¥' + Number(v).toLocaleString('ja-JP', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+               : Number(v).toLocaleString();
+  }
+  function renderMaster() {
+    if (!U) U = P8.util;
+    var tbl = document.getElementById('hm-table');
+    if (!tbl) return;
+    var total = P8.store.stock.length;
+    var list = hmList();
+    document.getElementById('hm-count').textContent =
+      total ? (list.length === total ? total + '件' : list.length + '件 / 全' + total + '件') : '';
+
+    var head = '<thead><tr>' + HM_COLS.map(function (c) {
+      var on = hmSort.key === c.key ? (hmSort.dir > 0 ? ' asc' : ' desc') : '';
+      return '<th class="sortable' + (c.num ? ' r' : '') + on + '" data-sort="' + c.key + '">' + c.label + '</th>';
+    }).join('') + '</tr></thead>';
+
+    var body = list.map(function (m) {
+      return '<tr class="clickable" data-code="' + U.esc(m.code) + '">' +
+        '<td><b>' + U.esc(m.name) + '</b><div class="hm-code">' + U.esc(m.code) + '</div></td>' +
+        '<td>' + hmCell(m.maker) + '</td>' +
+        '<td>' + hmCell(m.groupName) + '</td>' +
+        '<td class="r num">' + hmCell(m.packX12, true) + '</td>' +
+        '<td class="r num">' + hmCell(m.lotListValue, true, true) + '</td>' +
+        '</tr>';
+    }).join('');
+
+    tbl.innerHTML = head + '<tbody>' +
+      (body || '<tr><td colspan="5" class="muted" style="padding:14px">該当する薬品がありません</td></tr>') +
+      '</tbody>';
+  }
+
   function render() {
     renderDateLine();
     kpi();
@@ -266,6 +362,8 @@
     loadExpiry();
     loadTrend();
     loadTx();
+    hmFillDatalists();
+    renderMaster();
   }
 
   P8.screens = P8.screens || {};
@@ -288,7 +386,49 @@
       if (b) P8.nav('receive', { orderId: Number(b.getAttribute('data-id')) });
     });
     P8.store.onChange(function () {
-      if (document.getElementById('scr-home').classList.contains('active')) { kpi(); todo(); }
+      if (!U) U = P8.util;
+      if (document.getElementById('scr-home').classList.contains('active')) {
+        kpi(); todo(); hmFillDatalists(); renderMaster();
+      }
     });
+
+    // ---- 薬品マスタ一覧 ----
+    MF.forEach(function (f) {
+      var el = document.getElementById(f.id);
+      if (el) el.addEventListener('input', renderMaster);
+    });
+    document.getElementById('hm-clear').addEventListener('click', function () {
+      MF.forEach(function (f) {
+        var el = document.getElementById(f.id);
+        if (el) el.value = '';
+      });
+      renderMaster();
+    });
+    document.getElementById('hm-toggle').addEventListener('click', function () {
+      var box = document.getElementById('hm-filters');
+      var open = box.hasAttribute('hidden');
+      box.toggleAttribute('hidden', !open);
+      this.setAttribute('aria-expanded', String(open));
+      this.textContent = open ? '絞り込み ▾' : '絞り込み ▸';
+    });
+    document.getElementById('hm-table').addEventListener('click', function (e) {
+      var th = e.target.closest('th[data-sort]');
+      if (th) {
+        var k = th.getAttribute('data-sort');
+        if (hmSort.key === k) hmSort.dir = -hmSort.dir;
+        else hmSort = { key: k, dir: 1 };
+        renderMaster();
+        return;
+      }
+      var tr = e.target.closest('tr[data-code]');
+      if (tr) P8.nav('master', { edit: tr.getAttribute('data-code') });
+    });
+    // スマホは絞り込みを初期状態で閉じておく（横に長いため）
+    if (P8.theme && P8.theme.isMobile && P8.theme.isMobile()) {
+      document.getElementById('hm-filters').setAttribute('hidden', '');
+      var tg = document.getElementById('hm-toggle');
+      tg.setAttribute('aria-expanded', 'false');
+      tg.textContent = '絞り込み ▸';
+    }
   });
 })();
