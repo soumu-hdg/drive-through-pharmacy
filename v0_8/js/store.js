@@ -7,7 +7,9 @@
   'use strict';
   window.P8 = window.P8 || {};
 
-  var CACHE_KEY = 'p8_master_cache';
+  // 項目を増やすたびに末尾の版数を上げる。古い形のキャッシュを読むと、
+  // 編集フォームが「値が無い」状態で開き、保存でDBの値を消してしまう
+  var CACHE_KEY = 'p8_master_cache_v2';
 
   // ---- 汎用ヘルパー ----
   function normalizeCode(code) {
@@ -100,8 +102,38 @@
       stockUntracked: !!r.stock_untracked,
       stockTracking: (r.stock_tracking === null || r.stock_tracking === undefined) ? null : !!r.stock_tracking,
       gapExempt: !!r.master_gap_exempt,
-      legacyCodes: Array.isArray(r.legacy_codes) ? r.legacy_codes : []
+      legacyCodes: Array.isArray(r.legacy_codes) ? r.legacy_codes : [],
+      // 2026-09-04 追加: 薬品マスタの項目をDBへ集約したぶん
+      cat1: r.cat1 || '',
+      cat2: r.cat2 || '',
+      cat3: r.cat3 || '',
+      cat4: r.cat4 || '',
+      cat5: r.cat5 || '',
+      brandSuffix: r.brand_suffix || '',
+      groupName: r.group_name || '',
+      stockClass: r.stock_class || '',
+      orderUnit: r.order_unit || '',
+      totalG: num(r.total_g),
+      unitPriceOfficial: num(r.unit_price_official),
+      yjBaseCode: r.yj_base_code || '',
+      rezeptCode2: r.rezept_code2 || '',
+      yjCode: r.yj_code || '',
+      hot7: r.hot_code || '',
+      hot9: r.hot9 || '',
+      hot13: r.hot13 || '',
+      form: r.form || '',
+      spec: r.spec || '',
+      // ビュー側で計算済み（入数×12 / 総量g×薬価基準単価）。画面で掛け算し直さない
+      packX12: num(r.pack_x12),
+      lotListValue: num(r.lot_list_value)
     };
+  }
+
+  // null/undefined/空文字はそのまま null。数値化できないものも null
+  function num(v) {
+    if (v === null || v === undefined || v === '') return null;
+    var n = Number(v);
+    return isNaN(n) ? null : n;
   }
 
   var store = {
@@ -125,9 +157,11 @@
 
   async function loadMaster() {
     var cols = 'code,name,furigana,current_stock,unit,threshold,category,usage_text,price,csv_group,'
-      + 'rezept_code,pack_size,cost_per_pack,cost_per_unit,supplier_id,supplier_name,maker,'
+      + 'rezept_code,yj_code,hot_code,form,spec,pack_size,cost_per_pack,cost_per_unit,supplier_id,supplier_name,maker,'
       + 'margin_per_unit,margin_rate_pct,official_name,official_status,stock_untracked,legacy_codes,'
-      + 'stock_tracking,master_gap_exempt';
+      + 'stock_tracking,master_gap_exempt,'
+      + 'cat1,cat2,cat3,cat4,cat5,brand_suffix,group_name,stock_class,order_unit,'
+      + 'total_g,unit_price_official,yj_base_code,rezept_code2,hot9,hot13,pack_x12,lot_list_value';
     var data = await P8.db.get('pharmacy_v_medicines?select=' + cols + '&order=code');
     if (!data || !data.length) return false;
     store.stock = data.map(toStockItem);
@@ -141,6 +175,14 @@
       if (!raw) return false;
       var c = JSON.parse(raw);
       if (!c || !Array.isArray(c.items) || !c.items.length) return false;
+      // 旧バージョンのキャッシュには新項目が無い。undefined のまま画面へ渡すと表示が壊れるので埋める
+      var TXT = ['cat1', 'cat2', 'cat3', 'cat4', 'cat5', 'brandSuffix', 'groupName', 'stockClass',
+        'orderUnit', 'yjBaseCode', 'yjCode', 'rezeptCode2', 'hot7', 'hot9', 'hot13', 'form', 'spec'];
+      var NUM = ['totalG', 'unitPriceOfficial', 'packX12', 'lotListValue'];
+      c.items.forEach(function (m) {
+        TXT.forEach(function (k) { if (m[k] === undefined) m[k] = ''; });
+        NUM.forEach(function (k) { if (m[k] === undefined) m[k] = null; });
+      });
       store.stock = c.items;
       return true;
     } catch (e) { return false; }
@@ -221,6 +263,15 @@
     store.stock.forEach(function (m) { if (m.category) set[m.category] = 1; });
     return Object.keys(set).sort();
   }
+  // マスタの既存値から候補（datalist / 絞り込み欄）を作る。値は固定リストにしない
+  function distinct(field) {
+    var set = {};
+    store.stock.forEach(function (m) {
+      var v = m[field];
+      if (v !== null && v !== undefined && String(v).trim() !== '') set[String(v).trim()] = 1;
+    });
+    return Object.keys(set).sort(function (a, b) { return a.localeCompare(b, 'ja'); });
+  }
 
   // ---- リフレッシュ・通知 ----
   function onChange(fn) { store.listeners.push(fn); }
@@ -252,7 +303,8 @@
     checkMasterDrift: checkMasterDrift, recomputeMissing: recomputeMissing,
     findByCode: findByCode, toStockItem: toStockItem,
     stockCostValue: stockCostValue, stockListValue: stockListValue,
-    reverseMargins: reverseMargins, reorderCount: reorderCount, categories: categories
+    reverseMargins: reverseMargins, reorderCount: reorderCount, categories: categories,
+    distinct: distinct
   });
   P8.util = {
     normalizeCode: normalizeCode, normalizeName: normalizeName, YEN: YEN,

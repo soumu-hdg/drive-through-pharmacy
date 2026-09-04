@@ -808,6 +808,44 @@ html[data-theme="night"] .switch::after { background: linear-gradient(180deg, #4
 html.is-mobile .hide-mobile { display: none !important; }
 html:not(.is-mobile) .hide-desktop { display: none !important; }
 
+/* ---------- 薬品マスタ一覧（今日の状態）の絞り込み ---------- */
+.filter-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 12px;
+  padding: 10px; margin-bottom: 10px; border-radius: 3px;
+  background: var(--surface2); box-shadow: inset 0 2px 5px var(--well);
+}
+.filter-grid label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--ink-sub); }
+.filter-grid input { width: 100%; }
+.filter-grid .filter-act { display: flex; align-items: flex-end; }
+.filter-grid[hidden] { display: none; }
+.tbl th.sortable::after { content: ''; margin-left: 4px; color: var(--ink-sub); font-size: 10px; }
+.tbl th.sortable.asc::after { content: '▲'; color: var(--act); }
+.tbl th.sortable.desc::after { content: '▼'; color: var(--act); }
+#hm-table td .hm-code { font-size: 10.5px; color: var(--ink-sub); }
+
+/* ---------- 薬品マスタ 追加／編集フォーム ---------- */
+.mf-sub { font-size: 11.5px; color: var(--ink-sub); margin-bottom: 10px; }
+.mf-sec { border-top: 1px solid var(--line); padding-top: 6px; margin-top: 10px; }
+.mf-sec:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+.mf-sec-head {
+  display: block; width: 100%; text-align: left; border: none; background: none; cursor: pointer;
+  font-size: 12.5px; font-weight: 700; color: var(--ink); padding: 6px 0; letter-spacing: .03em;
+}
+.mf-sec-head::before { content: '▾ '; color: var(--act); }
+.mf-sec.closed .mf-sec-head::before { content: '▸ '; }
+.mf-sec.closed .mf-sec-body, .mf-sec.closed .toggle-box, .mf-sec.closed .mf-note { display: none; }
+.mf-sec .toggle-box { margin-top: 10px; }
+/* .wz-grid label は display:flex なので、そのままだと [hidden] が効かない */
+.wz-grid label[hidden] { display: none; }
+.wz-grid label.req > span::after { content: '必須'; margin-left: 5px; padding: 0 4px; border-radius: 2px; background: var(--danger-fill); color: var(--danger-ink); font-size: 9.5px; }
+.wz-grid label.mf-ro input { background: var(--surface2); color: var(--ink-sub); }
+.mf-note { font-size: 11.5px; color: var(--ink-sub); margin-top: 8px; }
+#mf-modal .modal-box { max-height: 88vh; display: flex; flex-direction: column; }
+#mf-modal .modal-body { overflow-y: auto; flex: 1; }
+
+html.is-mobile .filter-grid { grid-template-columns: 1fr 1fr; }
+html.is-mobile #mf-modal .wz-grid { grid-template-columns: 1fr; }
+
 /* ---------- reduced motion（全動作を無効化） ---------- */
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0s !important; animation-iteration-count: 1 !important; transition-duration: 0s !important; }

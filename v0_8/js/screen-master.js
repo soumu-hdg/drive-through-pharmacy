@@ -67,7 +67,7 @@
     renderReverse();
     var list = listFor(filter);
     var sups = P8.store.suppliers;
-    var thead = '<tr><th>薬品名</th><th>レセ電</th><th class="r">薬価</th><th class="r">入数/ロット</th><th class="r">仕入単価/ロット</th><th class="r">発注点</th><th>仕入先</th><th>分類</th><th></th></tr>';
+    var thead = '<tr><th>薬品名</th><th>レセ電</th><th class="r">薬価</th><th class="r">入数/ロット</th><th class="r">仕入単価/ロット</th><th class="r">発注点</th><th>仕入先</th><th>分類</th><th></th><th></th></tr>';
     var body = list.map(function (m) {
       var g = gapOf(m);
       function inp(field, val, cls, missing, ph) {
@@ -104,10 +104,11 @@
         '<td>' + (m.gapExempt
           ? '<a data-act="unexempt" data-code="' + U.esc(m.code) + '" style="cursor:pointer;font-size:11px">対象に戻す</a>'
           : '<a data-act="exempt" data-code="' + U.esc(m.code) + '" class="muted" style="cursor:pointer;font-size:11px">対象外にする</a>') + '</td>' +
+        '<td class="r"><button class="btn ghost sm" type="button" data-act="edit" data-code="' + U.esc(m.code) + '">編集</button></td>' +
         '</tr>';
     }).join('');
     document.getElementById('ms-table').innerHTML = thead +
-      (body || '<tr><td colspan="9" class="muted" style="padding:14px">該当なし（この穴は埋まっています）</td></tr>');
+      (body || '<tr><td colspan="10" class="muted" style="padding:14px">該当なし（この穴は埋まっています）</td></tr>');
     updateSaveBar();
   }
 
@@ -468,6 +469,228 @@
     document.getElementById('wz-next').disabled = false;
   }
 
+  /* =========================================================
+     薬品マスタ 追加／編集フォーム
+       2枚の「薬品マスタ」シートの1行目項目名を統合した35項目を、
+       新規追加と既存編集で同じ1つのフォームから扱う。
+     ========================================================= */
+
+  // id → DB列 の対応。type は送信時の変換に使う
+  var MF_TEXT = [
+    ['mf-code', 'code'], ['mf-name', 'name'], ['mf-furigana', 'furigana'], ['mf-category', 'category'],
+    ['mf-cat1', 'cat1'], ['mf-cat2', 'cat2'], ['mf-cat3', 'cat3'], ['mf-cat4', 'cat4'], ['mf-cat5', 'cat5'],
+    ['mf-stockclass', 'stock_class'], ['mf-maker', 'maker'], ['mf-brand', 'brand_suffix'],
+    ['mf-group', 'group_name'], ['mf-form', 'form'], ['mf-spec', 'spec'], ['mf-unit', 'unit'],
+    ['mf-orderunit', 'order_unit'], ['mf-yjbase', 'yj_base_code'], ['mf-yj', 'yj_code'],
+    ['mf-rezept', 'rezept_code'], ['mf-rezept2', 'rezept_code2'],
+    ['mf-hot7', 'hot_code'], ['mf-hot9', 'hot9'], ['mf-hot13', 'hot13'], ['mf-usage', 'usage_text']
+  ];
+  var MF_INT = [['mf-packsize', 'pack_size'], ['mf-threshold', 'threshold']];
+  var MF_DEC = [['mf-costpack', 'cost_per_pack'], ['mf-price', 'price'],
+                ['mf-priceofficial', 'unit_price_official'], ['mf-totalg', 'total_g']];
+  // 画面の値 → 事前に読み込んだマスタのプロパティ名
+  var MF_PREFILL = {
+    'mf-code': 'code', 'mf-name': 'name', 'mf-furigana': 'furigana', 'mf-category': 'category',
+    'mf-cat1': 'cat1', 'mf-cat2': 'cat2', 'mf-cat3': 'cat3', 'mf-cat4': 'cat4', 'mf-cat5': 'cat5',
+    'mf-stockclass': 'stockClass', 'mf-maker': 'maker', 'mf-brand': 'brandSuffix',
+    'mf-group': 'groupName', 'mf-form': 'form', 'mf-spec': 'spec', 'mf-unit': 'unit',
+    'mf-orderunit': 'orderUnit', 'mf-yjbase': 'yjBaseCode', 'mf-yj': 'yjCode',
+    'mf-rezept': 'rezeptCode', 'mf-rezept2': 'rezeptCode2',
+    'mf-hot7': 'hot7', 'mf-hot9': 'hot9', 'mf-hot13': 'hot13', 'mf-usage': 'usage',
+    'mf-packsize': 'packSize', 'mf-threshold': 'threshold',
+    'mf-costpack': 'costPerPack', 'mf-price': 'price',
+    'mf-priceofficial': 'unitPriceOfficial', 'mf-totalg': 'totalG'
+  };
+  var MF_DATALISTS = [
+    ['dl-mf-cat1', 'cat1'], ['dl-mf-cat2', 'cat2'], ['dl-mf-cat3', 'cat3'], ['dl-mf-cat4', 'cat4'],
+    ['dl-mf-cat5', 'cat5'], ['dl-mf-maker', 'maker'], ['dl-mf-group', 'groupName'],
+    ['dl-mf-stockclass', 'stockClass'], ['dl-mf-form', 'form'], ['dl-mf-unit', 'unit'],
+    ['dl-mf-orderunit', 'orderUnit'], ['dl-mf-category', 'category']
+  ];
+
+  var mf = { code: null, tracking: true };
+
+  function $(id) { return document.getElementById(id); }
+  function mfVal(id) { return String($(id).value || '').trim(); }
+
+  function mfFillDatalists() {
+    MF_DATALISTS.forEach(function (d) {
+      var el = $(d[0]);
+      if (!el) return;
+      el.innerHTML = P8.store.distinct(d[1]).map(function (v) {
+        return '<option value="' + U.esc(v) + '">';
+      }).join('');
+    });
+    var sel = $('mf-supplier');
+    sel.innerHTML = '<option value="">未設定</option>' + P8.store.suppliers.map(function (s) {
+      return '<option value="' + s.id + '">' + U.esc(s.name) + '</option>';
+    }).join('');
+  }
+
+  function mfSetTracking(on) {
+    mf.tracking = on;
+    $('mf-tracking').classList.toggle('on', on);
+    $('mf-toggle-box').classList.toggle('off', !on);
+    mfApplyCatRule();
+  }
+
+  // 互換規約: 在庫を減らさない薬（stock_tracking=false）は分類も「外用/」始まりにする。
+  // 逆の不一致（分類が外用なのに減算ON）は作らせない。ビューの stock_untracked と式をそろえるため。
+  function mfApplyCatRule() {
+    var note = $('mf-cat-forced');
+    var cat = mfVal('mf-category');
+    if (!mf.tracking && cat && !/^外用\//.test(cat)) {
+      $('mf-category').value = '外用/' + cat.replace(/^(成人|小児|検査|兼用)\//, '');
+      note.textContent = '在庫を減らさない薬のため、分類を「外用/」始まりに自動変更しました（v0.7互換のため必須）。';
+      note.hidden = false;
+    } else {
+      note.hidden = true;
+    }
+  }
+
+  // 原価と「総量×薬価」は保存対象ではなく、入力の妥当性をその場で確かめるための表示
+  function mfRecalc() {
+    var pack = parseFloat(mfVal('mf-packsize'));
+    var cost = parseFloat(mfVal('mf-costpack'));
+    $('mf-costunit').value = (pack > 0 && !isNaN(cost))
+      ? '¥' + (cost / pack).toFixed(4) + ' / ' + (mfVal('mf-unit') || '単位') : '—';
+    var g = parseFloat(mfVal('mf-totalg'));
+    var up = parseFloat(mfVal('mf-priceofficial'));
+    $('mf-lotvalue').value = (!isNaN(g) && !isNaN(up)) ? '¥' + (g * up).toFixed(2) : '—';
+  }
+
+  async function openForm(code) {
+    U = P8.util;
+    mfFillDatalists();
+    var m = code ? P8.store.findByCode(code) : null;
+    mf.code = m ? m.code : null;
+
+    MF_TEXT.concat(MF_INT, MF_DEC).forEach(function (p) {
+      var v = m ? m[MF_PREFILL[p[0]]] : '';
+      $(p[0]).value = (v === null || v === undefined) ? '' : String(v);
+    });
+    $('mf-supplier').value = m && m.supplierId ? String(m.supplierId) : '';
+    $('mf-exempt').checked = !!(m && m.gapExempt);
+    $('mf-code').readOnly = !!m;
+
+    if (m) {
+      $('mf-title').textContent = '薬品を編集';
+      $('mf-sub').textContent = m.code + '　在庫 ' + (m.stock || 0) + (m.unit || '') +
+        (m.supplierName ? '　仕入先 ' + m.supplierName : '');
+      $('mf-initial-wrap').hidden = true;
+      // 明示値が無い薬は分類による旧ロジックの判定結果に合わせる
+      mfSetTracking(m.stockTracking === null ? !m.stockUntracked : m.stockTracking);
+    } else {
+      $('mf-title').textContent = '薬品を追加';
+      $('mf-initial-wrap').hidden = false;
+      $('mf-initial').value = '0';
+      $('mf-threshold').value = '10';
+      $('mf-code').value = '採番中...';
+      $('mf-sub').textContent = 'コードは自動採番されます。手で変えることもできます。';
+      mfSetTracking(true);
+      try {
+        var next = await P8.db.rpc('pharmacy_next_code');
+        if (typeof next === 'string') $('mf-code').value = next;
+      } catch (e) { $('mf-code').value = ''; }
+    }
+    mfRecalc();
+    $('mf-modal').classList.add('show');
+    setTimeout(function () { $('mf-name').focus(); }, 80);
+  }
+
+  // 空文字は null で送る。'' のまま入れると「未設定」判定が崩れる
+  function mfPayload() {
+    var p = {};
+    MF_TEXT.forEach(function (t) {
+      if (t[1] === 'code') return;   // code は別扱い（新規のみ・編集時は不変）
+      p[t[1]] = mfVal(t[0]) || null;
+    });
+    MF_INT.forEach(function (t) {
+      var v = mfVal(t[0]);
+      p[t[1]] = v === '' ? null : (isNaN(parseInt(v, 10)) ? null : parseInt(v, 10));
+    });
+    MF_DEC.forEach(function (t) {
+      var v = mfVal(t[0]);
+      p[t[1]] = v === '' ? null : (isNaN(parseFloat(v)) ? null : parseFloat(v));
+    });
+    p.supplier_id = $('mf-supplier').value ? Number($('mf-supplier').value) : null;
+    p.stock_tracking = mf.tracking;
+    p.master_gap_exempt = $('mf-exempt').checked;
+    // cost_per_unit は生成列。ペイロードに入れるとエラーになるので絶対に足さない
+    return p;
+  }
+
+  function mfValidate() {
+    if (!mfVal('mf-name')) { P8.ui.toast('薬品名を入力してください', 'error'); return false; }
+    if (!mfVal('mf-unit')) { P8.ui.toast('薬剤単位を入力してください（包 / 錠 / 本 など）', 'error'); return false; }
+    if (!mf.code && !mfVal('mf-code')) { P8.ui.toast('院内管理IDを入力してください', 'error'); return false; }
+    var cat = mfVal('mf-category');
+    if (mf.tracking && /^外用/.test(cat)) {
+      P8.ui.toast('分類が「外用」の薬は在庫を減らせません。トグルをOFFにするか分類を変えてください（v0.7互換）', 'error');
+      return false;
+    }
+    if (!mf.tracking) {
+      if (!cat) { P8.ui.toast('在庫を減らさない薬は分類を「外用/…」にしてください', 'error'); return false; }
+      mfApplyCatRule();
+      if (!/^外用\//.test(mfVal('mf-category'))) {
+        P8.ui.toast('在庫を減らさない薬は分類を「外用/…」にしてください', 'error');
+        return false;
+      }
+    }
+    return true;
+  }
+
+  async function mfSave() {
+    if (!mfValidate()) return;
+    var btn = $('mf-save');
+    P8.ui.busy(btn, 'busy');
+    var payload = mfPayload();
+    try {
+      if (mf.code) {
+        payload.last_updated = new Date().toISOString();
+        var upd = await P8.db.write('pharmacy_medicines?code=eq.' + encodeURIComponent(mf.code), 'PATCH', payload);
+        if (!upd || !upd.length) throw new Error('更新結果を確認できません');
+        P8.ui.busy(btn, 'done');
+        P8.ui.toast('「' + payload.name + '」を保存しました', 'success');
+      } else {
+        var code = mfVal('mf-code');
+        var initial = parseInt(mfVal('mf-initial'), 10);
+        if (isNaN(initial) || initial < 0) initial = 0;
+        var row = Object.assign({ code: code, csv_group: 'master', current_stock: initial }, payload);
+        var ins = null;
+        try {
+          ins = await P8.db.write('pharmacy_medicines', 'POST', row);
+        } catch (e) {
+          if (e.status === 409 || (e.body && e.body.indexOf('23505') >= 0)) {
+            // 採番衝突 → 再採番して1回だけリトライ
+            code = await P8.db.rpc('pharmacy_next_code');
+            row.code = code;
+            ins = await P8.db.write('pharmacy_medicines', 'POST', row);
+          } else { throw e; }
+        }
+        if (!ins || !ins.length) throw new Error('登録結果を確認できません');
+        if (initial > 0) {
+          await P8.db.write('pharmacy_transactions', 'POST', {
+            medicine_code: code, transaction_type: 'in', quantity: initial,
+            note: '新規登録時の初期在庫', occurred_on: U.todayJst(), source: 'app'
+          });
+        }
+        P8.ui.busy(btn, 'done');
+        P8.ui.toast('「' + payload.name + '」を ' + code + ' で登録しました', 'success');
+      }
+      await P8.store.refresh();
+      render();
+      setTimeout(function () {
+        P8.ui.busy(btn, null);
+        $('mf-modal').classList.remove('show');
+      }, 800);
+    } catch (e) {
+      console.error('master form save error:', e.body || e.message);
+      P8.ui.busy(btn, null);
+      P8.ui.toast('保存に失敗しました: ' + e.message, 'error');
+    }
+  }
+
   P8.screens = P8.screens || {};
   P8.screens.master = {
     show: function (params) {
@@ -483,9 +706,21 @@
         else openWizard();
       }
       render();
+      // 今日の状態の一覧から行を押したとき。表を描いてからフォームを開く
+      if (params && params.edit) {
+        if (filter !== 'all') {
+          filter = 'all';
+          document.querySelectorAll('#ms-chips .chip').forEach(function (c) {
+            c.classList.toggle('on', c.getAttribute('data-f') === 'all');
+          });
+          render();
+        }
+        openForm(params.edit);
+      }
     },
     hide: function () {},
-    openWizard: openWizard
+    openWizard: openWizard,
+    openForm: openForm
   };
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -508,6 +743,7 @@
       var code = a.getAttribute('data-code');
       var act = a.getAttribute('data-act');
       if (act === 'dm') openDm(code);
+      if (act === 'edit') openForm(code);
       if (act === 'exempt') setExempt(code, true);
       if (act === 'unexempt') setExempt(code, false);
     });
@@ -560,5 +796,22 @@
       }
     });
     document.getElementById('wz-register').addEventListener('click', wzRegister);
+
+    // ---- 追加／編集フォーム ----
+    $('btn-detail-add').addEventListener('click', function () { openForm(null); });
+    $('mf-cancel').addEventListener('click', function () { $('mf-modal').classList.remove('show'); });
+    $('mf-modal').addEventListener('click', function (e) {
+      if (e.target === this) this.classList.remove('show');
+    });
+    $('mf-save').addEventListener('click', mfSave);
+    $('mf-tracking').addEventListener('click', function () { mfSetTracking(!mf.tracking); });
+    $('mf-category').addEventListener('change', mfApplyCatRule);
+    ['mf-packsize', 'mf-costpack', 'mf-totalg', 'mf-priceofficial', 'mf-unit'].forEach(function (id) {
+      $(id).addEventListener('input', mfRecalc);
+    });
+    // 見出しクリックで折りたたむ。項目が35個あるので初期は全部開いておく
+    document.querySelectorAll('#mf-modal .mf-sec-head').forEach(function (h) {
+      h.addEventListener('click', function () { h.parentNode.classList.toggle('closed'); });
+    });
   });
 })();
