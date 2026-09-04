@@ -572,6 +572,7 @@
     $('mf-supplier').value = m && m.supplierId ? String(m.supplierId) : '';
     $('mf-exempt').checked = !!(m && m.gapExempt);
     $('mf-code').readOnly = !!m;
+    $('mf-delete').hidden = !m;   // 新規登録中は削除ボタンを出さない
 
     if (m) {
       $('mf-title').textContent = '薬品を編集';
@@ -691,6 +692,85 @@
     }
   }
 
+  /* ---- 削除 ----------------------------------------------------------
+     必ず確認ウィンドウを1枚挟む。押しただけでは絶対に消えない。
+     発注・入荷・棚卸の記録がある薬品は削除しない（業務記録を壊さないため）。
+     出庫入庫の記録は「一緒に消える」と確認ウィンドウに明記したうえでのみ消す。
+     -------------------------------------------------------------------- */
+  async function mfRelated(code) {
+    var enc = encodeURIComponent(code);
+    var r = await Promise.all([
+      P8.db.count('pharmacy_transactions?medicine_code=eq.' + enc),
+      P8.db.count('pharmacy_lots?medicine_code=eq.' + enc),
+      P8.db.count('pharmacy_order_items?medicine_code=eq.' + enc),
+      P8.db.count('pharmacy_stocktakes?medicine_code=eq.' + enc)
+    ]);
+    return { tx: r[0] || 0, lots: r[1] || 0, orders: r[2] || 0, stocktakes: r[3] || 0 };
+  }
+
+  async function mfDelete() {
+    var code = mf.code;
+    if (!code) return;
+    var m = P8.store.findByCode(code);
+    var nameHtml = '<b>' + U.esc(m ? m.name : code) + '</b>（' + U.esc(code) + '）';
+
+    var rel;
+    try { rel = await mfRelated(code); }
+    catch (e) { P8.ui.toast('関連する記録を確認できませんでした。時間をおいて試してください', 'error'); return; }
+
+    // 業務記録があるものは消さない。理由を出して終わり（削除ボタンは出さない）
+    var blockers = [];
+    if (rel.lots) blockers.push('入荷ロット ' + rel.lots + '件');
+    if (rel.orders) blockers.push('発注明細 ' + rel.orders + '件');
+    if (rel.stocktakes) blockers.push('棚卸 ' + rel.stocktakes + '件');
+    if (blockers.length) {
+      await P8.ui.modal({
+        title: 'この薬品は削除できません',
+        bodyHTML: '<p>' + nameHtml + ' には ' + U.esc(blockers.join('・')) + ' の記録があります。</p>' +
+          '<p class="muted">入荷・発注・棚卸は業務の記録なので、薬品ごと消すことはできません。' +
+          '使わなくなった薬は削除ではなく、在庫を0にして運用から外してください。</p>',
+        okText: '閉じる', hideCancel: true, danger: true
+      });
+      return;
+    }
+
+    var warn = rel.tx
+      ? '<p class="t-dn"><b>この薬品の入出庫記録 ' + rel.tx + '件も一緒に削除されます。</b></p>'
+      : '<p class="muted">この薬品に紐づく記録はありません。</p>';
+    var ok = await P8.ui.modal({
+      title: '薬品を削除しますか？',
+      bodyHTML: '<p>' + nameHtml + ' をマスタから削除します。</p>' +
+        '<p class="muted">現在庫 ' + (m ? (m.stock || 0) + U.esc(m.unit || '') : '—') + '</p>' +
+        warn + '<p class="t-dn">この操作は取り消せません。</p>',
+      okText: '削除する', cancelText: 'やめる', danger: true
+    });
+    if (!ok) return;
+
+    var btn = $('mf-delete');
+    P8.ui.busy(btn, 'busy');
+    try {
+      if (rel.tx) await P8.db.del('pharmacy_transactions?medicine_code=eq.' + encodeURIComponent(code));
+      var gone = await P8.db.del('pharmacy_medicines?code=eq.' + encodeURIComponent(code));
+      // 空配列＝1行も消えていない。DELETEポリシーが無いと204で黙って素通りするので必ず見る
+      if (!gone || !gone.length) throw new Error('削除できませんでした（DB側で許可されていません）');
+      P8.ui.busy(btn, 'done');
+      P8.ui.toast('「' + (m ? m.name : code) + '」を削除しました', 'success');
+      await P8.store.refresh();
+      render();
+      setTimeout(function () {
+        P8.ui.busy(btn, null);
+        $('mf-modal').classList.remove('show');
+      }, 800);
+    } catch (e) {
+      console.error('master delete error:', e.body || e.message);
+      P8.ui.busy(btn, null);
+      var msg = (e.body && e.body.indexOf('23503') >= 0)
+        ? 'ほかの記録から参照されているため削除できません'
+        : e.message;
+      P8.ui.toast(msg, 'error');
+    }
+  }
+
   P8.screens = P8.screens || {};
   P8.screens.master = {
     show: function (params) {
@@ -804,6 +884,7 @@
       if (e.target === this) this.classList.remove('show');
     });
     $('mf-save').addEventListener('click', mfSave);
+    $('mf-delete').addEventListener('click', mfDelete);
     $('mf-tracking').addEventListener('click', function () { mfSetTracking(!mf.tracking); });
     $('mf-category').addEventListener('change', mfApplyCatRule);
     ['mf-packsize', 'mf-costpack', 'mf-totalg', 'mf-priceofficial', 'mf-unit'].forEach(function (id) {

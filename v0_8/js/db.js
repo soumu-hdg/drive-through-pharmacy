@@ -46,6 +46,20 @@
     return text ? JSON.parse(text) : null;
   }
 
+  // 削除。★Prefer: return=representation を必ず付ける。
+  // 付けないと PostgREST は対象0行でも 204 を返すため、RLSにDELETEポリシーが無い等の
+  // 「無言の失敗」を成功と取り違える。戻り値が空配列＝1行も消えていない、と判定できる。
+  async function del(path) {
+    var res = await raw(path, { method: 'DELETE', headers: { Prefer: 'return=representation' } });
+    var text = await res.text();
+    if (!res.ok) {
+      var err = new Error('削除に失敗 (' + res.status + ')');
+      err.status = res.status; err.body = text;
+      throw err;
+    }
+    return text ? JSON.parse(text) : [];
+  }
+
   // RPC 呼び出し。失敗は throw。
   async function rpc(name, args) {
     var res = await raw('rpc/' + name, { method: 'POST', body: JSON.stringify(args || {}) });
@@ -156,7 +170,7 @@
   setInterval(flushQueue, 60000);
 
   P8.db = {
-    get: get, write: write, rpc: rpc, count: count,
+    get: get, write: write, del: del, rpc: rpc, count: count,
     gasGet: gasGet, karteFetch: karteFetch,
     enqueueDispense: enqueueDispense, flushQueue: flushQueue, queueCount: queueCount
   };
