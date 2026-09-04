@@ -835,6 +835,11 @@ html:not(.is-mobile) .hide-desktop { display: none !important; }
 .mf-sec.closed .mf-sec-head::before { content: '▸ '; }
 .mf-sec.closed .mf-sec-body, .mf-sec.closed .toggle-box, .mf-sec.closed .mf-note { display: none; }
 .mf-sec .toggle-box { margin-top: 10px; }
+/* 確認ウィンドウ(#modal)は他のモーダルより後ろのDOMに無いので、重ね順を明示して常に前面へ。
+   これが無いと、編集フォームの上に確認を出したとき確認側が隠れて押せなくなる（トーストの90より下） */
+#modal { z-index: 88; }
+.modal-buttons .grow { flex: 1; }
+
 /* .wz-grid label は display:flex なので、そのままだと [hidden] が効かない */
 .wz-grid label[hidden] { display: none; }
 .wz-grid label.req > span::after { content: '必須'; margin-left: 5px; padding: 0 4px; border-radius: 2px; background: var(--danger-fill); color: var(--danger-ink); font-size: 9.5px; }
