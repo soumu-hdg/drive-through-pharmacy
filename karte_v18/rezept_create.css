@@ -74,12 +74,6 @@
   background: #fff; border: 1px solid #d2dbd8; border-radius: 3px;
   padding: 0 24px 0 6px; width: 136px; cursor: pointer;
 }
-/* 旧システムと同じく矢印は自前で描く（ブラウザ標準の矢印だと文字に被る） */
-.rzm-select, .rzm-mini-select {
-  -webkit-appearance: none; appearance: none;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' fill='none' stroke='%23242927' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 8px center; background-size: 10px 7px;
-}
 
 /* 白いフィールド（旧システムの日付ボタンと同じ見え方：表示は 2026/08 ・ 2026/09/01 (火) ） */
 .rzm-pick { position: relative; display: inline-flex; }
@@ -217,4 +211,11 @@
 @media (max-width: 1060px) {
   .rzm-top { flex-direction: column; }
   .rzm-links { align-items: flex-start; }
+}
+
+/* 旧システムと同じく矢印は自前で描く（ブラウザ標準の矢印だと文字に被る） */
+.rzm-select, .rzm-mini-select {
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' fill='none' stroke='%23242927' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center; background-size: 10px 7px;
 }
