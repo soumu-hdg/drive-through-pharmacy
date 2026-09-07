@@ -449,6 +449,18 @@ function rzRenderResult() {
   }
 }
 
+// UKEは現行システムと同じ Shift_JIS で書き出す（読み込めない機関があるため）。
+// 変換ライブラリが読めなかったときだけUTF-8にフォールバックする。
+function rzUkeBlob(text) {
+  try {
+    if (typeof Encoding !== 'undefined' && Encoding.convert && Encoding.stringToCode) {
+      const sjis = Encoding.convert(Encoding.stringToCode(text), { to: 'SJIS', from: 'UNICODE' });
+      return new Blob([new Uint8Array(sjis)], { type: 'application/octet-stream' });
+    }
+  } catch (e) { console.warn('Shift_JIS変換に失敗したためUTF-8で出力します:', e); }
+  return new Blob([text], { type: 'text/plain;charset=utf-8' });
+}
+
 function rzDownload() {
   if (!rzLastJob) { showToast('先にレセプトを作成してください'); return; }
   const ym = String(rzLastJob.period || '').replace(/-/g, '');
@@ -462,7 +474,7 @@ function rzDownload() {
   ];
   files.forEach(function (pair) {
     if (!pair[1]) return;
-    const blob = new Blob([pair[1]], { type: 'text/plain;charset=utf-8' });
+    const blob = rzUkeBlob(pair[1]);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -760,7 +772,8 @@ function rzBuildResubmitUKE(items, keepYm) {
       seq++;
     });
     lines.push(['GO', String(list.length), String(total), '99'].join(','));
-    out[org === '1' ? 'shaho' : 'kokuho'] = lines.join('\r\n') + '\r\n';
+    // 終端は現行システムの出力と同じ CRLF + 0x1A
+    out[org === '1' ? 'shaho' : 'kokuho'] = lines.join('\r\n') + '\r\n\x1A';
   });
   return out;
 }
