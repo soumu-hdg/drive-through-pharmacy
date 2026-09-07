@@ -519,7 +519,24 @@ function rzReadFile(file) {
   });
 }
 
-// 保険種別コード（RE[2]）→ 表示名。旧システムの「後期」「協会」等の欄に相当。
+// 保険者番号の先頭2桁（法別番号）→ 保険の呼び名。旧システムの「保険種類」欄と同じ出し方。
+const RZ_HOBETSU = {
+  '01': '協会', '02': '船員', '03': '日雇', '04': '日雇', '06': '組合', '07': '自衛官',
+  '31': '共済', '32': '共済', '33': '共済', '34': '共済', '39': '後期',
+  '63': '特定健保', '67': '国保組合', '72': '共済', '73': '共済', '74': '共済', '75': '共済'
+};
+function rzInsLabelOf(x) {
+  const num = String(x.insurerNumber || '').replace(/\D/g, '');
+  let base = '';
+  if (num.length >= 8) base = RZ_HOBETSU[num.slice(0, 2)] || '';
+  else if (num.length === 6) base = '国保';
+  if (!base) base = rzInsLabel(x.insCode).split(' ')[0];   // 保険者番号が無いときは保険種別コードから
+  const k = (x.kouhi || []).map(function (n) { return String(n).replace(/\D/g, '').slice(0, 2); })
+                           .filter(function (n) { return n; });
+  return base + (k.length ? ' 公費（' + k.join('・') + '）' : '');
+}
+
+// 保険種別コード（RE[2]）→ 表示名（保険者番号が無いときの控え）
 function rzInsLabel(code) {
   const c = String(code || '');
   if (c.length < 2) return c || '—';
@@ -571,6 +588,8 @@ function rzParseHenreiText(text, fileName) {
           patientNo: f[13] || '',
           uketsuke: f[18] || '',
           points: 0,
+          insurerNumber: '',
+          kouhi: [],
           days: [],
           reasonCode: '',
           reasonText: '',
@@ -581,10 +600,18 @@ function rzParseHenreiText(text, fileName) {
         items.push(cur);
         break;
       case 'HO':
-        if (cur) { cur.points = parseInt(f[5], 10) || cur.points; cur.raw.push(line); }
+        if (cur) {
+          cur.points = parseInt(f[5], 10) || cur.points;
+          cur.insurerNumber = (f[1] || '').trim();   // 保険者番号（保険種類の表示に使う）
+          cur.raw.push(line);
+        }
         break;
       case 'KO':
-        if (cur) { if (!cur.points) cur.points = parseInt(f[5], 10) || 0; cur.raw.push(line); }
+        if (cur) {
+          if (!cur.points) cur.points = parseInt(f[5], 10) || 0;
+          if (f[1]) cur.kouhi.push(String(f[1]).trim());   // 公費負担者番号（先頭2桁が法別番号）
+          cur.raw.push(line);
+        }
         break;
       case 'JD':
         if (cur) {
@@ -783,7 +810,7 @@ function rzRenderSections() {
           '<td>' + rzEsc(x.patientNo || '—') + '</td>' +
           '<td>' + rzEsc(x.name) + '</td>' +
           '<td>' + rzEsc(rzHenreiDateLabel(x)) + '</td>' +
-          '<td>' + rzEsc(rzInsLabel(x.insCode)) + '</td>' +
+          '<td>' + rzEsc(rzInsLabelOf(x)) + '</td>' +
           '<td>オンライン</td>' +
           '<td><select class="rzm-mini-select" onchange="rzHenreiSetInclude(\'' + rzEsc(x.key) + '\', this.value)">' +
             '<option value="0"' + (x.include ? '' : ' selected') + '>含めない</option>' +
