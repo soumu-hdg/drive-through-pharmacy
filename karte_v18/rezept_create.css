@@ -49,17 +49,18 @@
 .rzm-body { flex: 1; overflow-y: auto; }
 
 /* ---- タブ ---- */
-.rzm-tabs { list-style: none; display: flex; height: 32px; margin: 0; padding: 0; align-items: flex-end; }
+.rzm-tabs { list-style: none; display: flex; height: 32px; margin: 0; padding: 0; align-items: stretch;
+  border-top: 1px solid #d2dbd8; border-bottom: 1px solid #d2dbd8; }
 .rzm-tabs li {
   width: 140px; height: 30px; display: flex; align-items: center; justify-content: center;
   font-size: 13px; cursor: pointer;
   background: rgba(0, 52, 36, 0.12); color: #242927;
 }
-.rzm-tabs li.active { background: #0a4d12; color: #fff; height: 31px; }
+.rzm-tabs li.active { background: #0a4d12; color: #fff; }
 
 /* ---- セクション ---- */
 .rzm-sec { padding: 15px; }
-.rzm-sec + .rzm-sec { padding-top: 0; }
+.rzm-sec + .rzm-sec { padding-top: 16px; }
 
 /* 上段：左＝条件、右＝ヘルプリンク */
 .rzm-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
@@ -71,7 +72,13 @@
 .rzm-select {
   height: 30px; font-size: 13px; font-family: inherit; color: #242927;
   background: #fff; border: 1px solid #d2dbd8; border-radius: 3px;
-  padding: 0 6px; min-width: 136px; cursor: pointer;
+  padding: 0 24px 0 6px; width: 136px; cursor: pointer;
+}
+/* 旧システムと同じく矢印は自前で描く（ブラウザ標準の矢印だと文字に被る） */
+.rzm-select, .rzm-mini-select {
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' fill='none' stroke='%23242927' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center; background-size: 10px 7px;
 }
 
 /* 白いフィールド（旧システムの日付ボタンと同じ見え方：表示は 2026/08 ・ 2026/09/01 (火) ） */
@@ -79,7 +86,7 @@
 .rzm-date {
   display: inline-flex; align-items: center; justify-content: center;
   height: 30px; padding: 0 6px; cursor: pointer;
-  background: #fff; border-radius: 3px; border: none;
+  background: #fff; border-radius: 2px; border: none;
   box-shadow: rgba(0,0,0,0.3) 0 0.5px 2.5px 0, rgba(0,0,0,0.05) 0 0 0 0.5px;
   font-size: 16px; font-family: inherit; color: #242927; white-space: nowrap;
 }
@@ -109,11 +116,12 @@
 }
 
 /* ヘルプリンク */
-.rzm-links { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; padding-top: 5px; }
-.rzm-links a { color: #337ab7; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+.rzm-links { display: flex; flex-direction: column; align-items: flex-end; gap: 0; padding-top: 5px; }
+.rzm-links a { color: #337ab7; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+  line-height: 21px; padding: 3px 0; }
 .rzm-links a:hover { text-decoration: underline; }
 .rzm-q {
-  width: 18px; height: 18px; flex: none; border: 1px solid currentColor; border-radius: 50%;
+  width: 20px; height: 20px; flex: none; border: 1px solid currentColor; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1;
 }
 
@@ -128,12 +136,12 @@
 }
 .rzm-result-icon { flex: none; width: 36px; height: 36px; color: #0a4d12; }
 .rzm-result-main { flex: 1; min-width: 0; }
-.rzm-result-title { font-size: 14px; display: block; }
+.rzm-result-title { font-size: 14px; line-height: 16px; display: block; }
 .rzm-result-meta { font-size: 13px; color: #5e6b67; display: flex; gap: 12px; flex-wrap: wrap; margin-top: 3px; }
 
 /* 折りたたみ（返戻再請求／月遅れ） */
 .rzm-acc { margin-bottom: 12px; }
-.rzm-acc-head { display: flex; align-items: center; gap: 6px; height: 34px; padding: 2px 2px 2px 0; }
+.rzm-acc-head { display: flex; align-items: center; gap: 6px; height: 34px; padding: 2px 2px 2px 0; margin-bottom: 6px; }
 .rzm-caret {
   width: 30px; height: 30px; flex: none; background: none; border: none; border-radius: 2px;
   color: #0a4d12; font-size: 13px; cursor: pointer; line-height: 1;
@@ -175,11 +183,12 @@
 }
 .rzm-mini-select {
   height: 30px; width: 84px; font-size: 13px; font-family: inherit; color: #242927;
-  background: #fff; border: 1px solid #d2dbd8; border-radius: 2px; padding: 0 4px 0 6px;
+  background: #fff; border: 1px solid #d2dbd8; border-radius: 3px; padding: 0 24px 0 6px;
 }
 .rzm-icon {
-  border: none; background: transparent; cursor: pointer; font-size: 14px; line-height: 1;
-  padding: 4px 6px; color: #5e6b67; border-radius: 2px;
+  width: 24px; height: 24px; padding: 0; border: none; background: transparent; cursor: pointer;
+  font-size: 14px; line-height: 1; color: #242927; border-radius: 2px;
+  display: inline-flex; align-items: center; justify-content: center;
 }
 .rzm-icon:hover { background: rgba(0, 52, 36, 0.08); color: #242927; }
 .rzm-note { display: block; margin-top: 6px; font-size: 12px; color: #5e6b67; }
@@ -196,7 +205,7 @@
 
 /* ---- ボタン ---- */
 .rzm-btn {
-  height: 36px; min-width: 90px; padding: 3px 12px; font-size: 14px; font-family: inherit;
+  height: 36px; min-width: 90px; padding: 3px 6px; font-size: 14px; font-family: inherit;
   background: #fff; color: #242927; border: none; border-radius: 2px; cursor: pointer;
   box-shadow: rgba(0,0,0,0.3) 0 0.5px 2.5px 0, rgba(0,0,0,0.05) 0 0 0 0.5px;
 }
