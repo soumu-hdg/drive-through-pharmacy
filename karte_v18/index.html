@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=1024">
 <title>ドライブスルー診療 電子カルテ v0.15</title>
 <link rel="stylesheet" href="style.css?v=20260806_v14">
-<link rel="stylesheet" href="rezept_create.css?v=20260903_v1">
+<link rel="stylesheet" href="rezept_create.css?v=20260907_v2">
 <!-- CDN: バージョン固定 + SRI(改竄検知) + crossorigin。更新時はハッシュも再計算すること -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" integrity="sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -1027,7 +1027,7 @@
             <div class="rzm-result-main">
               <span class="rzm-result-title" id="rzResultTitle">点検用レセプト</span>
               <div class="rzm-result-meta">
-                <span id="rzResultMonth"></span><span id="rzResultStart"></span><span id="rzResultEnd"></span>
+                <span id="rzResultMonth"></span><span id="rzResultStart"></span><span id="rzResultEnd"></span><span id="rzResultCount"></span>
               </div>
             </div>
             <button class="rzm-btn rzm-btn-p" onclick="rzDownload()">ダウンロード</button>
@@ -1040,8 +1040,9 @@
               <button class="rzm-caret" data-rzacc="rzHenreiWrap" onclick="rzToggleAcc('rzHenreiWrap')">&#9660;</button>
               <span class="rzm-acc-title" id="rzHenreiCount">返戻再請求（ 0 件）</span>
               <span class="rzm-spacer"></span>
-              <button class="rzm-btn rzm-btn-sm" onclick="rzHenreiNotice()">返戻レセプトビューアー</button>
-              <button class="rzm-btn rzm-btn-sm" onclick="rzHenreiNotice()">返戻レセプト取込</button>
+              <button class="rzm-btn rzm-btn-sm" onclick="rzHenreiViewer()">返戻レセプトビューアー</button>
+              <button class="rzm-btn rzm-btn-sm" onclick="rzHenreiOpenPicker()">返戻レセプト取込</button>
+              <input type="file" id="rzHenreiFile" accept=".UKE,.uke,.txt,.csv" multiple style="display:none;" onchange="rzHenreiOnFiles(event)">
             </div>
             <div id="rzHenreiWrap"><div class="rzm-box" id="rzHenreiBody">返戻再請求するカルテはありません。</div></div>
           </div>
@@ -1068,6 +1069,7 @@
     </div>
 
     <div class="rzm-foot">
+      <span class="rzm-status" id="rzStatus"></span>
       <div class="rzm-foot-btns" id="rzFootActions">
         <button class="rzm-btn" onclick="closeRezeptCreate()">キャンセル</button>
         <button class="rzm-btn rzm-btn-p" onclick="rzRun('check')">点検用を作成</button>
@@ -1087,14 +1089,14 @@
 <script src="resizer.js?v=20260820_v32"></script>
 <script src="whisper_client.js?v=20260731_v25"></script>
 <script src="billing_revision_2026.js?v=20260602"></script>
-<script src="master_loader.js?v=20260728_v23"></script>
+<script src="master_loader.js?v=20260907_v24"></script>
 <script src="auth.js?v=20260609"></script>
 <script src="ocr_ui.js?v=20260806_v30"></script>
 <script src="inventory_stock.js?v=20260728_v22"></script>
 <script src="drug_suggest.js?v=20260703_v12f"></script>
 <script src="patient_photos.js?v=20260806_v30"></script>
 <script src="app.js?v=20260820_v37"></script>
-<script src="uke_generator.js?v=20260820_v33"></script>
-<script src="rezept_create.js?v=20260903_v1"></script>
+<script src="uke_generator.js?v=20260907_v34"></script>
+<script src="rezept_create.js?v=20260907_v2"></script>
 </body>
 </html>

@@ -178,6 +178,24 @@ const MasterLoader = (() => {
     return (v == null) ? null : v;
   }
 
+  // 医薬品名→薬価基準コードの逆引き（レセ電IYレコード用）。
+  // DB(prescriptions)には薬品名しか無く、コード無しだと IY が "9999999999" になってしまうため、
+  // 薬価と同じ正規化（priceNorm）で名称からコードを引けるようにする。2026-09-07 追加。
+  let _nameToCode = null;
+  function getDrugCodeByName(name) {
+    if (!masters.y) return null;
+    if (!_nameToCode) {
+      _nameToCode = Object.create(null);
+      masters.y.forEach((d, code) => {
+        if (!d || !d.name) return;
+        const k = priceNorm(d.name);
+        if (!(k in _nameToCode)) _nameToCode[k] = code;
+      });
+    }
+    const v = _nameToCode[priceNorm(name)];
+    return v || null;
+  }
+
   function getDrugName(code) {
     const entry = masters.y?.get(code);
     return entry ? entry.name : '';
@@ -379,6 +397,7 @@ const MasterLoader = (() => {
     getDrug,
     getDrugName,
     getDrugPriceByName,
+    getDrugCodeByName,
     getDiseaseName,
     getDisease,
     getModifierName,

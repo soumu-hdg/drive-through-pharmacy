@@ -1218,6 +1218,14 @@ async function initReceiptViewer() {
       if (pending.kokuho) {
         files.push(new File([new TextEncoder().encode(pending.kokuho)], 'kokuho_RECEIPTC.UKE', { type: 'application/octet-stream' }));
       }
+      // 返戻ぶん（2026-09-07）: カルテのレセプト作成モーダルで取り込んだ返戻データを
+      // そのまま点検ビューアーで開けるようにする。ファイル名に henrei を含めて返戻タブへ振る。
+      if (pending.shahoHenrei) {
+        files.push(new File([new TextEncoder().encode(pending.shahoHenrei)], 'shaho_henrei_RECEIPTC.UKE', { type: 'application/octet-stream' }));
+      }
+      if (pending.kokuhoHenrei) {
+        files.push(new File([new TextEncoder().encode(pending.kokuhoHenrei)], 'kokuho_henrei_RECEIPTC.UKE', { type: 'application/octet-stream' }));
+      }
       if (files.length > 0) handleFiles(files);
     } catch(e) { console.error('pendingUKE parse error:', e); }
   }

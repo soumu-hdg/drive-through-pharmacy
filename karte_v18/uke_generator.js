@@ -137,9 +137,9 @@ function sexToCode(sex) {
 }
 
 // 確定済みカルテデータからUKEテキストを生成
-function generateUKE(confirmedPatients, billingMonth) {
+// opts.aggregate=true で「1患者＝1枚」に集約する（月次レセプトの正しい形。2026-09-07 追加）
+function generateUKE(confirmedPatients, billingMonth, opts) {
   // billingMonth: 'YYYYMM' 形式
-  const lines = [];
   const instCode = '1312345678'; // ダミー医療機関コード
   const instName = 'デモクリニック';
   const prefCode = '13'; // 東京
@@ -151,90 +151,145 @@ function generateUKE(confirmedPatients, billingMonth) {
   const results = {};
 
   if (shahoPatients.length > 0) {
-    results.shaho = buildUkeText(shahoPatients, '1', instCode, instName, prefCode, billingMonth);
+    results.shaho = buildUkeText(shahoPatients, '1', instCode, instName, prefCode, billingMonth, opts);
   }
   if (kokuhoPatients.length > 0) {
-    results.kokuho = buildUkeText(kokuhoPatients, '2', instCode, instName, prefCode, billingMonth);
+    results.kokuho = buildUkeText(kokuhoPatients, '2', instCode, instName, prefCode, billingMonth, opts);
   }
 
   return results;
 }
 
-function buildUkeText(patientList, reviewOrg, instCode, instName, prefCode, billingMonth) {
+// === 1受診ぶんの算定明細（SI/IY）===
+// buildUkeText から切り出した。日次でも月次集約でも同じ計算を通す。
+function computeVisitItems(pd) {
+  const p = pd.patient;
+  const k = pd.karte;
+  const isExternal = k.rxModeExternal || false;
+  const isFirst = k.isFirstVisit || false;
+  const hasRx = k.prescriptions && k.prescriptions.length > 0;
+  // 当院標準加算を自動付与（カルテ本体recalcBillingと同じ・DB患者/前月分にも適用）
+  if (typeof ensureStandardAddons === 'function') ensureStandardAddons(k, isFirst);
+
+  const si = [];
+  const iy = [];
+  const exr = k.excludedBillingRows || {};
+  // 基本診察料（令和8: getVisitFee）
+  const vf = (typeof getVisitFee === 'function') ? getVisitFee(isFirst, pd.visitDate) : { points: isFirst ? 291 : 76 };
+  if (isFirst) {
+    si.push({ cat: '11', code: '111000110', points: vf.points });
+  } else {
+    si.push({ cat: '12', code: '112007410', points: vf.points });          // 再診料(76)
+    if (!exr.gairai) si.push({ cat: '12', code: '112011010', points: 52 }); // 外来管理加算
+  }
+  // 時間帯加算（受付時刻から判定・夜間休日診療で重要）
+  try {
+    const at = p && p.arrivedAt;
+    if (typeof getTimeSurcharge === 'function' && at && pd.visitDate) {
+      const sc = getTimeSurcharge(new Date(pd.visitDate + 'T' + at));
+      if (sc && sc.points > 0) si.push({ cat: isFirst ? '11' : '12', code: surchargeCodeOf(sc.type, isFirst), points: sc.points });
+    }
+  } catch (e) { /* 時刻不明はスキップ */ }
+  // 処方・調剤・薬剤（recalcBilling同ロジック）
+  if (hasRx) {
+    const num = k.prescriptions.length;
+    const maxDays = Math.max.apply(null, k.prescriptions.map(function (rx) { return rx.days || k.rxDays || 7; }));
+    if (isExternal) {
+      if (!exr.shohou) si.push({ cat: '80', code: num >= 7 ? '120002710' : '120002910', points: num >= 7 ? 32 : 60 }); // 処方箋料（s_procedures.json準拠: 120002710=32 / 120002910=60）
+    } else {
+      if (!exr.shohou) si.push({ cat: '80', code: num >= 7 ? '120002610' : '120001210', points: num >= 7 ? 29 : 42 }); // 処方料
+      if (!exr.chouzai) si.push({ cat: '80', code: '120000710', points: maxDays <= 7 ? 11 : maxDays <= 14 ? 19 : maxDays <= 21 ? 25 : maxDays <= 28 ? 30 : 33 }); // 調剤料(内服)
+      if (!exr.yakuzai) {
+        k.prescriptions.forEach(function (rx) {
+          const dCode = (rx.drug.code && /^[0-9A-Z]{9,12}$/.test(rx.drug.code)) ? rx.drug.code : ((DRUG_CODE_MAP[rx.drug.id] || {}).code || '9999999999');
+          const days = rx.days || k.rxDays || 7;
+          const raw = (rx.drug.price || 0) * rx.qty * days / 10;
+          const yaku = Math.max(1, (typeof goshagochoNyuu === 'function') ? goshagochoNyuu(raw) : Math.round(raw));
+          iy.push({ code: dCode, qty: rx.qty, points: yaku });
+        });
+      }
+    }
+  }
+  // 検査
+  if (k.selectedExams && !exr.exam) k.selectedExams.forEach(function (id) {
+    const exi = (typeof examItems !== 'undefined' ? examItems : []).find(function (e) { return e.id === id; });
+    if (exi) si.push({ cat: '60', code: exi.code || '9999999', points: exi.points });
+  });
+  // 追加算定（当院標準加算スタック）: 名称→診療行為実コード解決
+  if (k.addedBillingItems) k.addedBillingItems.forEach(function (it) {
+    const a = addonOf(it.name, isFirst);
+    si.push({ cat: a.cat, code: a.code, points: it.points });
+  });
+
+  return { si: si, iy: iy, isFirst: isFirst };
+}
+
+// 同一患者の受診をまとめる（月次レセプトは 1患者＝1枚）。
+// キーは患者ID（無ければ氏名+生年月日）。受診日昇順に並べる。
+function groupVisitsByPatient(patientList) {
+  const map = new Map();
+  patientList.forEach(function (pd) {
+    const p = pd.patient || {};
+    const key = p.id || ((p.name || '') + '|' + (p.dob || ''));
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(pd);
+  });
+  const groups = [];
+  map.forEach(function (list) {
+    list.sort(function (a, b) { return String(a.visitDate).localeCompare(String(b.visitDate)); });
+    groups.push(list);
+  });
+  return groups;
+}
+
+function buildUkeText(patientList, reviewOrg, instCode, instName, prefCode, billingMonth, opts) {
   // ★karte_v18パーサ整合版: IR/RE/HO/SY/SI/IY/JD を正しいフィールド位置で出力。
   //   総点数(HO[5]) = SI/IY 点数の合計 → 点数検算が必ず一致する。
+  // ★2026-09-07: opts.aggregate で「同一患者の同月受診を1枚に集約」する月次モードを追加。
+  //   実日数・回数・算定日をまとめるので、同じ患者が月内に複数回来院しても2枚にならない。
+  opts = opts || {};
   const lines = [];
   lines.push(['IR', reviewOrg, prefCode, '1', instCode, '', instName, billingMonth, '', '03-0000-9999'].join(','));
 
+  const groups = opts.aggregate ? groupVisitsByPatient(patientList)
+                                : patientList.map(function (pd) { return [pd]; });
+
   let seq = 1;
-  for (const pd of patientList) {
-    const p = pd.patient;
-    const k = pd.karte;
+  for (const group of groups) {
+    const head = group[0];
+    const p = head.patient;
     const insurerNum = p.insurerNumber || '39130000';
     const insTypeCode = getInsuranceTypeCode(p.insurance);
-    const visitDay = parseInt((pd.visitDate || '').split('-')[2]) || 1;
-    const isExternal = k.rxModeExternal || false;
-    const isFirst = k.isFirstVisit || false;
-    const hasRx = k.prescriptions && k.prescriptions.length > 0;
-    // 当院標準加算を自動付与（カルテ本体recalcBillingと同じ・DB患者/前月分にも適用）
-    if (typeof ensureStandardAddons === 'function') ensureStandardAddons(k, isFirst);
 
-    // --- SI/IY を収集（recalcBilling と同一算定：令和8点数＋加算＋除外反映）---
-    const si = [];
-    const iy = [];
-    const exr = k.excludedBillingRows || {};
-    // 基本診察料（令和8: getVisitFee）
-    const vf = (typeof getVisitFee === 'function') ? getVisitFee(isFirst, pd.visitDate) : { points: isFirst ? 291 : 76 };
-    if (isFirst) {
-      si.push({ cat: '11', code: '111000110', points: vf.points });
-    } else {
-      si.push({ cat: '12', code: '112007410', points: vf.points });          // 再診料(76)
-      if (!exr.gairai) si.push({ cat: '12', code: '112011010', points: 52 }); // 外来管理加算
-    }
-    // 時間帯加算（受付時刻から判定・夜間休日診療で重要）
-    try {
-      const at = pd.patient && pd.patient.arrivedAt;
-      if (typeof getTimeSurcharge === 'function' && at && pd.visitDate) {
-        const sc = getTimeSurcharge(new Date(pd.visitDate + 'T' + at));
-        if (sc && sc.points > 0) si.push({ cat: isFirst ? '11' : '12', code: surchargeCodeOf(sc.type, isFirst), points: sc.points });
-      }
-    } catch (e) { /* 時刻不明はスキップ */ }
-    // 処方・調剤・薬剤（recalcBilling同ロジック）
-    if (hasRx) {
-      const num = k.prescriptions.length;
-      const maxDays = Math.max.apply(null, k.prescriptions.map(function (rx) { return rx.days || k.rxDays || 7; }));
-      if (isExternal) {
-        if (!exr.shohou) si.push({ cat: '80', code: num >= 7 ? '120002710' : '120002910', points: num >= 7 ? 32 : 60 }); // 処方箋料（s_procedures.json準拠: 120002710=32 / 120002910=60）
-      } else {
-        if (!exr.shohou) si.push({ cat: '80', code: num >= 7 ? '120002610' : '120001210', points: num >= 7 ? 29 : 42 }); // 処方料
-        if (!exr.chouzai) si.push({ cat: '80', code: '120000710', points: maxDays <= 7 ? 11 : maxDays <= 14 ? 19 : maxDays <= 21 ? 25 : maxDays <= 28 ? 30 : 33 }); // 調剤料(内服)
-        if (!exr.yakuzai) {
-          k.prescriptions.forEach(function (rx) {
-            const dCode = (rx.drug.code && /^[0-9A-Z]{9,12}$/.test(rx.drug.code)) ? rx.drug.code : ((DRUG_CODE_MAP[rx.drug.id] || {}).code || '9999999999');
-            const days = rx.days || k.rxDays || 7;
-            const raw = (rx.drug.price || 0) * rx.qty * days / 10;
-            const yaku = Math.max(1, (typeof goshagochoNyuu === 'function') ? goshagochoNyuu(raw) : Math.round(raw));
-            iy.push({ code: dCode, qty: rx.qty, points: yaku });
-          });
-        }
-      }
-    }
-    // 検査
-    if (k.selectedExams && !exr.exam) k.selectedExams.forEach(function (id) {
-      const exi = (typeof examItems !== 'undefined' ? examItems : []).find(function (e) { return e.id === id; });
-      if (exi) si.push({ cat: '60', code: exi.code || '9999999', points: exi.points });
-    });
-    // 追加算定（当院標準加算スタック）: 名称→実コード解決
-    if (k.addedBillingItems) k.addedBillingItems.forEach(function (it) {
-      const a = addonOf(it.name, isFirst);
-      si.push({ cat: a.cat, code: a.code, points: it.points });
-    });
+    // --- 受診日ごとの算定を集計（SIは cat|code|points、IYは code|qty|points で束ねる）---
+    const siMap = new Map();
+    const iyMap = new Map();
+    const dayList = [];
+    let totalPoints = 0;
 
-    // 総点数 = SI/IY 合計（検算一致を保証）
-    const totalPoints = si.reduce(function (s, x) { return s + x.points; }, 0) + iy.reduce(function (s, x) { return s + x.points; }, 0);
+    group.forEach(function (pd) {
+      const day = parseInt((pd.visitDate || '').split('-')[2], 10) || 1;
+      if (dayList.indexOf(day) === -1) dayList.push(day);
+      const items = computeVisitItems(pd);
+      items.si.forEach(function (s) {
+        const key = s.cat + '|' + s.code + '|' + s.points;
+        if (!siMap.has(key)) siMap.set(key, { cat: s.cat, code: s.code, points: s.points, days: [] });
+        siMap.get(key).days.push(day);
+        totalPoints += s.points;
+      });
+      items.iy.forEach(function (x) {
+        const key = x.code + '|' + x.qty + '|' + x.points;
+        if (!iyMap.has(key)) iyMap.set(key, { code: x.code, qty: x.qty, points: x.points, days: [] });
+        iyMap.get(key).days.push(day);
+        totalPoints += x.points;
+      });
+    });
+    dayList.sort(function (a, b) { return a - b; });
+
     const copay = Math.round(totalPoints * p.ratio) * 10; // 一部負担金(10円未満四捨五入)
-    const jitsuNissu = 1;
-    const dayIdx = 12 + visitDay; // 算定日フィールド位置(day = idx-12)
+    const jitsuNissu = dayList.length;                    // 診療実日数（集約すると受診回数）
+    const maxDay = dayList[dayList.length - 1] || 1;
+    const recLen = 12 + maxDay + 1;                       // 算定日フィールド: day → index 12+day
 
     // RE: [1]seq [2]保険種別 [3]請求年月 [4]氏名 [5]性別 [6]生年月日 [7]給付割合 [13]カルテ番号
     const re = new Array(14).fill('');
@@ -250,32 +305,54 @@ function buildUkeText(patientList, reviewOrg, instCode, instName, prefCode, bill
 
     // SY: [1]傷病名コード [2]開始日 [6]主病フラグ(01)
     // 要望#10: カルテで［主］を付けた傷病名を主病にする。未指定のカルテは従来どおり先頭を主病とする。
-    const mainIdx = (k.selectedDiseases || []).findIndex(function (d) { return d && d.main; });
-    const mainPos = mainIdx >= 0 ? mainIdx : 0;
-    if (k.selectedDiseases && k.selectedDiseases.length > 0) {
-      k.selectedDiseases.forEach(function (d, di) {
+    // 集約時は同一コードの重複を除き、開始日は最も早い受診日を採る。
+    const syList = [];
+    const syIndex = {};
+    group.forEach(function (pd) {
+      const ds = pd.karte.selectedDiseases || [];
+      const mainIdx = ds.findIndex(function (d) { return d && d.main; });
+      const mainPos = mainIdx >= 0 ? mainIdx : 0;
+      ds.forEach(function (d, di) {
         const dCode = resolveDiseaseCode(d);
         const startDate = (pd.visitDate || billingMonth + '01').replace(/-/g, '');
-        const sy = new Array(7).fill(''); sy[0] = 'SY'; sy[1] = dCode; sy[2] = startDate; sy[6] = (di === mainPos ? '01' : '');
-        lines.push(sy.join(','));
+        if (syIndex[dCode] !== undefined) {
+          const cur = syList[syIndex[dCode]];
+          if (startDate < cur.start) cur.start = startDate;
+          return;
+        }
+        syIndex[dCode] = syList.length;
+        syList.push({ code: dCode, start: startDate, main: (di === mainPos) });
       });
-    }
+    });
+    // 主病は1つだけにする（先に立った主病を優先）
+    let mainSeen = false;
+    syList.forEach(function (s) {
+      if (s.main && !mainSeen) { mainSeen = true; } else { s.main = false; }
+    });
+    if (!mainSeen && syList.length > 0) syList[0].main = true;
+    syList.forEach(function (s) {
+      const sy = new Array(7).fill(''); sy[0] = 'SY'; sy[1] = s.code; sy[2] = s.start; sy[6] = s.main ? '01' : '';
+      lines.push(sy.join(','));
+    });
 
     // SI: [1]診療識別 [3]コード [5]点数 [6]回数 [13..43]算定日
-    si.forEach(function (s) {
-      const rec = new Array(dayIdx + 1).fill(''); if (rec.length < 14) rec.length = 14, rec.fill('', 0);
-      rec[0] = 'SI'; rec[1] = s.cat; rec[3] = s.code; rec[5] = s.points; rec[6] = 1; rec[dayIdx] = '1';
+    siMap.forEach(function (s) {
+      const rec = new Array(Math.max(recLen, 14)).fill('');
+      rec[0] = 'SI'; rec[1] = s.cat; rec[3] = s.code; rec[5] = s.points; rec[6] = s.days.length;
+      s.days.forEach(function (d) { rec[12 + d] = '1'; });
       lines.push(rec.join(','));
     });
     // IY: [1]診療識別(80) [3]コード [4]数量 [5]点数 [6]回数 [13..43]算定日
-    iy.forEach(function (x) {
-      const rec = new Array(dayIdx + 1).fill(''); if (rec.length < 14) rec.length = 14, rec.fill('', 0);
-      rec[0] = 'IY'; rec[1] = '80'; rec[3] = x.code; rec[4] = x.qty; rec[5] = x.points; rec[6] = 1; rec[dayIdx] = '1';
+    iyMap.forEach(function (x) {
+      const rec = new Array(Math.max(recLen, 14)).fill('');
+      rec[0] = 'IY'; rec[1] = '80'; rec[3] = x.code; rec[4] = x.qty; rec[5] = x.points; rec[6] = x.days.length;
+      x.days.forEach(function (d) { rec[12 + d] = '1'; });
       lines.push(rec.join(','));
     });
 
     // JD: [1]負担者種別 [2..32]受診日(day = i-1)
-    const jd = new Array(33).fill(''); jd[0] = 'JD'; jd[1] = '1'; jd[visitDay + 1] = '1';
+    const jd = new Array(33).fill(''); jd[0] = 'JD'; jd[1] = '1';
+    dayList.forEach(function (d) { jd[d + 1] = '1'; });
     lines.push(jd.join(','));
 
     seq++;
@@ -290,6 +367,9 @@ function openReceiptWithUKE(ukeData, count) {
   const payload = {};
   if (ukeData.shaho)  payload.shaho  = ukeData.shaho;
   if (ukeData.kokuho) payload.kokuho = ukeData.kokuho;
+  // 返戻ぶん（2026-09-07）: レセプト作成モーダルの［返戻レセプトビューアー］から渡す
+  if (ukeData.shahoHenrei)  payload.shahoHenrei  = ukeData.shahoHenrei;
+  if (ukeData.kokuhoHenrei) payload.kokuhoHenrei = ukeData.kokuhoHenrei;
   localStorage.setItem('pendingUKE', JSON.stringify(payload));
 
   // receipt.htmlを開く

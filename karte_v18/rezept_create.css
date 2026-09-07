@@ -152,11 +152,46 @@
 .rzm-late-bm { width: 120px; flex: none; }
 .rzm-late-rs { flex: 1; color: #5e6b67; }
 
+/* ---- 返戻再請求の一覧（2026-09-07）----
+   旧システムの実測に合わせている：
+     th 12px / 背景 #f4f6f5 / 下罫 1px #d2dbd8 / padding 3px 6px、行高 36px、
+     td 13px / 背景 #fff、セレクトは 84x30・枠 1px #d2dbd8。
+     列幅 患者番号120 / 氏名141 / 診療日120 / 保険種類159 / 請求方法120 /
+          レセプト請求120 / 最後に含めた日時137 / 操作63 */
+.rzm-box-table { padding: 0; overflow-x: auto; }
+.rzm-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 980px; }
+.rzm-table th {
+  height: 36px; padding: 3px 6px; font-size: 12px; font-weight: 400; text-align: left;
+  background: #f4f6f5; color: #242927; border-bottom: 1px solid #d2dbd8; white-space: nowrap;
+}
+.rzm-table td {
+  height: 36px; padding: 0 6px; font-size: 13px; color: #242927; background: #fff;
+  border-bottom: 1px solid #d2dbd8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rzm-table tr:last-child td { border-bottom: none; }
+.rzm-td-act { text-align: right; }
+.rzm-reason-row td {
+  height: 28px; font-size: 12px; color: #5e6b67; background: #fbfcfc; white-space: normal;
+}
+.rzm-mini-select {
+  height: 30px; width: 84px; font-size: 13px; font-family: inherit; color: #242927;
+  background: #fff; border: 1px solid #d2dbd8; border-radius: 2px; padding: 0 4px 0 6px;
+}
+.rzm-icon {
+  border: none; background: transparent; cursor: pointer; font-size: 14px; line-height: 1;
+  padding: 4px 6px; color: #5e6b67; border-radius: 2px;
+}
+.rzm-icon:hover { background: rgba(0, 52, 36, 0.08); color: #242927; }
+.rzm-note { display: block; margin-top: 6px; font-size: 12px; color: #5e6b67; }
+
+/* 作成中の状態表示（フッタ左） */
+.rzm-status { flex: 1; align-self: center; font-size: 13px; color: #5e6b67; }
+
 /* 未対応タブの案内 */
 .rzm-empty { padding: 40px 15px; text-align: center; color: #5e6b67; font-size: 14px; }
 
 /* ---- フッタ ---- */
-.rzm-foot { flex: none; background: #f4f6f5; padding: 6px 12px; display: flex; justify-content: flex-end; }
+.rzm-foot { flex: none; background: #f4f6f5; padding: 6px 12px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .rzm-foot-btns { display: flex; gap: 6px; }
 
 /* ---- ボタン ---- */
