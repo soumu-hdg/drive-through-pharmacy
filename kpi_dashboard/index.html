@@ -61,7 +61,7 @@ tr:hover td{background:#f8f9fb}
 .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;color:#fff}
 .badge-shopify{background:var(--shopify)}.badge-employee{background:var(--employee)}
 .badge-wholesale{background:var(--wholesale)}.badge-amazon{background:var(--amazon)}
-.badge-qoo10{background:var(--qoo10)}.badge-rakuten{background:var(--rakuten)}.badge-ok{background:rgba(74,222,128,.15);color:#16a34a}
+.badge-qoo10{background:var(--qoo10)}.badge-rakuten{background:var(--rakuten)}.badge-promo{background:#c9821f}.badge-ok{background:rgba(74,222,128,.15);color:#16a34a}
 .badge-ng{background:rgba(248,113,113,.15);color:#dc2626}
 .badge-info{background:rgba(96,165,250,.15);color:#2563eb;font-size:10px;padding:2px 8px;border-radius:10px}
 
@@ -184,6 +184,10 @@ const Q={
   seoArt:  ['kpi_seo_articles','select=site_key,url,slug,title,clicks,impressions,ctr,position,period_start,period_end&order=clicks.desc&limit=3000',3000],
   seoQry:  ['kpi_seo_queries','select=site_key,query,clicks,impressions,ctr,position,period_start,period_end&order=clicks.desc&limit=3000',3000],
   excl:    ['kpi_excluded_orders','select=order_id',0],
+  // 楽天のレビュー/冠獲得施策で発注した注文。在庫管理マスタ「楽天施策」シートから
+  // 毎朝9時に同期される（kpi-sync の rakuten_promo ジョブ）。通常販売と同じ注文として
+  // kpi_orders に入るため、突合キーはこのタグしかない。数十行なので転送量は無視できる。
+  tags:    ['kpi_order_tags','select=order_id,channel,tag&tag=eq.rakuten_review',0],
   sync:    ['kpi_sync_status','select=sync_type,last_sync,record_count,status',0],
   fresh:   ['kpi_freshness','select=source,last_success,last_attempt,last_status,last_rows,stale_after_minutes',0],
   // 同期管理タブ用（このタブを開いた時だけ取得。合計でも数十KB）
@@ -192,12 +196,17 @@ const Q={
   joblog:  ['kpi_job_log','select=started_at,finished_at,job,status,rows_written,bytes_out,api_calls,duration_ms,error_msg&order=started_at.desc&limit=40',0],
 };
 let FR=[];   // kpi_freshness（鮮度ストリップ用）。SY は従来どおり kpi_sync_status（最新履歴タブが参照）
+// 楽天施策の注文番号セット。施策は「売っていない」ので実売と混ぜて見ると
+// 楽天の売上が実力より大きく見える（実測で楽天の68%が施策だった）。
+// 金額は0にせず実額のまま、実売とは別行に分けて表示する。
+let PROMO=new Set();
+const isPromo=o=>o&&o.channel==='rakuten'&&PROMO.has(o.order_id);
 const sbQ=k=>sbGet(Q[k][0],Q[k][1],Q[k][2]);
 function fmt(n){return n!=null?Number(n).toLocaleString('ja-JP'):'-'}
 function yen(n){return n!=null?'¥'+Number(n).toLocaleString('ja-JP'):'-'}
 function pct(a,b){return b>0?((a/b)*100).toFixed(1)+'%':'-'}
-function chBadge(ch){const m={shopify:'badge-shopify',employee:'badge-employee',wholesale:'badge-wholesale',amazon:'badge-amazon',amazon_fba:'badge-amazon',qoo10:'badge-qoo10',rakuten:'badge-rakuten',tiktok:'badge-info'};return `<span class="badge ${m[ch]||'badge-info'}">${chName(ch)}</span>`}
-function chName(ch){return{shopify:'Shopify',employee:'社割',wholesale:'卸売',amazon:'Amazon',amazon_fba:'Amazon(FBA)',qoo10:'Qoo10',rakuten:'楽天',tiktok:'TikTok'}[ch]||ch}
+function chBadge(ch){const m={shopify:'badge-shopify',employee:'badge-employee',wholesale:'badge-wholesale',amazon:'badge-amazon',amazon_fba:'badge-amazon',qoo10:'badge-qoo10',rakuten:'badge-rakuten',rakuten_promo:'badge-promo',tiktok:'badge-info'};return `<span class="badge ${m[ch]||'badge-info'}">${chName(ch)}</span>`}
+function chName(ch){return{shopify:'Shopify',employee:'社割',wholesale:'卸売',amazon:'Amazon',amazon_fba:'Amazon(FBA)',qoo10:'Qoo10',rakuten:'楽天',rakuten_promo:'楽天施策',tiktok:'TikTok'}[ch]||ch}
 function normProd(n){
   if(!n)return'不明';
   n=n.replace(/\s*\(Shopify\)|\s*\(卸売\)|\s*\(社割\)/g,'').trim();
@@ -270,7 +279,7 @@ function clearError(){const el=document.getElementById('kpiErrBanner');if(el)el.
 // ===== データ鮮度ストリップ（2026-08-07）=====
 // どのデータがいつ時点かを常に見せる。stale_after を超えたソースは琥珀で警告。
 const FRESH_LABEL={ec_orders:'EC注文',ga4:'GA4',search_console:'Search Console',
-  seo_articles:'SEO記事',seo_queries:'SEO クエリ',sns:'SNS',inventory:'在庫',daily_summary:'日次集計'};
+  seo_articles:'SEO記事',seo_queries:'SEO クエリ',sns:'SNS',inventory:'在庫',rakuten_promo:'楽天施策',daily_summary:'日次集計'};
 function renderFreshness(rows){
   const host=document.getElementById('syncTs');if(!host)return;
   let el=document.getElementById('kpiFresh');
@@ -302,10 +311,11 @@ function applyOrderFilters(EX){
   O=(()=>{const nk=new Set(O.filter(o=>/^#/.test(String(o.order_id))).map(o=>o.channel+"|"+o.order_datetime+"|"+(o.sku||"")+"|"+o.total));return O.filter(o=>!(/^[0-9]+$/.test(String(o.order_id))&&nk.has(o.channel+"|"+o.order_datetime+"|"+(o.sku||"")+"|"+o.total)))})();
 }
 async function loadCore(){
-  var EX=[];
-  [D,O,G,S,I,SEO,EX,SY,FR]=await Promise.all([
-    sbQ('daily'),sbQ('orders'),sbQ('ga4'),sbQ('sns'),sbQ('inv'),sbQ('seo'),sbQ('excl'),sbQ('sync'),sbQ('fresh'),
+  var EX=[],TG=[];
+  [D,O,G,S,I,SEO,EX,SY,FR,TG]=await Promise.all([
+    sbQ('daily'),sbQ('orders'),sbQ('ga4'),sbQ('sns'),sbQ('inv'),sbQ('seo'),sbQ('excl'),sbQ('sync'),sbQ('fresh'),sbQ('tags'),
   ]);
+  PROMO=new Set((TG||[]).map(t=>String(t.order_id)));
   applyOrderFilters(EX);
   renderFreshness(FR);
 }
@@ -992,10 +1002,11 @@ async function doRefresh(force) {
     }
     _lastFreshSig = sig;
     console.log('[自動リフレッシュ] 更新を検出。データ再取得中...');
-    var EX=[];
-    [D,O,G,S,I,SEO,EX,SY]=await Promise.all([
-      sbQ('daily'),sbQ('orders'),sbQ('ga4'),sbQ('sns'),sbQ('inv'),sbQ('seo'),sbQ('excl'),sbQ('sync'),
+    var EX=[],TG=[];
+    [D,O,G,S,I,SEO,EX,SY,TG]=await Promise.all([
+      sbQ('daily'),sbQ('orders'),sbQ('ga4'),sbQ('sns'),sbQ('inv'),sbQ('seo'),sbQ('excl'),sbQ('sync'),sbQ('tags'),
     ]);
+    PROMO=new Set((TG||[]).map(t=>String(t.order_id)));
     applyOrderFilters(EX);
     if(_seoLoaded){ _seoLoaded=false; await loadSeoDetail(); }  // 既に開いていた時だけ再取得
     renderAll();
@@ -1043,10 +1054,26 @@ function renderDash(d,o){
   const aovPaid=paidOrds>0?rev/paidOrds:0;
   const freeNote=n=>n>0?`<span style="color:var(--sub);font-size:11px"> (無償${fmt(n)})</span>`:'';
 
+  // 楽天施策（レビュー/冠獲得のために自社で発注した分）を実売から切り出す。
+  // 金額の正は概要タブと同じ v_kpi_dash_daily 側だが、あちらは施策かどうかを持たない。
+  // kpi_orders は同じ期間・同じ金額（実測で楽天¥1,105,300が両者一致）なので、
+  // 施策分だけを明細から拾って楽天の行から差し引き、別行として並べる。
+  const promoRows=o.filter(isPromo);
+  const promoRev=promoRows.reduce((s,x)=>s+Number(x.total||0),0);
+  const promoOrd=new Set(promoRows.map(x=>x.order_id)).size;
+  const promoQty=promoRows.reduce((s,x)=>s+(x.quantity||0),0);
+
   // Channel
   const ch={};d.forEach(x=>{if(!ch[x.channel])ch[x.channel]={rev:0,ord:0};ch[x.channel].rev+=Number(x.revenue||0);ch[x.channel].ord+=(x.order_count||0)});
+  if(promoRev>0&&ch.rakuten){
+    ch.rakuten={rev:ch.rakuten.rev-promoRev,ord:Math.max(ch.rakuten.ord-promoOrd,0)};
+    ch.rakuten_promo={rev:promoRev,ord:promoOrd,promo:true};
+  }
   const chArr=Object.entries(ch).sort((a,b)=>b[1].rev-a[1].rev);
-  let chRows=chArr.map(([c,v])=>`<tr><td>${chBadge(c)}</td><td class="num">${yen(v.rev)}</td><td class="num">${fmt(v.ord)}件${freeNote(freeByCh[c]||0)}</td></tr>`).join('');
+  let chRows=chArr.map(([c,v])=>`<tr${v.promo?' style="background:#fdf6e8"':''}><td>${chBadge(c)}</td><td class="num">${yen(v.rev)}</td><td class="num">${fmt(v.ord)}件${freeNote(freeByCh[c]||0)}</td></tr>`).join('');
+  if(promoRev>0)chRows+=`<tr><td colspan="3" style="font-size:11px;color:var(--sub);line-height:1.6;padding-top:6px">
+    ※<b>楽天施策</b>はレビュー・冠獲得のために自社で発注した注文です。売った売上ではないので楽天から分けています（合算すると ${yen(ch.rakuten.rev+promoRev)}）。<br>
+    元データは在庫管理マスタ「楽天施策」シート。毎朝9時に同期されます。</td></tr>`;
   // TikTokショップは手数料率・原価が他チャネルと異なるため、1商品あたりの負担内訳を注記する
   const hasTikTok=chArr.some(([c])=>c==='tiktok');
   const tiktokNote=hasTikTok?`<div style="font-size:11px;color:var(--sub);margin-top:8px;line-height:1.6">
@@ -2732,6 +2759,8 @@ function renderHistory(orders,syncStatus){
     {key:'shopify',label:'\u{1F6D2} Shopify/社割/卸売 同期',color:'#96bf48',time:syMap.shopify?.last_sync,src:'ec_orders'},
     {key:'amazon_qoo10',label:'\u{1F4E6} Amazon/Qoo10/楽天 同期',color:'#ff9900',time:syMap.amazon_qoo10?.last_sync,src:'ec_orders'},
     {key:'ga4',label:'\u{1F4C8} GA4 同期',color:'#4285f4',time:syMap.ga4?.last_sync,src:'ga4'},
+    {key:'rakuten_promo',label:'\u{1F3AF} 楽天施策 同期',color:'#c9821f',
+     time:frMapSync.rakuten_promo?.last_success,src:'rakuten_promo'},
     {key:'inventory',label:'\u{1F4DD} 在庫 同期',color:'#10b981',time:syMap.inventory?.last_sync,src:'inventory'},
     {key:'sns',label:'\u{1F4F1} SNS 同期',color:'#e1306c',time:syMap.sns?.last_sync,src:'sns'},
   ];
@@ -2752,8 +2781,14 @@ function renderHistory(orders,syncStatus){
         (limStr?'<span style="font-size:11px;color:#bbb;margin-left:8px">'+limStr+'</span>':'')+errMsg+'</div>'+
     '</div>';
   }).join('');
+  const promoCnt=(FR||[]).find(x=>x.source==='rakuten_promo')?.last_rows;
+  const promoNote=promoCnt!=null
+    ? '<p style="font-size:11px;color:#8a8578;margin:2px 0 8px">\u{1F3AF} 楽天施策シートから <b>'+promoCnt+'件</b> の注文を取り込み済み。'+
+      '毎朝9時に突き合わせ、シートから消した注文は自動で施策から外れます。</p>'
+    : '';
   const syncPanel='<div class="card" style="margin-bottom:12px">'+
     '<h3 style="font-size:14px;margin-bottom:8px">\u{1F504} システム同期ステータス</h3>'+
+    promoNote+
     syncRows+
     '<p style="font-size:11px;color:#bbb;margin:8px 0 0">\u{1F7E2} 想定間隔内\u3000\u{1F7E1} 遅延\u3000\u{1F534} 停止の疑い／直近が失敗\u3000\u{26AA} 未同期</p></div>';
 
@@ -2780,7 +2815,7 @@ function renderHistory(orders,syncStatus){
     const total=o.total||0;
     return '<tr>'+
       '<td style="white-space:nowrap;font-size:13px">'+dateDisp+'</td>'+
-      '<td>'+chBadge(ch)+'</td>'+
+      '<td>'+chBadge(isPromo(o)?'rakuten_promo':ch)+'</td>'+
       '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+prod+'</td>'+
       '<td class="num">'+qty+'</td>'+
       '<td class="num" style="font-weight:600">'+yen(total)+'</td>'+
@@ -2788,7 +2823,7 @@ function renderHistory(orders,syncStatus){
   }).join('');
 
   const chCounts={};
-  sorted.forEach(o=>{const c=o.channel||'other';chCounts[c]=(chCounts[c]||0)+1});
+  sorted.forEach(o=>{const c=isPromo(o)?'rakuten_promo':(o.channel||'other');chCounts[c]=(chCounts[c]||0)+1});
   const chSummary=Object.entries(chCounts).sort((a,b)=>b[1]-a[1]).map(([c,n])=>
     chBadge(c)+' <b>'+n+'\u4EF6</b>'
   ).join('\u3000');
