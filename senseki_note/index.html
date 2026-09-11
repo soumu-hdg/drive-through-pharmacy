@@ -16,6 +16,7 @@
   --plus:#007a5e;
   --minus:#b5402c;
   --tab:#e8dfc9;
+  --amber2:#b3751a;
   --desk:#4a4740;
 }
 html{-webkit-text-size-adjust:100%}
@@ -56,6 +57,13 @@ input,select,textarea,button{font-family:inherit;color:inherit}
   border-right-color:var(--ai); margin-right:-1px; padding-left:16px;
 }
 .idxbtn small{display:block; font-size:11px; color:var(--ink-soft); font-weight:400; letter-spacing:.04em}
+.idxbtn em{font-style:normal; font-weight:400; color:#5f5a50; font-size:13px; margin-left:5px}
+.idxbtn.month{
+  background:#d9d2bd; border-right-color:#b7ac8d; margin-bottom:11px;
+  font-family:"Yu Mincho","Hiragino Mincho ProN",serif; letter-spacing:.14em;
+}
+.idxbtn.month:hover{background:#e3ddcb}
+.idxbtn.month.on{background:var(--paper); border-right-color:var(--amber2); letter-spacing:.14em}
 .addidx{
   margin-top:12px; width:100%; background:transparent; color:#cfc7b5;
   border:1px dashed #7d776b; padding:8px; border-radius:3px; cursor:pointer; font-size:13px;
@@ -74,10 +82,14 @@ input,select,textarea,button{font-family:inherit;color:inherit}
 .daytabs{display:flex; gap:2px; padding-left:46px; align-items:flex-end; flex-wrap:wrap}
 .dtab{
   background:var(--tab); border:none; cursor:pointer;
-  padding:7px 15px 6px; font-size:13px; color:#5c574c;
+  padding:6px 15px 5px; font-size:13px; color:#5c574c; line-height:1.35;
   border-radius:5px 5px 0 0; box-shadow:inset 0 -7px 8px -7px rgba(0,0,0,.35);
-  position:relative; top:1px;
+  position:relative; top:1px; text-align:center;
 }
+.dtab b{display:block; font-size:13px; font-weight:700}
+.dtab i{display:block; font-style:normal; font-size:10.5px; color:#8b8478; font-variant-numeric:tabular-nums}
+.dtab.on i{color:var(--ai)}
+.dtab.add, .dtab.sum{padding-top:11px; padding-bottom:11px}
 .dtab:hover{background:#f1e9d7}
 .dtab.on{background:var(--paper); color:var(--ink); font-weight:700; box-shadow:none; padding-bottom:8px}
 .dtab.sum{margin-left:10px; background:#d8cfb6}
@@ -121,6 +133,38 @@ input,select,textarea,button{font-family:inherit;color:inherit}
   font-size:13px; color:var(--ink-soft); padding:2px
 }
 .sheethead .spacer{flex:1}
+.evbox{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+.kai{
+  font-family:"Yu Mincho","Hiragino Mincho ProN",serif; font-size:27px; font-weight:600;
+  letter-spacing:.04em; white-space:nowrap;
+}
+.kai input{
+  width:2.6em; font-family:inherit; font-size:27px; font-weight:600; text-align:center;
+  border:none; background:transparent; border-bottom:1px solid #d6cdb8; padding:0 2px;
+  font-variant-numeric:tabular-nums; margin:0 2px;
+}
+.kai input:focus{outline:none; border-bottom-color:var(--ai); background:#fffdf6}
+.kai input::-webkit-outer-spin-button,.kai input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.kai input[type=number]{-moz-appearance:textfield}
+.evname{
+  border:none; background:transparent; border-bottom:1px dotted #cfc6b1;
+  font-size:15px; color:#4e4a41; padding:2px 4px; width:150px;
+}
+.evname:focus{outline:none; border-bottom-color:var(--ai); background:#fffdf6}
+.daybox{
+  display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+  border-left:3px solid var(--ai); padding:2px 0 2px 11px;
+}
+.dayno{font-size:17px; font-weight:700; letter-spacing:.1em; white-space:nowrap}
+.datejp{font-size:12px; color:var(--ink-soft); letter-spacing:.04em; white-space:nowrap}
+.dayname{font-size:13px; color:#5f5a50; border-bottom:1px dotted #cfc6b1; padding:0 2px}
+.datein{font-size:13px}
+.sumhead .subttl{
+  display:inline-block; font-family:"Yu Gothic UI",sans-serif; font-size:11.5px;
+  letter-spacing:.06em; color:var(--ink-soft); margin-left:14px; vertical-align:5px;
+}
+.mkmark{color:var(--amber2); font-size:13px}
+.monthlist td.nm{font-family:"Yu Gothic UI",sans-serif}
 .minibtn{
   background:#fff; border:1px solid #d8cfb9; color:#6a6459; font-size:12px;
   padding:5px 10px; border-radius:2px; cursor:pointer
@@ -302,10 +346,16 @@ dialog::backdrop{background:rgba(30,28,24,.6)}
 @media (max-width:720px){
   .sheethead{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; align-items:center}
   .sheethead>*{min-width:0}
-  .ttl{font-size:23px; width:auto; grid-column:1/-1}
-  .daylabel{width:auto; font-size:16px; grid-column:1/2}
-  .datein{width:auto; font-size:14px; grid-column:2/-1}
+  .evbox{grid-column:1/-1; gap:8px}
+  .kai{font-size:23px}
+  .kai input{font-size:23px}
+  .evname{flex:1; min-width:110px; width:auto}
+  .daybox{grid-column:1/-1; padding-left:9px}
+  .daybox .datein{flex:1; min-width:0}
+  .dayno{font-size:15px}
   .sheethead .spacer{display:none}
+  .dtab b{font-size:12.5px}
+  .dtab i{font-size:10px}
   .sheethead .minibtn{padding:10px 4px; font-size:12px; text-align:center; white-space:nowrap}
   .sheethead input{box-sizing:border-box}
   .sumhead{font-size:21px}
@@ -470,8 +520,8 @@ var KEY = "senseki_note_v1";
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
 /* ========== データ ========== */
-function newDay(n){
-  return { id:uid(), label:n+"日目", date:"", s:0, l:0, memo:"",
+function newDay(){
+  return { id:uid(), date:"", s:0, l:0, memo:"",
     rows:[
       {name:"BB", win:0, lose:0, half:0},
       {name:"2B", win:0, lose:0, half:0},
@@ -486,10 +536,29 @@ function nextRowName(rows){
   if(/^BB$/i.test(last)) return "2B";
   return "新しい区分";
 }
-function newEvent(n){ return { id:uid(), title:"第"+n+"回", days:[newDay(1)] }; }
-function seed(){ return { version:1, settings:{halfPt:0.5, losePt:1, winMode:"withHalf"}, events:[newEvent(1)] }; }
+function newEvent(no){ return { id:uid(), no:no, name:"", days:[newDay()] }; }
+function nextEventNo(){
+  var mx=0; db.events.forEach(function(e){ if((+e.no||0)>mx) mx=+e.no||0; });
+  return mx+1;
+}
+/* ---- 回と日の表記（回＝番号／日＝日付が主役） ---- */
+function evTitle(ev){ return "第"+(+ev.no||1)+"回"+(ev.name?"　"+ev.name:""); }
+function dayLabelAt(i){ return (i+1)+"日目"; }
+function dayIndex(ev,day){ return ev.days.indexOf(day); }
+function dateShort(v){
+  if(!v) return "";
+  var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  return m ? (+m[2])+"/"+m[3] : v;
+}
+function dateJp(v){
+  var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(v||"");
+  return m ? m[1]+"年"+(+m[2])+"月"+(+m[3])+"日" : "日付未設定";
+}
+function monthKey(v){ return /^\d{4}-\d{2}/.test(v||"") ? v.slice(0,7) : ""; }
+function monthJp(k){ var p=k.split("-"); return p[0]+"年"+p[1]+"月"; }
+function seed(){ return { version:2, settings:{halfPt:0.5, losePt:1, winMode:"withHalf"}, events:[newEvent(1)] }; }
 
-var db, cur = { ev:null, day:null };
+var db, cur = { ev:null, day:null, month:null };
 
 function load(){
   try{
@@ -498,8 +567,29 @@ function load(){
     var d = JSON.parse(raw);
     if(!d || !Array.isArray(d.events) || !d.events.length) return null;
     d.settings = Object.assign({halfPt:0.5, losePt:1, winMode:"withHalf"}, d.settings||{});
+    migrate(d);
     return d;
   }catch(e){ return null; }
+}
+/* 旧データ（title / label を文字列で持っていた形式）を新しい形へ移す */
+function migrate(d){
+  d.events.forEach(function(ev,i){
+    if(ev.no===undefined){
+      var t=ev.title||"";
+      var m=/(\d+)/.exec(t);
+      ev.no = m ? parseInt(m[1],10) : (i+1);
+      ev.name = t.replace(/^\s*第?\s*\d+\s*回\s*/,"").trim();
+      delete ev.title;
+    }
+    if(ev.name===undefined) ev.name="";
+    (ev.days||[]).forEach(function(dy){
+      if(dy.label!==undefined){
+        if(!/^\s*\d+\s*日目\s*$/.test(dy.label)) dy.name=dy.label;
+        delete dy.label;
+      }
+    });
+  });
+  d.version=2;
 }
 var saveTimer=null;
 function save(now){
@@ -545,19 +635,31 @@ function signTxt(v){ return (v>0?"+":"")+fmt(v); }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
 
-function curEvent(){ var e=db.events.filter(function(x){return x.id===cur.ev;})[0]; return e||db.events[0]; }
+function curEvent(){
+  if(cur.ev==="__month") return null;
+  var e=db.events.filter(function(x){return x.id===cur.ev;})[0];
+  return e||db.events[0];
+}
 function curDay(){ var ev=curEvent(); if(!ev) return null; return ev.days.filter(function(d){return d.id===cur.day;})[0]||null; }
 
 /* ========== 左インデックス ========== */
 function renderIndex(){
   var ul=document.getElementById("idxlist");
   ul.innerHTML="";
+  var li0=document.createElement("li");
+  var b0=document.createElement("button");
+  b0.className="idxbtn month"+(cur.ev==="__month"?" on":"");
+  var all=allDays();
+  b0.innerHTML="月別集計<small>"+monthCount(all)+"か月分 ／ 全期間 <span class='"+
+    signCls(all.pt)+"'>"+signTxt(all.pt)+"</span> pt</small>";
+  b0.onclick=function(){ cur.ev="__month"; cur.day=null; renderAll(); };
+  li0.appendChild(b0); ul.appendChild(li0);
   db.events.forEach(function(ev){
     var t = ev.days.reduce(function(a,d){ return a+calcDay(d).total.pt; },0);
     var li=document.createElement("li");
     var b=document.createElement("button");
     b.className="idxbtn"+(ev.id===cur.ev?" on":"");
-    b.innerHTML = esc(ev.title||"(無題)") +
+    b.innerHTML = "第"+(+ev.no||1)+"回"+(ev.name?" <em>"+esc(ev.name)+"</em>":"") +
       "<small>"+ev.days.length+"日分 ／ 通算 <span class='"+signCls(t)+"'>"+signTxt(t)+"</span> pt</small>";
     b.onclick=function(){ cur.ev=ev.id; cur.day=ev.days[0]?ev.days[0].id:"sum"; renderAll(); };
     li.appendChild(b); ul.appendChild(li);
@@ -566,12 +668,14 @@ function renderIndex(){
 
 /* ========== 日タブ ========== */
 function renderTabs(){
-  var ev=curEvent(); var box=document.getElementById("daytabs"); box.innerHTML="";
+  var box=document.getElementById("daytabs"); box.innerHTML="";
+  if(cur.ev==="__month") return;
+  var ev=curEvent();
   if(!ev) return;
-  ev.days.forEach(function(d){
+  ev.days.forEach(function(d,i){
     var b=document.createElement("button");
     b.className="dtab"+(d.id===cur.day?" on":"");
-    b.textContent=d.label||"(無題)";
+    b.innerHTML="<b>"+dayLabelAt(i)+"</b><i>"+(d.date?esc(dateShort(d.date)):"日付未設定")+"</i>";
     b.onclick=function(){ cur.day=d.id; renderTabs(); renderPage(); };
     box.appendChild(b);
   });
@@ -644,8 +748,8 @@ function legendPM(){
 }
 
 /* ① 日別のポイント（0を基線にした縦棒） */
-function chartDailyPoints(days){
-  var data=days.map(function(d){ var c=calcDay(d); return {label:d.label, v:c.total.pt, c:c}; });
+function chartDailyPoints(items, title, sub){
+  var data=items.map(function(x){ return {label:x.label, v:x.c.total.pt, c:x.c}; });
   var nw=vizNarrow();
   var W=nw?360:520, H=nw?220:248, ml=nw?32:44, mr=nw?10:16, mt=14, mb=nw?44:50;
   var iw=W-ml-mr, ih=H-mt-mb;
@@ -675,12 +779,12 @@ function chartDailyPoints(days){
     if(i%everyK===0) s+=txt(cx,H-8,d.label,{anchor:'middle',size:10.5});
   });
   s+='</svg>';
-  return fig('日別のポイント','0を基準に、その日の増減',legendPM(),s);
+  return fig(title||'日別のポイント', sub||'0を基準に、その日の増減', legendPM(), s);
 }
 
 /* ② 累計ポイントの推移（折れ線） */
-function chartCumulative(days){
-  var acc=0, data=days.map(function(d){ acc+=calcDay(d).total.pt; return {label:d.label, v:n2(acc)}; });
+function chartCumulative(items, title, sub){
+  var acc=0, data=items.map(function(x){ acc+=x.c.total.pt; return {label:x.label, v:n2(acc)}; });
   var nw=vizNarrow();
   var W=nw?360:520, H=nw?220:238, ml=nw?32:44, mr=nw?38:42, mt=14, mb=nw?40:38;
   var iw=W-ml-mr, ih=H-mt-mb;
@@ -711,7 +815,7 @@ function chartCumulative(days){
   var everyK=Math.ceil(n/9);
   data.forEach(function(d,i){ if(i%everyK===0) s+=txt(X(i),H-14,d.label,{anchor:'middle',size:10.5}); });
   s+='</svg>';
-  return fig('累計ポイントの推移','積み上がった結果',null,s);
+  return fig(title||'累計ポイントの推移', sub||'積み上がった結果', null, s);
 }
 
 /* ③ 区分別のポイント（0を基線にした横棒） */
@@ -787,6 +891,7 @@ function initTip(){
 /* ========== ページ ========== */
 function renderPage(){
   var page=document.getElementById("page");
+  if(cur.ev==="__month"){ renderMonthly(page); return; }
   var ev=curEvent();
   if(!ev){ page.innerHTML="<p>回がありません。左の「＋ 新しい回を追加」から作成してください。</p>"; return; }
   if(cur.day==="sum"){ renderSummary(page, ev); return; }
@@ -795,9 +900,12 @@ function renderPage(){
 
   page.innerHTML =
     '<div class="sheethead">' +
-      '<input class="ttl" id="evTitle" value="'+esc(ev.title)+'" placeholder="第1回">' +
-      '<input class="daylabel" id="dayLabel" value="'+esc(day.label)+'" placeholder="1日目">' +
-      '<input type="date" class="datein" id="dayDate" value="'+esc(day.date)+'">' +
+      '<div class="evbox"><span class="kai">第<input type="number" inputmode="numeric" min="1" id="evNo" value="'+(+ev.no||1)+'">回</span>' +
+        '<input class="evname" id="evName" value="'+esc(ev.name||"")+'" placeholder="回の名称（任意）"></div>' +
+      '<div class="daybox"><span class="dayno">'+dayLabelAt(dayIndex(ev,day))+'</span>' +
+        (day.name?'<span class="dayname">'+esc(day.name)+'</span>':'') +
+        '<input type="date" class="datein" id="dayDate" value="'+esc(day.date)+'" title="この日の日付">' +
+        '<span class="datejp">'+(day.date?'':'日付を入れると月別集計に反映されます')+'</span></div>' +
       '<span class="spacer"></span>' +
       '<button class="minibtn" id="dupDay">この日を複製</button>' +
       '<button class="minibtn danger" id="delDay">この日を削除</button>' +
@@ -863,10 +971,14 @@ function renderPage(){
 
   bind("#inS", function(v){ day.s=Math.max(0,Math.floor(+v||0)); }, true);
   bind("#inL", function(v){ day.l=Math.max(0,Math.floor(+v||0)); }, true);
-  bind("#dayLabel", function(v){ day.label=v; renderTabs(); });
-  bind("#dayDate", function(v){ day.date=v; });
+  bind("#dayDate", function(v){
+    day.date=v;
+    page.querySelector(".datejp").textContent = v ? '' : '日付を入れると月別集計に反映されます';
+    renderTabs(); renderIndex();
+  });
   bind("#memo", function(v){ day.memo=v; });
-  bind("#evTitle", function(v){ ev.title=v; renderIndex(); });
+  bind("#evNo", function(v){ ev.no=Math.max(1,Math.floor(+v||1)); renderIndex(); });
+  bind("#evName", function(v){ ev.name=v; renderIndex(); });
   page.querySelector("#inS").addEventListener("keydown", gridNav);
   page.querySelector("#inL").addEventListener("keydown", gridNav);
 
@@ -892,19 +1004,20 @@ function renderPage(){
   });
   page.querySelector("#dupDay").onclick=function(){
     var c=JSON.parse(JSON.stringify(day));
-    c.id=uid(); c.label=(ev.days.length+1)+"日目"; c.date="";
+    c.id=uid(); c.date="";
     ev.days.push(c); cur.day=c.id; save(true); renderAll(); toast("複製しました");
   };
   page.querySelector("#delDay").onclick=function(){
     if(ev.days.length<=1){ toast("最後の1日は削除できません"); return; }
-    if(!confirm("「"+day.label+"」を削除します。よろしいですか？")) return;
+    if(!confirm("「"+dayLabelAt(dayIndex(ev,day))+"（"+dateJp(day.date)+"）」を削除します。よろしいですか？")) return;
     ev.days=ev.days.filter(function(d){return d.id!==day.id;});
     cur.day=ev.days[0].id; save(true); renderAll();
   };
   page.querySelector("#delEvent").onclick=function(){
-    if(!confirm("「"+ev.title+"」を丸ごと削除します。よろしいですか？")) return;
+    if(!confirm("「"+evTitle(ev)+"」を丸ごと削除します。よろしいですか？")) return;
     db.events=db.events.filter(function(e){return e.id!==ev.id;});
     if(!db.events.length) db.events.push(newEvent(1));
+    cur.ev=db.events[0].id;
     cur.ev=db.events[0].id; cur.day=db.events[0].days[0].id; save(true); renderAll();
   };
   recalc();
@@ -956,13 +1069,16 @@ function recalc(){
   var tpm=page.querySelector("#tpm"); tpm.className="calc "+signCls(t.pm); tpm.textContent=signTxt(t.pm)+" 件";
   var tpt=page.querySelector("#tpt"); tpt.className="calc pt "+signCls(t.pt); tpt.textContent=signTxt(t.pt);
   var figs=page.querySelector("#dayFigs");
-  if(figs) figs.innerHTML = chartCatPoints(day.rows, (day.label||'この日')+'の区分別') +
-                            chartBreakdown(day.rows, (day.label||'この日')+'の内訳');
+  var evx=curEvent();
+  var lb=evx ? dayLabelAt(dayIndex(evx,day)) : 'この日';
+  if(figs) figs.innerHTML = chartCatPoints(day.rows, lb+'（'+dateJp(day.date)+'）') +
+                            chartBreakdown(day.rows, lb+'（'+dateJp(day.date)+'）');
 }
 
 /* ========== 通算ページ ========== */
 function renderSummary(page, ev){
   var per = ev.days.map(function(d){ return {d:d, c:calcDay(d)}; });
+  var perItems = per.map(function(x,i){ return {label:dayLabelAt(i), c:x.c}; });
   var agg = per.reduce(function(a,x){ return {
     S:a.S+x.c.S, L:a.L+x.c.L,
     win:a.win+x.c.total.win, lose:a.lose+x.c.total.lose, half:a.half+x.c.total.half,
@@ -996,11 +1112,11 @@ function renderSummary(page, ev){
       '<td class="calc pt '+signCls(r.pt)+'">'+signTxt(r.pt)+'</td></tr>';
   }).join("");
 
-  var dayRows = per.map(function(x){
-    var p=x.c.total.pt;
+  var dayRows = per.map(function(x,i){
+    var p=x.c.total.pt, lb=dayLabelAt(i);
     return '<tr data-id="'+x.d.id+'">' +
-      '<td class="pick"><input type="checkbox" class="dayPick" value="'+x.d.id+'" aria-label="'+esc(x.d.label)+'を選択"></td>' +
-      '<td class="nm">'+esc(x.d.label)+(x.d.date?'<span style="font-weight:400;color:var(--ink-soft);font-size:11px"> '+esc(x.d.date)+'</span>':'')+'</td>' +
+      '<td class="pick"><input type="checkbox" class="dayPick" value="'+x.d.id+'" aria-label="'+esc(lb)+'を選択"></td>' +
+      '<td class="nm">'+esc(lb)+'<span style="display:block;font-weight:400;color:var(--ink-soft);font-size:11px">'+esc(dateJp(x.d.date))+'</span></td>' +
       '<td>'+x.c.S+'</td>' +
       '<td>'+x.c.L+'</td>' +
       '<td style="color:var(--ai)">'+pctTxt(x.c.joinRate)+'</td>' +
@@ -1011,7 +1127,7 @@ function renderSummary(page, ev){
   }).join("");
 
   page.innerHTML =
-    '<h2 class="sumhead">'+esc(ev.title)+'　通算</h2>' +
+    '<h2 class="sumhead">'+esc(evTitle(ev))+'　通算</h2>' +
     '<div class="band">' +
       '<div><div class="k">開催日数</div><div class="v">'+ev.days.length+'<small> 日</small></div></div>' +
       '<div><div class="k">S数 合計</div><div class="v">'+agg.S+'</div></div>' +
@@ -1037,8 +1153,8 @@ function renderSummary(page, ev){
       '<td class="calc pt '+signCls(agg.pt)+'">'+signTxt(agg.pt)+'</td>' +
     '</tr></tfoot></table>' +
     '<div class="figs">' +
-      chartDailyPoints(ev.days) + chartCumulative(ev.days) +
-      chartCatPoints(aggRows, ev.title+'の通算') + chartBreakdown(aggRows, ev.title+'の通算') +
+      chartDailyPoints(perItems) + chartCumulative(perItems) +
+      chartCatPoints(aggRows, evTitle(ev)+'の通算') + chartBreakdown(aggRows, evTitle(ev)+'の通算') +
     '</div>' +
     '<h3 style="font-family:\'Yu Mincho\',serif;font-size:17px;letter-spacing:.1em;margin:30px 0 4px">日別の一覧・削除</h3>' +
     '<table class="daylist"><thead><tr>' +
@@ -1048,6 +1164,7 @@ function renderSummary(page, ev){
       '<th style="width:84px">ポイント</th><th style="width:64px"></th>' +
     '</tr></thead><tbody>' + dayRows + '</tbody></table>' +
     '<div class="listbar">' +
+      '<button class="minibtn" id="sortDays">日付順に並べ替え</button>' +
       '<button class="minibtn" id="pickToggle">すべて選択／解除</button>' +
       '<button class="minibtn danger" id="delPicked">選択した日を削除</button>' +
       '<span class="cnt" id="pickCnt">0 日を選択中</span>' +
@@ -1071,6 +1188,14 @@ function renderSummary(page, ev){
   page.querySelector('#pickAll').addEventListener('change', function(e){
     picks().forEach(function(c){ c.checked=e.target.checked; }); refreshPick();
   });
+  page.querySelector('#sortDays').onclick=function(){
+    var undated=ev.days.filter(function(d){ return !d.date; });
+    var dated=ev.days.filter(function(d){ return !!d.date; })
+                     .sort(function(a,b){ return a.date<b.date?-1:(a.date>b.date?1:0); });
+    ev.days=dated.concat(undated);
+    save(true); renderAll();
+    toast(undated.length ? '日付順に並べ替えました（日付未設定は末尾）' : '日付順に並べ替えました');
+  };
   page.querySelector('#pickToggle').onclick=function(){
     var on = checked().length < picks().length;
     picks().forEach(function(c){ c.checked=on; }); refreshPick();
@@ -1081,8 +1206,9 @@ function renderSummary(page, ev){
   page.querySelector('#delPicked').onclick=function(){
     var ids=checked().map(function(c){ return c.value; });
     if(!ids.length){ toast('削除する日にチェックを入れてください'); return; }
-    var labels=ev.days.filter(function(d){ return ids.indexOf(d.id)>=0; })
-                      .map(function(d){ return d.label; }).join('、');
+    var labels=ev.days.map(function(d,i){ return {d:d,i:i}; })
+                      .filter(function(x){ return ids.indexOf(x.d.id)>=0; })
+                      .map(function(x){ return dayLabelAt(x.i)+'（'+dateJp(x.d.date)+'）'; }).join('、');
     var rest=ev.days.length-ids.length;
     var msg='次の日を削除します。\n\n　'+labels+'\n\n'+
             (rest>0 ? '（残り '+rest+' 日）' : '（すべての日を削除するため、空の1日目を作り直します）')+
@@ -1096,11 +1222,177 @@ function renderSummary(page, ev){
   refreshPick();
 }
 
+/* ========== 月別集計 ========== */
+function allDayRefs(){
+  var out=[];
+  db.events.forEach(function(ev){
+    ev.days.forEach(function(d,i){ out.push({ev:ev, d:d, i:i, c:calcDay(d)}); });
+  });
+  return out;
+}
+function allDays(){
+  var refs=allDayRefs(), pt=0, ms={};
+  refs.forEach(function(r){ pt+=r.c.total.pt; var k=monthKey(r.d.date); if(k) ms[k]=1; });
+  return {refs:refs, pt:n2(pt), months:Object.keys(ms).sort()};
+}
+function monthCount(all){ return all.months.length; }
+function monthShort(k){ var q=k.split("-"); return q[0].slice(2)+"/"+q[1]; }
+
+function blankAgg(){ return {S:0,L:0,win:0,lose:0,half:0,joined:0,pm:0,pt:0,days:0}; }
+function addAgg(a,c){
+  a.S+=c.S; a.L+=c.L; a.win+=c.total.win; a.lose+=c.total.lose; a.half+=c.total.half;
+  a.joined+=c.total.joined; a.pm+=c.total.pm; a.pt+=c.total.pt; a.days+=1;
+  return a;
+}
+function aggToCalc(a){
+  var t=calcRow({win:a.win,lose:a.lose,half:a.half});
+  t.joined=a.joined; t.pm=a.pm; t.pt=n2(a.pt);
+  return t;
+}
+/* 区分名ごとに勝ち・負け・ハーフを足し込む */
+function rowsFromRefs(refs){
+  var names=[], by={};
+  refs.forEach(function(r){
+    r.d.rows.forEach(function(row){
+      var n=row.name||"(無名)";
+      if(!by[n]){ by[n]={win:0,lose:0,half:0}; names.push(n); }
+      by[n].win+=+row.win||0; by[n].lose+=+row.lose||0; by[n].half+=+row.half||0;
+    });
+  });
+  return names.map(function(n){ return {name:n, win:by[n].win, lose:by[n].lose, half:by[n].half}; });
+}
+function groupByMonth(refs){
+  var keys=[], g={};
+  refs.forEach(function(r){
+    var k=monthKey(r.d.date);
+    if(!g[k]){ g[k]={key:k, agg:blankAgg(), refs:[]}; keys.push(k); }
+    g[k].agg=addAgg(g[k].agg, r.c); g[k].refs.push(r);
+  });
+  keys.sort(function(a,b){
+    if(a==="") return 1; if(b==="") return -1;
+    return a<b?-1:(a>b?1:0);
+  });
+  return keys.map(function(k){ return g[k]; });
+}
+
+function renderMonthly(page){
+  var refs=allDayRefs();
+  if(!refs.length){
+    page.innerHTML='<h2 class="sumhead">月別集計</h2><p>まだ記録がありません。左のリストから回を選んで入力してください。</p>';
+    return;
+  }
+  var groups=groupByMonth(refs);
+  var dated=groups.filter(function(g){ return g.key!==""; });
+  var total=blankAgg();
+  refs.forEach(function(r){ addAgg(total,r.c); });
+  var tot=aggToCalc(total);
+  var joinedRaces=Math.max(total.S-total.L,0);
+  var joinRate=total.S>0 ? joinedRaces/total.S : null;
+  var allRows=rowsFromRefs(refs);
+  var modeTxt={withHalf:"(勝ち + ハーフ×0.5) ÷ 参加数", winLoss:"勝ち ÷ (勝ち + 負け)", simple:"勝ち ÷ 参加数"}[db.settings.winMode];
+
+  var monthItems=dated.map(function(g){
+    return {label:monthShort(g.key), c:{total:aggToCalc(g.agg)}};
+  });
+
+  var rowsHtml=groups.map(function(g){
+    var a=g.agg, c=aggToCalc(a);
+    var jr=a.S>0 ? Math.max(a.S-a.L,0)/a.S : null;
+    var nm=g.key ? monthJp(g.key) : "日付未設定";
+    return '<tr data-mk="'+esc(g.key)+'"'+(cur.month===g.key?' class="picked"':'')+'>' +
+      '<td class="pick">'+(cur.month===g.key?'<span class="mkmark">▸</span>':'')+'</td>' +
+      '<td class="nm">'+esc(nm)+'<span style="display:block;font-weight:400;color:var(--ink-soft);font-size:11px">'+a.days+'日分</span></td>' +
+      '<td>'+a.S+'</td><td>'+a.L+'</td>' +
+      '<td style="color:var(--ai)">'+pctTxt(jr)+'</td>' +
+      '<td style="color:var(--ai)">'+pctTxt(c.wr)+'</td>' +
+      '<td class="'+signCls(a.pm)+'">'+signTxt(a.pm)+'</td>' +
+      '<td class="'+signCls(c.pt)+'" style="font-weight:700">'+signTxt(c.pt)+'</td>' +
+      '<td><button class="minibtn" data-mk="'+esc(g.key)+'">内訳</button></td></tr>';
+  }).join("");
+
+  page.innerHTML =
+    '<h2 class="sumhead">月別集計<small class="subttl">すべての回を日付でまとめたもの</small></h2>' +
+    '<div class="band">' +
+      '<div><div class="k">対象月数</div><div class="v">'+dated.length+'<small> か月</small></div></div>' +
+      '<div><div class="k">記録した日数</div><div class="v">'+total.days+'<small> 日</small></div></div>' +
+      '<div><div class="k">S数 合計</div><div class="v">'+total.S+'</div></div>' +
+      '<div><div class="k">参加率</div><div class="v" style="color:var(--ai)">'+pctTxt(joinRate)+'</div></div>' +
+      '<div><div class="k">勝 / 負 / ハーフ</div><div class="v">'+total.win+'<small> / </small>'+total.lose+'<small> / </small>'+total.half+'</div></div>' +
+      '<div><div class="k">勝率</div><div class="v" style="color:var(--ai)">'+pctTxt(tot.wr)+'</div></div>' +
+      '<div><div class="k">獲得ポイント</div><div class="v '+signCls(tot.pt)+'">'+signTxt(tot.pt)+'<small> pt</small></div></div>' +
+    '</div>' +
+    (monthItems.length
+      ? '<div class="figs">' +
+          chartDailyPoints(monthItems,'月別のポイント','0を基準に、その月の増減') +
+          chartCumulative(monthItems,'累計ポイントの推移','月を追った積み上げ') +
+          chartCatPoints(allRows,'全期間の通算') + chartBreakdown(allRows,'全期間の通算') +
+        '</div>' +
+        (groups.length>dated.length
+          ? '<p style="font-size:11.5px;color:var(--ink-soft);margin:2px 0 0">※ 上の2つの月グラフは日付を入力した日だけを集計しています。日付未設定の '+
+            (total.days - dated.reduce(function(a,g){return a+g.agg.days;},0))+' 日分は含みません（上段の数値には含めています）。</p>'
+          : '')
+      : '<p style="font-size:13px;color:var(--ink-soft)">日付が入力された日がないため、月別のグラフは表示できません。各日のページで日付を入れてください。</p>') +
+    '<h3 style="font-family:\'Yu Mincho\',serif;font-size:17px;letter-spacing:.1em;margin:30px 0 4px">月ごとの成績</h3>' +
+    '<table class="daylist monthlist"><thead><tr>' +
+      '<th class="pick"></th><th style="width:150px">年月</th><th style="width:64px">S数</th><th style="width:64px">L数</th>' +
+      '<th style="width:84px">参加率</th><th style="width:84px">勝率</th><th style="width:74px">±(件)</th>' +
+      '<th style="width:84px">ポイント</th><th style="width:64px"></th>' +
+    '</tr></thead><tbody>' + rowsHtml + '</tbody></table>' +
+    '<div id="mdetail"></div>' +
+    '<p style="font-size:11.5px;color:var(--ink-soft);margin-top:20px">計算ルール：ハーフ ＝ '+fmt(+db.settings.halfPt||0)+' ポイント ／ 負け ＝ −'+fmt(+db.settings.losePt||0)+' ポイント ／ 勝率 ＝ '+modeTxt+'</p>';
+
+  [].slice.call(page.querySelectorAll('.monthlist [data-mk]')).forEach(function(el){
+    if(el.tagName!=='BUTTON') return;
+    el.onclick=function(){
+      var k=el.getAttribute('data-mk');
+      cur.month = (cur.month===k) ? null : k;
+      renderPage();
+    };
+  });
+  if(cur.month!==null && cur.month!==undefined) renderMonthDetail(page, groups);
+}
+
+function renderMonthDetail(page, groups){
+  var g=groups.filter(function(x){ return x.key===cur.month; })[0];
+  var box=page.querySelector('#mdetail');
+  if(!g || !box){ return; }
+  var nm=g.key ? monthJp(g.key) : "日付未設定";
+  var rows=rowsFromRefs(g.refs);
+  var list=g.refs.slice().sort(function(a,b){ return (a.d.date||"")<(b.d.date||"")?-1:1; }).map(function(r){
+    var c=r.c, p=c.total.pt;
+    return '<tr>' +
+      '<td class="pick"></td>' +
+      '<td class="nm">'+esc(evTitle(r.ev))+'<span style="display:block;font-weight:400;color:var(--ink-soft);font-size:11px">'+esc(dayLabelAt(r.i))+'　'+esc(dateJp(r.d.date))+'</span></td>' +
+      '<td>'+c.S+'</td><td>'+c.L+'</td>' +
+      '<td style="color:var(--ai)">'+pctTxt(c.joinRate)+'</td>' +
+      '<td style="color:var(--ai)">'+pctTxt(c.total.wr)+'</td>' +
+      '<td class="'+signCls(c.total.pm)+'">'+signTxt(c.total.pm)+'</td>' +
+      '<td class="'+signCls(p)+'" style="font-weight:700">'+signTxt(p)+'</td>' +
+      '<td><button class="minibtn" data-open="'+r.ev.id+'|'+r.d.id+'">開く</button></td></tr>';
+  }).join("");
+
+  box.innerHTML =
+    '<h3 style="font-family:\'Yu Mincho\',serif;font-size:17px;letter-spacing:.1em;margin:34px 0 4px">'+esc(nm)+' の内訳</h3>' +
+    '<div class="figs">' + chartCatPoints(rows, nm) + chartBreakdown(rows, nm) + '</div>' +
+    '<table class="daylist"><thead><tr>' +
+      '<th class="pick"></th><th style="width:180px">回・日</th><th style="width:64px">S数</th><th style="width:64px">L数</th>' +
+      '<th style="width:84px">参加率</th><th style="width:84px">勝率</th><th style="width:74px">±(件)</th>' +
+      '<th style="width:84px">ポイント</th><th style="width:64px"></th>' +
+    '</tr></thead><tbody>'+list+'</tbody></table>';
+
+  [].slice.call(box.querySelectorAll('[data-open]')).forEach(function(b){
+    b.onclick=function(){
+      var q=b.getAttribute('data-open').split('|');
+      cur.ev=q[0]; cur.day=q[1]; renderAll();
+    };
+  });
+}
+
 function renderAll(){ renderIndex(); renderTabs(); renderPage(); }
 
 /* ========== ツール ========== */
 document.getElementById("addEvent").onclick=function(){
-  var ev=newEvent(db.events.length+1);
+  var ev=newEvent(nextEventNo());
   db.events.push(ev); cur.ev=ev.id; cur.day=ev.days[0].id; save(true); renderAll();
 };
 document.getElementById("btnPrint").onclick=function(){ window.print(); };
@@ -1130,16 +1422,16 @@ document.getElementById("fileInput").onchange=function(e){
   rd.readAsText(f); e.target.value="";
 };
 document.getElementById("btnCsv").onclick=function(){
-  var lines=[["回","日","日付","S数","L数","区分","勝ち","負け","ハーフ","参加した","参加率","勝率","プラスマイナス","ポイント"]];
-  db.events.forEach(function(ev){ ev.days.forEach(function(d){
-    var c=calcDay(d);
+  var lines=[["回番号","回の名称","日","日付","年月","S数","L数","区分","勝ち","負け","ハーフ","参加した","参加率","勝率","プラスマイナス","ポイント"]];
+  db.events.forEach(function(ev){ ev.days.forEach(function(d,di){
+    var c=calcDay(d), lb=dayLabelAt(di), mk=monthKey(d.date);
     d.rows.forEach(function(r,i){
       var x=c.rows[i];
-      lines.push([ev.title,d.label,d.date,c.S,c.L,r.name,x.win,x.lose,x.half,x.joined,
+      lines.push([ev.no,ev.name||"",lb,d.date,mk,c.S,c.L,r.name,x.win,x.lose,x.half,x.joined,
         c.S>0?(x.joined/c.S).toFixed(4):"", x.wr!==null?x.wr.toFixed(4):"", x.pm, x.pt]);
     });
     var t=c.total;
-    lines.push([ev.title,d.label,d.date,c.S,c.L,"全体",t.win,t.lose,t.half,t.joined,
+    lines.push([ev.no,ev.name||"",lb,d.date,mk,c.S,c.L,"全体",t.win,t.lose,t.half,t.joined,
       c.joinRate!==null?c.joinRate.toFixed(4):"", t.wr!==null?t.wr.toFixed(4):"", t.pm, t.pt]);
   });});
   var csv="﻿"+lines.map(function(r){ return r.map(function(v){
