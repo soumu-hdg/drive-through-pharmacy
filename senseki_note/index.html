@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>戦績ノート</title>
+<style>
+:root{
+  --paper:#faf6ec;
+  --paper-edge:#efe7d6;
+  --ink:#23262a;
+  --ink-soft:#6b6a63;
+  --rule:rgba(86,120,150,.20);
+  --margin-line:#c9736a;
+  --ai:#2f5d7c;
+  --plus:#007a5e;
+  --minus:#b5402c;
+  --tab:#e8dfc9;
+  --desk:#4a4740;
+}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  font-family:"Yu Gothic UI","Yu Gothic","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;
+  color:var(--ink);
+  background:var(--desk);
+  background-image:linear-gradient(115deg, rgba(255,255,255,.05) 0 2px, transparent 2px 9px);
+  font-size:15px;
+  line-height:1.6;
+}
+input,select,textarea,button{font-family:inherit;color:inherit}
+
+.wrap{display:flex; min-height:100vh; align-items:flex-start}
+
+/* ---- 左：開催回インデックス ---- */
+.index{
+  width:214px; flex:none; padding:22px 0 40px 18px;
+  position:sticky; top:0; max-height:100vh; overflow-y:auto;
+}
+.index h1{
+  font-family:"Yu Mincho","Hiragino Mincho ProN",serif;
+  font-size:19px; letter-spacing:.18em; color:#f2ecdd; margin:4px 0 4px 4px; font-weight:600;
+}
+.index .sub{font-size:11px; color:#b3ab9c; letter-spacing:.12em; margin:0 0 18px 5px}
+.idxlist{list-style:none; margin:0; padding:0}
+.idxlist li{margin-bottom:3px}
+.idxbtn{
+  display:block; width:100%; text-align:left; cursor:pointer;
+  background:var(--tab); border:none; border-right:4px solid #cbbf9f;
+  padding:9px 10px 9px 14px; font-size:14px; color:#4e4a41;
+  border-radius:3px 0 0 3px; box-shadow:inset -6px 0 8px -7px rgba(0,0,0,.4);
+}
+.idxbtn:hover{background:#f0e8d5}
+.idxbtn.on{
+  background:var(--paper); color:var(--ink); font-weight:700;
+  border-right-color:var(--ai); margin-right:-1px; padding-left:16px;
+}
+.idxbtn small{display:block; font-size:11px; color:var(--ink-soft); font-weight:400; letter-spacing:.04em}
+.addidx{
+  margin-top:12px; width:100%; background:transparent; color:#cfc7b5;
+  border:1px dashed #7d776b; padding:8px; border-radius:3px; cursor:pointer; font-size:13px;
+}
+.addidx:hover{color:#fff; border-color:#cfc7b5}
+.index .tools{margin-top:26px; padding-right:14px; display:flex; flex-direction:column; gap:6px}
+.index .tools button{
+  background:rgba(255,255,255,.06); color:#ddd6c6; border:1px solid rgba(255,255,255,.14);
+  padding:7px; border-radius:3px; cursor:pointer; font-size:12px; letter-spacing:.05em
+}
+.index .tools button:hover{background:rgba(255,255,255,.13)}
+
+/* ---- 右：ノート本体 ---- */
+.book{flex:1; min-width:0; padding:20px 26px 60px 0}
+
+.daytabs{display:flex; gap:2px; padding-left:46px; align-items:flex-end; flex-wrap:wrap}
+.dtab{
+  background:var(--tab); border:none; cursor:pointer;
+  padding:7px 15px 6px; font-size:13px; color:#5c574c;
+  border-radius:5px 5px 0 0; box-shadow:inset 0 -7px 8px -7px rgba(0,0,0,.35);
+  position:relative; top:1px;
+}
+.dtab:hover{background:#f1e9d7}
+.dtab.on{background:var(--paper); color:var(--ink); font-weight:700; box-shadow:none; padding-bottom:8px}
+.dtab.sum{margin-left:10px; background:#d8cfb6}
+.dtab.sum.on{background:var(--paper)}
+.dtab.add{background:transparent; color:#c5bda9; border:1px dashed #7d776b; border-bottom:none}
+
+.sheet{
+  background:var(--paper);
+  background-image:repeating-linear-gradient(to bottom, transparent 0 33px, var(--rule) 33px 34px);
+  background-position:0 12px;
+  border:1px solid var(--paper-edge);
+  box-shadow:0 12px 28px -14px rgba(0,0,0,.55), 0 2px 0 #e3dac6;
+  padding:26px 34px 34px 56px;
+  position:relative; min-height:640px;
+}
+.sheet::before{
+  content:""; position:absolute; left:38px; top:0; bottom:0; width:1px;
+  background:var(--margin-line); opacity:.5;
+}
+.holes{position:absolute; left:12px; top:0; bottom:0; width:16px}
+.holes i{
+  display:block; width:13px; height:13px; border-radius:50%;
+  background:#ded5c0; box-shadow:inset 1px 2px 3px rgba(0,0,0,.28);
+  margin:64px 0;
+}
+
+.sheethead{display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; margin-bottom:18px}
+.ttl{
+  font-family:"Yu Mincho","Hiragino Mincho ProN",serif;
+  font-size:27px; font-weight:600; letter-spacing:.06em;
+  border:none; background:transparent; border-bottom:1px solid #d6cdb8;
+  padding:2px 4px; width:190px;
+}
+.ttl:focus{outline:none; border-bottom-color:var(--ai); background:#fffdf6}
+.daylabel{
+  font-size:15px; color:var(--ink-soft); letter-spacing:.1em;
+  border:none; background:transparent; border-bottom:1px dotted #cfc6b1; width:90px; padding:2px
+}
+.datein{
+  border:none; background:transparent; border-bottom:1px dotted #cfc6b1;
+  font-size:13px; color:var(--ink-soft); padding:2px
+}
+.sheethead .spacer{flex:1}
+.minibtn{
+  background:#fff; border:1px solid #d8cfb9; color:#6a6459; font-size:12px;
+  padding:5px 10px; border-radius:2px; cursor:pointer
+}
+.minibtn:hover{border-color:var(--ai); color:var(--ai)}
+.minibtn.danger:hover{border-color:var(--minus); color:var(--minus)}
+
+.counts{display:inline-flex; gap:0; margin:0 0 22px; border-left:3px solid var(--ai); background:rgba(255,255,255,.55); flex-wrap:wrap}
+.cbox{padding:9px 20px; border-right:1px solid #e7dfcb}
+.cbox label{display:block; font-size:11px; letter-spacing:.1em; color:var(--ink-soft)}
+.cbox input{
+  width:84px; font-size:22px; font-variant-numeric:tabular-nums; font-weight:700;
+  border:none; background:transparent; border-bottom:1px solid #ddd4bf; padding:0 2px;
+}
+.cbox input:focus{outline:none; border-bottom-color:var(--ai); background:#fffdf5}
+.cbox .derived{font-size:22px; font-weight:700; font-variant-numeric:tabular-nums}
+.cbox .note{font-size:11px; color:var(--ink-soft)}
+
+table.ledger{border-collapse:collapse; width:100%; background:rgba(255,255,255,.72)}
+table.ledger th, table.ledger td{border:1px solid #ded5c0; padding:0; text-align:center}
+table.ledger thead th{
+  background:#efe8d7; font-size:11.5px; font-weight:600; letter-spacing:.06em;
+  color:#514c42; padding:7px 4px; white-space:nowrap;
+}
+table.ledger thead th.g1{background:#e6e9ee}
+table.ledger thead th.g2{background:#eaeee9}
+table.ledger td.rowname, table.ledger th.rowname{width:112px; text-align:left; padding:0 !important}
+.rn{display:flex; align-items:center; gap:4px}
+.rowname input{
+  width:100%; min-width:0; border:none; background:transparent; font-weight:700; font-size:15px;
+  padding:10px 4px 10px 12px; letter-spacing:.06em;
+  border-bottom:1px dashed transparent;
+}
+.rowname input:hover{border-bottom-color:#cbc0a6}
+.rowname input:focus{outline:none; background:#fffdf5; border-bottom-color:var(--ai)}
+.rowdel{
+  flex:none; width:24px; height:24px; margin-right:7px; padding:0;
+  border:1px solid #ded5c0; background:#fff; color:#9a9184;
+  font-size:15px; line-height:1; cursor:pointer; border-radius:2px;
+  opacity:0; transition:opacity .15s;
+}
+tbody tr:hover .rowdel, .rowdel:focus{opacity:1}
+.rowdel:hover{border-color:var(--minus); color:var(--minus)}
+@media (hover:none){ .rowdel{opacity:1} }
+.rowtools{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:10px}
+.rowtools .hint{font-size:11.5px; color:var(--ink-soft)}
+td.num input{
+  width:100%; border:none; background:transparent; text-align:center;
+  font-size:16px; font-variant-numeric:tabular-nums; padding:9px 2px; font-weight:600;
+}
+td.num input:focus{outline:none; background:#fff9e2; box-shadow:inset 0 0 0 2px var(--ai)}
+td.num input::-webkit-outer-spin-button,td.num input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+td.num input[type=number]{-moz-appearance:textfield}
+td.calc{font-variant-numeric:tabular-nums; font-size:15px; padding:9px 8px !important; background:rgba(245,241,231,.5)}
+td.calc.rate{color:var(--ai); font-weight:600}
+td.calc .pct{font-size:16px; font-weight:700}
+td.calc .frac{font-size:10.5px; color:var(--ink-soft); display:block; letter-spacing:.02em}
+.pos{color:var(--plus)} .neg{color:var(--minus)} .zero{color:var(--ink-soft)}
+td.pt{font-size:18px; font-weight:700}
+tfoot td{background:#efe8d7 !important; font-weight:700}
+table.ledger tfoot td.rowname{padding:10px 12px !important; font-size:15px; letter-spacing:.1em}
+tfoot td.calc{background:#e8e0cd !important}
+
+.memo{margin-top:22px}
+.memo label{font-size:11px; letter-spacing:.12em; color:var(--ink-soft)}
+.memo textarea{
+  width:100%; min-height:76px; border:none; border-left:3px solid #ddd4bf;
+  background:rgba(255,255,255,.4); padding:8px 12px; font-size:14px; line-height:1.9; resize:vertical;
+  box-sizing:border-box;
+}
+.memo textarea:focus{outline:none; border-left-color:var(--ai); background:#fffdf5}
+
+/* ---- グラフ ---- */
+.figs{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 34px; margin-top:26px}
+@media (max-width:980px){ .figs{grid-template-columns:1fr} }
+.fig{margin:0; padding:14px 0 10px; border-top:1px solid #ded5c0}
+.fig figcaption{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:2px}
+.fig figcaption b{font-size:13.5px; letter-spacing:.08em; font-weight:700}
+.fig figcaption span{font-size:11px; color:var(--ink-soft)}
+.fig svg{display:block; overflow:visible}
+.fig svg text{font-family:"Yu Gothic UI","Yu Gothic","Meiryo",sans-serif; font-variant-numeric:tabular-nums}
+.legend{display:flex; gap:14px; flex-wrap:wrap; font-size:11px; color:var(--ink-soft); margin:2px 0 4px}
+.legend span{display:inline-flex; align-items:center; gap:5px}
+.legend i{width:10px; height:10px; display:inline-block; border-radius:2px}
+.viztip{
+  position:fixed; z-index:99; pointer-events:none; opacity:0; transition:opacity .12s;
+  background:rgba(35,38,42,.95); color:#f6f1e5; font-size:12px; line-height:1.5;
+  padding:6px 10px; border-radius:3px; max-width:260px; white-space:nowrap;
+}
+.viztip.on{opacity:1}
+
+/* ---- 日の選択削除 ---- */
+.daylist td.pick, .daylist th.pick{width:34px; text-align:center}
+.daylist input[type=checkbox]{width:15px; height:15px; accent-color:var(--ai); cursor:pointer}
+.daylist tr.picked td{background:#fdf4e2}
+.listbar{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:10px 0 0}
+.listbar .cnt{font-size:12px; color:var(--ink-soft)}
+
+.sumhead{font-family:"Yu Mincho",serif; font-size:26px; letter-spacing:.1em; margin:0 0 18px}
+.band{
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(128px,1fr));
+  border-top:2px solid var(--ink); border-bottom:1px solid #ddd4bf; margin-bottom:24px;
+}
+.band>div{padding:12px 18px; border-right:1px solid #e2d9c4}
+.band>div:last-child{border-right:none}
+.band .k{font-size:11px; letter-spacing:.12em; color:var(--ink-soft)}
+.band .v{font-size:30px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.25}
+.band .v small{font-size:13px; font-weight:600; color:var(--ink-soft)}
+.daylist{width:100%; border-collapse:collapse; margin-top:8px}
+.daylist th{font-size:11px; letter-spacing:.08em; color:var(--ink-soft); text-align:left; padding:6px 8px; border-bottom:1px solid #ddd4bf}
+.daylist td{padding:7px 8px; border-bottom:1px solid #eae2ce; font-variant-numeric:tabular-nums}
+.daylist td.nm{font-weight:700}
+.bar{display:flex; align-items:center; gap:6px}
+.bar .track{flex:1; height:9px; background:#e9e1cd; position:relative}
+.bar .track i{position:absolute; top:0; bottom:0; display:block}
+.bar .track .mid{position:absolute; top:-3px; bottom:-3px; left:50%; width:1px; background:#a9a091}
+
+dialog{border:none; padding:0; background:transparent}
+dialog::backdrop{background:rgba(30,28,24,.6)}
+.modal{background:var(--paper); padding:26px 30px; width:440px; max-width:90vw; box-shadow:0 20px 50px rgba(0,0,0,.4)}
+.modal h2{font-family:"Yu Mincho",serif; font-size:19px; margin:0 0 16px; letter-spacing:.1em}
+.frow{margin-bottom:14px; font-size:14px}
+.frow label{display:block; font-size:11px; letter-spacing:.1em; color:var(--ink-soft); margin-bottom:3px}
+.frow input[type=number],.frow select{padding:6px 8px; border:1px solid #d5ccb6; background:#fff; width:100%; box-sizing:border-box}
+.frow .hint{font-size:11.5px; color:var(--ink-soft); margin-top:4px; line-height:1.6}
+.modal .act{display:flex; justify-content:flex-end; gap:8px; margin-top:20px}
+
+.toast{
+  position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+  background:rgba(35,38,42,.94); color:#f4efe3; padding:9px 20px; border-radius:3px;
+  font-size:13px; letter-spacing:.05em; opacity:0; pointer-events:none; transition:opacity .25s
+}
+.toast.on{opacity:1}
+
+@media print{
+  body{background:#fff}
+  .index,.daytabs,.minibtn,.addidx,.listbar,.viztip,.rowdel,.rowtools{display:none !important}
+  .daylist th.pick,.daylist td.pick{display:none}
+  .fig{break-inside:avoid}
+  .book{padding:0}
+  .sheet{box-shadow:none; border:none; background-image:none; padding:0}
+  .holes{display:none}
+  .sheet::before{display:none}
+}
+/* ==== タブレット以下：ノートを縦積みにする ==== */
+@media (max-width:980px){
+  .wrap{flex-direction:column; align-items:stretch}
+  .index, .book{width:100%; max-width:100%; box-sizing:border-box; min-width:0}
+  .index{
+    position:static; max-height:none; padding:14px 12px 0;
+    display:flex; flex-direction:column; gap:9px; overflow:hidden;
+  }
+  .idxlist, .index .tools, .daytabs{min-width:0; max-width:100%; scrollbar-width:none}
+  .idxlist::-webkit-scrollbar, .index .tools::-webkit-scrollbar, .daytabs::-webkit-scrollbar{display:none}
+  .index h1{margin:0 0 0 2px; font-size:17px}
+  .index .sub{display:none}
+  .idxlist{display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; -webkit-overflow-scrolling:touch}
+  .idxlist li{margin:0; flex:none}
+  .idxbtn{
+    border-radius:3px; border-right:none; border-bottom:3px solid #cbbf9f;
+    box-shadow:none; white-space:nowrap; padding:8px 14px;
+  }
+  .idxbtn.on{border-bottom-color:var(--ai); margin-right:0; padding-left:14px}
+  .addidx{margin:0; width:auto; align-self:flex-start; padding:8px 14px}
+  .index .tools{
+    margin:0; padding:0; flex-direction:row; gap:6px;
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+  }
+  .index .tools button{flex:none; white-space:nowrap; padding:8px 12px}
+  .book{padding:12px}
+  .daytabs{padding-left:6px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch}
+  .dtab{flex:none; white-space:nowrap}
+  .sheet{padding:18px 14px 26px 26px; min-height:0}
+  .holes{display:none}
+  .sheet::before{left:14px}
+}
+
+/* ==== スマートフォン：表を1件ずつのカードに組み替える ==== */
+@media (max-width:720px){
+  .sheethead{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; align-items:center}
+  .sheethead>*{min-width:0}
+  .ttl{font-size:23px; width:auto; grid-column:1/-1}
+  .daylabel{width:auto; font-size:16px; grid-column:1/2}
+  .datein{width:auto; font-size:14px; grid-column:2/-1}
+  .sheethead .spacer{display:none}
+  .sheethead .minibtn{padding:10px 4px; font-size:12px; text-align:center; white-space:nowrap}
+  .sheethead input{box-sizing:border-box}
+  .sumhead{font-size:21px}
+
+  .counts{display:grid; grid-template-columns:1fr 1fr; width:100%; margin-bottom:18px}
+  .cbox{padding:8px 12px; border-bottom:1px solid #e7dfcb}
+  .cbox input{width:100%; font-size:20px}
+  .cbox .derived{font-size:20px}
+  .band{grid-template-columns:1fr 1fr}
+  .band>div{padding:10px 12px; border-bottom:1px solid #e2d9c4}
+  .band .v{font-size:23px}
+
+  /* 集計表：6カラムのグリッドに再配置（列順は PC と同じ） */
+  table.ledger{background:none; border-collapse:separate}
+  table.ledger, table.ledger tbody, table.ledger tfoot{display:block}
+  table.ledger thead{display:none}
+  table.ledger tr{
+    display:grid; grid-template-columns:repeat(6,1fr);
+    background:rgba(255,255,255,.72); border:1px solid #ded5c0; margin-bottom:10px;
+  }
+  table.ledger tr>td{
+    border:none; border-top:1px solid #ece4d2; text-align:center;
+    padding:7px 3px !important; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:1px; min-width:0;
+  }
+  table.ledger tr>td::before{font-size:10px; letter-spacing:.05em; color:var(--ink-soft)}
+  table.ledger tr>td:nth-child(1){grid-column:span 6; border-top:none; background:#efe8d7; padding:0 !important; display:block}
+  table.ledger tr>td:nth-child(2),
+  table.ledger tr>td:nth-child(3),
+  table.ledger tr>td:nth-child(4),
+  table.ledger tr>td:nth-child(5),
+  table.ledger tr>td:nth-child(6),
+  table.ledger tr>td:nth-child(7){grid-column:span 2}
+  table.ledger tr>td:nth-child(8),
+  table.ledger tr>td:nth-child(9){grid-column:span 3}
+  table.ledger tr>td:nth-child(3),
+  table.ledger tr>td:nth-child(4),
+  table.ledger tr>td:nth-child(6),
+  table.ledger tr>td:nth-child(7),
+  table.ledger tr>td:nth-child(9){border-left:1px solid #ece4d2}
+  table.ledger tr>td:nth-child(2)::before{content:"勝ち"}
+  table.ledger tr>td:nth-child(3)::before{content:"負け"}
+  table.ledger tr>td:nth-child(4)::before{content:"ハーフ"}
+  table.ledger tr>td:nth-child(5)::before{content:"参加した"}
+  table.ledger tr>td:nth-child(6)::before{content:"参加率"}
+  table.ledger tr>td:nth-child(7)::before{content:"勝率"}
+  table.ledger tr>td:nth-child(8)::before{content:"プラスマイナス"}
+  table.ledger tr>td:nth-child(9)::before{content:"← のポイント"}
+  table.ledger td.rowname, table.ledger tfoot td.rowname{width:auto; padding:0 !important}
+  table.ledger tfoot td.rowname{padding:10px 12px !important}
+  .rowname input{padding:11px 12px; font-size:16px}
+  td.num input{font-size:17px; padding:2px}
+  td.calc{font-size:14px; background:none}
+  tfoot td.calc{background:none !important}
+  td.calc .pct{font-size:15px}
+  td.pt{font-size:16px}
+
+  /* 日別の一覧も同じ考え方でカードに */
+  .daylist, .daylist tbody{display:block}
+  .daylist thead{display:none}
+  .daylist tr{
+    display:grid; grid-template-columns:repeat(6,1fr); align-items:stretch;
+    border:1px solid #ded5c0; background:rgba(255,255,255,.6); margin-bottom:9px;
+  }
+  .daylist tr.picked{background:#fdf4e2}
+  .daylist td{
+    border:none; border-top:1px solid #ece4d2; padding:7px 4px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;
+  }
+  .daylist td::before{font-size:10px; color:var(--ink-soft)}
+  .daylist tr>td:nth-child(1){grid-column:span 1; border-top:none}
+  .daylist tr>td:nth-child(2){grid-column:span 5; border-top:none; align-items:flex-start; padding-left:2px}
+  .daylist tr>td:nth-child(3),
+  .daylist tr>td:nth-child(4),
+  .daylist tr>td:nth-child(5),
+  .daylist tr>td:nth-child(6),
+  .daylist tr>td:nth-child(7),
+  .daylist tr>td:nth-child(8){grid-column:span 2}
+  .daylist tr>td:nth-child(9){grid-column:span 6; padding:0}
+  .daylist tr>td:nth-child(4),
+  .daylist tr>td:nth-child(5),
+  .daylist tr>td:nth-child(7),
+  .daylist tr>td:nth-child(8){border-left:1px solid #ece4d2}
+  .daylist tr>td:nth-child(3)::before{content:"S数"}
+  .daylist tr>td:nth-child(4)::before{content:"L数"}
+  .daylist tr>td:nth-child(5)::before{content:"参加率"}
+  .daylist tr>td:nth-child(6)::before{content:"勝率"}
+  .daylist tr>td:nth-child(7)::before{content:"±(件)"}
+  .daylist tr>td:nth-child(8)::before{content:"ポイント"}
+  .daylist td.pick, .daylist th.pick{width:auto}
+  .daylist input[type=checkbox]{width:22px; height:22px}
+  .daylist td .minibtn{width:100%; border:none; border-top:1px solid #ece4d2; padding:10px; border-radius:0}
+  .listbar{gap:8px}
+  .listbar .minibtn{padding:10px 14px}
+
+  .memo textarea{font-size:16px}
+  .figs{margin-top:18px}
+  .fig figcaption b{font-size:13px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="index">
+    <h1>戦 績 ノ ー ト</h1>
+    <p class="sub">KAISAI RECORD</p>
+    <ul class="idxlist" id="idxlist"></ul>
+    <button class="addidx" id="addEvent">＋ 新しい回を追加</button>
+    <div class="tools">
+      <button id="btnSettings">計算ルール設定</button>
+      <button id="btnExport">バックアップ保存(JSON)</button>
+      <button id="btnImport">バックアップ読込</button>
+      <button id="btnCsv">CSV書き出し</button>
+      <button id="btnPrint">印刷 / PDF</button>
+      <button id="btnManual">使い方（説明書）</button>
+    </div>
+  </nav>
+
+  <main class="book">
+    <div class="daytabs" id="daytabs"></div>
+    <section class="sheet" id="sheet">
+      <div class="holes"><i></i><i></i><i></i><i></i><i></i></div>
+      <div id="page"></div>
+    </section>
+  </main>
+</div>
+
+<dialog id="dlg">
+  <form method="dialog" class="modal">
+    <h2>計算ルール設定</h2>
+    <div class="frow">
+      <label>ハーフ1件のポイント</label>
+      <input type="number" id="setHalfPt" step="0.1">
+      <div class="hint">ハーフが出たときに加算されるポイント。既定 0.5。<br>「ハーフは引き分け扱い（増減なし）」にしたい場合は 0 を入れてください。</div>
+    </div>
+    <div class="frow">
+      <label>勝率の計算方法</label>
+      <select id="setWinMode">
+        <option value="withHalf">(勝ち + ハーフ×0.5) ÷ 参加数</option>
+        <option value="winLoss">勝ち ÷ (勝ち + 負け) ※ハーフ除外</option>
+        <option value="simple">勝ち ÷ 参加数</option>
+      </select>
+    </div>
+    <div class="frow">
+      <label>負け1件のマイナス幅</label>
+      <input type="number" id="setLosePt" step="0.1">
+      <div class="hint">既定 1（＝1敗で −1ポイント）。</div>
+    </div>
+    <div class="act">
+      <button value="cancel" class="minibtn">閉じる</button>
+      <button value="ok" class="minibtn">保存する</button>
+    </div>
+  </form>
+</dialog>
+
+<input type="file" id="fileInput" accept="application/json" hidden>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+var KEY = "senseki_note_v1";
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+/* ========== データ ========== */
+function newDay(n){
+  return { id:uid(), label:n+"日目", date:"", s:0, l:0, memo:"",
+    rows:[
+      {name:"BB", win:0, lose:0, half:0},
+      {name:"2B", win:0, lose:0, half:0},
+      {name:"3B", win:0, lose:0, half:0},
+      {name:"4B", win:0, lose:0, half:0}
+    ]};
+}
+function nextRowName(rows){
+  var last=(rows[rows.length-1]||{}).name||"";
+  var m=/^(\d+)\s*B$/.exec(last);
+  if(m) return (parseInt(m[1],10)+1)+"B";
+  if(/^BB$/i.test(last)) return "2B";
+  return "新しい区分";
+}
+function newEvent(n){ return { id:uid(), title:"第"+n+"回", days:[newDay(1)] }; }
+function seed(){ return { version:1, settings:{halfPt:0.5, losePt:1, winMode:"withHalf"}, events:[newEvent(1)] }; }
+
+var db, cur = { ev:null, day:null };
+
+function load(){
+  try{
+    var raw = localStorage.getItem(KEY);
+    if(!raw) return null;
+    var d = JSON.parse(raw);
+    if(!d || !Array.isArray(d.events) || !d.events.length) return null;
+    d.settings = Object.assign({halfPt:0.5, losePt:1, winMode:"withHalf"}, d.settings||{});
+    return d;
+  }catch(e){ return null; }
+}
+var saveTimer=null;
+function save(now){
+  clearTimeout(saveTimer);
+  function go(){ try{ localStorage.setItem(KEY, JSON.stringify(db)); }catch(e){ toast("保存に失敗しました: "+e.message); } }
+  if(now) go(); else saveTimer = setTimeout(go, 300);
+}
+function toast(msg){
+  var t=document.getElementById("toast");
+  t.textContent=msg; t.classList.add("on");
+  clearTimeout(t._tm); t._tm=setTimeout(function(){ t.classList.remove("on"); },1800);
+}
+
+/* ========== 計算 ========== */
+function calcRow(r){
+  var win=+r.win||0, lose=+r.lose||0, half=+r.half||0;
+  var joined = win+lose+half;
+  var pm = win-lose;
+  var pt = win*1 - lose*(+db.settings.losePt||0) + half*(+db.settings.halfPt||0);
+  var wr = null, wrTxt = "";
+  var m = db.settings.winMode;
+  if(m==="winLoss"){ if(win+lose>0){ wr = win/(win+lose); wrTxt = win+" / "+(win+lose); } }
+  else if(m==="simple"){ if(joined>0){ wr = win/joined; wrTxt = win+" / "+joined; } }
+  else { if(joined>0){ wr = (win+half*0.5)/joined; wrTxt = fmt(win+half*0.5)+" / "+joined; } }
+  return {win:win,lose:lose,half:half,joined:joined,pm:pm,pt:pt,wr:wr,wrTxt:wrTxt};
+}
+function calcDay(day){
+  var rows = day.rows.map(calcRow);
+  var S = +day.s||0, L = +day.l||0;
+  var sum = rows.reduce(function(a,c){ return {
+    win:a.win+c.win, lose:a.lose+c.lose, half:a.half+c.half,
+    joined:a.joined+c.joined, pm:a.pm+c.pm, pt:a.pt+c.pt
+  };}, {win:0,lose:0,half:0,joined:0,pm:0,pt:0});
+  var total = calcRow(sum);
+  total.joined = sum.joined; total.pm = sum.pm; total.pt = sum.pt;
+  return { rows:rows, total:total, S:S, L:L, joinedRaces: Math.max(S-L,0),
+           joinRate: S>0 ? Math.max(S-L,0)/S : null };
+}
+function fmt(n){ return (Math.round(n*100)/100).toString(); }
+function pctTxt(v){ return v===null ? "—" : (Math.round(v*1000)/10).toFixed(1)+"%"; }
+function signCls(v){ return v>0?"pos":(v<0?"neg":"zero"); }
+function signTxt(v){ return (v>0?"+":"")+fmt(v); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+
+function curEvent(){ var e=db.events.filter(function(x){return x.id===cur.ev;})[0]; return e||db.events[0]; }
+function curDay(){ var ev=curEvent(); if(!ev) return null; return ev.days.filter(function(d){return d.id===cur.day;})[0]||null; }
+
+/* ========== 左インデックス ========== */
+function renderIndex(){
+  var ul=document.getElementById("idxlist");
+  ul.innerHTML="";
+  db.events.forEach(function(ev){
+    var t = ev.days.reduce(function(a,d){ return a+calcDay(d).total.pt; },0);
+    var li=document.createElement("li");
+    var b=document.createElement("button");
+    b.className="idxbtn"+(ev.id===cur.ev?" on":"");
+    b.innerHTML = esc(ev.title||"(無題)") +
+      "<small>"+ev.days.length+"日分 ／ 通算 <span class='"+signCls(t)+"'>"+signTxt(t)+"</span> pt</small>";
+    b.onclick=function(){ cur.ev=ev.id; cur.day=ev.days[0]?ev.days[0].id:"sum"; renderAll(); };
+    li.appendChild(b); ul.appendChild(li);
+  });
+}
+
+/* ========== 日タブ ========== */
+function renderTabs(){
+  var ev=curEvent(); var box=document.getElementById("daytabs"); box.innerHTML="";
+  if(!ev) return;
+  ev.days.forEach(function(d){
+    var b=document.createElement("button");
+    b.className="dtab"+(d.id===cur.day?" on":"");
+    b.textContent=d.label||"(無題)";
+    b.onclick=function(){ cur.day=d.id; renderTabs(); renderPage(); };
+    box.appendChild(b);
+  });
+  var add=document.createElement("button");
+  add.className="dtab add"; add.textContent="＋日を追加";
+  add.onclick=function(){
+    var d=newDay(ev.days.length+1); ev.days.push(d); cur.day=d.id; save(true); renderAll();
+  };
+  box.appendChild(add);
+  var s=document.createElement("button");
+  s.className="dtab sum"+(cur.day==="sum"?" on":"");
+  s.textContent="この回の通算";
+  s.onclick=function(){ cur.day="sum"; renderTabs(); renderPage(); };
+  box.appendChild(s);
+}
+
+/* ========== グラフ（SVG・自動生成） ==========
+   配色は dataviz 検証済み（light / surface #faf6ec / all-pairs）:
+   勝ち #007a5e ／ ハーフ #6f54a5 ／ 負け #b5402c
+   CVD分離 ΔE 8.8 ・ 通常視 ΔE 20.5 ・ コントラスト 全て3:1以上 */
+var VIZ={ win:"#007a5e", half:"#6f54a5", lose:"#b5402c",
+          grid:"#e2d9c4", axis:"#bcb3a0", ink:"#23262a", sub:"#6b6a63", surf:"#faf6ec" };
+
+function vizNarrow(){ return window.innerWidth<=720; }
+function niceStep(range,target){
+  if(!(range>0)) return 1;
+  var raw=range/target, mag=Math.pow(10,Math.floor(Math.log(raw)/Math.LN10)), n=raw/mag;
+  return (n<=1?1:(n<=2?2:(n<=5?5:10)))*mag;
+}
+function n2(v){ return Math.round(v*100)/100; }
+function svgOpen(W,H,title){
+  return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="'+esc(title)+'"><title>'+esc(title)+'</title>';
+}
+function tipAttr(t){ return t ? ' data-tip="'+esc(t)+'"' : ''; }
+/* 縦棒：baseline y0 → 先端 y1、先端側だけ4px角丸 */
+function vBar(x,y0,y1,w,fill,tip){
+  var h=Math.abs(y0-y1), r=Math.min(4,w/2,h), d;
+  if(h<0.8){ d='M'+x+','+(y0-0.5)+'h'+w+'v1h'+(-w)+'z'; }
+  else if(y1<y0){ d='M'+x+','+y0+'L'+x+','+(y1+r)+'Q'+x+','+y1+' '+(x+r)+','+y1+'L'+(x+w-r)+','+y1+'Q'+(x+w)+','+y1+' '+(x+w)+','+(y1+r)+'L'+(x+w)+','+y0+'Z'; }
+  else { d='M'+x+','+y0+'L'+x+','+(y1-r)+'Q'+x+','+y1+' '+(x+r)+','+y1+'L'+(x+w-r)+','+y1+'Q'+(x+w)+','+y1+' '+(x+w)+','+(y1-r)+'L'+(x+w)+','+y0+'Z'; }
+  return '<path d="'+d+'" fill="'+fill+'"'+tipAttr(tip)+'/>';
+}
+/* 横棒：baseline x0 → 先端 x1 */
+function hBar(x0,x1,y,h,fill,tip,square){
+  var w=Math.abs(x1-x0), r=square?0:Math.min(4,h/2,w), d;
+  if(w<0.8){ d='M'+(x0-0.5)+','+y+'v'+h+'h1v'+(-h)+'z'; }
+  else if(x1>x0){ d='M'+x0+','+y+'L'+(x1-r)+','+y+'Q'+x1+','+y+' '+x1+','+(y+r)+'L'+x1+','+(y+h-r)+'Q'+x1+','+(y+h)+' '+(x1-r)+','+(y+h)+'L'+x0+','+(y+h)+'Z'; }
+  else { d='M'+x0+','+y+'L'+(x1+r)+','+y+'Q'+x1+','+y+' '+x1+','+(y+r)+'L'+x1+','+(y+h-r)+'Q'+x1+','+(y+h)+' '+(x1+r)+','+(y+h)+'L'+x0+','+(y+h)+'Z'; }
+  return '<path d="'+d+'" fill="'+fill+'"'+tipAttr(tip)+'/>';
+}
+function txt(x,y,s,o){
+  o=o||{};
+  return '<text x="'+x+'" y="'+y+'" fill="'+(o.fill||VIZ.sub)+'" font-size="'+(o.size||11)+'"'+
+    (o.anchor?' text-anchor="'+o.anchor+'"':'')+(o.weight?' font-weight="'+o.weight+'"':'')+'>'+esc(s)+'</text>';
+}
+function fig(title,sub,legend,body){
+  return '<figure class="fig"><figcaption><b>'+esc(title)+'</b>'+(sub?'<span>'+esc(sub)+'</span>':'')+'</figcaption>'+
+    (legend||'')+body+'</figure>';
+}
+function legend3(){
+  return '<div class="legend">'+
+    '<span><i style="background:'+VIZ.win+'"></i>勝ち</span>'+
+    '<span><i style="background:'+VIZ.half+'"></i>ハーフ</span>'+
+    '<span><i style="background:'+VIZ.lose+'"></i>負け</span></div>';
+}
+function legendPM(){
+  return '<div class="legend">'+
+    '<span><i style="background:'+VIZ.win+'"></i>プラス</span>'+
+    '<span><i style="background:'+VIZ.lose+'"></i>マイナス</span></div>';
+}
+
+/* ① 日別のポイント（0を基線にした縦棒） */
+function chartDailyPoints(days){
+  var data=days.map(function(d){ var c=calcDay(d); return {label:d.label, v:c.total.pt, c:c}; });
+  var nw=vizNarrow();
+  var W=nw?360:520, H=nw?220:248, ml=nw?32:44, mr=nw?10:16, mt=14, mb=nw?44:50;
+  var iw=W-ml-mr, ih=H-mt-mb;
+  var vs=data.map(function(d){return d.v;}).concat([0]);
+  var vmax=Math.max.apply(null,vs), vmin=Math.min.apply(null,vs);
+  if(vmax===vmin){ vmax+=1; vmin-=1; }
+  var step=niceStep(vmax-vmin,4);
+  var hi=Math.ceil(vmax/step)*step, lo=Math.floor(vmin/step)*step;
+  if(hi===lo) hi+=step;
+  var Y=function(v){ return mt+ih*(hi-v)/(hi-lo); };
+  var s=svgOpen(W,H,'日別のポイント');
+  for(var t=lo; t<=hi+1e-9; t+=step){
+    var yy=Y(t);
+    s+='<line x1="'+ml+'" y1="'+yy+'" x2="'+(W-mr)+'" y2="'+yy+'" stroke="'+(Math.abs(t)<1e-9?VIZ.axis:VIZ.grid)+'" stroke-width="1"/>';
+    s+=txt(ml-8,yy+3.5,String(n2(t)),{anchor:'end'});
+  }
+  var n=data.length, bw=iw/n, w=Math.min(24,bw*0.52);
+  var maxI=0,minI=0;
+  data.forEach(function(d,i){ if(d.v>data[maxI].v) maxI=i; if(d.v<data[minI].v) minI=i; });
+  var everyK=Math.ceil(n/9);
+  data.forEach(function(d,i){
+    var cx=ml+bw*i+bw/2, y0=Y(0), y1=Y(d.v);
+    s+=vBar(cx-w/2,y0,y1,w, d.v<0?VIZ.lose:VIZ.win,
+        d.label+'：'+signTxt(d.v)+' pt（勝'+d.c.total.win+'／負'+d.c.total.lose+'／ハーフ'+d.c.total.half+'）');
+    if((i===maxI||i===minI) && Math.abs(d.v)>1e-9)
+      s+=txt(cx, d.v<0?y1+13:y1-6, signTxt(d.v), {anchor:'middle',fill:VIZ.ink,weight:700,size:11.5});
+    if(i%everyK===0) s+=txt(cx,H-8,d.label,{anchor:'middle',size:10.5});
+  });
+  s+='</svg>';
+  return fig('日別のポイント','0を基準に、その日の増減',legendPM(),s);
+}
+
+/* ② 累計ポイントの推移（折れ線） */
+function chartCumulative(days){
+  var acc=0, data=days.map(function(d){ acc+=calcDay(d).total.pt; return {label:d.label, v:n2(acc)}; });
+  var nw=vizNarrow();
+  var W=nw?360:520, H=nw?220:238, ml=nw?32:44, mr=nw?38:42, mt=14, mb=nw?40:38;
+  var iw=W-ml-mr, ih=H-mt-mb;
+  var vs=data.map(function(d){return d.v;}).concat([0]);
+  var vmax=Math.max.apply(null,vs), vmin=Math.min.apply(null,vs);
+  if(vmax===vmin){ vmax+=1; vmin-=1; }
+  var step=niceStep(vmax-vmin,4);
+  var hi=Math.ceil(vmax/step)*step, lo=Math.floor(vmin/step)*step;
+  if(hi===lo) hi+=step;
+  var Y=function(v){ return mt+ih*(hi-v)/(hi-lo); };
+  var n=data.length, X=function(i){ return n===1 ? ml+iw/2 : ml+iw*i/(n-1); };
+  var s=svgOpen(W,H,'累計ポイントの推移');
+  for(var t=lo; t<=hi+1e-9; t+=step){
+    var yy=Y(t);
+    s+='<line x1="'+ml+'" y1="'+yy+'" x2="'+(W-mr)+'" y2="'+yy+'" stroke="'+(Math.abs(t)<1e-9?VIZ.axis:VIZ.grid)+'" stroke-width="1"/>';
+    s+=txt(ml-8,yy+3.5,String(n2(t)),{anchor:'end'});
+  }
+  var last=data[n-1], col=last.v<0?VIZ.lose:VIZ.win;
+  if(n>1){
+    var dd=data.map(function(d,i){ return (i?'L':'M')+n2(X(i))+','+n2(Y(d.v)); }).join(' ');
+    s+='<path d="'+dd+'" fill="none" stroke="'+col+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+  }
+  data.forEach(function(d,i){
+    s+='<circle cx="'+n2(X(i))+'" cy="'+n2(Y(d.v))+'" r="4.5" fill="'+col+'" stroke="'+VIZ.surf+'" stroke-width="2"'+
+       tipAttr(d.label+'まで：累計 '+signTxt(d.v)+' pt')+'/>';
+  });
+  s+=txt(X(n-1)+9,Y(last.v)+4,signTxt(last.v),{fill:VIZ.ink,weight:700,size:12});
+  var everyK=Math.ceil(n/9);
+  data.forEach(function(d,i){ if(i%everyK===0) s+=txt(X(i),H-14,d.label,{anchor:'middle',size:10.5}); });
+  s+='</svg>';
+  return fig('累計ポイントの推移','積み上がった結果',null,s);
+}
+
+/* ③ 区分別のポイント（0を基線にした横棒） */
+function chartCatPoints(rows,caption){
+  var data=rows.map(function(r){ var c=calcRow(r); return {name:r.name||'(無名)', v:c.pt, c:c}; });
+  var nw=vizNarrow();
+  var W=nw?360:520, rowH=nw?32:30, ml=nw?52:76, mr=nw?44:54, mt=26;
+  var H=Math.max(120, 34+data.length*rowH+16), iw=W-ml-mr;
+  var m=Math.max.apply(null,data.map(function(d){return Math.abs(d.v);}).concat([1]));
+  var step=niceStep(m*2,4), hi=Math.ceil(m/step)*step || step;
+  var X=function(v){ return ml+iw*(v+hi)/(2*hi); };
+  var s=svgOpen(W,H,'区分別のポイント');
+  for(var t=-hi; t<=hi+1e-9; t+=step){
+    var xx=X(t);
+    s+='<line x1="'+n2(xx)+'" y1="'+(mt-8)+'" x2="'+n2(xx)+'" y2="'+(H-14)+'" stroke="'+(Math.abs(t)<1e-9?VIZ.axis:VIZ.grid)+'" stroke-width="1"/>';
+    s+=txt(xx,mt-13,String(n2(t)),{anchor:'middle',size:10});
+  }
+  data.forEach(function(d,i){
+    var y=mt+i*rowH, bh=Math.min(18,rowH-12), x0=X(0), x1=X(d.v);
+    s+=txt(ml-10,y+bh/2+4,d.name,{anchor:'end',fill:VIZ.ink,weight:700,size:12});
+    s+=hBar(x0,x1,y,bh, d.v<0?VIZ.lose:VIZ.win,
+        d.name+'：'+signTxt(d.v)+' pt（勝'+d.c.win+'／負'+d.c.lose+'／ハーフ'+d.c.half+'）');
+    s+=txt(d.v<0?x1-6:x1+6, y+bh/2+4, signTxt(d.v), {anchor:d.v<0?'end':'start',fill:VIZ.ink,weight:700,size:11.5});
+  });
+  s+='</svg>';
+  return fig('区分別のポイント', caption||'どの区分で稼げているか', legendPM(), s);
+}
+
+/* ④ 区分別の内訳（勝ち・ハーフ・負けの構成／100%積み上げ横棒） */
+function chartBreakdown(rows,caption){
+  var data=rows.map(function(r){ var c=calcRow(r); return {name:r.name||'(無名)', c:c}; });
+  var nw=vizNarrow();
+  var W=nw?360:520, rowH=nw?36:34, ml=nw?48:76, mr=nw?50:58, mt=16;
+  var H=Math.max(110, 18+data.length*rowH+18), iw=W-ml-mr, GAP=2;
+  var s=svgOpen(W,H,'区分別の勝ち・ハーフ・負けの内訳');
+  data.forEach(function(d,i){
+    var y=mt+i*rowH, bh=20, c=d.c;
+    s+=txt(ml-10,y+bh/2+4,d.name,{anchor:'end',fill:VIZ.ink,weight:700,size:12});
+    if(!c.joined){ s+=txt(ml,y+bh/2+4,'参加なし',{size:11}); return; }
+    var segs=[{v:c.win,f:VIZ.win,n:'勝ち'},{v:c.half,f:VIZ.half,n:'ハーフ'},{v:c.lose,f:VIZ.lose,n:'負け'}]
+      .filter(function(x){ return x.v>0; });
+    var avail=iw-GAP*(segs.length-1), x=ml;
+    segs.forEach(function(seg,k){
+      var w=avail*seg.v/c.joined, last=(k===segs.length-1);
+      s+=hBar(x,x+w,y,bh,seg.f,
+          d.name+' '+seg.n+'：'+seg.v+' 件（'+(Math.round(seg.v/c.joined*1000)/10).toFixed(1)+'%）', !last);
+      if(w>=26) s+=txt(x+w/2,y+bh/2+4.5,String(seg.v),{anchor:'middle',fill:'#ffffff',weight:700,size:11.5});
+      x+=w+GAP;
+    });
+    s+=txt(W-mr+8,y+bh/2+4,'計 '+c.joined,{size:11});
+  });
+  s+='</svg>';
+  return fig('区分別の内訳', caption||'参加した中での勝ち・ハーフ・負けの割合', legend3(), s);
+}
+
+/* ツールチップ（共通・1個だけ生成） */
+var tipEl=null;
+function initTip(){
+  tipEl=document.createElement('div'); tipEl.className='viztip'; document.body.appendChild(tipEl);
+  document.addEventListener('mousemove', function(e){
+    var t=(e.target && e.target.closest) ? e.target.closest('[data-tip]') : null;
+    if(!t){ tipEl.classList.remove('on'); return; }
+    tipEl.textContent=t.getAttribute('data-tip');
+    tipEl.classList.add('on');
+    var r=tipEl.getBoundingClientRect();
+    var x=e.clientX+14, y=e.clientY+16;
+    if(x+r.width>window.innerWidth-8) x=e.clientX-r.width-14;
+    if(y+r.height>window.innerHeight-8) y=e.clientY-r.height-16;
+    tipEl.style.left=x+'px'; tipEl.style.top=y+'px';
+  });
+}
+
+/* ========== ページ ========== */
+function renderPage(){
+  var page=document.getElementById("page");
+  var ev=curEvent();
+  if(!ev){ page.innerHTML="<p>回がありません。左の「＋ 新しい回を追加」から作成してください。</p>"; return; }
+  if(cur.day==="sum"){ renderSummary(page, ev); return; }
+  var day=curDay();
+  if(!day){ cur.day = ev.days[0] ? ev.days[0].id : "sum"; return renderPage(); }
+
+  page.innerHTML =
+    '<div class="sheethead">' +
+      '<input class="ttl" id="evTitle" value="'+esc(ev.title)+'" placeholder="第1回">' +
+      '<input class="daylabel" id="dayLabel" value="'+esc(day.label)+'" placeholder="1日目">' +
+      '<input type="date" class="datein" id="dayDate" value="'+esc(day.date)+'">' +
+      '<span class="spacer"></span>' +
+      '<button class="minibtn" id="dupDay">この日を複製</button>' +
+      '<button class="minibtn danger" id="delDay">この日を削除</button>' +
+      '<button class="minibtn danger" id="delEvent">この回を削除</button>' +
+    '</div>' +
+    '<div class="counts">' +
+      '<div class="cbox"><label>S 数（総数）</label><input type="number" inputmode="numeric" min="0" id="inS" value="'+(+day.s||0)+'"></div>' +
+      '<div class="cbox"><label>L 数（参加しなかった数）</label><input type="number" inputmode="numeric" min="0" id="inL" value="'+(+day.l||0)+'"></div>' +
+      '<div class="cbox"><label>参加した数（S − L）</label><div class="derived" id="dJoined">0</div></div>' +
+      '<div class="cbox"><label>全体 参加率</label><div class="derived" id="dRate" style="color:var(--ai)">—</div><div class="note">(S − L) ÷ S</div></div>' +
+    '</div>' +
+    '<table class="ledger"><thead><tr>' +
+      '<th class="rowname" style="text-align:left;padding-left:12px">区　分</th>' +
+      '<th style="width:70px">勝ち</th><th style="width:70px">負け</th><th style="width:70px">ハーフ</th>' +
+      '<th style="width:76px">参加した</th>' +
+      '<th class="g1" style="width:96px">参加率</th><th class="g1" style="width:104px">勝率</th>' +
+      '<th class="g2" style="width:110px">プラスマイナス</th><th class="g2" style="width:104px">← のポイント</th>' +
+    '</tr></thead><tbody id="tb"></tbody><tfoot><tr>' +
+      '<td class="rowname">全　体</td>' +
+      '<td class="calc" id="tw">0</td><td class="calc" id="tl">0</td><td class="calc" id="th">0</td>' +
+      '<td class="calc" id="tj">0</td><td class="calc rate" id="tpr">—</td><td class="calc rate" id="twr">—</td>' +
+      '<td class="calc" id="tpm">0</td><td class="calc pt" id="tpt">0</td>' +
+    '</tr></tfoot></table>' +
+    '<div class="rowtools">' +
+      '<button class="minibtn" id="addRow">＋ 区分（行）を追加</button>' +
+      '<span class="hint">区分名は直接書き換えられます。区分の構成はこの回のすべての日に共通です。</span>' +
+    '</div>' +
+    '<div class="figs" id="dayFigs"></div>' +
+    '<div class="memo"><label>メ　モ</label>' +
+      '<textarea id="memo" placeholder="その日の所感・条件など">'+esc(day.memo)+'</textarea></div>';
+
+  var tb=page.querySelector("#tb");
+  day.rows.forEach(function(r,i){
+    var tr=document.createElement("tr");
+    tr.innerHTML =
+      '<td class="rowname"><div class="rn">' +
+        '<input value="'+esc(r.name)+'" data-i="'+i+'" data-k="name" title="クリックして区分名を変更できます" placeholder="区分名">' +
+        '<button class="rowdel" data-del="'+i+'" title="この区分（行）を削除">×</button></div></td>' +
+      '<td class="num"><input type="number" inputmode="numeric" min="0" value="'+(+r.win||0)+'" data-i="'+i+'" data-k="win"></td>' +
+      '<td class="num"><input type="number" inputmode="numeric" min="0" value="'+(+r.lose||0)+'" data-i="'+i+'" data-k="lose"></td>' +
+      '<td class="num"><input type="number" inputmode="numeric" min="0" value="'+(+r.half||0)+'" data-i="'+i+'" data-k="half"></td>' +
+      '<td class="calc" data-c="joined">0</td>' +
+      '<td class="calc rate" data-c="prate">—</td>' +
+      '<td class="calc rate" data-c="wrate">—</td>' +
+      '<td class="calc" data-c="pm">0</td>' +
+      '<td class="calc pt" data-c="pt">0</td>';
+    tb.appendChild(tr);
+  });
+
+  Array.prototype.forEach.call(page.querySelectorAll("#tb input"), function(inp){
+    inp.addEventListener("input", function(){
+      var idx=+inp.dataset.i, r=day.rows[idx], k=inp.dataset.k;
+      if(k==="name"){
+        ev.days.forEach(function(d){ if(d.rows[idx]) d.rows[idx].name=inp.value; });
+        recalc();
+      } else {
+        r[k]=Math.max(0, Math.floor(+inp.value||0)); recalc(); renderIndex();
+      }
+      save();
+    });
+    inp.addEventListener("keydown", gridNav);
+  });
+
+  bind("#inS", function(v){ day.s=Math.max(0,Math.floor(+v||0)); }, true);
+  bind("#inL", function(v){ day.l=Math.max(0,Math.floor(+v||0)); }, true);
+  bind("#dayLabel", function(v){ day.label=v; renderTabs(); });
+  bind("#dayDate", function(v){ day.date=v; });
+  bind("#memo", function(v){ day.memo=v; });
+  bind("#evTitle", function(v){ ev.title=v; renderIndex(); });
+  page.querySelector("#inS").addEventListener("keydown", gridNav);
+  page.querySelector("#inL").addEventListener("keydown", gridNav);
+
+  page.querySelector("#addRow").onclick=function(){
+    if(day.rows.length>=12){ toast("区分は12までです"); return; }
+    var nm=nextRowName(day.rows);
+    ev.days.forEach(function(d){ d.rows.push({name:nm, win:0, lose:0, half:0}); });
+    save(true); renderPage(); renderIndex(); toast("区分「"+nm+"」を追加しました");
+  };
+  [].slice.call(page.querySelectorAll(".rowdel")).forEach(function(b){
+    b.onclick=function(){
+      if(day.rows.length<=1){ toast("区分は1つ以上必要です"); return; }
+      var idx=+b.getAttribute("data-del"), nm=day.rows[idx].name||"(無名)";
+      var used=ev.days.reduce(function(a,d){ var x=d.rows[idx]; return a+(x?(+x.win||0)+(+x.lose||0)+(+x.half||0):0); },0);
+      var msg='区分「'+nm+'」を削除します。\n'+
+              (ev.days.length>1 ? 'この回のすべての日（'+ev.days.length+'日分）から削除されます。\n' : '')+
+              (used>0 ? '入力済みの '+used+' 件も一緒に消えます。\n' : '')+
+              'よろしいですか？';
+      if(!confirm(msg)) return;
+      ev.days.forEach(function(d){ if(d.rows.length>idx) d.rows.splice(idx,1); });
+      save(true); renderPage(); renderIndex(); toast("区分「"+nm+"」を削除しました");
+    };
+  });
+  page.querySelector("#dupDay").onclick=function(){
+    var c=JSON.parse(JSON.stringify(day));
+    c.id=uid(); c.label=(ev.days.length+1)+"日目"; c.date="";
+    ev.days.push(c); cur.day=c.id; save(true); renderAll(); toast("複製しました");
+  };
+  page.querySelector("#delDay").onclick=function(){
+    if(ev.days.length<=1){ toast("最後の1日は削除できません"); return; }
+    if(!confirm("「"+day.label+"」を削除します。よろしいですか？")) return;
+    ev.days=ev.days.filter(function(d){return d.id!==day.id;});
+    cur.day=ev.days[0].id; save(true); renderAll();
+  };
+  page.querySelector("#delEvent").onclick=function(){
+    if(!confirm("「"+ev.title+"」を丸ごと削除します。よろしいですか？")) return;
+    db.events=db.events.filter(function(e){return e.id!==ev.id;});
+    if(!db.events.length) db.events.push(newEvent(1));
+    cur.ev=db.events[0].id; cur.day=db.events[0].days[0].id; save(true); renderAll();
+  };
+  recalc();
+
+  function bind(sel, fn, isNum){
+    var el=page.querySelector(sel);
+    el.addEventListener("input", function(){
+      fn(el.value); save();
+      if(isNum){ recalc(); renderIndex(); }
+    });
+  }
+}
+
+function gridNav(e){
+  if(e.key!=="Enter" && e.key!=="ArrowUp" && e.key!=="ArrowDown") return;
+  var list=Array.prototype.slice.call(document.querySelectorAll('#page input[type=number]'));
+  var i=list.indexOf(e.target); if(i<0) return;
+  var n = (e.key==="ArrowUp") ? i-1 : i+1;
+  if(list[n]){ e.preventDefault(); list[n].focus(); list[n].select(); }
+}
+
+function recalc(){
+  var day=curDay(); if(!day) return;
+  var c=calcDay(day);
+  var page=document.getElementById("page");
+  page.querySelector("#dJoined").textContent = c.joinedRaces;
+  page.querySelector("#dRate").textContent = pctTxt(c.joinRate);
+  var trs=Array.prototype.slice.call(page.querySelectorAll("#tb tr"));
+  trs.forEach(function(tr,i){
+    var r=c.rows[i];
+    tr.querySelector('[data-c=joined]').textContent = r.joined;
+    var pr = c.S>0 ? r.joined/c.S : null;
+    tr.querySelector('[data-c=prate]').innerHTML =
+      "<span class='pct'>"+pctTxt(pr)+"</span><span class='frac'>"+(c.S>0? r.joined+" / "+c.S : "S数を入力")+"</span>";
+    tr.querySelector('[data-c=wrate]').innerHTML =
+      "<span class='pct'>"+pctTxt(r.wr)+"</span><span class='frac'>"+(r.wrTxt||"—")+"</span>";
+    var pm=tr.querySelector('[data-c=pm]');
+    pm.className="calc "+signCls(r.pm); pm.textContent=signTxt(r.pm)+" 件";
+    var pt=tr.querySelector('[data-c=pt]');
+    pt.className="calc pt "+signCls(r.pt); pt.textContent=signTxt(r.pt);
+  });
+  var t=c.total;
+  page.querySelector("#tw").textContent=t.win;
+  page.querySelector("#tl").textContent=t.lose;
+  page.querySelector("#th").textContent=t.half;
+  page.querySelector("#tj").textContent=t.joined;
+  page.querySelector("#tpr").innerHTML="<span class='pct'>"+pctTxt(c.joinRate)+"</span><span class='frac'>"+(c.S>0?c.joinedRaces+" / "+c.S:"—")+"</span>";
+  page.querySelector("#twr").innerHTML="<span class='pct'>"+pctTxt(t.wr)+"</span><span class='frac'>"+(t.wrTxt||"—")+"</span>";
+  var tpm=page.querySelector("#tpm"); tpm.className="calc "+signCls(t.pm); tpm.textContent=signTxt(t.pm)+" 件";
+  var tpt=page.querySelector("#tpt"); tpt.className="calc pt "+signCls(t.pt); tpt.textContent=signTxt(t.pt);
+  var figs=page.querySelector("#dayFigs");
+  if(figs) figs.innerHTML = chartCatPoints(day.rows, (day.label||'この日')+'の区分別') +
+                            chartBreakdown(day.rows, (day.label||'この日')+'の内訳');
+}
+
+/* ========== 通算ページ ========== */
+function renderSummary(page, ev){
+  var per = ev.days.map(function(d){ return {d:d, c:calcDay(d)}; });
+  var agg = per.reduce(function(a,x){ return {
+    S:a.S+x.c.S, L:a.L+x.c.L,
+    win:a.win+x.c.total.win, lose:a.lose+x.c.total.lose, half:a.half+x.c.total.half,
+    joined:a.joined+x.c.total.joined, pm:a.pm+x.c.total.pm, pt:a.pt+x.c.total.pt
+  };}, {S:0,L:0,win:0,lose:0,half:0,joined:0,pm:0,pt:0});
+  var tot = calcRow(agg); tot.joined=agg.joined; tot.pm=agg.pm; tot.pt=agg.pt;
+  var joinedRaces = Math.max(agg.S-agg.L,0);
+  var joinRate = agg.S>0 ? joinedRaces/agg.S : null;
+
+  var names=[]; var byName={};
+  ev.days.forEach(function(d){ d.rows.forEach(function(r){
+    var n=r.name||"(無名)";
+    if(!byName[n]){ byName[n]={win:0,lose:0,half:0}; names.push(n); }
+    byName[n].win+=+r.win||0; byName[n].lose+=+r.lose||0; byName[n].half+=+r.half||0;
+  });});
+
+  var aggRows = names.map(function(n){
+    return {name:n, win:byName[n].win, lose:byName[n].lose, half:byName[n].half};
+  });
+  var modeTxt = {withHalf:"(勝ち + ハーフ×0.5) ÷ 参加数", winLoss:"勝ち ÷ (勝ち + 負け)", simple:"勝ち ÷ 参加数"}[db.settings.winMode];
+
+  var rowsHtml = names.map(function(n){
+    var r=calcRow(byName[n]); var pr=agg.S>0?r.joined/agg.S:null;
+    return '<tr>' +
+      '<td class="rowname" style="padding:10px 12px !important;font-weight:700">'+esc(n)+'</td>' +
+      '<td class="calc">'+r.win+'</td><td class="calc">'+r.lose+'</td><td class="calc">'+r.half+'</td>' +
+      '<td class="calc">'+r.joined+'</td>' +
+      '<td class="calc rate"><span class="pct">'+pctTxt(pr)+'</span><span class="frac">'+(agg.S>0?r.joined+" / "+agg.S:"—")+'</span></td>' +
+      '<td class="calc rate"><span class="pct">'+pctTxt(r.wr)+'</span><span class="frac">'+(r.wrTxt||"—")+'</span></td>' +
+      '<td class="calc '+signCls(r.pm)+'">'+signTxt(r.pm)+' 件</td>' +
+      '<td class="calc pt '+signCls(r.pt)+'">'+signTxt(r.pt)+'</td></tr>';
+  }).join("");
+
+  var dayRows = per.map(function(x){
+    var p=x.c.total.pt;
+    return '<tr data-id="'+x.d.id+'">' +
+      '<td class="pick"><input type="checkbox" class="dayPick" value="'+x.d.id+'" aria-label="'+esc(x.d.label)+'を選択"></td>' +
+      '<td class="nm">'+esc(x.d.label)+(x.d.date?'<span style="font-weight:400;color:var(--ink-soft);font-size:11px"> '+esc(x.d.date)+'</span>':'')+'</td>' +
+      '<td>'+x.c.S+'</td>' +
+      '<td>'+x.c.L+'</td>' +
+      '<td style="color:var(--ai)">'+pctTxt(x.c.joinRate)+'</td>' +
+      '<td style="color:var(--ai)">'+pctTxt(x.c.total.wr)+'</td>' +
+      '<td class="'+signCls(x.c.total.pm)+'">'+signTxt(x.c.total.pm)+'</td>' +
+      '<td class="'+signCls(p)+'" style="font-weight:700">'+signTxt(p)+'</td>' +
+      '<td><button class="minibtn" data-open="'+x.d.id+'">開く</button></td></tr>';
+  }).join("");
+
+  page.innerHTML =
+    '<h2 class="sumhead">'+esc(ev.title)+'　通算</h2>' +
+    '<div class="band">' +
+      '<div><div class="k">開催日数</div><div class="v">'+ev.days.length+'<small> 日</small></div></div>' +
+      '<div><div class="k">S数 合計</div><div class="v">'+agg.S+'</div></div>' +
+      '<div><div class="k">参加率</div><div class="v" style="color:var(--ai)">'+pctTxt(joinRate)+'</div></div>' +
+      '<div><div class="k">勝 / 負 / ハーフ</div><div class="v">'+agg.win+'<small> / </small>'+agg.lose+'<small> / </small>'+agg.half+'</div></div>' +
+      '<div><div class="k">勝率</div><div class="v" style="color:var(--ai)">'+pctTxt(tot.wr)+'</div></div>' +
+      '<div><div class="k">プラスマイナス</div><div class="v '+signCls(agg.pm)+'">'+signTxt(agg.pm)+'<small> 件</small></div></div>' +
+      '<div><div class="k">獲得ポイント</div><div class="v '+signCls(agg.pt)+'">'+signTxt(agg.pt)+'<small> pt</small></div></div>' +
+    '</div>' +
+    '<table class="ledger"><thead><tr>' +
+      '<th class="rowname" style="text-align:left;padding-left:12px">区　分</th>' +
+      '<th style="width:70px">勝ち</th><th style="width:70px">負け</th><th style="width:70px">ハーフ</th>' +
+      '<th style="width:76px">参加した</th>' +
+      '<th class="g1" style="width:96px">参加率</th><th class="g1" style="width:104px">勝率</th>' +
+      '<th class="g2" style="width:110px">プラスマイナス</th><th class="g2" style="width:104px">← のポイント</th>' +
+    '</tr></thead><tbody>' + rowsHtml + '</tbody><tfoot><tr>' +
+      '<td class="rowname">全　体</td>' +
+      '<td class="calc">'+agg.win+'</td><td class="calc">'+agg.lose+'</td><td class="calc">'+agg.half+'</td>' +
+      '<td class="calc">'+agg.joined+'</td>' +
+      '<td class="calc rate"><span class="pct">'+pctTxt(joinRate)+'</span><span class="frac">'+(agg.S>0?joinedRaces+" / "+agg.S:"—")+'</span></td>' +
+      '<td class="calc rate"><span class="pct">'+pctTxt(tot.wr)+'</span><span class="frac">'+(tot.wrTxt||"—")+'</span></td>' +
+      '<td class="calc '+signCls(agg.pm)+'">'+signTxt(agg.pm)+' 件</td>' +
+      '<td class="calc pt '+signCls(agg.pt)+'">'+signTxt(agg.pt)+'</td>' +
+    '</tr></tfoot></table>' +
+    '<div class="figs">' +
+      chartDailyPoints(ev.days) + chartCumulative(ev.days) +
+      chartCatPoints(aggRows, ev.title+'の通算') + chartBreakdown(aggRows, ev.title+'の通算') +
+    '</div>' +
+    '<h3 style="font-family:\'Yu Mincho\',serif;font-size:17px;letter-spacing:.1em;margin:30px 0 4px">日別の一覧・削除</h3>' +
+    '<table class="daylist"><thead><tr>' +
+      '<th class="pick"><input type="checkbox" id="pickAll" aria-label="すべて選択"></th>' +
+      '<th style="width:124px">日</th><th style="width:64px">S数</th><th style="width:64px">L数</th>' +
+      '<th style="width:84px">参加率</th><th style="width:84px">勝率</th><th style="width:74px">±(件)</th>' +
+      '<th style="width:84px">ポイント</th><th style="width:64px"></th>' +
+    '</tr></thead><tbody>' + dayRows + '</tbody></table>' +
+    '<div class="listbar">' +
+      '<button class="minibtn" id="pickToggle">すべて選択／解除</button>' +
+      '<button class="minibtn danger" id="delPicked">選択した日を削除</button>' +
+      '<span class="cnt" id="pickCnt">0 日を選択中</span>' +
+    '</div>' +
+    '<p style="font-size:11.5px;color:var(--ink-soft);margin-top:20px">計算ルール：ハーフ ＝ '+fmt(+db.settings.halfPt||0)+' ポイント ／ 負け ＝ −'+fmt(+db.settings.losePt||0)+' ポイント ／ 勝率 ＝ '+modeTxt+'</p>';
+
+  /* --- 日の選択・削除 --- */
+  var picks=function(){ return [].slice.call(page.querySelectorAll('.dayPick')); };
+  var checked=function(){ return picks().filter(function(c){ return c.checked; }); };
+  function refreshPick(){
+    var n=checked().length;
+    page.querySelector('#pickCnt').textContent = n+' 日を選択中';
+    picks().forEach(function(c){
+      var tr=c.closest('tr'); if(tr) tr.className = c.checked ? 'picked' : '';
+    });
+    var all=page.querySelector('#pickAll');
+    all.checked = n>0 && n===picks().length;
+    all.indeterminate = n>0 && n<picks().length;
+  }
+  picks().forEach(function(c){ c.addEventListener('change', refreshPick); });
+  page.querySelector('#pickAll').addEventListener('change', function(e){
+    picks().forEach(function(c){ c.checked=e.target.checked; }); refreshPick();
+  });
+  page.querySelector('#pickToggle').onclick=function(){
+    var on = checked().length < picks().length;
+    picks().forEach(function(c){ c.checked=on; }); refreshPick();
+  };
+  [].slice.call(page.querySelectorAll('[data-open]')).forEach(function(b){
+    b.onclick=function(){ cur.day=b.getAttribute('data-open'); renderTabs(); renderPage(); };
+  });
+  page.querySelector('#delPicked').onclick=function(){
+    var ids=checked().map(function(c){ return c.value; });
+    if(!ids.length){ toast('削除する日にチェックを入れてください'); return; }
+    var labels=ev.days.filter(function(d){ return ids.indexOf(d.id)>=0; })
+                      .map(function(d){ return d.label; }).join('、');
+    var rest=ev.days.length-ids.length;
+    var msg='次の日を削除します。\n\n　'+labels+'\n\n'+
+            (rest>0 ? '（残り '+rest+' 日）' : '（すべての日を削除するため、空の1日目を作り直します）')+
+            '\nこの操作は取り消せません。よろしいですか？';
+    if(!confirm(msg)) return;
+    ev.days=ev.days.filter(function(d){ return ids.indexOf(d.id)<0; });
+    if(!ev.days.length) ev.days.push(newDay(1));
+    cur.day='sum'; save(true); renderAll();
+    toast(ids.length+'日を削除しました');
+  };
+  refreshPick();
+}
+
+function renderAll(){ renderIndex(); renderTabs(); renderPage(); }
+
+/* ========== ツール ========== */
+document.getElementById("addEvent").onclick=function(){
+  var ev=newEvent(db.events.length+1);
+  db.events.push(ev); cur.ev=ev.id; cur.day=ev.days[0].id; save(true); renderAll();
+};
+document.getElementById("btnPrint").onclick=function(){ window.print(); };
+document.getElementById("btnManual").onclick=function(){ window.open("manual/index.html","_blank"); };
+document.getElementById("btnExport").onclick=function(){
+  var blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="戦績ノート_"+new Date().toISOString().slice(0,10)+".json";
+  a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); },1000);
+  toast("バックアップを保存しました");
+};
+document.getElementById("btnImport").onclick=function(){ document.getElementById("fileInput").click(); };
+document.getElementById("fileInput").onchange=function(e){
+  var f=e.target.files[0]; if(!f) return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    try{
+      var d=JSON.parse(rd.result);
+      if(!d || !Array.isArray(d.events) || !d.events.length) throw new Error("形式が違います");
+      if(!confirm("現在のデータを読み込んだ内容で置き換えます。よろしいですか？")) return;
+      db=d; db.settings=Object.assign({halfPt:0.5,losePt:1,winMode:"withHalf"},db.settings||{});
+      cur.ev=db.events[0].id; cur.day=db.events[0].days[0].id;
+      save(true); renderAll(); toast("読み込みました");
+    }catch(err){ alert("読み込めませんでした: "+err.message); }
+  };
+  rd.readAsText(f); e.target.value="";
+};
+document.getElementById("btnCsv").onclick=function(){
+  var lines=[["回","日","日付","S数","L数","区分","勝ち","負け","ハーフ","参加した","参加率","勝率","プラスマイナス","ポイント"]];
+  db.events.forEach(function(ev){ ev.days.forEach(function(d){
+    var c=calcDay(d);
+    d.rows.forEach(function(r,i){
+      var x=c.rows[i];
+      lines.push([ev.title,d.label,d.date,c.S,c.L,r.name,x.win,x.lose,x.half,x.joined,
+        c.S>0?(x.joined/c.S).toFixed(4):"", x.wr!==null?x.wr.toFixed(4):"", x.pm, x.pt]);
+    });
+    var t=c.total;
+    lines.push([ev.title,d.label,d.date,c.S,c.L,"全体",t.win,t.lose,t.half,t.joined,
+      c.joinRate!==null?c.joinRate.toFixed(4):"", t.wr!==null?t.wr.toFixed(4):"", t.pm, t.pt]);
+  });});
+  var csv="﻿"+lines.map(function(r){ return r.map(function(v){
+    var s=String(v==null?"":v);
+    return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  }).join(","); }).join("\r\n");
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download="戦績ノート_"+new Date().toISOString().slice(0,10)+".csv";
+  a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); },1000);
+  toast("CSVを書き出しました");
+};
+var dlg=document.getElementById("dlg");
+document.getElementById("btnSettings").onclick=function(){
+  document.getElementById("setHalfPt").value=db.settings.halfPt;
+  document.getElementById("setLosePt").value=db.settings.losePt;
+  document.getElementById("setWinMode").value=db.settings.winMode;
+  dlg.showModal();
+};
+dlg.addEventListener("close",function(){
+  if(dlg.returnValue!=="ok") return;
+  db.settings.halfPt=+document.getElementById("setHalfPt").value||0;
+  db.settings.losePt=+document.getElementById("setLosePt").value||0;
+  db.settings.winMode=document.getElementById("setWinMode").value;
+  save(true); renderAll(); toast("計算ルールを保存しました");
+});
+window.addEventListener("beforeunload",function(){ save(true); });
+var wasNarrow=vizNarrow(), rzTimer=null;
+window.addEventListener("resize",function(){
+  clearTimeout(rzTimer);
+  rzTimer=setTimeout(function(){
+    var n=vizNarrow();
+    if(n!==wasNarrow){ wasNarrow=n; renderPage(); }
+  },200);
+});
+
+/* ========== 起動 ========== */
+db = load() || seed();
+cur.ev = db.events[0].id;
+cur.day = db.events[0].days[0].id;
+initTip();
+renderAll();
+save(true);
+</script>
+</body>
+</html>
