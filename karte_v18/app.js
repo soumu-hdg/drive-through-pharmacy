@@ -563,6 +563,8 @@ function saveCurrentKarte() {
   if (extChk) k.rxModeExternal = extChk.checked;
   const memoEl = document.getElementById('patientMemo');
   if (memoEl) { const p = patients.find(x => x.id === currentPatientId); if (p) p.memo = memoEl.value; }
+  // オンライン診療の記録（別紙様式14の報告用）
+  if (typeof tmVisitSaveToKarte === 'function') tmVisitSaveToKarte(k);
 }
 
 function loadCurrentKarte() {
@@ -579,6 +581,8 @@ function loadCurrentKarte() {
   document.getElementById('rxDays').value = k.rxDays;
   const extChk = document.getElementById('rxModeExternal');
   if (extChk) extChk.checked = k.rxModeExternal || false;
+  // オンライン診療の記録（別紙様式14の報告用）
+  if (typeof tmVisitLoadFromKarte === 'function') tmVisitLoadFromKarte(k);
 }
 
 function renderAllKarte() {

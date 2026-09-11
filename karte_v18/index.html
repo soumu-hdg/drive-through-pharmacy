@@ -6,6 +6,7 @@
 <title>ドライブスルー診療 電子カルテ v0.15</title>
 <link rel="stylesheet" href="style.css?v=20260806_v14">
 <link rel="stylesheet" href="rezept_create.css?v=20260907_v4">
+<link rel="stylesheet" href="telemed_report.css?v=20260911_v1">
 <!-- CDN: バージョン固定 + SRI(改竄検知) + crossorigin。更新時はハッシュも再計算すること -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" integrity="sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -63,6 +64,7 @@
     <span id="authUserBadge" style="display:none;background:#dbeafe;color:#1d4ed8;padding:3px 10px;border-radius:6px;font-size:11px;margin-left:8px;"></span>
     <button onclick="openRezeptCreate()" title="レセプト作成（月次／日次）" style="font-size:11px;padding:4px 10px;background:#c9821f;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-left:4px;">&#128203; レセプト作成</button>
     <button onclick="window.open('receipt.html','_blank')" style="font-size:11px;padding:4px 10px;background:#3a6b35;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-left:4px;">&#128203; レセプト点検</button>
+    <button onclick="openTelemedReport()" title="情報通信機器を用いた診療に係る報告書（別紙様式14・8月報告）" style="font-size:11px;padding:4px 10px;background:#0a4d12;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-left:4px;">&#128225; 様式14</button>
     <button onclick="openUserManager()" style="font-size:11px;padding:4px 10px;background:#6366f1;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-left:4px;">ID管理</button>
     <button onclick="handleLogout()" style="font-size:11px;padding:4px 10px;background:#ef4444;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-left:4px;">ログアウト</button>
   </div>
@@ -235,6 +237,21 @@
             </select>
             <input type="text" class="form-input" id="chiefComplaint" placeholder="主訴を入力（自由記載）">
           </div>
+        </div>
+
+        <!-- オンライン診療の記録（別紙様式14の報告用・2026-09-11追加）
+             ここで入れた内容がそのまま年1回の「情報通信機器を用いた診療に係る報告書」に集計される。
+             ※患者の所在は住所ではなく「診療を受けたときに患者がいた場所」を選ぶこと。 -->
+        <div class="tmv-bar" id="telemedVisitBar">
+          <label class="tmv-main"><input type="checkbox" id="tmvOnline" onchange="tmVisitToggle()"> オンライン診療（情報通信機器を用いた診療）</label>
+          <span class="tmv-detail" id="tmvDetail" style="display:none;">
+            <label>患者の所在
+              <select id="tmvPref" onchange="tmVisitToggle()"><option value="">選択...</option></select>
+            </label>
+            <label><input type="checkbox" id="tmvReferred" onchange="tmVisitToggle()"> 対応困難・緊急性のため他院へ紹介</label>
+            <label><input type="checkbox" id="tmvPreConsult" onchange="tmVisitToggle()"> 診療前相談を実施（初診）</label>
+            <span class="tmv-note">※所在は住所でなく「診療時に患者がいた場所」</span>
+          </span>
         </div>
 
         <!-- 音声文字起こしセクション -->
@@ -1080,6 +1097,22 @@
   </div>
 </div>
 
+<!-- ============================================================
+     情報通信機器を用いた診療に係る報告書（別紙様式14）モーダル
+     2026-09-11追加。中身は telemed_report.js が描画する。
+     ============================================================ -->
+<div class="tm-overlay" id="telemedReportModal">
+  <div class="tm" role="dialog" aria-modal="true" aria-label="情報通信機器を用いた診療に係る報告書">
+    <div class="tm-head">
+      <h2>情報通信機器を用いた診療に係る報告書</h2>
+      <span class="tm-head-sub">別紙様式14（8月報告）</span>
+      <span class="tm-spacer-head"></span>
+      <button class="tm-x" onclick="closeTelemedReport()" title="閉じる">&times;</button>
+    </div>
+    <div class="tm-body" id="tmBody"></div>
+  </div>
+</div>
+
 <script src="insurance_calc.js?v=20260820_v32"></script>
 <script src="name_dict.js?v=20260820_v32"></script>
 <script src="ocr_engine.js?v=20260820_v32"></script>
@@ -1100,5 +1133,6 @@
 <script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.2.0/encoding.min.js"></script>
 <script src="uke_generator.js?v=20260907_v35"></script>
 <script src="rezept_create.js?v=20260907_v5"></script>
+<script src="telemed_report.js?v=20260911_v1"></script>
 </body>
 </html>

@@ -112,6 +112,9 @@ function toSupabaseVisit(p, karteState, clinicId) {
     covid_positive: false,
     flu_positive: false,
     strep_positive: false,
+    // ★2026-09-11: オンライン診療（情報通信機器を用いた診療）の記録。
+    //   年1回の「情報通信機器を用いた診療に係る報告書（別紙様式14）」の集計元になる。
+    ...(typeof tmVisitFields === 'function' ? tmVisitFields(karteState) : {}),
   };
 }
 
