@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>戦績ノート 説明書</title>
+<style>
+:root{
+  --paper:#faf6ec;
+  --paper2:#f3eeE0;
+  --ink:#23262a;
+  --ink-soft:#6b6a63;
+  --line:#ded5c0;
+  --ai:#2f5d7c;
+  --plus:#007a5e;
+  --minus:#b5402c;
+  --half:#6f54a5;
+  --amber:#b3751a;
+}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"Yu Gothic UI","Yu Gothic","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;
+  font-size:15.5px; line-height:1.9;
+}
+.layout{display:flex; align-items:flex-start; max-width:1180px; margin:0 auto; gap:38px; padding:0 26px 90px}
+
+/* ---- 目次レール ---- */
+.rail{
+  width:214px; flex:none; position:sticky; top:0; max-height:100vh; overflow-y:auto;
+  padding:34px 0 40px; border-right:1px solid var(--line);
+}
+.rail .brand{font-family:"Yu Mincho","Hiragino Mincho ProN",serif; font-size:17px; letter-spacing:.14em; margin:0 0 2px}
+.rail .brandsub{font-size:11px; color:var(--ink-soft); letter-spacing:.1em; margin:0 0 20px}
+.rail ol{list-style:none; margin:0; padding:0 18px 0 0; counter-reset:s}
+.rail li{counter-increment:s; margin-bottom:1px}
+.rail a{
+  display:block; text-decoration:none; color:var(--ink-soft); font-size:12.5px;
+  padding:5px 8px 5px 30px; position:relative; border-left:2px solid transparent; line-height:1.5;
+}
+.rail a::before{
+  content:counter(s,decimal-leading-zero); position:absolute; left:8px; top:5px;
+  font-size:10px; color:#a9a08d; letter-spacing:.05em;
+}
+.rail a:hover{color:var(--ink); background:#f2ece0}
+.rail a.on{color:var(--ink); font-weight:700; border-left-color:var(--ai); background:#f2ece0}
+
+/* ---- 本文 ---- */
+main{flex:1; min-width:0; padding:34px 0 0}
+.doctop{border-bottom:2px solid var(--ink); padding-bottom:20px; margin-bottom:34px}
+.eyebrow{font-family:"Yu Mincho",serif; font-size:13px; letter-spacing:.28em; color:var(--amber); margin:0 0 6px}
+h1{font-size:38px; font-weight:900; letter-spacing:.02em; margin:0 0 10px; line-height:1.25}
+.lead{font-size:15px; color:var(--ink-soft); margin:0; max-width:40em}
+.meta{font-size:11.5px; color:var(--ink-soft); letter-spacing:.06em; margin-top:14px}
+
+section{margin-bottom:52px; scroll-margin-top:14px}
+h2{
+  font-size:22px; font-weight:900; letter-spacing:.02em; margin:0 0 4px;
+  padding-left:14px; border-left:4px solid var(--ai); line-height:1.5;
+}
+h2 small{display:block; font-size:11px; font-weight:400; letter-spacing:.22em; color:var(--ink-soft); font-family:"Yu Mincho",serif}
+h3{font-size:16px; font-weight:700; margin:26px 0 6px; letter-spacing:.03em}
+p{margin:10px 0}
+ul,ol.steps{margin:10px 0; padding-left:1.5em}
+li{margin:4px 0}
+.note{
+  border-left:3px solid var(--amber); background:#f7f1e2; padding:12px 16px; margin:18px 0;
+  font-size:14px; line-height:1.85;
+}
+.note b{color:var(--amber)}
+.warn{border-left-color:var(--minus); background:#f8efea}
+.warn b{color:var(--minus)}
+
+/* 手順 */
+ol.steps{counter-reset:st; list-style:none; padding-left:0}
+ol.steps>li{
+  counter-increment:st; position:relative; padding:4px 0 4px 40px; margin:10px 0;
+}
+ol.steps>li::before{
+  content:counter(st); position:absolute; left:0; top:6px;
+  width:24px; height:24px; line-height:24px; text-align:center;
+  background:var(--ink); color:var(--paper); font-size:12px; font-weight:700;
+}
+
+/* 図 */
+figure{margin:22px 0; }
+figure img{display:block; width:100%; height:auto; border:1px solid var(--line); background:#fff}
+figure img.sp{width:auto; max-width:100%; max-height:620px; border:1px solid var(--line)}
+figcaption{font-size:11.5px; color:var(--ink-soft); margin-top:7px; letter-spacing:.03em}
+figcaption b{color:var(--ink); font-weight:700; margin-right:6px}
+.spgrid{display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start}
+.spgrid figure{margin:16px 0; flex:0 1 auto}
+
+/* 表 */
+table.def{border-collapse:collapse; width:100%; margin:16px 0; font-size:14px}
+table.def th, table.def td{border-bottom:1px solid var(--line); padding:9px 12px; text-align:left; vertical-align:top}
+table.def thead th{
+  background:var(--paper2); font-size:11px; letter-spacing:.1em; color:#514c42;
+  border-bottom:1px solid #cfc5ad; white-space:nowrap;
+}
+table.def td.k{font-weight:700; white-space:nowrap; width:9em}
+table.def td code, p code, li code{
+  background:#f1ebdd; padding:1px 6px; font-size:13px; letter-spacing:.02em;
+  font-family:"Consolas","Yu Gothic UI",monospace; border:1px solid #e5dcc8;
+}
+.tag{
+  display:inline-block; border:1px solid var(--ai); color:var(--ai);
+  font-size:10.5px; letter-spacing:.08em; padding:1px 7px; border-radius:2px; margin-right:6px;
+  vertical-align:2px;
+}
+.sw{display:inline-block; width:11px; height:11px; border-radius:2px; vertical-align:-1px; margin-right:5px}
+
+.qa{border-top:1px solid var(--line); padding:16px 0}
+.qa .q{font-weight:700; margin:0 0 4px}
+.qa .q::before{content:"Q． "; color:var(--ai)}
+.qa .a{margin:0; color:#3c3f43}
+.qa .a::before{content:"A． "; color:var(--ink-soft); font-weight:700}
+
+footer{border-top:1px solid var(--line); margin-top:40px; padding-top:16px; font-size:11.5px; color:var(--ink-soft)}
+
+@media (max-width:900px){
+  .layout{display:block; padding:0 16px 60px}
+  .rail{
+    width:auto; position:static; max-height:none; border-right:none;
+    border-bottom:1px solid var(--line); padding:20px 0 14px; margin-bottom:8px;
+  }
+  .rail ol{display:flex; flex-wrap:wrap; gap:4px; padding:0}
+  .rail li{margin:0}
+  .rail a{border:1px solid var(--line); border-left-width:2px; padding:5px 10px 5px 26px}
+  h1{font-size:28px}
+  h2{font-size:19px}
+  main{padding-top:6px}
+  figure img.sp{max-height:none; width:100%}
+}
+@media print{
+  .rail{display:none}
+  .layout{display:block; max-width:none; padding:0}
+  section{break-inside:auto}
+  figure,table.def,.note{break-inside:avoid}
+  body{font-size:11pt}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="rail">
+  <p class="brand">戦績ノート</p>
+  <p class="brandsub">操作説明書</p>
+  <ol id="toc">
+    <li><a href="#s1">このツールについて</a></li>
+    <li><a href="#s2">開き方</a></li>
+    <li><a href="#s3">画面の構成</a></li>
+    <li><a href="#s4">1日分を入力する</a></li>
+    <li><a href="#s4b">区分（行）を増やす・減らす</a></li>
+    <li><a href="#s5">自動で計算される項目</a></li>
+    <li><a href="#s6">回と日を増やす</a></li>
+    <li><a href="#s7">通算ページを見る</a></li>
+    <li><a href="#s8">グラフの見方</a></li>
+    <li><a href="#s9">特定の日を削除する</a></li>
+    <li><a href="#s10">計算ルールを変える</a></li>
+    <li><a href="#s11">保存とバックアップ</a></li>
+    <li><a href="#s12">CSVと印刷</a></li>
+    <li><a href="#s13">スマートフォンで使う</a></li>
+    <li><a href="#s14">困ったときは</a></li>
+  </ol>
+</nav>
+
+<main>
+  <div class="doctop">
+    <p class="eyebrow">OPERATION MANUAL</p>
+    <h1>戦績ノート 説明書</h1>
+    <p class="lead">
+      開催回ごと・日ごとに戦績を記録し、参加率・勝率・プラスマイナス・ポイントを自動で計算するツールです。
+      入力した数字はグラフにも自動で反映されます。この説明書では、入力のしかたから保存の注意点までをひと通り説明します。
+    </p>
+    <p class="meta">対象ファイル： index.html ／ 対応ブラウザ： Google Chrome・Microsoft Edge・Safari（スマートフォン可）</p>
+  </div>
+
+  <!-- 1 -->
+  <section id="s1">
+    <h2><small>01</small>このツールについて</h2>
+    <p>
+      表計算ソフトで作っていた戦績表を、ブラウザ上で入力できるようにしたものです。
+      入力するのは<strong>「勝ち」「負け」「ハーフ」の件数</strong>と<strong>「S数」「L数」</strong>だけで、
+      それ以外の項目はすべて自動計算されます。
+    </p>
+    <h3>できること</h3>
+    <ul>
+      <li>第1回・第2回…と<strong>開催回ごと</strong>に記録を分けて保存する</li>
+      <li>1つの回の中を<strong>1日目・2日目…</strong>と日ごとに分けて保存する</li>
+      <li>参加率・勝率・プラスマイナス・ポイントと「全体」行の自動計算</li>
+      <li>区分（行）の名前の変更と、行の追加・削除</li>
+      <li>回の通算（合計）と、日ごとの推移をグラフで確認する</li>
+      <li>不要になった日を選んでまとめて削除する</li>
+      <li>バックアップの保存と読み込み、CSV書き出し、印刷・PDF化</li>
+    </ul>
+    <div class="note">
+      <b>データの置き場所について。</b>
+      入力した内容は、そのパソコン（またはスマートフォン）の<strong>ブラウザの中</strong>に保存されます。
+      サーバーには送られないため、他の人に見られることはありません。その代わり、
+      <strong>別の端末や別のブラウザでは同じデータを開けません</strong>。
+      詳しくは「12. 保存とバックアップ」をご覧ください。
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section id="s2">
+    <h2><small>02</small>開き方</h2>
+    <ol class="steps">
+      <li><code>index.html</code> をダブルクリックします。既定のブラウザで開きます。</li>
+      <li>初めて開いたときは「第1回／1日目」の空のページが用意されています。そのまま入力を始められます。</li>
+      <li>2回目以降は、前回入力した内容がそのまま表示されます。保存ボタンを押す必要はありません。</li>
+    </ol>
+    <p>この説明書は、画面左下の「使い方（説明書）」ボタンからいつでも開けます。</p>
+    <p>
+      よく使う場合は、開いた状態でブラウザのブックマークに登録しておくと便利です。
+      スマートフォンでの開き方は「14. スマートフォンで使う」をご覧ください。
+    </p>
+  </section>
+
+  <!-- 3 -->
+  <section id="s3">
+    <h2><small>03</small>画面の構成</h2>
+    <p>画面は大きく3つに分かれています。</p>
+    <table class="def">
+      <thead><tr><th>場所</th><th>役割</th></tr></thead>
+      <tbody>
+        <tr><td class="k">左のリスト</td><td>開催回（第1回・第2回…）の一覧です。クリックするとその回に切り替わります。下にはバックアップなどの操作ボタンが並びます。</td></tr>
+        <tr><td class="k">上のタブ</td><td>選んでいる回の中の日（1日目・2日目…）です。いちばん右の「この回の通算」で合計ページに切り替わります。</td></tr>
+        <tr><td class="k">中央のページ</td><td>入力欄と集計表、グラフが並ぶ本体です。</td></tr>
+      </tbody>
+    </table>
+    <figure>
+      <img src="screenshots/pc_input.png" alt="入力ページの全体">
+      <figcaption><b>図1</b>入力ページの全体。左に開催回、上に日のタブ、中央に入力欄と集計表・グラフが並びます。</figcaption>
+    </figure>
+  </section>
+
+  <!-- 4 -->
+  <section id="s4">
+    <h2><small>04</small>1日分を入力する</h2>
+    <p>1日分のページで入力するのは、次の5種類の数字だけです。</p>
+    <table class="def">
+      <thead><tr><th>欄</th><th>入力する内容</th></tr></thead>
+      <tbody>
+        <tr><td class="k">S数（総数）</td><td>その日の全体の数です。参加率の分母になります。</td></tr>
+        <tr><td class="k">L数</td><td>参加しなかった数です。S数からL数を引いた数が「参加した数」になります。</td></tr>
+        <tr><td class="k">勝ち</td><td>区分ごとの勝ちの件数です。</td></tr>
+        <tr><td class="k">負け</td><td>区分ごとの負けの件数です。</td></tr>
+        <tr><td class="k">ハーフ</td><td>区分ごとのハーフの件数です。既定では0.5ポイントとして計算します。</td></tr>
+      </tbody>
+    </table>
+    <h3>入力のコツ</h3>
+    <ul>
+      <li>数字の欄で <strong>Enterキー</strong> または <strong>↑↓キー</strong> を押すと、次の欄へ移動します。マウスに持ち替えずに続けて入力できます。</li>
+      <li>区分名（BB・2B・3B・4B）は直接書き換えられます。別の呼び方を使っている場合は変更してください。変更した名前はその日のページに保存されます。</li>
+      <li>日付欄は空のままでもかまいません。入れておくと、通算ページの一覧に表示されます。</li>
+      <li>ページ下部の「メモ」欄には、その日の条件や気づいたことを自由に書けます。</li>
+    </ul>
+    <div class="note">
+      <b>「参加した」は入力しません。</b>
+      勝ち・負け・ハーフを足した数が自動的に入ります。入力の食い違いが起きないよう、計算で求める仕組みにしています。
+    </div>
+  </section>
+
+  <!-- 4b -->
+  <section id="s4b">
+    <h2><small>05</small>区分（行）を増やす・減らす</h2>
+    <p>
+      区分は初期状態で BB・2B・3B・4B の4つですが、名前の変更も、行そのものの追加・削除もできます。
+    </p>
+
+    <h3>名前を変える</h3>
+    <p>
+      区分名は数字の欄と同じように、クリックしてそのまま書き換えられます。
+      入力欄にマウスを乗せると下線が表示されるので、編集できる場所であることが分かります。
+    </p>
+
+    <h3>行を追加する</h3>
+    <p>集計表のすぐ下にある「＋ 区分（行）を追加」を押すと、行がひとつ増えます。</p>
+    <figure>
+      <img src="screenshots/pc_rowadd.png" alt="区分を追加するボタン">
+      <figcaption><b>図2</b>集計表の下にある行追加ボタン。名前は「5B」のように続き番号で自動的に付きます。</figcaption>
+    </figure>
+
+    <h3>行を削除する</h3>
+    <p>
+      区分名の右にある「×」を押すと、その行を削除します。
+      このボタンは行にマウスを乗せたときに表示されます（スマートフォンでは常に表示されます）。
+    </p>
+    <figure>
+      <img src="screenshots/pc_rowtools.png" alt="各行の削除ボタン">
+      <figcaption><b>図3</b>各行の「×」が削除ボタンです。押すと確認の画面が出ます。</figcaption>
+    </figure>
+
+    <div class="note">
+      <b>区分の構成は、その回のすべての日に共通です。</b>
+      1日目で名前を変えたり行を追加・削除したりすると、同じ回の他の日にも同じように反映されます。
+      日ごとに違う区分を使うことはできません。日をまたいで集計するときに、同じ区分が別物として数えられるのを防ぐためです。
+    </div>
+    <div class="note warn">
+      <b>削除するとその区分の数字も消えます。</b>
+      すでに入力してある勝ち・負け・ハーフの件数も、すべての日から一緒に削除されます。
+      確認の画面に「入力済みの ○ 件も一緒に消えます」と表示されますので、件数を確かめてから実行してください。
+    </div>
+    <p>区分は最低1つ必要です。また、増やせるのは12までです。</p>
+  </section>
+
+  <!-- 5 -->
+  <section id="s5">
+    <h2><small>06</small>自動で計算される項目</h2>
+    <p>色の付いた欄はすべて自動計算です。計算のしかたは次のとおりです。</p>
+    <table class="def">
+      <thead><tr><th>項目</th><th>計算</th><th>補足</th></tr></thead>
+      <tbody>
+        <tr><td class="k">参加した</td><td><code>勝ち ＋ 負け ＋ ハーフ</code></td><td>その区分で参加した件数です。</td></tr>
+        <tr><td class="k">参加率（区分）</td><td><code>参加した ÷ S数</code></td><td>欄の下に「8 / 20」のように内訳も表示します。</td></tr>
+        <tr><td class="k">参加率（全体）</td><td><code>（S数 − L数）÷ S数</code></td><td>全体行だけ計算が異なります。区分をまたいで参加した分を重複して数えないためです。</td></tr>
+        <tr><td class="k">勝率</td><td><code>（勝ち ＋ ハーフ×0.5）÷ 参加した</code></td><td>既定の計算方法です。「11. 計算ルールを変える」で別の方法に変更できます。</td></tr>
+        <tr><td class="k">プラスマイナス</td><td><code>勝ち − 負け</code></td><td>件数での増減です。ハーフは数えません。</td></tr>
+        <tr><td class="k">← のポイント</td><td><code>勝ち×1 − 負け×1 ＋ ハーフ×0.5</code></td><td>左のプラスマイナスを、ハーフを含めたポイントに直したものです。</td></tr>
+        <tr><td class="k">全体行</td><td>各区分の合計</td><td>参加率のみ上記のとおり別計算です。</td></tr>
+      </tbody>
+    </table>
+    <p>プラスの値は緑、マイナスの値は朱色で表示されます。0のときは灰色です。</p>
+  </section>
+
+  <!-- 6 -->
+  <section id="s6">
+    <h2><small>07</small>回と日を増やす</h2>
+    <h3>日を追加する</h3>
+    <p>上のタブの「＋日を追加」を押すと、次の日のページが増えます。日の名前（1日目・2日目…）は自由に書き換えられます。</p>
+    <h3>同じ内容の日を複製する</h3>
+    <p>「この日を複製」を押すと、いま開いている日と同じ数字を持つ新しい日が作られます。前日とほぼ同じ条件のときに便利です。</p>
+    <h3>回を追加する</h3>
+    <p>左のリストの下にある「＋ 新しい回を追加」を押すと、第2回・第3回…と新しい回が作られます。回の名前は見出し部分をクリックして書き換えられます。</p>
+    <div class="note">
+      左のリストには、それぞれの回の<strong>日数と通算ポイント</strong>が小さく表示されます。開かなくても大まかな結果が分かります。
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section id="s7">
+    <h2><small>08</small>通算ページを見る</h2>
+    <p>
+      上のタブのいちばん右「この回の通算」を押すと、その回の全日分を合計したページに切り替わります。
+      上段には主要な数値がまとめて並びます。
+    </p>
+    <figure>
+      <img src="screenshots/pc_band.png" alt="通算ページ上部の数値">
+      <figcaption><b>図4</b>通算ページ上部。開催日数・S数合計・参加率・勝敗の内訳・勝率・プラスマイナス・獲得ポイントが並びます。</figcaption>
+    </figure>
+    <p>
+      その下には区分別の集計表が続き、さらに下にグラフ、いちばん下に日別の一覧があります。
+      集計表の見方は1日分のページと同じです。
+    </p>
+  </section>
+
+  <!-- 8 -->
+  <section id="s8">
+    <h2><small>09</small>グラフの見方</h2>
+    <p>グラフは入力した数字から自動で作られます。数字を1つ書き換えると、その場で描き直されます。</p>
+    <figure>
+      <img src="screenshots/pc_figs.png" alt="通算ページの4種類のグラフ">
+      <figcaption><b>図5</b>通算ページのグラフ。左上から順に、日別のポイント／累計ポイントの推移／区分別のポイント／区分別の内訳。</figcaption>
+    </figure>
+    <table class="def">
+      <thead><tr><th>グラフ</th><th>読み取れること</th></tr></thead>
+      <tbody>
+        <tr><td class="k">日別のポイント</td><td>その日ごとの増減です。0の線より上がプラス、下がマイナスです。いちばん良かった日と悪かった日にだけ数字を表示しています。</td></tr>
+        <tr><td class="k">累計ポイントの推移</td><td>初日から積み上げた結果です。右端の数字が現在の通算ポイントです。</td></tr>
+        <tr><td class="k">区分別のポイント</td><td>どの区分で稼げていて、どの区分が足を引っ張っているかが分かります。</td></tr>
+        <tr><td class="k">区分別の内訳</td><td>参加した件数を100％として、勝ち・ハーフ・負けの割合を示します。右端に参加した合計件数を添えています。</td></tr>
+      </tbody>
+    </table>
+    <h3>色の決まり</h3>
+    <p>
+      <span class="sw" style="background:#007a5e"></span>勝ち（プラス）
+      <span class="sw" style="background:#6f54a5"></span>ハーフ
+      <span class="sw" style="background:#b5402c"></span>負け（マイナス）
+    </p>
+    <p>
+      この3色は、色の見え方に違いがある方でも区別できるか、また紙色に対して十分な濃さがあるかを検証したうえで選んでいます。
+      色だけに頼らずに済むよう、グラフには必ず凡例を付け、同じ数字を表でも確認できるようにしています。
+    </p>
+    <p>パソコンでは、棒や点にマウスを乗せるとその内訳が表示されます。</p>
+    <h3>1日分のページのグラフ</h3>
+    <p>各日のページにも、その日だけの「区分別のポイント」と「区分別の内訳」の2つが表示されます。</p>
+  </section>
+
+  <!-- 9 -->
+  <section id="s9">
+    <h2><small>10</small>特定の日を選んで削除する</h2>
+    <p>通算ページのいちばん下に「日別の一覧・削除」があります。</p>
+    <figure>
+      <img src="screenshots/pc_daylist.png" alt="日別の一覧と削除">
+      <figcaption><b>図6</b>日別の一覧。左端のチェックボックスで削除する日を選びます。右端の「開く」でその日のページに移動します。</figcaption>
+    </figure>
+    <ol class="steps">
+      <li>削除したい日の左端にチェックを入れます。複数選べます。見出しのチェックボックス、または「すべて選択／解除」で一括選択もできます。</li>
+      <li>「選択した日を削除」を押します。</li>
+      <li>確認の画面に削除対象の日名が表示されます。内容を確かめて「OK」を押すと削除されます。</li>
+    </ol>
+    <div class="note warn">
+      <b>削除は取り消せません。</b>
+      間違えて消した場合に戻せるよう、大切な記録は先に「バックアップ保存(JSON)」で控えを取っておくことをおすすめします。
+      なお、すべての日を削除した場合は、空の「1日目」が自動で作り直されます。
+    </div>
+    <p>
+      いま開いている日を消したいだけであれば、その日のページにある「この日を削除」でも削除できます。
+      回ごとまとめて消す場合は「この回を削除」です。
+    </p>
+  </section>
+
+  <!-- 10 -->
+  <section id="s10">
+    <h2><small>11</small>計算ルールを変える</h2>
+    <p>左下の「計算ルール設定」で、ハーフの扱いと勝率の計算方法を変更できます。変更はすべての回・すべての日にまとめて適用されます。</p>
+    <figure>
+      <img src="screenshots/pc_dialog.png" alt="計算ルール設定の画面" style="max-width:560px">
+      <figcaption><b>図7</b>計算ルール設定。既定はハーフ0.5ポイント、負け −1ポイントです。</figcaption>
+    </figure>
+    <table class="def">
+      <thead><tr><th>設定</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td class="k">ハーフ1件のポイント</td><td>既定は <code>0.5</code> です。ハーフを引き分け扱い（増減なし）にしたい場合は <code>0</code> を入れてください。</td></tr>
+        <tr><td class="k">勝率の計算方法</td><td>
+          次の3つから選べます。<br>
+          ① <code>（勝ち ＋ ハーフ×0.5）÷ 参加数</code>（既定）<br>
+          ② <code>勝ち ÷（勝ち ＋ 負け）</code> ＝ ハーフを計算から除く<br>
+          ③ <code>勝ち ÷ 参加数</code> ＝ ハーフを負け扱いにする
+        </td></tr>
+        <tr><td class="k">負け1件のマイナス幅</td><td>既定は <code>1</code>（1敗で −1ポイント）です。</td></tr>
+      </tbody>
+    </table>
+    <p>いま適用されているルールは、通算ページのいちばん下にも文章で表示されます。</p>
+  </section>
+
+  <!-- 11 -->
+  <section id="s11">
+    <h2><small>12</small>保存とバックアップ</h2>
+    <h3>保存は自動です</h3>
+    <p>入力した内容は、その都度ブラウザに自動保存されます。保存ボタンを押す必要はなく、ページを閉じても残ります。</p>
+    <h3>知っておいていただきたい注意点</h3>
+    <table class="def">
+      <thead><tr><th>状況</th><th>どうなるか</th></tr></thead>
+      <tbody>
+        <tr><td class="k">別のパソコンで開いた</td><td>データは引き継がれません。端末ごとに別々の内容になります。</td></tr>
+        <tr><td class="k">同じ端末で別のブラウザを使った</td><td>同じく引き継がれません。いつも同じブラウザで開いてください。</td></tr>
+        <tr><td class="k">シークレットウィンドウで開いた</td><td>ウィンドウを閉じた時点でデータが消えます。通常のウィンドウで使ってください。</td></tr>
+        <tr><td class="k">ブラウザの閲覧履歴・サイトデータを削除した</td><td>戦績ノートのデータも一緒に消えます。</td></tr>
+        <tr><td class="k">index.html を別のフォルダへ移動した</td><td>保存場所が変わるため、以前のデータが表示されないことがあります。移動する前にバックアップを取ってください。</td></tr>
+      </tbody>
+    </table>
+    <div class="note warn">
+      <b>定期的にバックアップを取ってください。</b>
+      上のような理由でデータが消えることがあります。区切りのよいところで「バックアップ保存(JSON)」を押し、
+      ファイルを安全な場所に保管しておくことをおすすめします。
+    </div>
+    <h3>バックアップの取り方・戻し方</h3>
+    <ol class="steps">
+      <li>左下の「バックアップ保存(JSON)」を押すと、<code>戦績ノート_日付.json</code> というファイルがダウンロードされます。すべての回・すべての日が1つのファイルに入っています。</li>
+      <li>戻すときは「バックアップ読込」を押し、そのファイルを選びます。</li>
+      <li>読み込むと、<strong>いま入っているデータはすべて置き換わります</strong>。確認の画面が出ますので、内容を確かめてから実行してください。</li>
+    </ol>
+    <p>このJSONファイルは、別のパソコンへ記録を移すときにも使えます。</p>
+  </section>
+
+  <!-- 12 -->
+  <section id="s12">
+    <h2><small>13</small>CSVと印刷</h2>
+    <h3>CSV書き出し</h3>
+    <p>
+      「CSV書き出し」を押すと、すべての回・日・区分を1行ずつ並べたCSVファイルが保存されます。
+      Excelで開いて独自に集計したい場合に使ってください。全体行も含まれます。
+      参加率と勝率は0〜1の小数で書き出されます（例：0.8000 ＝ 80.0％）。
+    </p>
+    <h3>印刷・PDF</h3>
+    <p>
+      「印刷 / PDF」を押すと印刷画面が開きます。表示中のページ（1日分または通算）が印刷されます。
+      左のリストやタブ、削除用のチェックボックスなどの操作部分は印刷されません。
+      印刷先に「PDFとして保存」を選べば、そのままPDFファイルとして残せます。
+    </p>
+  </section>
+
+  <!-- 13 -->
+  <section id="s13">
+    <h2><small>14</small>スマートフォンで使う</h2>
+    <p>
+      画面の幅に合わせて表示が自動で切り替わります。スマートフォンでは、横に長い集計表が
+      <strong>1区分ずつのカード</strong>に組み替えられ、横スクロールせずに読めます。
+    </p>
+    <div class="spgrid">
+      <figure>
+        <img class="sp" src="screenshots/sp_input.png" alt="スマートフォンでの入力画面">
+        <figcaption><b>図8</b>入力画面。区分ごとのカードになり、勝ち・負け・ハーフが横に3つ並びます。</figcaption>
+      </figure>
+      <figure>
+        <img class="sp" src="screenshots/sp_figs.png" alt="スマートフォンでのグラフ">
+        <figcaption><b>図9</b>グラフも縦1列に並び替わり、文字が小さくなりすぎないよう調整されます。</figcaption>
+      </figure>
+      <figure>
+        <img class="sp" src="screenshots/sp_daylist.png" alt="スマートフォンでの日別一覧">
+        <figcaption><b>図10</b>日別の一覧もカード表示になります。チェックを入れて「選択した日を削除」を押します。</figcaption>
+      </figure>
+    </div>
+    <h3>使い方の違い</h3>
+    <ul>
+      <li>開催回の一覧とボタン類、日のタブは<strong>横スクロール</strong>になります。指で左右に払って切り替えてください。</li>
+      <li>数字の欄をタップすると<strong>数字キーボード</strong>が出ます。</li>
+      <li>一覧の見出しのチェックボックスは表示されないため、一括選択は「<strong>すべて選択／解除</strong>」ボタンを使ってください。</li>
+      <li>グラフにマウスを乗せたときの吹き出しは、タッチ操作では表示されません。数字は表でご確認ください。</li>
+    </ul>
+    <h3>スマートフォンで開くには</h3>
+    <p>
+      <code>index.html</code> をメール等でスマートフォンに送るか、クラウドストレージに置いて開いてください。
+      ホーム画面に追加しておくと、アプリのように起動できます。
+      なお、<strong>パソコンとスマートフォンでデータは共有されません</strong>。両方で使う場合は、
+      「バックアップ保存(JSON)」で書き出したファイルを受け渡ししてください。
+    </p>
+  </section>
+
+  <!-- 14 -->
+  <section id="s14">
+    <h2><small>15</small>困ったときは</h2>
+
+    <div class="qa">
+      <p class="q">入力した内容が消えてしまいました。</p>
+      <p class="a">ブラウザの閲覧履歴・サイトデータを削除した、シークレットウィンドウで使っていた、別のブラウザで開いた、のいずれかが考えられます。バックアップのJSONファイルがあれば「バックアップ読込」で復元できます。</p>
+    </div>
+
+    <div class="qa">
+      <p class="q">参加率が100％を超えます。</p>
+      <p class="a">S数より参加した件数が多い状態です。S数の入力漏れ、または勝ち・負け・ハーフの件数に誤りがないかご確認ください。</p>
+    </div>
+
+    <div class="qa">
+      <p class="q">全体行の参加率だけ、他の行と計算が違って見えます。</p>
+      <p class="a">全体行は <code>（S数 − L数）÷ S数</code> で計算しています。各区分の参加率を足すと、同じ回に複数の区分で参加した分を二重に数えてしまうためです。</p>
+    </div>
+
+    <div class="qa">
+      <p class="q">ハーフを勝ちにも負けにも数えたくありません。</p>
+      <p class="a">「計算ルール設定」でハーフのポイントを <code>0</code> にし、勝率の計算方法を「勝ち ÷（勝ち ＋ 負け）」に変更してください。ハーフは件数として記録に残りますが、ポイントと勝率には影響しなくなります。</p>
+    </div>
+
+    <div class="qa">
+      <p class="q">グラフが表示されません。</p>
+      <p class="a">勝ち・負け・ハーフがすべて0の場合、グラフには何も描かれません。数字を入力すると表示されます。それでも表示されない場合は、ブラウザを最新の状態に更新してからページを再読み込みしてください。</p>
+    </div>
+
+    <div class="qa">
+      <p class="q">区分を4つより増やしたいです。／使わない区分を消したいです。</p>
+      <p class="a">集計表の下の「＋ 区分（行）を追加」で増やせます（12まで）。減らすときは区分名の右の「×」を押してください。名前もその場で書き換えられます。詳しくは「05. 区分（行）を増やす・減らす」をご覧ください。</p>
+    </div>
+
+    <div class="qa">
+      <p class="q">他の人と同じ記録を共有したいです。</p>
+      <p class="a">「バックアップ保存(JSON)」で書き出したファイルを渡し、相手側で「バックアップ読込」を実行してください。なお読み込むと相手側の既存データは置き換わります。常に共有したい場合は、サーバー上で動く形への変更が必要です。</p>
+    </div>
+
+    <footer>
+      戦績ノート 操作説明書 ／ 本書の図は実際の画面を撮影したものです。
+    </footer>
+  </section>
+</main>
+</div>
+
+<script>
+// 現在地に応じて目次を光らせる
+(function(){
+  var links = Array.prototype.slice.call(document.querySelectorAll('.rail a'));
+  var secs = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+  function update(){
+    var y = window.scrollY + 120, cur = 0;
+    secs.forEach(function(s,i){ if(s && s.offsetTop <= y) cur = i; });
+    links.forEach(function(a,i){ a.className = (i===cur) ? 'on' : ''; });
+  }
+  window.addEventListener('scroll', update, {passive:true});
+  window.addEventListener('resize', update);
+  update();
+})();
+</script>
+</body>
+</html>
