@@ -116,6 +116,7 @@ html, body {
 .m3-table .kaikei-tag.done { background: #e3f2ec; color: #0e7a5f; }
 .m3-table .fax-btn { height: 30px; padding: 3px 6px; border: none; border-radius: 2px; background: #fff; color: var(--text); font-size: 13px; box-shadow: var(--shadow); cursor: pointer; font-family: inherit; }
 .m3-table .warn-ico { color: #bb1e1e; }
+.m3-table td > span > svg, .m3-table td.num svg { width: 18px; height: 18px; vertical-align: middle; }
 .m3-table .row-acts { display: flex; gap: 6px; justify-content: flex-end; }
 .m3-table .row-acts button { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 2px; background: #fff; color: var(--text); box-shadow: var(--shadow); cursor: pointer; padding: 0; }
 .m3-table .row-acts button svg { width: 18px; height: 18px; }
