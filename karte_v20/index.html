@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="style.css?v=20260914_v19a">
 <link rel="stylesheet" href="rezept_create.css?v=20260907_v4">
 <link rel="stylesheet" href="telemed_report.css?v=20260911_v1">
-<link rel="stylesheet" href="m3.css?v=20260914_v20a">
+<link rel="stylesheet" href="m3.css?v=20260914_v20d">
 <!-- CDN: バージョン固定 + SRI(改竄検知) + crossorigin。更新時はハッシュも再計算すること -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" integrity="sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -169,7 +169,7 @@
     <select id="patientSelect" onchange="switchPatient(this.value)"></select>
     <div class="m3-pt">
       <span class="no" id="hdrId">---</span>
-      <ruby id="m3HdrRuby"><span id="hdrName">---</span><rt id="hdrKana"></rt></ruby>
+      <ruby id="m3HdrRuby"><span id="hdrName">---</span><rt id="hdrKana"></rt></ruby><span class="kana-inline" id="m3HdrKanaInline"></span>
       <span class="age" id="hdrAge">---</span>
       <span class="sex" id="hdrSex">-</span>
       <span class="ins insurance-badge" id="hdrInsurance">---</span>
@@ -1114,7 +1114,7 @@
 <script src="db_integration.js?v=20260914_v20a"></script>
 <script src="supabase_client.js?v=20260914_v20b"></script>
 <script src="reservation_sync.js?v=20260914_v19a"></script>
-<script src="m3_ui.js?v=20260914_v20c"></script>
+<script src="m3_ui.js?v=20260914_v20d"></script>
 <script src="whisper_client.js?v=20260731_v25"></script>
 <script src="billing_revision_2026.js?v=20260602"></script>
 <script src="master_loader.js?v=20260907_v24"></script>

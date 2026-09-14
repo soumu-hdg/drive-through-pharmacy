@@ -162,6 +162,23 @@ html, body {
 .m3-col-center { flex: 1; min-width: 0; }
 .m3-col-right { width: var(--m3-side-w); flex-shrink: 0; transition: width .15s; }
 .m3-col-right.rail { width: var(--m3-rail-w); }
+/* 実測: 右ペイン＝画面幅の37.7%（1084〜1584pxで一定）。左パネルを開いたときも同じ比率 */
+:root { --m3-side-w: 37.7vw; }
+/* 実測: 1684px以上では左パネル（33.8%）と右ペイン（19.8%）が同時に開き、縦レールは出ない */
+@media (min-width: 1600px) {
+  .m3-col-left, .m3-col-left.open { width: 33.8vw; }
+  .m3-col-right, .m3-col-right.rail { width: 19.8vw; }
+  .m3-col-left .m3-rail, .m3-col-right .m3-rail { display: none !important; }
+  .m3-col-left .m3-tabs, .m3-col-right .m3-tabs { display: grid !important; }
+  .m3-col-left .m3-panel-body, .m3-col-right .m3-right-body { display: flex !important; }
+  .m3-col-right.rail .m3-actions { flex-direction: row; margin-top: 0; padding: 8px 6px; }
+  .m3-col-right.rail .m3-abtn { width: 42px; height: 42px; margin: 0; }
+  .m3-col-right.rail .m3-abtn svg { width: 24px; height: 24px; }
+  .m3-pt .no, .m3-pt .age, .m3-pt ruby, .m3-pt .kana-inline { font-size: 18px; }
+  .m3-pt rt { display: none; }
+  .m3-pt .kana-inline { display: inline !important; }
+}
+.m3-pt .kana-inline { display: none; color: var(--text); }
 /* 縦レール（閉じたとき） */
 .m3-rail { display: flex; flex-direction: column; }
 .m3-rail li, .m3-tabs li {

@@ -292,20 +292,25 @@
     if (rr) rr.innerHTML = RIGHT_TABS.map(t => '<li data-k="' + t.k + '" onclick="M3.rightClick(\'' + t.k + '\')">' + t.l + '</li>').join('');
     if (rt) rt.innerHTML = RIGHT_TABS.map(t => '<li data-k="' + t.k + '" onclick="M3.rightClick(\'' + t.k + '\')">' + t.l + '</li>').join('');
   }
+  // 旧カルテの実測: 1684px以上では左パネルと右ペインが同時に開く（縦レール無し）。それ未満はどちらか一方
+  const wideMQ = window.matchMedia('(min-width: 1600px)');
+  function isWide() { return wideMQ.matches; }
   function syncLayout() {
     const L = $('m3Left'), R = $('m3Right'); if (!L || !R) return;
+    if (isWide()) { state.leftOpen = true; state.rightRail = false; }
     L.classList.toggle('open', state.leftOpen);
     R.classList.toggle('rail', state.rightRail);
     document.querySelectorAll('#m3LeftRail li, #m3LeftTabs li').forEach(li => li.classList.toggle('on', li.dataset.k === state.leftTab));
     document.querySelectorAll('#m3RightRail li, #m3RightTabs li').forEach(li => li.classList.toggle('on', li.dataset.k === state.rightTab));
   }
   M3.leftClick = function (k) {
+    if (isWide()) { state.leftTab = k; syncLayout(); renderLeft(); return; }
     if (state.leftOpen && state.leftTab === k) { state.leftOpen = false; state.rightRail = false; syncLayout(); return; }
     state.leftTab = k; state.leftOpen = true; state.rightRail = true; syncLayout(); renderLeft();
   };
   M3.openPatientTab = function (k) { state.leftTab = k; state.leftOpen = true; state.rightRail = true; syncLayout(); renderLeft(); };
   M3.rightClick = function (k) {
-    if (state.rightRail) { state.rightRail = false; state.leftOpen = false; }
+    if (!isWide() && state.rightRail) { state.rightRail = false; state.leftOpen = false; }
     state.rightTab = k; syncLayout(); renderRight();
   };
   function renderLeft() {
@@ -422,6 +427,7 @@
     const rc = $('m3RxCount'); if (rc) rc.textContent = (k.prescriptions && k.prescriptions.length) ? k.prescriptions.length + ' 剤' : '';
     const wb = $('m3WaitBadge'); if (wb) { const n = patients.filter(x => ['waiting', 'ready'].includes(statusOf(x)) && getPatientsForDate(selectedDate).includes(x)).length; wb.textContent = n; wb.style.display = n ? '' : 'none'; }
     const ub = $('authUserBadge2'), ua = $('authUserBadge'); if (ub && ua && ua.textContent) ub.textContent = ua.textContent;
+    const ki = $('m3HdrKanaInline'); if (ki) ki.textContent = p.nameKana || '';
     applyFont(); syncLayout();
     if (state.leftOpen) renderLeft();
   };
@@ -435,6 +441,9 @@
     if (typeof switchPatientTab === 'function') { const orig = switchPatientTab; switchPatientTab = function (tab) { orig(tab); const t = LEFT_TABS.find(x => x.t === tab); if (t) { state.leftTab = t.k; } syncLayout(); }; }
     const ua = $('authUserBadge'); if (ua) { new MutationObserver(() => { const ub = $('authUserBadge2'); if (ub) ub.textContent = ua.textContent || 'ユーザー'; }).observe(ua, { childList: true, characterData: true, subtree: true }); }
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeMenu(); const f = $('m3Filter'); if (f) f.style.display = 'none'; } });
+    // ウィンドウの最大化／縮小で 3列同時表示 ⇄ 片側表示 を切り替える（旧カルテと同じ）
+    const onWide = () => { if (isWide()) { syncLayout(); if (typeof currentScreen !== 'undefined' && currentScreen === 'karte') renderLeft(); } else { state.leftOpen = false; state.rightRail = false; syncLayout(); } };
+    if (wideMQ.addEventListener) wideMQ.addEventListener('change', onWide); else wideMQ.addListener(onWide);
     syncLayout(); renderRight();
     renderList();
   }
