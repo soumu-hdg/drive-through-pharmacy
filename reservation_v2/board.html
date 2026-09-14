@@ -308,7 +308,7 @@
 
 <script>window.__RSV_SUPABASE__ = true;</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="store.js?v=20260817w8"></script>
+<script src="store.js?v=20260914w9"></script>
 <script>
 /* 受付ライブボード（タブ切替式）：患者予約が入った瞬間に日別ボード・予約一覧へ即反映 */
 function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -479,6 +479,7 @@ function openBooking(code){
         ${r.email?`<div class="bk-row"><span class="k">メール</span><span class="v">${esc(r.email)}</span></div>`:""}
         <div class="bk-row"><span class="k">LINE通知</span><span class="v" style="color:${r.lineUserId?'#06c755':'var(--sub)'}">${r.lineUserId?'連携済み（予約確定時に自動送信）':'未連携'}</span></div>
         <div class="bk-row"><span class="k">同意</span><span class="v" style="color:${r.consentAt?'var(--green)':'var(--sub)'}">${r.consentAt?`取得済み（${new Date(r.consentAt).toLocaleString('ja-JP')}・規約 ${esc(r.consentVersion||'-')}）`:'記録なし（この予約は同意記録の追加前に作成されました）'}</span></div>
+        <div class="bk-row"><span class="k">カルテ</span><span class="v" style="font-weight:400;color:${karteInfo(r).color}">${karteInfo(r).html}</span></div>
       </div>
       <div class="bk-sec"><h3>予約内容</h3>
         <div class="bk-row"><span class="k">クリニック</span><span class="v">${esc(clinic.name)}（${esc(svc.name)}）</span></div>
@@ -807,7 +808,7 @@ function renderBoard(flashCodes){
       <td>${roomSelect(r)}</td>
       <td class="assign-cell">${resSelect(r,'staff')}${resSelect(r,'device')}</td>
       <td>${esc(svc.name)}${menu?`<div class="muted" style="font-size:12px">${esc(menu.name)}</div>`:""}</td>
-      <td><span class="pt-link" onclick="openBooking('${esc(r.code)}')">${esc(r.name)} 様</span>${r.visitType==="FIRST"?'<span class="badge first" style="margin-left:4px">初診</span>':""}${isNew?'<span class="new-tag">NEW</span>':""}</td>
+      <td><span class="pt-link" onclick="openBooking('${esc(r.code)}')">${esc(r.name)} 様</span>${r.visitType==="FIRST"?'<span class="badge first" style="margin-left:4px">初診</span>':""}${karteBadge(r)}${isNew?'<span class="new-tag">NEW</span>':""}</td>
       <td>${r.channel==="WEB"?'<span class="badge web">Web</span>':'<span class="badge phone">電話</span>'}</td>
       <td><span class="muted t-num" style="font-size:12px">${esc(r.phone)}</span></td>
       <td><button class="small secondary" onclick="markVisited('${esc(r.code)}')">来院</button> <button class="small danger" onclick="cancelRes('${esc(r.code)}')">取消</button></td>
@@ -872,6 +873,19 @@ function tlUnassignedCount(axis){
 const SVC_CLASS={ "外来":"svc-gairai", "在宅":"svc-zaitaku", "美容":"svc-biyou", "夜間休日":"svc-yakan" };
 function svcClassOf(r){ const s=Store.serviceOfCs(r.csId); return (s&&SVC_CLASS[s.name])||"svc-gairai"; }
 function statusClassOf(r){ return r.status==="VISITED"?"visited":(r.status==="CANCELLED"?"cancelled":""); }
+/* ---- カルテ連携の表示（Wave8）。DBトリガーが書き戻した結果をそのまま見せる ---- */
+const KARTE_URL = "../karte_v20/";
+function karteInfo(r){
+  if(r.karteNote && /失敗|なし/.test(r.karteNote)) return { color:"var(--red)", html:`<b>未作成</b>（${esc(r.karteNote)}）` };
+  if(r.karteVisitId){
+    const how = r.matchStatus==="NONE" ? "新規患者として登録" : r.matchStatus==="CANDIDATE" ? "同名候補が複数（要確認）" : r.matchStatus==="MANUAL" ? "手動で紐づけ" : "既存患者に紐づけ";
+    const when = r.karteSyncedAt ? new Date(r.karteSyncedAt).toLocaleString("ja-JP") : "";
+    return { color:"var(--green)", html:`<b>来院予定を作成済み</b>　患者番号 <span class="t-num">${esc(r.kartePatientNo||"-")}</span>（${how}）${when?`<span class="muted" style="font-size:11.5px;margin-left:6px">${when}</span>`:""}<a href="${KARTE_URL}" target="_blank" rel="noopener" style="margin-left:8px;font-size:12px">カルテを開く ↗</a>` };
+  }
+  if(r.karteNote) return { color:"var(--sub)", html:esc(r.karteNote) };
+  return { color:"var(--sub)", html:"未連携（この予約は連携開始前に作成されました。日時や状態を変更すると連携されます）" };
+}
+function karteBadge(r){ return r.karteVisitId ? `<span class="badge karte" title="カルテに来院予定あり（患者番号 ${esc(r.kartePatientNo||"")}）">カルテ</span>` : ""; }
 /* ---- 診療時間外（休診帯）の判定（UI調査 B-6） ----
    その院のいずれかの診療区分が開いている分だけを「診療時間内」とみなし、
    1時間まるごと閉じている行をグレーにする。臨時休診の日は全部グレーになる。 */

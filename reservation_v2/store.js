@@ -651,8 +651,10 @@ const Store = (() => {
       // 会計の記録（①の準備。Stripe接続前でも受付が手入力で使える）
       paymentStatus: r.payment_status || null, paymentMethod: r.payment_method || null,
       amount: r.amount ?? null, paymentNote: r.payment_note || null,
-      // カルテ連携（②の土台。名寄せは受付ボードの認証実装後に行う）
+      // カルテ連携（Wave8: DBトリガー rsv2_sync_karte が名寄せ→来院予定を作り、結果をこの列に書き戻す）
       origin: r.origin || "RSV", patientId: r.patient_id || null, matchStatus: r.match_status || null,
+      kartePatientNo: r.karte_patient_no || null, karteVisitId: r.karte_visit_id || null,
+      karteSyncedAt: r.karte_synced_at || null, karteNote: r.karte_note || null,
       consentAt: r.consent_at || null, consentVersion: r.consent_version || null,
     });
     const toRow = res => ({
