@@ -433,3 +433,314 @@ select tablename, policyname, cmd, roles::text, qual, with_check
 -- 【代替】Supabase Dashboard → SQL Editor に全文を貼り付けて Run（Ctrl+Enter）
 --     プロジェクトが vypwgxkqtxuzqfaaeamf であることを必ず確認してから実行する。
 -- =============================================================
+
+
+-- =====================================================================
+-- Wave 8 (2026-09-14): 予約 → カルテ来院予定の自動生成
+--   正本 = ../sql/2026-09-14_w8_karte_autocreate.sql（以下は同内容の写し・冪等）
+-- =====================================================================
+-- =====================================================================
+-- Wave 8 (2026-09-14): 予約 → 電子カルテ「来院予定」の自動生成
+--
+--   予約サイト（anon）は patients / visits を直接読めない（RLS: authenticated 限定）。
+--   そこで rsv2_reservations への INSERT/UPDATE を BEFORE トリガー（SECURITY DEFINER）で受け、
+--   DB内部でカルテ側の患者の名寄せ → 来院予定（visits.status='reserved'）の作成/移動/削除を行う。
+--
+--   ・患者の名寄せ: ①電話＋氏名 → ②生年月日＋氏名（またはカナ）。一致なしなら患者を新規登録
+--                 （patient_no = 'RSV-' || 予約番号。カルテで保存すると同じ行に上書きされる）
+--   ・来院予定:   visits に rsv_code（予約番号）を持たせて 1予約 = 1来院予定。status='reserved'
+--   ・予約の変更: 日時変更は来院予定を追従。取消は「カルテ未記載」の来院予定だけ削除
+--   ・来院(VISITED): 来院予定を 'waiting' に進め arrived_at を打つ
+--   ・空き枠計算:  rsv2_karte_busy から予約由来（rsv_code あり）の来院予定を除外（二重に差し引かない）
+--   ・連携失敗は予約自体を落とさず karte_note に理由を残す
+--
+--   冪等: 2回実行しても状態は変わらない。
+-- =====================================================================
+
+-- 1) 列の追加 ---------------------------------------------------------
+alter table public.visits add column if not exists rsv_code text;
+create unique index if not exists visits_rsv_code_uq on public.visits (rsv_code) where rsv_code is not null;
+
+alter table public.rsv2_reservations
+  add column if not exists karte_patient_no text,
+  add column if not exists karte_visit_id   uuid,
+  add column if not exists karte_synced_at  timestamptz,
+  add column if not exists karte_note       text;
+
+-- 2) 補助関数 ---------------------------------------------------------
+create or replace function public.rsv2_karte_clinic_id(p_cs integer)
+returns text language sql immutable as $$
+  select case p_cs / 10 when 1 then 'nishiharu' when 2 then 'yokohama' when 3 then 'chiba' when 4 then 'nakagawa' end
+$$;
+
+create or replace function public.rsv2_norm_phone(t text)
+returns text language sql immutable as $$
+  select nullif(regexp_replace(coalesce(t, ''), '[^0-9]', '', 'g'), '')
+$$;
+
+create or replace function public.rsv2_norm_name(t text)
+returns text language sql immutable as $$
+  select nullif(regexp_replace(coalesce(t, ''), '[[:space:]　]', '', 'g'), '')
+$$;
+
+-- 3) 本体: 予約の INSERT/UPDATE → 来院予定 ------------------------------
+create or replace function public.rsv2_sync_karte()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_clinic   text;
+  v_pid      uuid;
+  v_match    text;
+  v_pno      text;
+  v_vid      uuid;
+  v_cnt      integer;
+  v_dob      date;
+  v_date     date;
+  v_time     time;
+  v_vtype    text;
+  v_dept     text;
+  v_changed  boolean;
+  -- 既存の連携先（rsv_code = 予約番号 の visits）
+  v_ex_id     uuid;
+  v_ex_date   date;
+  v_ex_pid    uuid;
+  v_ex_clinic text;
+  v_untouched boolean := false;   -- カルテ未記載（消してよい）
+begin
+  if NEW.kind is distinct from 'PATIENT' then return NEW; end if;
+
+  -- UPDATE 時は連携に関係する列が変わったときだけ動く（担当・機材・会計の更新では何もしない）
+  if TG_OP = 'UPDATE' then
+    v_changed := (NEW.status     is distinct from OLD.status)
+              or (NEW.rdate      is distinct from OLD.rdate)
+              or (NEW.rtime      is distinct from OLD.rtime)
+              or (NEW.cs_id      is distinct from OLD.cs_id)
+              or (NEW.name       is distinct from OLD.name)
+              or (NEW.kana       is distinct from OLD.kana)
+              or (NEW.phone      is distinct from OLD.phone)
+              or (NEW.birth      is distinct from OLD.birth)
+              or (NEW.visit_type is distinct from OLD.visit_type)
+              or (NEW.patient_id is distinct from OLD.patient_id);
+    if not v_changed then return NEW; end if;
+  end if;
+
+  v_clinic := rsv2_karte_clinic_id(NEW.cs_id);
+  if v_clinic is null then
+    NEW.karte_note := 'カルテ連携なし: 院IDを判定できません（cs_id=' || coalesce(NEW.cs_id::text, 'null') || '）';
+    return NEW;
+  end if;
+
+  begin   -- ★連携の失敗で予約そのものを落とさない（理由は karte_note に残す）
+    select v.id, v.visit_date, v.patient_id, v.clinic_id
+      into v_ex_id, v_ex_date, v_ex_pid, v_ex_clinic
+      from visits v where v.rsv_code = NEW.code limit 1;
+    if v_ex_id is not null then
+      v_untouched := exists (select 1 from visits x where x.id = v_ex_id and coalesce(x.status, '') = 'reserved')
+                 and not exists (select 1 from kartes k where k.visit_id = v_ex_id)
+                 and not exists (select 1 from prescriptions p where p.visit_id = v_ex_id)
+                 and not exists (select 1 from diseases_assigned d where d.visit_id = v_ex_id);
+    end if;
+
+    -- (a) 取消・不履行 ------------------------------------------------
+    if NEW.status in ('CANCELLED', 'NO_SHOW') then
+      if v_ex_id is not null then
+        if v_untouched then
+          delete from visits where id = v_ex_id;
+          -- 自動登録した患者で、他に来院が無ければ患者マスタも掃除する
+          delete from patients p
+           where p.id = v_ex_pid and p.patient_no = 'RSV-' || NEW.code
+             and not exists (select 1 from visits x where x.patient_id = p.id);
+          NEW.karte_visit_id := null;
+          NEW.karte_note := '予約取消により来院予定を削除';
+        else
+          NEW.karte_note := '予約取消（カルテに記載があるため来院記録は残置）';
+        end if;
+        NEW.karte_synced_at := now();
+      end if;
+      return NEW;
+    end if;
+    if NEW.status not in ('CONFIRMED', 'VISITED') then return NEW; end if;
+
+    -- (b) 予約内容の解釈 --------------------------------------------
+    v_date  := NEW.rdate::date;
+    v_time  := NEW.rtime::time;
+    v_dob   := case when NEW.birth ~ '^\d{4}-\d{2}-\d{2}$' then NEW.birth::date else null end;
+    v_vtype := case NEW.visit_type when 'FIRST' then '新規' when 'REVISIT' then '再診' else null end;
+    v_dept  := case when NEW.cs_id in (13, 21, 34) then '美容' else '内科' end;
+
+    -- (c) 患者の名寄せ ----------------------------------------------
+    v_pid   := NEW.patient_id;
+    v_match := NEW.match_status;
+    if v_pid is not null and not exists (select 1 from patients where id = v_pid) then v_pid := null; end if;
+    if v_pid is null then
+      -- ① 電話番号（数字のみ比較）＋ 氏名（空白無視）
+      select id, count(*) over () into v_pid, v_cnt
+        from patients
+       where clinic_id = v_clinic
+         and rsv2_norm_phone(phone) is not null
+         and rsv2_norm_phone(phone) = rsv2_norm_phone(NEW.phone)
+         and rsv2_norm_name(name)   = rsv2_norm_name(NEW.name)
+       order by updated_at desc nulls last limit 1;
+      -- ② 生年月日 ＋ 氏名（またはカナ）
+      if v_pid is null and v_dob is not null then
+        select id, count(*) over () into v_pid, v_cnt
+          from patients
+         where clinic_id = v_clinic and dob = v_dob
+           and (rsv2_norm_name(name) = rsv2_norm_name(NEW.name)
+                or (rsv2_norm_name(name_kana) is not null and rsv2_norm_name(name_kana) = rsv2_norm_name(NEW.kana)))
+         order by updated_at desc nulls last limit 1;
+      end if;
+      if v_pid is not null then
+        v_match := case when coalesce(v_cnt, 1) > 1 then 'CANDIDATE' else 'AUTO' end;
+      else
+        -- 一致なし → 患者を新規登録（カルテで保存すると patient_no,clinic_id で同じ行に上書きされる）
+        insert into patients (clinic_id, patient_no, name, name_kana, dob, age, sex, phone, memo, is_db_source)
+        values (v_clinic, 'RSV-' || NEW.code, NEW.name, nullif(NEW.kana, ''), v_dob,
+                case when v_dob is null then null else extract(year from age(v_dob))::integer end,
+                '不明', nullif(NEW.phone, ''),
+                '予約サイトから自動登録（予約番号 ' || NEW.code || '）', false)
+        on conflict (patient_no, clinic_id) do update set updated_at = now()
+        returning id into v_pid;
+        v_match := 'NONE';
+      end if;
+    end if;
+    select patient_no into v_pno from patients where id = v_pid;
+
+    -- (d) 既存の連携先が別日・別患者・別院なら付け替える -----------------
+    if v_ex_id is not null and (v_ex_date <> v_date or v_ex_pid is distinct from v_pid or v_ex_clinic <> v_clinic) then
+      if v_untouched then
+        delete from visits where id = v_ex_id;
+      else
+        update visits set rsv_code = null where id = v_ex_id;   -- 記載済みの来院記録は残し、紐づけだけ外す
+      end if;
+      v_ex_id := null;
+    end if;
+
+    -- (e) 来院予定の作成／更新（同一患者・同一日の来院があればそれに紐づける） ---
+    insert into visits (clinic_id, patient_id, visit_date, visit_time, department, visit_type, status, rsv_code)
+    values (v_clinic, v_pid, v_date, v_time, v_dept, v_vtype, 'reserved', NEW.code)
+    on conflict (patient_id, visit_date, clinic_id) do update
+      set rsv_code   = excluded.rsv_code,
+          visit_time = case when coalesce(visits.status, '') = 'reserved' or visits.visit_time is null
+                            then excluded.visit_time else visits.visit_time end,
+          visit_type = coalesce(visits.visit_type, excluded.visit_type)
+    returning id into v_vid;
+
+    -- (f) 来院済みにされたら、来院予定を「待機」に進める ---------------------
+    if NEW.status = 'VISITED' then
+      update visits
+         set status = 'waiting',
+             arrived_at = coalesce(arrived_at, date_trunc('minute', (now() at time zone 'Asia/Tokyo'))::time)
+       where id = v_vid and coalesce(status, '') = 'reserved';
+    end if;
+
+    NEW.patient_id       := v_pid;
+    NEW.match_status     := v_match;
+    NEW.origin           := coalesce(NEW.origin, 'RSV');
+    NEW.karte_patient_no := v_pno;
+    NEW.karte_visit_id   := v_vid;
+    NEW.karte_synced_at  := now();
+    NEW.karte_note       := null;
+  exception when others then
+    NEW.karte_note      := 'カルテ連携失敗: ' || SQLERRM;
+    NEW.karte_synced_at := now();
+  end;
+  return NEW;
+end
+$$;
+
+-- 4) 予約行の DELETE（デモ初期化・掃除）→ 手つかずの来院予定だけ消す ---------
+create or replace function public.rsv2_unlink_karte()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_ex_id uuid; v_ex_pid uuid; v_untouched boolean;
+begin
+  select v.id, v.patient_id into v_ex_id, v_ex_pid from visits v where v.rsv_code = OLD.code limit 1;
+  if v_ex_id is null then return OLD; end if;
+  v_untouched := exists (select 1 from visits x where x.id = v_ex_id and coalesce(x.status, '') = 'reserved')
+             and not exists (select 1 from kartes k where k.visit_id = v_ex_id)
+             and not exists (select 1 from prescriptions p where p.visit_id = v_ex_id)
+             and not exists (select 1 from diseases_assigned d where d.visit_id = v_ex_id);
+  if v_untouched then
+    delete from visits where id = v_ex_id;
+    delete from patients p
+     where p.id = v_ex_pid and p.patient_no = 'RSV-' || OLD.code
+       and not exists (select 1 from visits x where x.patient_id = p.id);
+  else
+    update visits set rsv_code = null where id = v_ex_id;
+  end if;
+  return OLD;
+exception when others then
+  return OLD;   -- 掃除の失敗で予約の削除を止めない
+end
+$$;
+
+drop trigger if exists rsv2_sync_karte_trg on public.rsv2_reservations;
+create trigger rsv2_sync_karte_trg
+  before insert or update on public.rsv2_reservations
+  for each row execute function public.rsv2_sync_karte();
+
+drop trigger if exists rsv2_unlink_karte_trg on public.rsv2_reservations;
+create trigger rsv2_unlink_karte_trg
+  before delete on public.rsv2_reservations
+  for each row execute function public.rsv2_unlink_karte();
+
+-- トリガー関数は直接呼べないが、念のため anon からの実行権を外す
+revoke execute on function public.rsv2_sync_karte()   from public, anon;
+revoke execute on function public.rsv2_unlink_karte() from public, anon;
+
+-- 4b) 逆方向: カルテで受付（reserved → waiting 等）したら予約を「来院済」に進める --------
+--     カルテ画面は authenticated で rsv2_reservations に書けない（RLS は anon 限定）ため DB 内で追従する。
+create or replace function public.rsv2_visit_to_reservation()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if pg_trigger_depth() > 1 then return NEW; end if;          -- 予約側トリガー経由の更新には反応しない
+  if NEW.rsv_code is null then return NEW; end if;
+  if coalesce(OLD.status, '') = 'reserved' and coalesce(NEW.status, '') in ('waiting', 'in_progress', 'done') then
+    update rsv2_reservations set status = 'VISITED'
+     where code = NEW.rsv_code and status = 'CONFIRMED';
+  end if;
+  return NEW;
+exception when others then
+  return NEW;   -- 追従の失敗でカルテ側の更新を止めない
+end
+$$;
+revoke execute on function public.rsv2_visit_to_reservation() from public, anon;
+
+drop trigger if exists rsv2_visit_to_reservation_trg on public.visits;
+create trigger rsv2_visit_to_reservation_trg
+  after update of status on public.visits
+  for each row execute function public.rsv2_visit_to_reservation();
+
+-- 5) 空き枠の差し引きから「予約由来の来院予定」を除外（同じ予約を二重に数えない） -----
+create or replace view public.rsv2_karte_busy as
+ select
+   case clinic_id when 'nishiharu' then 1 when 'yokohama' then 2 when 'chiba' then 3 when 'nakagawa' then 4 end as clinic_id,
+   visit_date::text as rdate,
+   to_char(visit_time::interval, 'HH24:MI') as rtime,
+   count(*) as busy
+   from visits v
+  where visit_time is not null
+    and visit_date >= current_date - 1
+    and coalesce(status, '') <> 'done'
+    and rsv_code is null
+    and clinic_id in ('nishiharu', 'yokohama', 'chiba', 'nakagawa')
+  group by 1, 2, 3;
+grant select on public.rsv2_karte_busy to anon, authenticated;
+
+-- 6) 記録 --------------------------------------------------------------
+insert into public.rsv2_migrations (key, note)
+values ('2026-09-14_w8_karte_autocreate', '予約→カルテ来院予定の自動生成（BEFOREトリガー・名寄せ・取消追従・rsv_code列）')
+on conflict (key) do nothing;
+

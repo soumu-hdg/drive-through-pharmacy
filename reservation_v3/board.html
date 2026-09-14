@@ -874,7 +874,7 @@ const SVC_CLASS={ "外来":"svc-gairai", "在宅":"svc-zaitaku", "美容":"svc-b
 function svcClassOf(r){ const s=Store.serviceOfCs(r.csId); return (s&&SVC_CLASS[s.name])||"svc-gairai"; }
 function statusClassOf(r){ return r.status==="VISITED"?"visited":(r.status==="CANCELLED"?"cancelled":""); }
 /* ---- カルテ連携の表示（Wave8）。DBトリガーが書き戻した結果をそのまま見せる ---- */
-const KARTE_URL = "../karte_v19/";
+const KARTE_URL = "../karte_v20/";
 function karteInfo(r){
   if(r.karteNote && /失敗|なし/.test(r.karteNote)) return { color:"var(--red)", html:`<b>未作成</b>（${esc(r.karteNote)}）` };
   if(r.karteVisitId){
