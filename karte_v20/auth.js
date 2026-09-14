@@ -50,6 +50,8 @@ function showApp() {
   }
   // v19: 予約システムからの来院予定（visits.rsv_code あり）を読み、60秒ごとに更新
   if (window.RsvSync) RsvSync.load(false);
+  // v20: Supabase patients の支払方法・保険証・医療証などを画面へ読み戻す（スプシ読込の後に突合）
+  if (typeof hydratePatientsFromSupabase === 'function') setTimeout(function () { hydratePatientsFromSupabase('nishiharu'); }, 5000);
   // SSKマスター読込（傷病名27,684件等をバックグラウンドで）
   if (typeof MasterLoader !== 'undefined' && !MasterLoader.isLoaded()) {
     MasterLoader.loadAll('master/').then(() => {

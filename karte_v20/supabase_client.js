@@ -83,7 +83,103 @@ function toSupabasePatient(p, clinicId) {
     income_level: p.incomeLevel || null,
     memo: p.memo || null,
     is_db_source: p.dbSource || false,
+    // ★2026-09-14（v20・シート撤去）: 支払方法・公費/受給者・医療証。
+    //   従来は「新カルテ用DB」シートにしか送っておらず、2026-08-20 の送信停止以降どこにも残っていなかった。
+    pay_method: p.payMethod || null,
+    kouhi_edaban: p.kouhiEdaban || null,
+    recipient_number: p.recipientNumber || null,
+    recipient_edaban: p.recipientEdaban || null,
+    iryo_type: p.iryoType || null,
+    iryo_hobetsu: p.iryoHobetsu || null,
+    iryo_recipient_number: p.iryoRecipientNumber || null,
+    iryo_recipient_edaban: p.iryoRecipientEdaban || null,
+    iryo_valid_from: isoDateOrNull(p.iryoValidFrom),
+    iryo_valid_to: isoDateOrNull(p.iryoValidTo),
+    iryo_memo: p.iryoMemo || null,
   };
+}
+function isoDateOrNull(v) { return (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) ? v : null; }
+
+/**
+ * Supabase の patients 行 → app.js の患者項目（画面を開き直しても消えないように戻す）
+ * ★2026-09-14（v20）: 支払方法・公費/受給者・医療証を含む
+ */
+function applySupabasePatientRow(p, r) {
+  if (!p || !r) return p;
+  const set = (key, val) => { if (val != null && val !== '' && !p[key]) p[key] = val; };
+  set('nameKana', r.name_kana); set('dob', r.dob); set('phone', r.phone); set('address', r.address);
+  set('insurerNumber', r.insurer_number); set('insSymbol', r.ins_symbol); set('insNumber', r.ins_number); set('insEdaban', r.ins_edaban);
+  set('kouhiNumber', r.kouhi_number); set('incomeLevel', r.income_level); set('memo', r.memo);
+  set('payMethod', r.pay_method); set('kouhiEdaban', r.kouhi_edaban); set('recipientNumber', r.recipient_number); set('recipientEdaban', r.recipient_edaban);
+  set('iryoType', r.iryo_type); set('iryoHobetsu', r.iryo_hobetsu); set('iryoRecipientNumber', r.iryo_recipient_number); set('iryoRecipientEdaban', r.iryo_recipient_edaban);
+  set('iryoValidFrom', r.iryo_valid_from); set('iryoValidTo', r.iryo_valid_to); set('iryoMemo', r.iryo_memo);
+  if (Array.isArray(r.allergies) && r.allergies.length && !(p.allergies || []).length) p.allergies = r.allergies.slice();
+  return p;
+}
+
+/**
+ * 患者マスタだけを保存（来院記録は作らない）。支払方法・保険証モーダル・新規登録から呼ぶ。
+ * ★2026-09-14（v20・シート撤去）
+ */
+async function savePatientOnlyToSupabase(p, clinicId) {
+  if (!isSupabaseReady()) return { success: false, error: 'Supabase未接続' };
+  try {
+    const row = toSupabasePatient(p, clinicId || 'nishiharu');
+    const { data, error } = await supabaseClient
+      .from('patients')
+      .upsert(row, { onConflict: 'patient_no,clinic_id' })
+      .select('id')
+      .single();
+    if (error) throw new Error(error.message);
+    return { success: true, patientId: data.id };
+  } catch (e) {
+    console.error('[Supabase] 患者保存エラー:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * カルテ削除の記録（監査用・insertのみ）。削除より先に書き、書けなければ削除しない。
+ */
+async function insertDeleteLogToSupabase(o, clinicId) {
+  if (!isSupabaseReady()) return { success: false, error: 'Supabase未接続' };
+  try {
+    const { error } = await supabaseClient.from('karte_delete_logs').insert({
+      clinic_id: clinicId || 'nishiharu', karte_ref: o.karteRef || null, patient_no: o.patientNo || null,
+      visit_date: isoDateOrNull(o.visitDate), reason: o.reason || null, detail: o.detail || null,
+      operator: o.operator || null, deleted_rows: (o.deletedRows == null) ? null : o.deletedRows, source: 'karte_v20',
+    });
+    if (error) throw new Error(error.message);
+    return { success: true };
+  } catch (e) {
+    console.error('[Supabase] 削除記録エラー:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * 文書発行の記録（紹介状・診断書・院外処方箋）。visit_id は患者番号＋受診日で引けたら入れる。
+ */
+async function insertDocumentToSupabase(o, clinicId) {
+  if (!isSupabaseReady()) return { success: false, error: 'Supabase未接続' };
+  clinicId = clinicId || 'nishiharu';
+  try {
+    let visitId = null;
+    const { data: pRow } = await supabaseClient.from('patients').select('id').eq('patient_no', o.patientNo).eq('clinic_id', clinicId).maybeSingle();
+    if (pRow && isoDateOrNull(o.visitDate)) {
+      const { data: vRow } = await supabaseClient.from('visits').select('id').eq('patient_id', pRow.id).eq('visit_date', o.visitDate).eq('clinic_id', clinicId).maybeSingle();
+      if (vRow) visitId = vRow.id;
+    }
+    const { data, error } = await supabaseClient.from('karte_documents').insert({
+      clinic_id: clinicId, visit_id: visitId, patient_no: o.patientNo || null, visit_date: isoDateOrNull(o.visitDate),
+      doc_type: o.docType || null, title: o.title || null, content: o.content || {}, created_by: o.createdBy || null, source: 'karte_v20',
+    }).select('id').single();
+    if (error) throw new Error(error.message);
+    return { success: true, id: data.id };
+  } catch (e) {
+    console.error('[Supabase] 文書記録エラー:', e);
+    return { success: false, error: e.message };
+  }
 }
 
 /**
@@ -443,6 +539,28 @@ async function deleteKarteFromSupabase(patientNo, visitDate, clinicId) {
     return { success: true, deleted: { visits: visitIds.length } };
   } catch (e) {
     console.error('[Supabase] 削除エラー:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * ★2026-09-14（v20・シート撤去）: Supabase patients の内容を画面の患者一覧に戻す。
+ * スプレッドシート（夜間休日外来DB）由来の患者は電話・保険・支払方法などを持たないため、
+ * 患者番号（patient_no）で突合して空の項目だけ埋める。起動時と「再読込」で呼ぶ。
+ */
+async function hydratePatientsFromSupabase(clinicId) {
+  if (!isSupabaseReady() || typeof patients === 'undefined') return { success: false, error: 'Supabase未接続' };
+  try {
+    const { data, error } = await supabaseClient.from('patients').select('*').eq('clinic_id', clinicId || 'nishiharu');
+    if (error) throw new Error(error.message);
+    const byNo = {};
+    (data || []).forEach(r => { if (r.patient_no) byNo[r.patient_no] = r; });
+    let n = 0;
+    patients.forEach(p => { const r = byNo[p.id]; if (r) { applySupabasePatientRow(p, r); n++; } });
+    if (typeof renderPatientList === 'function') renderPatientList();
+    return { success: true, matched: n, rows: (data || []).length };
+  } catch (e) {
+    console.warn('[Supabase] 患者項目の読み戻しに失敗:', e.message);
     return { success: false, error: e.message };
   }
 }

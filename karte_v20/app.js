@@ -2,7 +2,7 @@
 function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 // ===== Config =====
-const API_URL = 'https://script.google.com/macros/s/AKfycbwFzGLG20GaSLxfdRDAg1ATqQu_s5MWYF045Rlc3OH01duvrL2rqlP9VSQxCEodiePX/exec';
+// 2026-09-14（v20）: 「新カルテ用DB」スプレッドシートへの送信（API_URL / postToApi）は撤去。保存先は Supabase のみ。
 // DB連携は db_integration.js に分離済み
 
 // ===== Data =====
@@ -229,11 +229,11 @@ function setPayMethod(id, v) {
   showToast(v ? '支払方法: ' + v : '支払方法をクリア');
 }
 // 患者マスタ送信（項目を落とさないよう常に同じ形で送る）
+// ★2026-09-14（v20）: 保存先は Supabase patients（来院記録は作らない）。失敗は赤バナーで可視化し再試行できる。
 function savePatientToApi(p) {
-  postToApi('savePatient', {
-    '患者ID': p.id, '氏名': p.name, 'フリガナ': p.nameKana || '', '生年月日': p.dob || '',
-    '年齢': p.age, '性別': p.sex, '住所': p.address || '', '電話番号': p.phone || '',
-    'アレルギー': (p.allergies || []).join(','), 'メモ': p.memo || '', '支払方法': p.payMethod || ''
+  if (typeof savePatientOnlyToSupabase !== 'function') return;
+  savePatientOnlyToSupabase(p, 'nishiharu').then(function (r) {
+    if (!r || !r.success) showSaveError('患者情報の保存（' + (p.name || p.id) + '）', (r && r.error) || '不明', function () { savePatientToApi(p); });
   });
 }
 
@@ -529,7 +529,7 @@ function addNewPatient(andOpen) {
   };
   patients.push(newP);
   karteData[newP.id] = { chiefComplaint:'', chiefComplaintSelect:'', findingsHtml:'', vitals:{t:'',bps:'',bpd:'',spo2:'',pulse:''}, selectedDiseases:[], prescriptions:[], rxDays:7, isFirstVisit:true, selectedExams:[], addedBillingItems:[], excludedBillingRows:{} };
-  postToApi('savePatient', { '患者ID': newP.id, '氏名': newP.name, 'フリガナ': newP.nameKana, '生年月日': newP.dob, '年齢': newP.age, '性別': newP.sex, '住所': newP.address, '電話番号': newP.phone, 'アレルギー': '', '既往歴': '', 'メモ': '' });
+  savePatientToApi(newP);   // ★v20: Supabase patients へ（シート送信は撤去）
   closeModal('newPatientModal');
   renderPatientList();
   showToast(name + 'さんを' + (andOpen ? '受付登録' : '登録') + 'しました');
@@ -1667,11 +1667,7 @@ function saveKarteDraft() {
   const surchargeInfo = getTimeSurcharge(examStartTime);
   const timeSlotLabel = surchargeInfo ? surchargeInfo.type : '通常';
   const plainText = getEditorPlainText();
-  const draftRows = buildKarteRows(karteId, k);
-  postToApi('saveKarteBundle', Object.assign({
-    'カルテ': { 'カルテID': karteId, '患者ID': currentPatientId, '受診日': selectedDate, '診察開始時刻': examStartTime ? examStartTime.toLocaleTimeString('ja-JP') : '', '主訴': k.chiefComplaint, '所見': plainText, '体温': k.vitals.t, '収縮期血圧': k.vitals.bps, '拡張期血圧': k.vitals.bpd, 'SpO2': k.vitals.spo2, '脈拍': k.vitals.pulse, '初診フラグ': k.isFirstVisit ? 'TRUE' : 'FALSE', '時間区分': timeSlotLabel, 'ステータス': '一時保存' }
-  }, draftRows));
-  // Supabase保存（失敗は赤バナー＋再試行導線で必ず可視化する）
+  // ★v20: シート送信（saveKarteBundle）は撤去。保存は下の Supabase のみ（失敗は赤バナー＋再試行導線で必ず可視化する）
   saveToSupabaseChecked('一時保存', p, k, drugs, function () { saveKarteDraft(); });
   saveKarteSnapshot();          // 要望#9: 「直前保存に戻す」用のスナップショット
   showToast('カルテを一時保存しました');
@@ -1699,12 +1695,7 @@ function confirmBilling() {
   if (!k.isFirstVisit) billingItemsList.push('外来管理加算 52点');
   if (surchargeInfo) billingItemsList.push(surchargeInfo.type + '加算 ' + surchargeInfo.points + '点');
   if (k.prescriptions.length > 0) billingItemsList.push('処方料・調剤料・薬剤料');
-  const confRows = buildKarteRows(karteId, k);
-  postToApi('saveKarteBundle', Object.assign({
-    'カルテ': { 'カルテID': karteId, '患者ID': currentPatientId, '受診日': selectedDate, '診察開始時刻': examStartTime ? examStartTime.toLocaleTimeString('ja-JP') : '', '診察終了時刻': new Date().toLocaleTimeString('ja-JP'), '主訴': k.chiefComplaint, '所見': plainText, '体温': k.vitals.t, '収縮期血圧': k.vitals.bps, '拡張期血圧': k.vitals.bpd, 'SpO2': k.vitals.spo2, '脈拍': k.vitals.pulse, '初診フラグ': k.isFirstVisit ? 'TRUE' : 'FALSE', '時間区分': timeSlotLabel, 'ステータス': '確定' },
-    '算定': { 'カルテID': karteId, '患者ID': currentPatientId, '項目名': billingItemsList.join(', '), '合計点数': totalPoints, '負担額': burdenAmount, '負担割合': p.ratio }
-  }, confRows));
-  // Supabase保存（確定版）。失敗は赤バナー＋再試行導線で必ず可視化する。
+  // ★v20: シート送信（saveKarteBundle）は撤去。Supabase保存（確定版）。失敗は赤バナー＋再試行導線で必ず可視化する。
   // 再試行は confirmBilling 全体ではなく保存だけを再実行する（確認ダイアログや状態変更を二重に走らせないため）
   (function retryableConfirmSave() {
     saveToSupabaseChecked('確定保存', p, k, drugs, retryableConfirmSave);
@@ -1796,22 +1787,24 @@ function deleteKarteCompletely() {
     localStorage.setItem('karte_deletionLog', JSON.stringify(log.slice(-500)));
   } catch (e) { console.warn('削除記録の保存に失敗:', e); }
 
-  // バックエンドへ削除を通知
-  // ※ スプレッドシート(GAS)側は deleteKarte アクションの実装が必要（未実装だと無視される）
-  postToApi('deleteKarte', { 'カルテID': karteId, '患者ID': p.id, '受診日': selectedDate, '削除理由': reason, '詳細': note, '実施者': currentOperator() });
-  if (typeof deleteKarteFromSupabase === 'function') {
-    deleteKarteFromSupabase(p.id, selectedDate, 'nishiharu').then(r => {
-      if (r && r.success) console.log('[削除] Supabase OK', r.deleted);
-      else showToast('Supabaseの削除に失敗しました: ' + ((r && r.error) || '不明'));
+  // ★v20（シート撤去）: 削除の記録（理由・実施者）を Supabase karte_delete_logs に先に書き、書けなければ削除しない
+  const pid = currentPatientId;
+  const finishLocal = function () {
+    karteData[pid] = blankKarte(p);
+    clearKarteSnapshot();
+    if (p.status === 'done') p.status = 'waiting';
+    closeModal('karteCancelModal');
+    renderAllKarte();
+    showToast('カルテを削除しました');
+  };
+  if (typeof insertDeleteLogToSupabase !== 'function' || typeof deleteKarteFromSupabase !== 'function') { showSaveError('カルテ削除', 'Supabase連携が読み込まれていません'); return; }
+  insertDeleteLogToSupabase({ karteRef: karteId, patientNo: p.id, visitDate: selectedDate, reason: reason, detail: note, operator: currentOperator() }, 'nishiharu').then(function (lg) {
+    if (!lg || !lg.success) { showSaveError('カルテ削除の記録', (lg && lg.error) || '不明', deleteKarteCompletely); showToast('削除の記録が書けないため削除を中止しました'); return; }
+    deleteKarteFromSupabase(p.id, selectedDate, 'nishiharu').then(function (r) {
+      if (r && r.success) { console.log('[削除] Supabase OK', r.deleted); finishLocal(); }
+      else showSaveError('カルテ削除', (r && r.error) || '不明', deleteKarteCompletely);
     });
-  }
-
-  karteData[currentPatientId] = blankKarte(p);
-  clearKarteSnapshot();
-  if (p.status === 'done') p.status = 'waiting';
-  closeModal('karteCancelModal');
-  renderAllKarte();
-  showToast('カルテを削除しました');
+  });
 }
 
 // ===== 月遅れ請求（2026-08-06 要望） =====
@@ -1971,18 +1964,8 @@ function updateLateClaimBadge() {
 }
 
 // ===== 「新カルテ用DB」スプレッドシートへのミラー送信 =====
-// 2026-08-20: 正はSupabase側で、当シートは参照されていないため送信を停止した。
-// 現場から参照要望が出た場合は、この定数を true に戻すだけで復旧する（コード削除はしていない）。
-const ENABLE_SHEET_MIRROR = false;
-
-function postToApi(action, data) {
-  if (!ENABLE_SHEET_MIRROR) { console.info('[sheet-mirror] 停止中のため送信せず:', action); return; }
-  try {
-    // no-cors のため応答は読めない。最低限ネットワーク層の失敗だけは拾う。
-    fetch(API_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({action, data}) })
-      .catch(function(e){ console.warn('API error:', action, e); });
-  } catch(e) { console.warn('API error:', action, e); }
-}
+// 2026-09-14（v20）: 「新カルテ用DB」シートへのミラー送信（ENABLE_SHEET_MIRROR / postToApi）は撤去した。
+// 支払方法・保険証/医療証・文書発行・削除記録も Supabase（patients / karte_documents / karte_delete_logs）に保存する。
 
 // ===== 保存失敗の可視化 (2026-08-20) =====
 // 旧実装は console.log / console.warn のみで、保存が全滅しても画面には何も出なかった。
@@ -2285,7 +2268,10 @@ function saveInsuranceInfo() {
   p.iryoValidFrom = document.getElementById('iryoValidFrom').value;
   p.iryoValidTo = document.getElementById('iryoValidTo').value;
   p.iryoMemo = document.getElementById('iryoMemo').value;
-  postToApi('saveInsurance', { '患者ID': p.id, '保険区分': type, '記号': p.insSymbol, '番号': p.insNumber, '枝番': p.insEdaban, '保険者番号': p.insurerNumber, '公費番号': p.kouhiNumber, '公費枝番': p.kouhiEdaban, '受給者番号': p.recipientNumber, '受給者枝番': p.recipientEdaban, '所得区分': p.incomeLevel, '負担割合': ratio, '医療証種別': p.iryoType, '法別番号': p.iryoHobetsu, '医療証受給者番号': p.iryoRecipientNumber, '医療証受給者枝番': p.iryoRecipientEdaban });
+  // ★v20（シート撤去）: 公費枝番・受給者番号などの入力欄があれば p に反映してから Supabase patients に保存
+  [['kouhiNumberInput', 'kouhiNumber'], ['kouhiEdaban', 'kouhiEdaban'], ['recipientNumber', 'recipientNumber'], ['recipientEdaban', 'recipientEdaban'], ['iryoRecipientEdaban', 'iryoRecipientEdaban']]
+    .forEach(function (pair) { const el = document.getElementById(pair[0]); if (el && typeof el.value === 'string') p[pair[1]] = el.value; });
+  savePatientToApi(p);
   closeModal('insurancePhotoModal'); renderAllKarte(); showToast('保険証・医療証情報を更新');
 }
 
@@ -2391,7 +2377,18 @@ function saveDocument() {
   const karteId = 'K-' + currentPatientId + '-' + selectedDate;
   const typeMap = { referral: '診療情報提供書', diagnosis: '診断書', prescription: '院外処方箋' };
   const docType = typeMap[currentDocType] || '文書';
-  postToApi('saveDocument', { 'カルテID': karteId, '患者ID': currentPatientId, '文書種別': docType, 'タイトル': docType + ' - ' + p.name, '内容JSON': JSON.stringify({ date: selectedDate, patient: p.name }) });
+  // ★v20（シート撤去）: 文書発行の記録を Supabase karte_documents へ（モーダルの入力内容も content に入れる）
+  const fields = {};
+  document.querySelectorAll('#docModalBody input, #docModalBody textarea, #docModalBody select').forEach(function (el, i) {
+    const key = el.id || el.name || ('field' + i);
+    fields[key] = (el.type === 'checkbox') ? el.checked : el.value;
+  });
+  const content = { karteId: karteId, date: selectedDate, patient: p.name, patientNo: p.id, docType: currentDocType, fields: fields };
+  if (typeof insertDocumentToSupabase === 'function') {
+    insertDocumentToSupabase({ patientNo: p.id, visitDate: selectedDate, docType: docType, title: docType + ' - ' + p.name, content: content, createdBy: currentOperator() }, 'nishiharu').then(function (r) {
+      if (!r || !r.success) showSaveError('文書の記録（' + docType + '）', (r && r.error) || '不明', saveDocument);
+    });
+  }
   closeModal('docModal'); showToast(docType + 'を保存しました');
 }
 
