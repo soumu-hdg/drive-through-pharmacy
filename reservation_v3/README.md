@@ -28,3 +28,9 @@
 ## 本番化で差し替える点（★SEAM★）
 - `store.js` の Supabase 直接書き込み → サーバ関数経由（書き込みはサーバ側で権限判定）
 - 同期は Supabase Realtime（postgres_changes）を利用
+
+## Wave 8（2026-09-14）予約 → 電子カルテ来院予定の自動生成
+- 予約の登録・変更・取消・来院を DB トリガー（`rsv2_sync_karte`）が受け、カルテの `patients`/`visits` に来院予定（status=reserved）を自動作成・追従する。
+- 受付ボードの予約詳細に「カルテ」行（作成済み／患者番号／名寄せ結果）、日別ボードに「カルテ」バッジ。
+- カルテ側は `karte_v19`（患者一覧に「予約 HH:MM」バッジ・受付ボタン・60秒ごと自動更新）。
+- SQL: `../sql/2026-09-14_w8_karte_autocreate.sql`／検証: `scripts/verify_rsv_w8_karte_20260914.js`
