@@ -440,3 +440,90 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install); else install();
 })();
+
+// ===== v20: URL ルーティング（旧カルテと同じく「受付＝/reception/日付」「患者詳細＝/karte/患者ID/日付」） =====
+// GitHub Pages では経路のサーバー書換えができないため、# 以降で表現する。
+//   受付      : #/reception/2026-09-14
+//   患者詳細  : #/karte/P-00481/2026-09-14       （スプシ由来の DB-xxxx は並び順で番号が変わるため ?n=氏名ハッシュ を添える）
+// ブラウザの戻る／進む（マウスのサブボタン含む）は popstate で受けて、履歴を積まずに画面だけ切り替える。
+(function () {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  let applying = false;          // popstate 由来の画面切替中（履歴を積まない）
+  let pending = null;            // 患者データ読込前に来た /karte 経路
+  function nameHash(s) { s = String(s || '').replace(/[\s　]/g, ''); let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(16).slice(0, 6); }
+  function routeOf(p) { return '#/karte/' + encodeURIComponent(p.id) + '/' + selectedDate + (p.dbSource ? '?n=' + nameHash(p.name) : ''); }
+  function listRoute() { return '#/reception/' + selectedDate; }
+  function parse(h) {
+    h = h || location.hash || '';
+    let m = h.match(/^#\/karte\/([^/?]+)\/(\d{4}-\d{2}-\d{2})(?:\?n=([0-9a-f]+))?/);
+    if (m) return { screen: 'karte', id: decodeURIComponent(m[1]), date: m[2], n: m[3] || null };
+    m = h.match(/^#\/reception\/(\d{4}-\d{2}-\d{2})/);
+    if (m) return { screen: 'list', date: m[1] };
+    return null;
+  }
+  function push(h) { if (location.hash !== h) history.pushState({ m3: 1 }, '', h); }
+  function replace(h) { if (location.hash !== h) history.replaceState({ m3: 1 }, '', h); }
+  function setDate(d) {
+    if (!d || d === selectedDate) return;
+    selectedDate = d;
+    const ld = $('listDate'); if (ld) ld.value = d;
+    if (typeof updateRevisionBadge === 'function') updateRevisionBadge();
+  }
+  function findPatient(r) {
+    let p = patients.find(x => x.id === r.id);
+    if (p && (!r.n || nameHash(p.name) === r.n)) return p;
+    if (r.n) { const q = patients.find(x => nameHash(x.name) === r.n); if (q) return q; }
+    return p || null;
+  }
+  // 経路 → 画面（履歴は積まない）
+  function apply(r) {
+    if (!r) return;
+    applying = true;
+    try {
+      if (r.screen === 'list') {
+        setDate(r.date);
+        if (typeof showScreen === 'function') showScreen('list');
+        if (typeof renderPatientList === 'function') renderPatientList();
+      } else {
+        setDate(r.date);
+        const p = findPatient(r);
+        if (!p) { pending = r; return; }
+        pending = null;
+        if (p.id !== r.id) replace(routeOf(p));   // DB-xxxx の番号が変わっていた場合は正しい経路に直す
+        window.__m3_openKarte(p.id);
+      }
+    } finally { applying = false; }
+  }
+  // 患者データが後から読み込まれたら、保留中の経路を開く
+  function retryPending() { if (pending && typeof patients !== 'undefined' && patients.length) { const r = pending; apply(r); } }
+  setInterval(retryPending, 700);
+
+  function install() {
+    if (typeof openKarte !== 'function' || typeof goToList !== 'function') return;
+    window.__m3_openKarte = openKarte;
+    window.__m3_goToList = goToList;
+    // 患者を開く → 経路を積む（旧カルテで患者行のリンクを踏むのと同じ）
+    openKarte = function (id) {
+      window.__m3_openKarte(id);
+      if (applying) return;
+      const p = patients.find(x => x.id === id);
+      if (p) push(routeOf(p));
+    };
+    // 受付へ戻る（×・ロゴ・次の患者なし）→ 受付の経路を積む。ブラウザの戻るでも同じ画面に着く
+    goToList = function () {
+      window.__m3_goToList();
+      if (applying) return;
+      push(listRoute());
+    };
+    // 日付移動は受付画面の経路を置き換える（履歴を増やさない）
+    const wrapDate = name => { if (typeof window[name] !== 'function') return; const o = window[name]; window[name] = function () { const r = o.apply(this, arguments); if (!applying && (typeof currentScreen === 'undefined' || currentScreen !== 'karte')) replace(listRoute()); return r; }; };
+    ['changeDate', 'setToday', 'onDateChange'].forEach(wrapDate);
+    window.addEventListener('popstate', () => { const r = parse(); if (r) apply(r); else apply({ screen: 'list', date: selectedDate }); });
+    // 初期表示: 経路があればそれを、無ければ受付の経路を置く
+    const r0 = parse();
+    if (r0) { if (r0.screen === 'karte') { setDate(r0.date); pending = r0; retryPending(); } else apply(r0); }
+    else replace(listRoute());
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install); else install();
+})();
