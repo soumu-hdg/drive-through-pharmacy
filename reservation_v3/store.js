@@ -33,6 +33,11 @@ const Store = (() => {
      supabase-js（CDN）が実際に読み込めたかを分けて持つ。
      ★両者を混ぜると「CDNが読めなかった」ときに黙ってローカル保存へ落ちて「予約完了」と出てしまう（2026-08-12 是正）。 */
   const WANT_SUPABASE = typeof window !== "undefined" && window.__RSV_SUPABASE__ === true;
+  /* v21(W9): 受付ボードは職員ログイン（電子カルテと同じ Supabase Auth のID）で動く。
+     同じ github.io ドメインではカルテのログインセッションがそのまま使われる（ID管理は一本）。
+     患者向けサイトは従来どおり anon 専用（persistSession:false）。 */
+  const STAFF_MODE    = typeof window !== "undefined" && window.__RSV_STAFF__ === true;
+  let _client = null;
   const SDK_LOADED    = typeof window !== "undefined" && !!window.supabase;
   const USE_SUPABASE  = WANT_SUPABASE && SDK_LOADED;
 
@@ -637,9 +642,11 @@ const Store = (() => {
     //   読まない/触らない（persistSession:false）。予約アプリは常にanonロールで動作し、
     //   カルテ側の認証に干渉しない。RLSポリシーは to public（anon/authenticated両対応）。
     const client = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      auth: STAFF_MODE ? { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+                       : { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
       realtime: { params: { eventsPerSecond: 20 } },
     });
+    _client = client;
     const fromRow = r => ({
       code: r.code, csId: r.cs_id, slotId: r.slot_id, date: r.rdate, time: r.rtime,
       name: r.name, kana: r.kana || "", phone: r.phone, birthDate: r.birth || "", email: r.email || "",
@@ -1384,6 +1391,8 @@ const Store = (() => {
     addHours, removeHours, importDefaultHours, resetHours, addClosure, removeClosure, refreshHours,
     slotAvail,
     getBackend: () => backendName,                                   // "supabase" | "local" | "offline"
+    getClient: () => _client,                                        // 職員ログイン用（受付ボードだけが使う）
+    isStaffMode: () => STAFF_MODE,
     isOffline: () => backendName === "offline",                      // 予約の正本に書けない状態
     getBackendError: () => backendError,                             // {reason,code,message,details}
     refreshReservations,                                             // 明示的な再読込（UIから呼べる）

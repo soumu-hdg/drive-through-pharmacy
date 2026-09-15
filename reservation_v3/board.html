@@ -243,6 +243,8 @@
     <span class="brand">予約統括システム 受付ボード <small>リアルタイム同期</small></span>
     <span style="display:flex;gap:14px;align-items:center">
       <span class="latency" id="latency">同期待機中…</span>
+      <span id="staffWho" class="latency" style="color:#cbd5e1"></span>
+      <a class="to-patient" href="#" onclick="staffLogout();return false;" id="staffLogoutLink" style="display:none">ログアウト</a>
       <a class="to-patient" href="index.html" target="_blank">患者向けサイトを開く ↗</a>
     </span>
   </div>
@@ -259,6 +261,20 @@
     <a class="tab" data-tab="import" onclick="showAdminTab('import')">CSV取り込み</a>
   </nav>
 </header>
+<!-- v21(W9): 職員ログイン（電子カルテと同じID）。所属院のボードだけ操作できる -->
+<div id="staffLogin" style="display:none;position:fixed;inset:0;z-index:9999;background:#0f172a;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;padding:30px 32px;width:360px;box-shadow:0 10px 30px rgba(0,0,0,.35);font-size:13px;color:#1e293b">
+    <h2 style="margin:0 0 4px;font-size:17px">受付ボード ログイン</h2>
+    <p style="margin:0 0 16px;color:#64748b;font-size:12px">電子カルテと同じIDでログインします。所属クリニックのボードだけ表示されます。</p>
+    <label style="display:block;font-size:12px;margin-bottom:4px">メールアドレス</label>
+    <input type="email" id="stEmail" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;margin-bottom:10px">
+    <label style="display:block;font-size:12px;margin-bottom:4px">パスワード</label>
+    <input type="password" id="stPass" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;margin-bottom:14px" onkeydown="if(event.key==='Enter')staffLogin()">
+    <button id="stBtn" onclick="staffLogin()" style="width:100%;padding:10px;background:#0f172a;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer">ログイン</button>
+    <button onclick="staffGoogle()" style="width:100%;margin-top:8px;padding:9px;background:#fff;color:#1e293b;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;cursor:pointer">Googleでログイン</button>
+    <div id="stErr" style="margin-top:10px;color:#dc2626;font-size:12px;min-height:16px"></div>
+  </div>
+</div>
 <main>
   <!-- 予約DBに接続できないときの警告（保存されないことを受付にはっきり伝える） -->
   <div id="connBar" style="display:none;margin:0 0 14px;padding:11px 16px;border:1px solid #fca5a5;border-left:5px solid #dc2626;background:#fef2f2;color:#7f1d1d;font-size:14px;font-weight:700;border-radius:6px"></div>
@@ -306,9 +322,9 @@
 <!-- 成功トースト（失敗は画面上部のバナーで出す） -->
 <div id="toastWrap" class="toast-wrap"></div>
 
-<script>window.__RSV_SUPABASE__ = true;</script>
+<script>window.__RSV_SUPABASE__ = true; window.__RSV_STAFF__ = true;</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="store.js?v=20260914w9"></script>
+<script src="store.js?v=20260915w9"></script>
 <script>
 /* 受付ライブボード（タブ切替式）：患者予約が入った瞬間に日別ボード・予約一覧へ即反映 */
 function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -357,18 +373,76 @@ let curDate = Store.todayStr();
 let curClinic = 1;              // 表示中のクリニック（既定=西春）。demo.html右側はこれで切替
 let prevCodes = new Set();
 
+/* ---------------- 職員ログイン（v21/W9: カルテと同じ Supabase Auth・所属院で絞る） ----------------
+   ・app_users.clinics（'*'=全院）を読み、クリニックのピルを所属院だけにする
+   ・未ログインならオーバーレイ。ログイン後は再読込（Realtime/RLS をログインIDで張り直す） */
+let staffUser = null;
+let staffClinics = null;          // 予約側の院番号（1西春/2横浜/3千葉/4中川）の配列。null=未確定
+const RSV_CLINIC_KEY = { nishiharu:1, yokohama:2, chiba:3, nakagawa:4 };
+function allowedClinics(){
+  if(!staffClinics) return Store.CLINICS;
+  return Store.CLINICS.filter(c=>staffClinics.includes(c.id));
+}
+async function staffInit(){
+  const client = Store.getClient && Store.getClient();
+  if(!client){ return; }                                   // ローカル/オフライン（デモ）はログインなし
+  const { data:{ session } } = await client.auth.getSession();
+  if(!session){ showStaffLogin(''); return; }
+  staffUser = session.user;
+  const { data, error } = await client.from('app_users').select('*').eq('id', session.user.id).maybeSingle();
+  const cl = data && (Array.isArray(data.clinics) ? data.clinics : (data.clinic_id ? [data.clinic_id] : []));
+  if(error || !data || data.is_active===false || !cl || !cl.length){
+    await client.auth.signOut().catch(()=>{});
+    showStaffLogin(error ? ('所属の確認に失敗: '+error.message) : 'このIDには所属クリニックが設定されていません。管理者（総務）に連絡してください');
+    return;
+  }
+  staffClinics = cl.includes('*') ? Store.CLINICS.map(c=>c.id) : cl.map(k=>RSV_CLINIC_KEY[k]).filter(Boolean);
+  const remembered = Number(localStorage.getItem('rsv_board_clinic')||0);
+  const first = allowedClinics()[0];
+  curClinic = staffClinics.includes(remembered) ? remembered : (first ? first.id : curClinic);
+  const who=document.getElementById('staffWho'); if(who) who.textContent = session.user.email;
+  const lo=document.getElementById('staffLogoutLink'); if(lo) lo.style.display='';
+  document.getElementById('staffLogin').style.display='none';
+  renderClinicSwitch();
+}
+function showStaffLogin(msg){
+  const el=document.getElementById('staffLogin'); el.style.display='flex';
+  document.getElementById('stErr').textContent = msg||'';
+}
+async function staffLogin(){
+  const client = Store.getClient(); const btn=document.getElementById('stBtn'); const err=document.getElementById('stErr');
+  const email=document.getElementById('stEmail').value.trim(), password=document.getElementById('stPass').value;
+  if(!email||!password){ err.textContent='メールアドレスとパスワードを入力してください'; return; }
+  btn.disabled=true; err.textContent='';
+  const { error } = await client.auth.signInWithPassword({ email, password });
+  btn.disabled=false;
+  if(error){ err.textContent='ログイン失敗: '+error.message; return; }
+  location.reload();                                        // ログインIDで Realtime/RLS を張り直す
+}
+async function staffGoogle(){
+  const client = Store.getClient();
+  const { error } = await client.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: location.origin + location.pathname } });
+  if(error) document.getElementById('stErr').textContent='Google認証エラー: '+error.message;
+}
+async function staffLogout(){
+  const client = Store.getClient(); if(client) await client.auth.signOut().catch(()=>{});
+  location.reload();
+}
+
 /* ---------------- クリニック切替（受付側の確認ウィンドウを院ごとに） ---------------- */
 function curClinicObj(){ return Store.CLINICS.find(c=>c.id===curClinic) || Store.CLINICS[0]; }
 function firstCsOfClinic(){ const c=curClinicObj(); return c && c.services[0] ? c.services[0].id : null; }
 function inCurClinic(csId){ const c=Store.clinicOfCs(csId); return c && c.id===curClinic; }
 function renderClinicSwitch(){
   const el=document.getElementById('clinicSwitch'); if(!el) return;
-  el.innerHTML = '<span class="cs-label">クリニック：</span>' + Store.CLINICS.map(c=>
+  el.innerHTML = '<span class="cs-label">クリニック：</span>' + allowedClinics().map(c=>
     `<button class="clinic-pill ${c.id===curClinic?'active':''}" onclick="setClinic(${c.id})">${esc(c.name)}${c.openingNote?'<small>開業前</small>':''}</button>`
   ).join("");
 }
 function setClinic(id){
+  if(staffClinics && !staffClinics.includes(id)) return;    // 所属外の院は選べない
   curClinic=id;
+  try{ localStorage.setItem('rsv_board_clinic', String(id)); }catch(e){}
   nf.csId=null; slotsCs=null;          // 代理入力・枠確認の選択を新クリニックへ
   renderClinicSwitch();
   prevCodes = currentCodes();
@@ -874,7 +948,7 @@ const SVC_CLASS={ "外来":"svc-gairai", "在宅":"svc-zaitaku", "美容":"svc-b
 function svcClassOf(r){ const s=Store.serviceOfCs(r.csId); return (s&&SVC_CLASS[s.name])||"svc-gairai"; }
 function statusClassOf(r){ return r.status==="VISITED"?"visited":(r.status==="CANCELLED"?"cancelled":""); }
 /* ---- カルテ連携の表示（Wave8）。DBトリガーが書き戻した結果をそのまま見せる ---- */
-const KARTE_URL = "../karte_v20/";
+const KARTE_URL = "../karte_v21/";
 function karteInfo(r){
   if(r.karteNote && /失敗|なし/.test(r.karteNote)) return { color:"var(--red)", html:`<b>未作成</b>（${esc(r.karteNote)}）` };
   if(r.karteVisitId){
@@ -1572,7 +1646,8 @@ document.addEventListener('keydown', (e)=>{
 /* ---------------- 起動 ---------------- */
 renderClinicSwitch();
 renderBoard();
-Store.ready.then(()=>{
+Store.ready.then(async ()=>{
+  try { await staffInit(); } catch(e){ console.warn('[職員ログイン]', e); showStaffLogin('ログイン状態の確認に失敗しました'); }
   prevCodes = currentCodes();
   const b = Store.getBackend();
   const brand = document.querySelector(".admin-header .brand small");
