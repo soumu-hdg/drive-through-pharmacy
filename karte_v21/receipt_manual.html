@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1024">
+<title>レセプト出力マニュアル — 電子カルテ v0.12</title>
+<style>
+:root {
+  --bg: #f5f3ee; --white: #fafaf8; --border: #d5d1c8;
+  --text: #2b2b2b; --sub: #787878;
+  --green: #3a6b35; --green-l: #e8f0e6;
+  --blue: #264653; --blue-l: #457b9d;
+  --red: #c1272d; --red-l: #fff0f0;
+  --amber: #b45309; --amber-l: #fff8e1;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Yu Gothic", "Meiryo", sans-serif; background: var(--bg); color: var(--text); font-size: 13px; line-height: 1.6; }
+
+.page {
+  background: var(--white); max-width: 960px; margin: 20px auto;
+  border: 1px solid var(--border); padding: 28px 32px;
+  page-break-after: always;
+}
+h1 { font-size: 22px; color: var(--blue); border-bottom: 3px double var(--blue); padding-bottom: 8px; margin-bottom: 16px; }
+h2 { font-size: 16px; color: var(--blue); border-left: 4px solid var(--green); padding-left: 10px; margin: 20px 0 10px; }
+h3 { font-size: 13px; color: var(--green); font-weight: 700; margin: 12px 0 6px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 12px; }
+th { background: #e8e4dc; padding: 6px 10px; border: 1px solid #bbb; font-weight: 600; text-align: left; }
+td { padding: 5px 10px; border: 1px solid #ccc; vertical-align: top; }
+
+.tag { display: inline-block; padding: 2px 8px; border-radius: 2px; font-size: 10px; font-weight: 700; }
+.tag-csv { background: #d1fae5; color: #065f46; }
+.tag-print { background: #e3f2fd; color: #1565c0; }
+.tag-uke { background: #fef3c7; color: #92400e; }
+.tag-txt { background: #f3e8ff; color: #6b21a8; }
+
+.step-box {
+  border: 1px solid var(--border); margin: 8px 0; padding: 12px 16px;
+  display: flex; align-items: flex-start; gap: 14px;
+}
+.step-num {
+  width: 32px; height: 32px; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; font-weight: 700;
+  font-size: 15px; color: #fff; flex-shrink: 0;
+}
+.step-content { flex: 1; }
+.step-content strong { color: var(--blue); }
+
+.note { border-left: 4px solid var(--amber); background: var(--amber-l); padding: 8px 14px; margin: 8px 0; font-size: 12px; }
+.note.green { border-left-color: var(--green); background: var(--green-l); }
+.note.blue { border-left-color: var(--blue-l); background: #e8f4f8; }
+
+.menu-mock {
+  background: var(--white); border: 1px solid var(--border); box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  width: 260px; padding: 4px 0; margin: 8px 0; font-size: 12px;
+}
+.menu-mock .group { font-size: 10px; font-weight: 600; color: var(--sub); padding: 8px 14px 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+.menu-mock .item { padding: 5px 14px 5px 22px; cursor: default; }
+.menu-mock .item:hover { background: var(--green-l); }
+.menu-mock .title { font-size: 12px; font-weight: 600; padding: 6px 14px 4px; border-bottom: 1px solid var(--border); }
+
+.flow { display: flex; align-items: center; gap: 4px; margin: 12px 0; flex-wrap: wrap; }
+.flow-box { background: var(--white); border: 2px solid var(--blue); padding: 8px 14px; text-align: center; font-size: 11px; font-weight: 600; }
+.flow-arrow { font-size: 18px; color: var(--green); }
+
+.file-list { list-style: none; padding: 0; }
+.file-list li { padding: 4px 0; border-bottom: 1px dotted var(--border); display: flex; align-items: center; gap: 8px; }
+.file-list li:last-child { border-bottom: none; }
+
+.footer { font-size: 10px; color: #aaa; border-top: 1px solid var(--border); padding-top: 8px; margin-top: 20px; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+
+<!-- ===== PAGE 1: 概要 ===== -->
+<div class="page">
+  <h1>レセプト出力マニュアル</h1>
+  <p style="color:var(--sub);margin-bottom:16px;">電子カルテ v0.12 | 西春内科・在宅クリニック | 作成: 2026/06/30</p>
+
+  <h2>出力できるファイル一覧</h2>
+  <table>
+    <tr>
+      <th style="width:40px;">#</th><th style="width:50px;">種別</th>
+      <th>出力名</th><th style="width:180px;">提出先 / 用途</th><th style="width:70px;">メニュー位置</th>
+    </tr>
+    <tr><td>1</td><td><span class="tag tag-csv">CSV</span></td><td>レセプト一覧 CSV</td><td>院内管理用</td><td>CSV出力</td></tr>
+    <tr><td>2</td><td><span class="tag tag-csv">CSV</span></td><td>要確認一覧 CSV</td><td>院内チェック用</td><td>CSV出力</td></tr>
+    <tr><td>3</td><td><span class="tag tag-csv">CSV</span></td><td>総括表 CSV</td><td>院内管理用</td><td>CSV出力</td></tr>
+    <tr><td>4</td><td><span class="tag tag-csv">CSV</span></td><td>レセプト詳細 CSV</td><td>院内（個別患者）</td><td>詳細画面</td></tr>
+    <tr><td>5</td><td><span class="tag tag-print">印刷</span></td><td>社保総括表（様式第一）</td><td>支払基金</td><td>公式帳票</td></tr>
+    <tr><td>6</td><td><span class="tag tag-print">印刷</span></td><td>国保総括表（保険者別）</td><td>国保連合会</td><td>公式帳票</td></tr>
+    <tr><td>7</td><td><span class="tag tag-print">印刷</span></td><td>光ディスク等送付書（社保）</td><td>支払基金</td><td>公式帳票</td></tr>
+    <tr><td>8</td><td><span class="tag tag-print">印刷</span></td><td>光ディスク等送付書（国保）</td><td>国保連合会</td><td>公式帳票</td></tr>
+    <tr><td>9</td><td><span class="tag tag-print">印刷</span></td><td>公費医療費請求書</td><td>各市町村</td><td>公式帳票</td></tr>
+    <tr><td>10</td><td><span class="tag tag-print">印刷</span></td><td>返戻用社保総括表</td><td>支払基金</td><td>返戻関連</td></tr>
+    <tr><td>11</td><td><span class="tag tag-print">印刷</span></td><td>返戻用国保総括表</td><td>国保連合会</td><td>返戻関連</td></tr>
+    <tr><td>12</td><td><span class="tag tag-txt">TXT</span></td><td>返戻処理結果（社保）</td><td>院内記録用</td><td>返戻関連</td></tr>
+    <tr><td>13</td><td><span class="tag tag-txt">TXT</span></td><td>返戻処理結果（国保）</td><td>院内記録用</td><td>返戻関連</td></tr>
+    <tr><td>14</td><td><span class="tag tag-print">印刷</span></td><td>総括表サマリー</td><td>院内確認用</td><td>印刷</td></tr>
+    <tr><td>15</td><td><span class="tag tag-print">印刷</span></td><td>要確認一覧</td><td>院内チェック用</td><td>印刷</td></tr>
+    <tr><td>16</td><td><span class="tag tag-print">印刷</span></td><td>個別レセプト詳細</td><td>院内（個別患者）</td><td>詳細画面</td></tr>
+    <tr><td>17</td><td><span class="tag tag-uke">UKE</span></td><td>UKEファイル一括DL</td><td>電子提出用</td><td>UKEファイル</td></tr>
+  </table>
+
+  <div class="note green">
+    <strong>印刷系の出力:</strong> ブラウザの印刷ダイアログが開きます。「PDF保存」を選択するとPDFファイルとして保存できます。
+  </div>
+
+  <div class="footer"><span>レセプト出力マニュアル</span><span>1/4</span></div>
+</div>
+
+<!-- ===== PAGE 2: 基本操作 ===== -->
+<div class="page">
+  <h1>基本操作手順</h1>
+
+  <h2>Step 1: UKEファイルの読み込み</h2>
+  <div class="step-box">
+    <span class="step-num" style="background:var(--green);">1</span>
+    <div class="step-content">
+      <strong>receipt.html を開く</strong>（カルテのヘッダーにある「レセプト点検」ボタンから）<br>
+      ログイン画面が表示されたら、メールアドレスとパスワードを入力してログイン。
+    </div>
+  </div>
+  <div class="step-box">
+    <span class="step-num" style="background:var(--green);">2</span>
+    <div class="step-content">
+      <strong>UKEファイルをドラッグ&ドロップ</strong>（または「UKEファイル読込」ボタンをクリック）<br>
+      社保・国保・返戻の複数ファイルをまとめて読み込み可能。<br>
+      <span style="font-size:11px;color:var(--sub);">ファイル例: shaho/RECEIPTC.UKE, kokuho/RECEIPTC.UKE, shaho-henrei/RECEIPTC.UKE 等</span>
+    </div>
+  </div>
+  <div class="step-box">
+    <span class="step-num" style="background:var(--green);">3</span>
+    <div class="step-content">
+      <strong>データが読み込まれたら、タブで確認</strong><br>
+      社保・国保・社保返戻・国保返戻の各タブにレセプト一覧が表示されます。
+    </div>
+  </div>
+
+  <h2>Step 2: 出力メニューを開く</h2>
+  <div class="step-box">
+    <span class="step-num" style="background:var(--blue);">4</span>
+    <div class="step-content">
+      <strong>ヘッダーの「出力」ボタンをクリック</strong><br>
+      ドロップダウンメニューが表示されます。データがないカテゴリのボタンはグレーアウトされます。
+    </div>
+  </div>
+
+  <h3>出力メニューの構成</h3>
+  <div class="menu-mock">
+    <div class="title">データ出力</div>
+    <div class="group">CSV出力</div>
+    <div class="item">レセプト一覧 CSV</div>
+    <div class="item">要確認一覧 CSV</div>
+    <div class="item">総括表 CSV</div>
+    <div class="group">公式帳票（印刷）</div>
+    <div class="item">社保総括表（様式第一）</div>
+    <div class="item">国保総括表（保険者別）</div>
+    <div class="item">光ディスク等送付書（社保）</div>
+    <div class="item">光ディスク等送付書（国保）</div>
+    <div class="item">公費医療費請求書</div>
+    <div class="group">返戻関連</div>
+    <div class="item">返戻用社保総括表</div>
+    <div class="item">返戻用国保総括表</div>
+    <div class="item">返戻処理結果.txt（社保）</div>
+    <div class="item">返戻処理結果.txt（国保）</div>
+    <div class="group">印刷</div>
+    <div class="item">総括表サマリー 印刷</div>
+    <div class="item">要確認一覧 印刷</div>
+    <div class="group">UKEファイル</div>
+    <div class="item">UKE 一括ダウンロード</div>
+  </div>
+
+  <div class="footer"><span>レセプト出力マニュアル</span><span>2/4</span></div>
+</div>
+
+<!-- ===== PAGE 3: 各出力の詳細説明 ===== -->
+<div class="page">
+  <h1>各出力ファイルの詳細</h1>
+
+  <h2>CSV出力（3種）</h2>
+  <table>
+    <tr><th>出力名</th><th>内容</th><th>ファイル名例</th></tr>
+    <tr>
+      <td style="font-weight:600;">レセプト一覧 CSV</td>
+      <td>全患者のカルテ番号・氏名・保険種別・点数・警告数を一覧化。Excel等で開いて分析可能。</td>
+      <td><code>レセプト一覧_2026/06.csv</code></td>
+    </tr>
+    <tr>
+      <td style="font-weight:600;">要確認一覧 CSV</td>
+      <td>全チェック警告をCSVで出力。深刻度（高/中/低）でフィルタ・ソート可能。</td>
+      <td><code>要確認レセプト_2026/06.csv</code></td>
+    </tr>
+    <tr>
+      <td style="font-weight:600;">総括表 CSV</td>
+      <td>社保/国保/返戻別の件数・点数・実日数・一部負担金のサマリー。</td>
+      <td><code>総括表_2026/06.csv</code></td>
+    </tr>
+  </table>
+
+  <h2>公式帳票（印刷 → PDF保存）</h2>
+  <table>
+    <tr><th>出力名</th><th>内容</th><th>提出先</th></tr>
+    <tr>
+      <td style="font-weight:600;">社保総括表（様式第一）</td>
+      <td>保険区分別（協会けんぽ/組合/共済/船員等）の件数・実日数・点数。公費再掲あり。<br>
+        <span style="color:var(--sub);">※ 正式な様式第一用紙は審査支払機関で取得してください</span></td>
+      <td>支払基金</td>
+    </tr>
+    <tr>
+      <td style="font-weight:600;">国保総括表（保険者別）</td>
+      <td>保険者番号（市町村）ごとの件数・実日数・点数。後期高齢者は負担割合別内訳付き。</td>
+      <td>国保連合会</td>
+    </tr>
+    <tr>
+      <td style="font-weight:600;">光ディスク等送付書</td>
+      <td>CD-R提出用の送付添書。医療機関情報・診療月・媒体種類を記載。社保/国保各1通。<br>
+        <span style="color:var(--red);">印刷後、開設者印の押印が必要</span></td>
+      <td>支払基金 / 国保連合会</td>
+    </tr>
+    <tr>
+      <td style="font-weight:600;">公費医療費請求書</td>
+      <td>公費（こども医療・障害者医療等）の患者を市町村別にグループ化し、受給者番号・点数・請求金額を記載。</td>
+      <td>各市町村</td>
+    </tr>
+  </table>
+
+  <h2>返戻関連</h2>
+  <table>
+    <tr><th>出力名</th><th>内容</th></tr>
+    <tr>
+      <td style="font-weight:600;">返戻用総括表</td>
+      <td>返戻レセプトの再提出用総括表。返戻データがある場合のみ有効。</td>
+    </tr>
+    <tr>
+      <td style="font-weight:600;">返戻処理結果.txt</td>
+      <td>返戻の有無と対象レセプト一覧をテキストファイルで出力。返戻がない場合は「対象なし」と記載。</td>
+    </tr>
+  </table>
+
+  <div class="footer"><span>レセプト出力マニュアル</span><span>3/4</span></div>
+</div>
+
+<!-- ===== PAGE 4: 個別操作 + 注意事項 ===== -->
+<div class="page">
+  <h1>個別患者の操作 + 注意事項</h1>
+
+  <h2>個別レセプトの出力</h2>
+  <div class="step-box">
+    <span class="step-num" style="background:var(--blue);">A</span>
+    <div class="step-content">
+      <strong>一覧から患者をクリック</strong>して詳細画面を開く。<br>
+      詳細画面のツールバーに「印刷」「CSV」ボタンが表示されます。
+    </div>
+  </div>
+  <div class="step-box">
+    <span class="step-num" style="background:var(--blue);">B</span>
+    <div class="step-content">
+      <strong>「印刷」ボタン</strong>: 保険情報・傷病名・診療内容・チェック結果を含む印刷用ページが別ウィンドウで開きます。<br>
+      ブラウザの印刷ダイアログで「PDFとして保存」を選択するとPDFファイルとして保存できます。
+    </div>
+  </div>
+  <div class="step-box">
+    <span class="step-num" style="background:var(--blue);">C</span>
+    <div class="step-content">
+      <strong>「CSV」ボタン</strong>: その患者のレセプト詳細（患者情報・傷病名・診療内容）をCSVでダウンロード。
+    </div>
+  </div>
+
+  <h2>出力フロー全体像</h2>
+  <div class="flow">
+    <div class="flow-box" style="border-color:var(--green);">レセコン<br>UKEファイル出力</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">レセプト点検ビューア<br>UKEファイル読込</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box" style="border-color:var(--amber);">自動チェック<br>（12種SSKマスター照合）</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box" style="border-color:var(--red);">出力メニュー<br>（17種の帳票出力）</div>
+  </div>
+
+  <h2>注意事項</h2>
+  <div class="note">
+    <strong>印刷帳票は参考値です</strong><br>
+    UKEファイルから自動集計した値であり、正式な提出帳票として使用する場合は、審査支払機関の公式帳票と照合してください。
+  </div>
+  <div class="note" style="border-left-color:var(--red);background:var(--red-l);">
+    <strong>押印が必要な帳票</strong><br>
+    光ディスク等送付書・総括表は、印刷後に<strong>開設者印の押印</strong>が必要です。
+  </div>
+  <div class="note green">
+    <strong>ポップアップブロックの解除</strong><br>
+    印刷系の出力は別ウィンドウを開きます。ブラウザのポップアップブロックが有効な場合は、このサイトを許可してください。
+  </div>
+
+  <h2>トラブルシューティング</h2>
+  <table>
+    <tr><th>症状</th><th>対処法</th></tr>
+    <tr><td>出力ボタンがグレーで押せない</td><td>対応するUKEデータがまだ読み込まれていません。該当のUKEファイルを読み込んでください。</td></tr>
+    <tr><td>印刷画面が出ない</td><td>ポップアップブロッカーを確認してください。「このサイトのポップアップを常に許可」に設定。</td></tr>
+    <tr><td>文字化けする</td><td>UKEファイルがShift_JIS/UTF-8以外のエンコーディングの可能性。レセコンの出力設定を確認。</td></tr>
+    <tr><td>公費医療費請求書が出ない</td><td>読み込んだUKEに公費(KOレコード)を持つ患者がいない場合は出力できません。</td></tr>
+  </table>
+
+  <div class="footer"><span>レセプト出力マニュアル</span><span>4/4</span></div>
+</div>
+
+</body>
+</html>

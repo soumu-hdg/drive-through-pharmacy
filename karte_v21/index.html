@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280">
+<title>電子カルテ v20（受付・カルテ）</title>
+<link rel="stylesheet" href="style.css?v=20260914_v19a">
+<link rel="stylesheet" href="rezept_create.css?v=20260907_v4">
+<link rel="stylesheet" href="telemed_report.css?v=20260911_v1">
+<link rel="stylesheet" href="m3.css?v=20260914_v20e">
+<!-- CDN: バージョン固定 + SRI(改竄検知) + crossorigin。更新時はハッシュも再計算すること -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" integrity="sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.js" integrity="sha384-3wY11tldQ5+yWqAvmTN4XtQvnjoTva0cV15O/O/O5NTtp0ivVopSzLOzsVXWZse9" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="config.js?v=20260820_v32"></script>
+<script src="clinic_context.js?v=20260915_v21a"></script>
+<style>
+/* v21: 接続クリニックの選択 */
+.clinic-picker{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.clinic-picker .clinic-pick{padding:9px 4px;border:1px solid #d2dbd8;background:#fff;color:#242927;font-size:13px;border-radius:2px;cursor:pointer}
+.clinic-picker .clinic-pick:hover{background:#f4f6f5}
+.clinic-picker .clinic-pick.on{background:#0a4d12;color:#fff;border-color:#0a4d12;font-weight:700}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     SVG アイコン（旧カルテと同じ図形。currentColor で塗る）
+     ============================================================ -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="i-logo" viewBox="0 0 21 30"><path fill="#6A8A50" d="M.678 29.207S6.122 13.437 6.18 9.963c0 0-3.468 12.567-4.422 12.831-.949.264-1.986-1.924-1.322-5.22.663-3.303 5.563-9.483 6.35-12.646.789-3.162.986-4.453.986-4.453s4.977 18.716-4.703 23.662c.006 0 .286-.15-2.39 5.07"/><path fill="#3B562A" d="M20.25 26.216c-1.774-1.177-3.915-1.38-5.968-1.157a10.908 10.908 0 0 0 2.437-3.857c1.98-5.355-.457-11.198-5.45-13.132 3.941 2.432 5.237 6.429 3.464 11.199-2.001 5.397-7.284 9.42-12.36 7.538-.041-.016-.083-.037-.124-.052a9.233 9.233 0 0 0 1.654.809c2.426.902 5.008.715 7.258-.311 2.95-.954 5.931-1.908 9.088-1.037"/></symbol>
+  <symbol id="i-rezept" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M3 3.5h15.522v5H21v9.95c0 .963-.53 2.03-1.485 2.407A.995.995 0 0 1 19 21H8a5 5 0 0 1-5-5zm15.823 15.454c.01-.01.021-.022.032-.036A.756.756 0 0 0 19 18.45V10.5h-.478v7.874c0 .203.075.37.173.477h.001c.04.046.083.08.127.103m-2.23.046H8a3 3 0 0 1-3-3V5.5h11.522v12.874c0 .214.025.424.071.626" clip-rule="evenodd"/><path fill="currentColor" d="M7 12.75h7v1.5H7zM7 15.5h7V17H7zM6.03 8.733c0-.413-.014-.79-.03-1.105h1.124l.058.4h.024c.16-.185.489-.468 1.06-.468.475 0 .816.192.968.497h.015c.132-.154.299-.282.482-.369.183-.084.395-.128.627-.128.796 0 1.202.52 1.202 1.394v1.978h-1.298v-1.8c0-.392-.107-.634-.393-.634-.2 0-.327.11-.388.261a.715.715 0 0 0-.037.233v1.941H8.146V9.069c0-.315-.092-.57-.39-.57a.416.416 0 0 0-.384.249.614.614 0 0 0-.041.242v1.944h-1.3z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path fill="currentColor" d="M16.5 7h-9v2h9zM16.5 11h-9v2h7.337c.5-.352 1.06-.623 1.663-.793z"/><path fill="currentColor" d="M12.707 19H6V5h12v7c.706 0 1.38.133 2 .375V3H4v18h9.757a5.486 5.486 0 0 1-1.05-2"/><path fill="currentColor" d="M13.1 15a5.465 5.465 0 0 0-.578 2H7.5v-2zM18 13a4.49 4.49 0 0 0-4.5 4.494 4.5 4.5 0 1 0 9 0A4.49 4.49 0 0 0 18 13m2.51 4.401v.87h-1.677v.486h1.677v.88h-1.677v1.066h-1.654v-1.066h-1.69v-.88h1.713v-.487H15.49v-.869h1.214l-1.423-2.513h1.805l.914 1.98.902-1.98h1.805l-1.388 2.513z"/></symbol>
+  <symbol id="i-rme" viewBox="0 0 24 24"><path fill="currentColor" d="M5.64 10.032h-.864v1.794h.883c.533 0 .843-.291.843-.883 0-.572-.29-.911-.863-.911"/><path fill="currentColor" d="M22.413 4.588A1.926 1.926 0 0 0 21 4H3c-.55 0-1.02.196-1.412.588A1.926 1.926 0 0 0 1 6v12c0 .55.196 1.02.588 1.413.391.391.862.587 1.412.587h18c.55 0 1.02-.196 1.413-.587.391-.392.587-.863.587-1.413V6c0-.55-.196-1.02-.587-1.412M6.503 15.395l-1.125-2.318-.282.01h-.32v2.308H3.224v-6.79H5.61c1.581 0 2.464.903 2.464 2.28 0 .892-.408 1.571-1.145 1.872l1.377 2.638zm8.77 0H13.72v-1.746c0-1.552.02-2.483.02-2.493h-.03c-.01.01-.28.67-.572 1.31l-.582 1.309h-.92l-.583-1.3c-.3-.66-.562-1.309-.572-1.319h-.04c0 .01.03.941.03 2.493v1.746H8.94v-6.79h1.745l1.446 2.997h.038l1.426-2.996h1.678zm5.502 0h-4.538v-6.79h4.5v1.456h-2.948v1.212h2.182v1.348h-2.182v1.32h2.986z"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path fill="currentColor" d="M7.621 9.544a4.636 4.636 0 0 1 1.092-.814c2.17-1.196 4.945-.565 6.34 1.55l-1.698 1.68a2.53 2.53 0 0 0-4.103-.787l-3.235 3.23a2.51 2.51 0 0 0 0 3.56 2.519 2.519 0 0 0 3.564 0l1-.998c.907.354 1.88.499 2.84.433l-2.196 2.193a4.839 4.839 0 0 1-6.826 0 4.835 4.835 0 0 1 .013-6.816zm5.13-5.135-2.197 2.193a6.39 6.39 0 0 1 2.84.433l1-.998a2.519 2.519 0 0 1 3.565 0 2.51 2.51 0 0 1 0 3.56l-3.236 3.23a2.53 2.53 0 0 1-3.564 0 2.943 2.943 0 0 1-.552-.788L8.923 13.72c.171.263.355.5.592.736a4.761 4.761 0 0 0 2.275 1.274 4.933 4.933 0 0 0 3.473-.46 4.92 4.92 0 0 0 1.091-.814l3.236-3.23a4.823 4.823 0 0 0 0-6.817c-1.894-1.879-4.959-1.879-6.84 0"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" stroke="currentColor" stroke-width="0.5" d="M15.357 6.33a6.383 6.383 0 1 1-9.027 9.027 6.383 6.383 0 0 1 9.027-9.028Zm2.279 9.5a8.426 8.426 0 1 0-1.806 1.805l4.782 4.782.712-.731.361-.361.732-.713z" clip-rule="evenodd"/></symbol>
+  <symbol id="i-bottle" viewBox="0 0 24 24"><path fill="currentColor" d="M7 19.5c-1.1 0-2 .9-2 2h14c0-1.1-.9-2-2-2h-4v-2h5v-2h-8c-1.66 0-3-1.34-3-3a3 3 0 0 1 1.47-2.57c.41.59 1.06 1 1.83 1.06.7.06 1.36-.19 1.85-.62l.59 1.61.94-.34.34.94 1.88-.68-.34-.94.94-.34-2.74-7.52-.94.34-.34-.94-1.88.68.34.94-.94.35.56 1.55c-1.17-.04-2.19.75-2.48 1.86A5.01 5.01 0 0 0 5 12.5c0 2.76 2.24 5 5 5v2zm3.5-12c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path fill="currentColor" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2m6-6v-5c0-3.07-1.63-5.64-4.5-6.32V2.5h-3v2.18C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5z"/></symbol>
+  <symbol id="i-question" viewBox="0 0 24 24"><path fill="currentColor" d="M11 18h2v-2h-2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8m0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4"/></symbol>
+  <symbol id="i-memo" viewBox="0 0 16 16"><path fill="currentColor" d="M13.194 1.548H2.796c-.715 0-1.293.584-1.293 1.299l-.006 11.698 2.598-2.598h9.099c.716 0 1.3-.587 1.3-1.302V2.847c0-.715-.584-1.299-1.3-1.299m-1.949 7.798H4.746a.653.653 0 0 1-.651-.65c0-.357.295-.649.651-.649h6.499c.357 0 .651.292.651.649 0 .358-.294.65-.651.65m0-1.95H4.746a.652.652 0 0 1-.651-.648c0-.359.295-.651.651-.651h6.499c.357 0 .651.292.651.651a.652.652 0 0 1-.651.648m0-1.949H4.746a.653.653 0 0 1-.651-.65c0-.356.295-.651.651-.651h6.499c.357 0 .651.295.651.651 0 .359-.294.65-.651.65"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path fill="currentColor" d="M14.93 2H7.898C4.668 2 2 4.668 2 7.898c0 2.955 2.236 5.405 5.082 5.803.179.084.6.057.816.057v1.758a.586.586 0 0 0 .911.487l3.368-2.245h2.753c3.23 0 5.898-2.629 5.898-5.86C20.828 4.668 18.16 2 14.93 2M7.898 9.07a1.173 1.173 0 0 1-1.171-1.172c0-.646.525-1.171 1.171-1.171s1.172.525 1.172 1.171S8.544 9.07 7.898 9.07m3.516 0a1.173 1.173 0 0 1-1.172-1.172c0-.646.526-1.171 1.172-1.171.646 0 1.172.525 1.172 1.171S12.06 9.07 11.414 9.07m3.516 0a1.173 1.173 0 0 1-1.172-1.172c0-.646.526-1.171 1.172-1.171.646 0 1.172.525 1.172 1.171S15.576 9.07 14.93 9.07"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7zM5 18v2h14v-2z"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path fill="currentColor" d="M7.982 8 6 9.982 12.018 16l6.018-6.018L16.054 8l-4.036 4.036z"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path fill="currentColor" d="M16 7.982 14.018 6 8 12.018l6.018 6.018L16 16.054l-4.036-4.036z"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path fill="currentColor" d="m8 16.054 1.982 1.982L16 12.018 9.982 6 8 7.982l4.036 4.036z"/></symbol>
+  <symbol id="i-funnel" viewBox="0 0 24 24"><path fill="currentColor" d="M19.25 4H4.75a.75.75 0 0 0-.53 1.28L10 11.06v6.44c0 .245.12.474.32.614l2.5 1.75a.75.75 0 0 0 1.18-.615v-8.188l5.78-5.78A.75.75 0 0 0 19.25 4"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path fill="currentColor" d="M19 7.333 16.667 5 12 9.667 7.333 5 5 7.333 9.667 12 5 16.667 7.333 19 12 14.333 16.667 19 19 16.667 14.333 12z"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><path fill="currentColor" d="M9 11.5v2H7v-2zM9 17.5v-2H7v2zM11 11.5h2v2h-2zM13 15.5h-2v2h2zM17 11.5v2h-2v-2zM17 17.5v-2h-2v2z"/><path fill="currentColor" d="M21 4h-3V2h-2v2H8V2H6v2H3v18h18zm-2 16H5V9h14z"/></symbol>
+  <symbol id="i-docplus" viewBox="0 0 24 24"><path fill="currentColor" d="M19.5 17.629 15.001 22H6.376c-1.035-.004-1.875 0-1.875 0L4.5 2h15zm-2.027-.632H14.5v2.972zM6.376 3.875v16.247h6.25v-5h5V3.875z"/><path fill="currentColor" d="M11.71 14.038H8.85V6.064h2.86c2.801 0 3.751 1.705 3.751 3.967 0 2.773-1.342 4.007-3.751 4.007m-.128-6.2h-.617v4.427h.617c1.127 0 1.665-.607 1.665-2.224 0-1.41-.401-2.204-1.665-2.204"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path fill="currentColor" d="M19 17.629 14.501 22H5.876c-1.035-.004-1.875 0-1.875 0L4 2h15zm-2.027-.632H14v2.972zM5.876 3.875v16.247h6.25v-5h5V3.875z"/><path fill="currentColor" d="M7 6h9v2H7zM7 10h9v2H7z"/></symbol>
+  <symbol id="i-refreshclock" viewBox="0 0 24 24"><path fill="currentColor" d="M21 9.712a.2.2 0 0 1-.2.2h-5.398a.5.5 0 0 1-.358-.848l1.915-1.972c-2.73-2.7-7.15-2.8-9.88-.1a6.876 6.876 0 0 0 0 9.791 7.02 7.02 0 0 0 9.88 0c1.244-1.225 1.92-2.643 2.026-4.39a.525.525 0 0 1 .515-.5h1c.276 0 .501.223.482.499-.133 1.898-1.007 4.194-2.622 5.791-3.51 3.48-9.212 3.48-12.722 0-3.5-3.47-3.53-9.11-.02-12.581a8.988 8.988 0 0 1 12.652 0l1.871-1.927a.5.5 0 0 1 .859.349zm-8.501-1.92v4.25l3.5 2.08-.72 1.211-4.28-2.54V7.792z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path fill="currentColor" d="M22.01 9.467c0 .123-.1.223-.222.223h-6.004a.556.556 0 0 1-.399-.944l2.131-2.193C14.48 3.549 9.563 3.438 6.526 6.44a7.648 7.648 0 0 0 0 10.89c3.037 3.015 7.954 3.015 10.99 0 1.384-1.362 2.135-2.939 2.253-4.883a.584.584 0 0 1 .573-.556h1.112c.308 0 .558.249.537.555-.148 2.111-1.12 4.666-2.917 6.442-3.905 3.871-10.246 3.871-14.15 0C1.03 15.03.997 8.755 4.902 4.895a9.997 9.997 0 0 1 14.072 0l2.081-2.143a.556.556 0 0 1 .956.388z"/></symbol>
+  <symbol id="i-sortup" viewBox="0 0 8 4"><path fill="currentColor" d="m4 0 4 4H0z"/></symbol>
+  <symbol id="i-sortdown" viewBox="0 0 8 4"><path fill="currentColor" d="M4 4 0 0h8z"/></symbol>
+  <symbol id="i-caret" viewBox="0 0 24 24"><path fill="currentColor" d="M7 9h10l-5 6.354z"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M19.575 9.326 15.2 4.976 16.45 3.7a2.32 2.32 0 0 1 1.638-.7c.641-.017 1.22.216 1.737.7l1.05 1.025c.517.483.758 1.042.725 1.675a2.404 2.404 0 0 1-.725 1.625zm-1.425 1.45L7.4 21.526H3V17.15L13.75 6.4z" clip-rule="evenodd"/></symbol>
+  <symbol id="i-clipboard" viewBox="0 0 24 24"><path fill="currentColor" d="M5.333 21.311c-.55 0-1.02-.196-1.412-.587a1.926 1.926 0 0 1-.588-1.413v-14c0-.55.196-1.02.588-1.412a1.926 1.926 0 0 1 1.412-.588h4.2c.217-.6.58-1.083 1.088-1.45a2.857 2.857 0 0 1 1.712-.55c.633 0 1.204.183 1.713.55.508.367.87.85 1.087 1.45h4.2c.55 0 1.021.196 1.413.588.391.391.587.862.587 1.412v14c0 .55-.196 1.021-.587 1.413a1.926 1.926 0 0 1-1.413.587zm2-4h7v-2h-7zm0-4h10v-2h-10zm0-4h10v-2h-10zm5-4.75a.728.728 0 0 0 .75-.75.728.728 0 0 0-.75-.75.729.729 0 0 0-.75.75.729.729 0 0 0 .75.75"/></symbol>
+  <symbol id="i-rx" viewBox="0 0 25 24"><path fill="currentColor" d="M13.813 14.325V12.63h2.235l2.325-1.755V3.24h-2.475V1.77c0-.57-.48-1.05-1.05-1.05-.57 0-1.05.48-1.05 1.05v1.47h-7.65V1.77c0-.57-.48-1.05-1.05-1.05-.585 0-1.05.48-1.05 1.05v1.47h-2.46v14.28h7.98zm0-7.785h2.4v2.19h-2.4zm0 3.045h2.4v2.19h-2.4zM10.468 6.54h2.4v2.19h-2.4zm0 3.045h2.4v2.19h-2.4zm0 3.045h2.4v2.19h-2.4zm-4.32 2.19h-2.4v-2.19h2.4zm0-3.045h-2.4v-2.19h2.4zm0-3.045h-2.4V6.54h2.4zm3.345 6.09h-2.4v-2.19h2.4zm0-3.045h-2.4v-2.19h2.4zm0-3.045h-2.4V6.54h2.4zM22.468 12.015c-1.125-1.5-2.145-1.44-2.145-1.44l-5.25 3.975-6 4.515-1.53 4.215 4.47-.3 6-4.515 5.25-3.96c0-.015.345-.99-.795-2.49M12.313 22.02l-.495.39-1.53.105a3.492 3.492 0 0 0-.51-.945c-.27-.36-.51-.57-.765-.75l.525-1.44.495-.375s.81.135 1.59 1.17.69 1.845.69 1.845"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2m-.025 2.664c.823 0 1.491.705 1.491 1.575s-.668 1.575-1.491 1.575c-.824 0-1.492-.705-1.492-1.575s.668-1.575 1.492-1.575m1.491 14.172v-9.77h-2.983v9.77z" clip-rule="evenodd"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path fill="currentColor" d="M21.525 17.445 13.86 4.74c-1.02-1.695-2.7-1.695-3.72 0L2.475 17.46c-1.02 1.695-.24 3.09 1.74 3.09H19.77c1.995-.015 2.775-1.41 1.755-3.105m-8.46.69h-2.22V16.35h2.22zm.24-9.975c0 2.745-.435 4.455-.435 6.825H11.1c0-2.37-.405-4.065-.405-6.81v-.54h2.61z"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path fill="currentColor" d="m16.995 1.827-10-.01c-1.1 0-1.99.9-1.99 2v18c0 1.1.89 2 1.99 2h10c1.1 0 2-.9 2-2v-18c0-1.1-.9-1.99-2-1.99m0 17.99h-10v-14h10z"/></symbol>
+  <symbol id="i-docout" viewBox="0 0 24 24"><path fill="currentColor" d="M16.5 7h-9v2h9zM16.5 11h-9v2h7.393l.027-.033a4.06 4.06 0 0 1 .534-.536l.034-.028.036-.026a1.345 1.345 0 0 0 .09-.068c.042-.032.105-.08.18-.128.218-.143.452-.273.706-.379z"/><path fill="currentColor" d="M18 11.5V5H6v14h8v.215c0 .64.152 1.247.42 1.785H4V3h16v9.02a4.301 4.301 0 0 0-.968-.398l-.037-.01-.038-.008a2.318 2.318 0 0 1-.053-.011H18.9a4.81 4.81 0 0 0-.092-.02l-.006-.002h-.006A4.22 4.22 0 0 0 18 11.5"/><path fill="currentColor" d="M14.035 15c-.024.174-.035.35-.035.528V17H7.5v-2z"/><circle cx="18" cy="18" r="3.2" fill="currentColor"/></symbol>
+  <symbol id="i-rezeptplus" viewBox="0 0 24 24"><path fill="currentColor" d="M6 19h6.707c.21.742.572 1.421 1.05 2H4V3h16v9.375A5.488 5.488 0 0 0 18 12V5H6z"/><path fill="currentColor" d="M8 7h8v2H8zM8 11h8v2H8zM8 15h4v2H8z"/><path fill="currentColor" d="M18 14a4 4 0 1 0 0 8 4 4 0 0 0 0-8m.6 4.6V21h-1.2v-2.4H15v-1.2h2.4V15h1.2v2.4H21v1.2z"/></symbol>
+  <symbol id="i-yen" viewBox="0 0 24 24"><path fill="currentColor" d="M4.65 4h4.905l2.46 5.355L14.445 4h4.905l-3.75 6.795h3.195v2.37H14.28v1.305h4.515v2.4H14.28V21H9.81v-4.13H5.205v-2.4h4.59v-1.305H5.205v-2.37H8.4z"/></symbol>
+  <symbol id="i-rxout" viewBox="0 0 24 24"><path fill="currentColor" d="M7 19.5c-1.1 0-2 .9-2 2h9v-2zm3.5-12c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1M10 17.5v2h2v-2zm0-5c-1.66 0-3-1.34-3-3a3 3 0 0 1 1.47-2.57c.41.59 1.06 1 1.83 1.06.7.06 1.36-.19 1.85-.62l.59 1.61.94-.34.34.94 1.88-.68-.34-.94.94-.34-2.74-7.52-.94.34-.34-.94-1.88.68.34.94-.94.35.56 1.55c-1.17-.04-2.19.75-2.48 1.86A5.01 5.01 0 0 0 5 12.5c0 2.76 2.24 5 5 5h2v-2z"/><path fill="currentColor" d="M17.75 20v-2.25h-3A2.25 2.25 0 0 0 12.5 20v1.5a3.75 3.75 0 0 1 2.25-6.75h3V12.5l3.75 3.75z"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path fill="currentColor" d="M17 3H3v18h18V7zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3m3-10H5V5h10z"/></symbol>
+  <symbol id="i-print" viewBox="0 0 24 24"><path fill="currentColor" d="M2 8v9h4v4h12v-4h4V8zm14 11H8v-5h8zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1m-1-9H6v4h12z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path fill="currentColor" d="M12.61 21 22 12l-9.39-9-3.076 2.965 4.44 4.273H3v3.524h10.974l-4.44 4.273z"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path fill="currentColor" d="M11.39 3 2 12l9.39 9 3.076-2.965-4.44-4.273H21v-3.524H10.026l4.44-4.273z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path fill="currentColor" d="M6 7h12l-1 14H7zm3-4h6l1 2h4v2H4V5h4z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path fill="currentColor" d="M11 5h2v14h-2z"/><path fill="currentColor" d="M5 11h14v2H5z"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path fill="currentColor" d="M5 11h14v2H5z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path fill="currentColor" d="M5 11c1.103 0 2-.897 2-2s-.897-2-2-2-2 .897-2 2 .897 2 2 2m14 0c1.103 0 2-.897 2-2s-.897-2-2-2-2 .897-2 2 .897 2 2 2m1 1h-2c-.55 0-1.047.222-1.41.581A4.571 4.571 0 0 1 18.939 16H21c.553 0 1-.447 1-1v-1c0-1.103-.897-2-2-2m-8 0c1.934 0 3.5-1.566 3.5-3.5S13.934 5 12 5a3.498 3.498 0 0 0-3.5 3.5c0 1.934 1.566 3.5 3.5 3.5m2.4 1h-.26c-.65.313-1.371.5-2.14.5a4.933 4.933 0 0 1-2.14-.5H9.6A3.6 3.6 0 0 0 6 16.6v.9A1.5 1.5 0 0 0 7.5 19h9a1.5 1.5 0 0 0 1.5-1.5v-.9a3.6 3.6 0 0 0-3.6-3.6m-6.99-.419A1.994 1.994 0 0 0 6 12H4c-1.103 0-2 .897-2 2v1c0 .553.447 1 1 1h2.06a4.582 4.582 0 0 1 2.35-3.419"/></symbol>
+  <symbol id="i-idcard" viewBox="0 0 24 24"><path fill="currentColor" d="M19 3H5a2 2 0 0 0-2 2v12h1.38a4.81 4.81 0 0 1 4.42-2.88h.59a6.33 6.33 0 0 0 5.21 0h.6A4.81 4.81 0 0 1 19.62 17H21V5a2 2 0 0 0-2-2m-7 10a4.539 4.539 0 0 1-4.58-4.5A4.54 4.54 0 0 1 12 4a4.53 4.53 0 0 1 4.57 4.5A4.54 4.54 0 0 1 12 13M21 19v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2z"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3m5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path fill="currentColor" d="M9 3 7.17 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.17L15 3zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10m0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6"/></symbol>
+</svg>
+
+<!-- ============================================================
+     LOGIN OVERLAY
+     ============================================================ -->
+<div id="loginOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#f4f6f5;align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:#fff;border:1px solid #d2dbd8;border-radius:3px;padding:36px 36px;width:380px;box-shadow:0 4px 4px rgba(0,0,0,.2),0 0 6px rgba(0,0,0,.2);">
+    <div style="text-align:center;margin-bottom:24px;">
+      <svg width="24" height="34" style="display:block;margin:0 auto 8px;"><use href="#i-logo"/></svg>
+      <h2 style="margin:0;font-size:18px;color:#242927;font-weight:400;">電子カルテ ログイン</h2>
+      <p style="margin:6px 0 0;font-size:12px;color:#5e6b67;">認証が必要です</p>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:12px;color:#242927;margin-bottom:6px;">接続クリニック</label>
+      <div id="loginClinicPicker" class="clinic-picker"></div>
+    </div>
+    <div id="loginClinicOnlyBox" style="display:none;margin-bottom:8px;">
+      <p style="margin:0 0 10px;font-size:12px;color:#5e6b67;">ログイン中: <span id="loginClinicOnlyWho"></span><br>このIDで接続する院を選んでください</p>
+      <button onclick="loginClinicOnlyConnect()" style="width:100%;padding:11px;background:#0a4d12;color:#fff;border:none;border-radius:2px;font-size:14px;cursor:pointer;">接続</button>
+      <button onclick="loginClinicOnlyLogout()" style="width:100%;margin-top:8px;padding:9px;background:#fff;color:#242927;border:1px solid #d2dbd8;border-radius:2px;font-size:12px;cursor:pointer;">別のIDでログイン</button>
+    </div>
+    <div id="loginCredBox">
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:12px;color:#242927;margin-bottom:4px;">メールアドレス</label>
+      <input type="email" id="loginEmail" style="width:100%;padding:8px 10px;border:1px solid #d2dbd8;border-radius:2px;font-size:14px;box-sizing:border-box;" placeholder="user@example.com">
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="display:block;font-size:12px;color:#242927;margin-bottom:4px;">パスワード</label>
+      <input type="password" id="loginPassword" style="width:100%;padding:8px 10px;border:1px solid #d2dbd8;border-radius:2px;font-size:14px;box-sizing:border-box;" placeholder="********" onkeydown="if(event.key==='Enter')handleLogin()">
+    </div>
+    <button id="loginBtn" onclick="handleLogin()" style="width:100%;padding:11px;background:#0a4d12;color:#fff;border:none;border-radius:2px;font-size:14px;cursor:pointer;">ログイン</button>
+    <div style="margin:16px 0 8px;display:flex;align-items:center;gap:12px;">
+      <div style="flex:1;height:1px;background:#d2dbd8;"></div>
+      <span style="font-size:11px;color:#8a9692;">または</span>
+      <div style="flex:1;height:1px;background:#d2dbd8;"></div>
+    </div>
+    <button id="googleLoginBtn" onclick="handleGoogleLogin()" style="width:100%;padding:10px;background:#fff;color:#242927;border:1px solid #d2dbd8;border-radius:2px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.0 24.0 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Googleでログイン
+    </button>
+    </div>
+    <div id="loginError" style="margin-top:12px;color:#d01111;font-size:12px;text-align:center;min-height:18px;"></div>
+  </div>
+</div>
+
+<!-- v21: 接続クリニックの切替（複数院に所属するID用） -->
+<div id="clinicSwitchOverlay" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(36,41,39,.45);align-items:center;justify-content:center;">
+  <div style="background:#fff;border:1px solid #d2dbd8;border-radius:3px;padding:28px 32px;width:380px;box-shadow:0 4px 4px rgba(0,0,0,.2),0 0 6px rgba(0,0,0,.2);">
+    <h3 style="margin:0 0 6px;font-size:16px;font-weight:400;color:#242927;">接続クリニックの切替</h3>
+    <p style="margin:0 0 14px;font-size:12px;color:#5e6b67;">切り替えると画面を読み直します（未保存の入力は失われます）</p>
+    <div id="clinicSwitchPicker" class="clinic-picker" style="margin-bottom:14px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="ClinicCtx.confirmSwitch()" style="flex:1;padding:10px;background:#0a4d12;color:#fff;border:none;border-radius:2px;font-size:13px;cursor:pointer;">切り替える</button>
+      <button onclick="ClinicCtx.closeSwitcher()" style="flex:1;padding:10px;background:#fff;color:#242927;border:1px solid #d2dbd8;border-radius:2px;font-size:13px;cursor:pointer;">やめる</button>
+    </div>
+    <div id="clinicSwitchMsg" style="margin-top:10px;font-size:12px;color:#d01111;min-height:16px;"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     APP CONTAINER (hidden until authenticated)
+     ============================================================ -->
+<div id="appContainer">
+
+<!-- ============================================================
+     SCREEN 1: 受付（旧カルテと同じ配置）
+     ============================================================ -->
+<div class="screen active" id="screenList">
+  <div class="m3-header">
+    <a class="m3-logo" href="#" onclick="return false;" title="受付"><svg><use href="#i-logo"/></svg></a>
+    <span class="m3-title">受付 <span id="clinicName">西春内科・在宅クリニック</span></span>
+    <span id="revisionBadge" style="display:none;padding:3px 10px;border-radius:2px;font-size:11px;margin-left:8px;"></span>
+    <span id="shiftBadge" style="display:none;background:#e3efe5;color:#0a4d12;padding:3px 10px;border-radius:2px;font-size:11px;margin-left:8px;white-space:nowrap;"></span>
+    <div class="m3-spacer"></div>
+    <span class="m3-clock" id="clockList">00:00:00</span>
+    <button class="m3-ibtn" onclick="openRezeptCreate()" title="レセプト作成（月次／日次）"><svg><use href="#i-rezept"/></svg></button>
+    <button class="m3-ibtn" onclick="window.open('receipt.html','_blank')" title="レセプト点検"><svg><use href="#i-check"/></svg></button>
+    <button class="m3-ibtn" onclick="openTelemedReport()" title="情報通信機器を用いた診療に係る報告書（別紙様式14）"><svg><use href="#i-rme"/></svg></button>
+    <button class="m3-ibtn" onclick="M3.openReservation()" title="予約システム（受付ボード）を開く"><svg><use href="#i-link"/></svg></button>
+    <button class="m3-ibtn" onclick="M3.toggleSearch()" title="患者検索（DB患者）"><svg><use href="#i-search"/></svg></button>
+    <button class="m3-ibtn" onclick="M3.openInventory()" title="薬品在庫管理"><svg><use href="#i-bottle"/></svg></button>
+    <button class="m3-ibtn" onclick="M3.showNotices()" title="お知らせ（本日の予約・未保存）"><svg><use href="#i-bell"/></svg><span class="m3-badge" id="m3NoticeBadge" style="display:none">0</span></button>
+    <button class="m3-ibtn" onclick="M3.help()" title="ヘルプ"><svg><use href="#i-question"/></svg></button>
+    <button class="m3-ibtn" onclick="M3.openReservation('demo')" title="予約デモ（患者側と受付側）"><svg><use href="#i-chat"/></svg></button>
+    <button class="m3-ibtn" onclick="M3.downloads()" title="作成中のファイル（UKE・CSV）"><svg><use href="#i-download"/></svg></button>
+    <button class="m3-user" onclick="M3.userMenu(this)" title="ユーザーメニュー"><span id="authUserBadge">ユーザー</span><svg><use href="#i-chevron"/></svg></button>
+  </div>
+
+  <div class="m3-toolbar" style="position:relative;">
+    <button class="m3-tbtn flat" onclick="changeDate(-1)" title="前日"><svg><use href="#i-prev"/></svg></button>
+    <button class="m3-datebtn" title="日付を選ぶ"><span id="m3DateLabel">----/--/-- (-)</span><input type="date" id="listDate" onchange="onDateChange()"></button>
+    <button class="m3-tbtn flat" onclick="changeDate(1)" title="翌日"><svg><use href="#i-next"/></svg></button>
+    <span class="m3-count">全 <b id="m3Count">0</b> 件</span>
+    <button class="m3-tbtn" id="m3FilterBtn" onclick="M3.toggleFilter()" title="絞り込み・表示項目"><svg><use href="#i-funnel"/></svg></button>
+    <button class="m3-tbtn flat" id="m3FilterClear" onclick="M3.clearFilter()" title="絞り込みを解除" disabled><svg><use href="#i-close"/></svg></button>
+    <span style="display:none">
+      <span id="listWait">0</span><span id="listActive">0</span><span id="listDone">0</span><span id="listReserved">0</span><span id="sortHeaderNum"></span>
+      <input type="text" id="dbPatientSearch" oninput="onDbPatientSearch(this.value)">
+    </span>
+    <div class="m3-spacer"></div>
+    <button class="m3-tbtn" onclick="setToday()" title="今日へ" style="width:auto;padding:0 8px;font-size:12px;">今日</button>
+    <button class="m3-tbtn" onclick="M3.openReservation()" title="予約システム（受付ボード）"><svg><use href="#i-calendar"/></svg></button>
+    <button class="m3-tbtn" onclick="openNewPatientModal()" title="新規受付（新規患者登録・保険証読取）"><svg><use href="#i-docplus"/></svg></button>
+    <button class="m3-tbtn" onclick="M3.toggleDbList()" title="DB患者一覧（受付済み以外の患者）"><svg><use href="#i-doc"/></svg></button>
+    <button class="m3-tbtn" onclick="RsvSync.load(true)" title="予約を読み直す（60秒ごとに自動更新）"><svg><use href="#i-refreshclock"/></svg></button>
+    <button class="m3-tbtn" onclick="M3.reload()" title="患者データを再読込"><svg><use href="#i-refresh"/></svg></button>
+    <div class="m3-filter" id="m3Filter" style="display:none"></div>
+  </div>
+
+  <div id="dbPatientResults" style="display:none;margin:0 7px 8px;max-height:220px;overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:3px;font-size:12px;"></div>
+
+  <div class="m3-listwrap">
+    <table class="m3-table patient-table" id="m3Table">
+      <thead><tr id="m3Head"></tr></thead>
+      <tbody id="patientListBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN 2: カルテ（旧カルテと同じ3列: 患者パネル／カルテ／行為マスタ）
+     ============================================================ -->
+<div class="screen" id="screenKarte">
+  <div class="m3-header">
+    <a class="m3-logo" href="#" onclick="goToList();return false;" title="受付一覧へ戻る"><svg><use href="#i-logo"/></svg></a>
+    <select id="patientSelect" onchange="switchPatient(this.value)"></select>
+    <div class="m3-pt">
+      <span class="no" id="hdrId">---</span>
+      <ruby id="m3HdrRuby"><span id="hdrName">---</span><rt id="hdrKana"></rt></ruby><span class="kana-inline" id="m3HdrKanaInline"></span>
+      <span class="age" id="hdrAge">---</span>
+      <span class="sex" id="hdrSex">-</span>
+      <span class="ins insurance-badge" id="hdrInsurance">---</span>
+      <span class="time-surcharge-badge" id="hdrSurcharge"></span>
+    </div>
+    <button class="m3-ibtn" onclick="M3.openPatientTab('patient')" title="患者情報・患者メモ"><svg><use href="#i-memo"/></svg></button>
+    <button class="m3-ibtn" onclick="openEditPatientModal()" title="患者情報の編集"><svg><use href="#i-idcard"/></svg></button>
+    <button class="m3-ibtn" onclick="M3.openPatientTab('questionnaire')" title="問診票"><svg><use href="#i-clipboard"/></svg><span class="m3-badge" id="m3QBadge" style="display:none">1</span></button>
+    <button class="m3-ibtn" onclick="M3.openReservation()" title="予約システム"><svg><use href="#i-calendar"/></svg></button>
+    <button class="m3-ibtn" onclick="openTelemedReport()" title="様式14（オンライン診療の報告）"><svg><use href="#i-rme"/></svg></button>
+    <div class="m3-spacer"></div>
+    <span class="m3-clock" id="clockKarte">00:00:00</span>
+    <button class="m3-wbtn" id="examStartBtn" onclick="toggleExamStart()" title="診察開始／終了（診察時間の記録）">診察開始</button>
+    <button class="m3-ibtn" onclick="openRezeptCreate()" title="レセプト作成"><svg><use href="#i-rezept"/></svg></button>
+    <button class="m3-ibtn" onclick="window.open('receipt.html','_blank')" title="レセプト点検"><svg><use href="#i-check"/></svg></button>
+    <button class="m3-ibtn" onclick="M3.toggleSearch(true)" title="患者検索"><svg><use href="#i-search"/></svg></button>
+    <button class="m3-ibtn" onclick="M3.toggleWaiting()" title="待機患者"><svg><use href="#i-users"/></svg><span class="m3-badge" id="m3WaitBadge" style="display:none">0</span></button>
+    <button class="m3-ibtn" onclick="M3.showNotices()" title="お知らせ"><svg><use href="#i-bell"/></svg></button>
+    <button class="m3-ibtn" onclick="M3.help()" title="ヘルプ"><svg><use href="#i-question"/></svg></button>
+    <button class="m3-ibtn" onclick="M3.downloads()" title="作成中のファイル"><svg><use href="#i-download"/></svg></button>
+    <button class="m3-user" onclick="M3.userMenu(this)" title="ユーザーメニュー"><span id="authUserBadge2">ユーザー</span><svg><use href="#i-chevron"/></svg></button>
+  </div>
+
+  <div class="m3-karte-body" id="mainGrid">
+    <div class="col-resize-handle" id="resizeLeft" style="display:none"></div><div class="col-resize-handle" id="resizeRight" style="display:none"></div><div class="split-resize-handle" id="resizeSplit" style="display:none"></div>
+
+    <!-- 左: 患者パネル（閉＝縦レール80px／開＝598px・2段タブ） -->
+    <div class="m3-col m3-col-left" id="m3Left">
+      <ul class="m3-rail" id="m3LeftRail"></ul>
+      <ul class="m3-tabs" id="m3LeftTabs"></ul>
+      <div class="m3-panel-body">
+        <div id="vitalsInputWrap" style="display:none;flex-shrink:0;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">バイタルサイン</label>
+            <div class="vital-grid">
+              <div class="vital-item"><label>体温(℃)</label><input type="text" id="vitalT" placeholder="36.5"><span class="unit">℃</span></div>
+              <div class="vital-item"><label>血圧(mmHg)</label><div class="bp-group"><input type="text" id="vitalBPS" placeholder="120"><span class="slash">/</span><input type="text" id="vitalBPD" placeholder="80"></div><span class="unit">mmHg</span></div>
+              <div class="vital-item"><label>SPO2(%)</label><input type="text" id="vitalSpO2" placeholder="98"><span class="unit">%</span></div>
+              <div class="vital-item"><label>脈拍(bpm)</label><input type="text" id="vitalP" placeholder="72"><span class="unit">/min</span></div>
+            </div>
+          </div>
+        </div>
+        <div id="m3PanelExtra"></div>
+        <div class="panel-body" id="patientInfoBody"></div>
+      </div>
+    </div>
+
+    <!-- 中央: カルテ編集 -->
+    <div class="m3-col m3-col-center">
+      <div class="m3-cbar">
+        <span class="date" id="visitDate">---</span>
+        <span class="m3-ktab" id="m3KarteTab"><span id="m3KarteTabLabel">カルテ</span><span class="x" onclick="goToList()" title="閉じて一覧へ"><svg><use href="#i-close"/></svg></span></span>
+        <button class="plus" onclick="M3.newKarteForDate()" title="別日のカルテを開く">+</button>
+        <div class="m3-spacer"></div>
+        <button class="m3-tbtn flat" onclick="M3.reloadKarte()" title="カルテを読み直す"><svg><use href="#i-refreshclock"/></svg></button>
+        <button class="m3-wbtn" onclick="M3.openPatientTab('regular')" title="定期処方（セット）を登録">定期登録</button>
+        <button class="m3-wbtn" onclick="M3.openSetManager()" title="セット登録・管理">セット登録</button>
+        <button class="m3-wbtn" onclick="M3.openPatientTab('history')" title="この患者のカルテ一覧（診療履歴）">カルテ一覧</button>
+      </div>
+      <div class="m3-cbar2">
+        <span class="m3-draft" id="m3Draft">下書き</span>
+        <select id="visitDepartment" class="sel-plain" onchange="onVisitInfoChange()" title="診療科">
+          <option value="内科">内科</option><option value="外科">外科</option><option value="小児科">小児科</option><option value="皮膚科">皮膚科</option>
+          <option value="整形外科">整形外科</option><option value="耳鼻咽喉科">耳鼻咽喉科</option><option value="眼科">眼科</option><option value="在宅">在宅</option>
+          <option value="夜間休日外来">夜間休日外来</option><option value="発熱外来">発熱外来</option>
+        </select>
+        <select id="visitDoctor" class="sel-plain" onchange="onVisitInfoChange()" title="担当医"><option value="">担当医</option></select>
+        <span id="visitInsuranceType" title="保険種別">---</span>
+        <span id="m3Approve" class="muted" style="font-size:16px;color:var(--text);">未承認</span>
+        <span id="lateClaimInfoItem" style="display:none;"><span class="visit-info-label" style="font-size:12px;color:var(--text-muted);">請求</span> <span id="lateClaimInfoValue" style="color:#b45309;font-weight:700;">月遅れ</span></span>
+        <div class="m3-spacer"></div>
+        <label class="m3-wbtn" style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;" title="院外処方（処方箋をFAX）"><input type="checkbox" id="rxModeExternal" onchange="toggleRxMode(this.checked)" style="margin:0;"> FAX希望</label>
+        <select id="m3Claim" onchange="M3.claimChange(this)" title="請求区分"><option value="normal">通常請求</option><option value="late">月遅れ請求</option></select>
+        <button class="m3-tbtn flat" onclick="openEditPatientModal()" title="患者情報の編集"><svg><use href="#i-pencil"/></svg></button>
+      </div>
+      <div class="m3-cbar3" id="telemedVisitBar">
+        <label class="tmv-main"><input type="checkbox" id="tmvOnline" onchange="tmVisitToggle()"> オンライン診療（情報通信機器を用いた診療）</label>
+        <span class="tmv-detail" id="tmvDetail" style="display:none;">
+          <label>患者の所在 <select id="tmvPref" onchange="tmVisitToggle()"><option value="">選択...</option></select></label>
+          <label><input type="checkbox" id="tmvReferred" onchange="tmVisitToggle()"> 対応困難・緊急性のため他院へ紹介</label>
+          <label><input type="checkbox" id="tmvPreConsult" onchange="tmVisitToggle()"> 診療前相談を実施（初診）</label>
+          <span class="tmv-note">※所在は住所でなく「診療時に患者がいた場所」</span>
+        </span>
+      </div>
+
+      <div class="m3-panes">
+        <!-- 主訴・所見 -->
+        <div class="m3-pane">
+          <div class="m3-pane-head">主訴・所見
+            <div class="m3-spacer"></div>
+            <button class="tb on" onclick="rtExec('foreColor','#000000')" title="黒"><u>A</u></button>
+            <button class="tb red" onclick="rtExec('foreColor','#dc2626')" title="赤"><u>A</u></button>
+            <button class="tb blue" onclick="rtExec('foreColor','#2563eb')" title="青"><u>A</u></button>
+            <button class="tb" onclick="M3.fontSize(-1)" title="小さく"><svg><use href="#i-minus"/></svg></button>
+            <input class="fs" id="m3FontSize" value="14" readonly>
+            <button class="tb" onclick="M3.fontSize(1)" title="大きく"><svg><use href="#i-plus"/></svg></button>
+            <button class="tb green" onclick="M3.clearFindings()" title="所見を消す"><svg><use href="#i-trash"/></svg></button>
+          </div>
+          <div class="m3-cc">
+            <span class="lbl">主訴</span>
+            <select id="chiefComplaintSelect" onchange="onChiefComplaintSelect(this.value)">
+              <option value="">選択...</option>
+              <option>発熱</option><option>咳嗽</option><option>咽頭痛</option><option>鼻汁</option><option>頭痛</option><option>腹痛</option><option>嘔吐・下痢</option><option>倦怠感</option>
+              <option>胸痛</option><option>呼吸困難</option><option>めまい</option><option>腰痛</option><option>関節痛</option><option>皮疹</option><option>排尿障害</option><option>定期処方</option>
+            </select>
+            <input type="text" id="chiefComplaint" placeholder="主訴を入力（自由記載）">
+          </div>
+          <div class="m3-fold" onclick="M3.toggleFold('m3Whisper')"><svg width="14" height="14"><use href="#i-mic"/></svg> 音声カルテ（録音→文字起こし→カルテ生成）<span class="tag">新機能</span><div class="m3-spacer"></div><span id="m3WhisperFoldIco">▸</span></div>
+          <div class="m3-extra" id="m3Whisper" style="display:none">
+            <div class="whisper-section" id="whisperSection">
+              <div class="whisper-header">
+                <span class="whisper-title">音声カルテ</span>
+                <div class="whisper-controls">
+                  <select id="whisperMicSelect" class="whisper-mic-select"><option value="">マイク選択...</option></select>
+                  <button class="whisper-rec-btn" id="whisperRecBtn" onclick="whisperToggleRecord()" disabled><span class="rec-dot"></span> 録音</button>
+                  <span class="whisper-time" id="whisperTime">00:00</span>
+                  <span class="whisper-separator">|</span>
+                  <label class="whisper-upload-btn" id="whisperUploadLabel">ファイル読込<input type="file" id="whisperFileInput" accept="audio/*,video/*,.m4a,.mp3,.wav,.webm,.ogg,.mp4" style="display:none" onchange="whisperUploadFile(this)"></label>
+                  <span id="whisperFileName" class="whisper-file-name"></span>
+                  <select id="whisperPromptSelect" class="whisper-prompt-select"><option value="karte">カルテ</option></select>
+                  <button class="whisper-gen-btn" id="whisperGenBtn" onclick="whisperGenerate()" disabled>カルテ生成</button>
+                  <button class="whisper-apply-btn" id="whisperApplyBtn" onclick="whisperApplyToFields()" disabled>反映</button>
+                </div>
+              </div>
+              <div class="whisper-body" id="whisperBody" style="display:none;">
+                <div class="whisper-transcript-area"><div class="whisper-label">文字起こし <button class="whisper-copy-btn" onclick="whisperCopy('whisperTranscript')">コピー</button></div><textarea id="whisperTranscript" class="whisper-textarea" rows="3" placeholder="録音すると文字起こし結果が表示されます..."></textarea></div>
+                <div class="whisper-karte-area"><div class="whisper-label">AI生成カルテ <button class="whisper-copy-btn" onclick="whisperCopy('whisperKarte')">コピー</button></div><textarea id="whisperKarte" class="whisper-textarea" rows="4" placeholder="「カルテ生成」を押すとAIが整形します..." readonly></textarea></div>
+                <div class="whisper-status" id="whisperStatus"></div>
+              </div>
+            </div>
+          </div>
+          <div class="m3-fold" onclick="M3.toggleFold('m3Tpl')">定型文・所見テンプレ<div class="m3-spacer"></div><span id="m3TplFoldIco">▸</span></div>
+          <div class="richtext-tpl-bar" id="m3Tpl" style="display:none;padding:4px 8px;background:#fff;border-bottom:1px solid var(--border);">
+            <button class="rt-btn rt-tpl-btn" onclick="insertFindingsTemplate()" title="3項目まとめて挿入">診察テンプレ</button>
+            <button class="rt-btn rt-tpl-btn" onclick="insertFindingsSection('現病歴')">［現病歴］</button>
+            <button class="rt-btn rt-tpl-btn" onclick="insertFindingsSection('身体所見')">［身体所見］</button>
+            <button class="rt-btn rt-tpl-btn" onclick="insertFindingsSection('アセスメント＆プラン')">［アセスメント＆プラン］</button>
+            <span id="findingsSnippetBtns"></span>
+            <button class="rt-btn rt-tpl-btn rt-tpl-add" onclick="addFindingsSnippet()" title="よく使う文面を登録（登録後は右クリックで削除）">＋定型文を登録</button>
+          </div>
+          <div class="m3-pane-body">
+            <div class="richtext-editor" id="findingsEditor" contenteditable="true" data-placeholder="S：&#10;&#10;O：&#10;&#10;A/P："></div>
+          </div>
+          <div class="m3-pane-foot">
+            <div class="m3-spacer"></div>
+            <button class="m3-wbtn" onclick="M3.openPatientTab('files')" title="写真・シェーマを添付（ファイル）">シェーマ追加</button>
+          </div>
+        </div>
+        <!-- 処置・行為 -->
+        <div class="m3-pane">
+          <div class="m3-pane-head">処置・行為
+            <div class="m3-spacer"></div>
+            <button class="tb green" onclick="M3.clearActions()" title="処方・算定をすべて消す"><svg><use href="#i-trash"/></svg></button>
+          </div>
+          <div class="m3-pane-body" id="actionsBody">
+            <!-- 薬（処方） -->
+            <div class="m3-block" id="m3BlockRx">
+              <div class="row"><span class="m3-badge-act y">薬</span><span class="grow">処方</span><span class="cnt" id="m3RxCount"></span></div>
+              <div class="set-order-btns" id="setOrderBtns"></div>
+              <div class="drug-search-wrap">
+                <input type="text" class="form-input" id="drugSearch" placeholder="薬品名で検索して追加..." oninput="searchDrug(this.value)" onfocus="searchDrug(this.value)">
+                <div class="drug-results" id="drugResults"></div>
+              </div>
+              <ul class="rx-list" id="rxList"></ul>
+              <div class="rx-days-row"><label>一括日数</label><input type="number" id="rxDays" value="7" min="1" max="90" onchange="applyBulkDays(this.value)"><span class="unit">日分</span><span>※個別設定は各薬右側</span></div>
+            </div>
+            <!-- 検（検査） -->
+            <div class="m3-block" id="m3BlockExam">
+              <div class="row"><span class="m3-badge-act k">検</span><span class="m3-acttag">診療行為</span><span class="grow">検査</span></div>
+              <div class="exam-check-list" id="examCheckList"></div>
+            </div>
+            <!-- 診（診察料・算定） -->
+            <div class="m3-block" id="m3BlockBilling">
+              <div class="row"><span class="m3-badge-act d">診</span><span class="grow">診察料・算定</span></div>
+              <div id="billingBody">
+                <div class="billing-row"><span class="label">初再診料</span><span class="value" id="billShoshin">---</span></div>
+                <div class="billing-row billing-row-removable" id="rowGairai"><span class="label">外来管理加算</span><span class="value" id="billGairai">---</span><span class="billing-row-del" onclick="removeBillingRow('gairai')" title="除外">&times;</span></div>
+                <div class="billing-row" id="billSurchargeRow" style="display:none"><span class="label">時間外加算</span><span class="value surcharge" id="billSurcharge">---</span></div>
+                <div class="billing-row billing-row-removable" id="rowShohou"><span class="label">処方料</span><span class="value" id="billShohou">---</span><span class="billing-row-del" onclick="removeBillingRow('shohou')" title="除外">&times;</span></div>
+                <div class="billing-row billing-row-removable" id="rowChouzai"><span class="label">調剤料</span><span class="value" id="billChouzai">---</span><span class="billing-row-del" onclick="removeBillingRow('chouzai')" title="除外">&times;</span></div>
+                <div class="billing-row billing-row-removable" id="rowYakuzai"><span class="label">薬剤料</span><span class="value" id="billYakuzai">---</span><span class="billing-row-del" onclick="removeBillingRow('yakuzai')" title="除外">&times;</span></div>
+                <div class="billing-row" id="billExamRow" style="display:none"><span class="label">検査料</span><span class="value" id="billExam">---</span><span class="billing-row-del" onclick="removeBillingRow('exam')" title="除外">&times;</span></div>
+                <div class="billing-divider"></div>
+                <div class="billing-total"><span>合計点数</span><span id="billTotal">---</span></div>
+                <div class="billing-burden"><span>患者負担額</span><span id="billBurden">---</span></div>
+              </div>
+              <div class="billing-actions">
+                <button class="btn btn-outline" onclick="saveKarteDraft()">一時保存</button>
+                <button class="btn btn-primary" onclick="confirmBilling()">確定</button>
+                <button class="btn btn-outline" onclick="printBilling()">印刷</button>
+                <button class="btn btn-outline btn-clear-billing" id="btnClearBilling" onclick="clearAllBilling()" disabled>算定クリア</button>
+                <button class="btn btn-outline btn-karte-undo" onclick="openKarteCancelModal()" title="直前保存に戻す・完全削除">取り消し</button>
+              </div>
+            </div>
+            <!-- 他（傷病名） -->
+            <div class="m3-block" id="m3BlockDisease">
+              <div class="row"><span class="m3-badge-act t">他</span><span class="grow">傷病名（この診察で扱う病名）</span></div>
+              <div id="selectedDiseases"></div>
+            </div>
+          </div>
+          <div class="m3-pane-foot">
+            <label><input type="checkbox" id="m3IppouCheck" onchange="M3.ippouChange(this)"> 処方箋備考に一包化を記載</label>
+            <div class="m3-spacer"></div>
+            <button class="m3-wbtn" onclick="M3.openPatientTab('diseases')" title="傷病名を追加（適応症の突合つき）">適応症追加</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右: 行為マスタ（閉＝縦レール／開＝598px） -->
+    <div class="m3-col m3-col-right" id="m3Right">
+      <ul class="m3-rail" id="m3RightRail"></ul>
+      <ul class="m3-tabs r6" id="m3RightTabs"></ul>
+      <div class="m3-right-body">
+        <div class="m3-kw"><input type="text" class="form-input billing-menu-search" id="billingMenuSearch" placeholder="キーワードを入力してください" oninput="filterBillingMenu(this.value)"></div>
+        <div class="billing-menu-tabs" id="billingMenuTabs" style="display:none">
+          <div class="bm-tab bm-tab-mylist" data-cat="mylist" onclick="switchBillingTab('mylist')">マイリスト</div>
+          <div class="bm-tab active" data-cat="initial" onclick="switchBillingTab('initial')">初再診</div>
+          <div class="bm-tab" data-cat="management" onclick="switchBillingTab('management')">管理</div>
+          <div class="bm-tab" data-cat="procedure" onclick="switchBillingTab('procedure')">処置</div>
+          <div class="bm-tab" data-cat="labtest" onclick="switchBillingTab('labtest')">検査</div>
+          <div class="bm-tab" data-cat="injection" onclick="switchBillingTab('injection')">注射</div>
+          <div class="bm-tab" data-cat="imaging" onclick="switchBillingTab('imaging')">画像</div>
+          <div class="bm-tab" data-cat="drug" onclick="switchBillingTab('drug')">薬</div>
+        </div>
+        <div class="m3-items" id="m3Items">
+          <div id="m3ItemsExtra"></div>
+          <div class="billing-menu-items" id="billingMenuItems"></div>
+          <div id="addedBillingList" class="added-billing-list" style="display:none;">
+            <div style="font-size:12px;color:var(--text-muted);margin:8px 0 4px;border-top:1px solid var(--border);padding-top:6px;">追加済み算定</div>
+            <div id="addedBillingItems"></div>
+          </div>
+          <div id="m3DocsSection" style="display:none">
+            <div class="m3-group"><div class="subhead" style="font-size:12px;color:var(--text-muted);padding:6px 0;">文書作成</div>
+              <div class="doc-btns" id="examSectionBody">
+                <button class="doc-btn" onclick="openDocModal('referral')">診療情報提供書（紹介状）</button>
+                <button class="doc-btn" onclick="openDocModal('diagnosis')">診断書</button>
+                <button class="doc-btn" onclick="openDocModal('prescription')">院外処方箋</button>
+              </div>
+              <span id="examCollapseIcon" style="display:none"></span>
+            </div>
+          </div>
+          <div id="m3WaitingSection" style="display:none">
+            <div class="m3-group"><div class="subhead" style="font-size:12px;color:var(--text-muted);padding:6px 0;">待機患者</div>
+              <div class="waiting-stats"><div class="waiting-stat"><div class="num" id="waitCount">0</div><div class="lbl">待機中</div></div><div class="waiting-stat"><div class="num" id="doneCount">0</div><div class="lbl">診察済</div></div></div>
+              <div id="waitingList"></div>
+              <div class="nav-btns"><button class="nav-btn prev-patient-btn" id="prevPatientBtn" onclick="callPrevPatient()" disabled>◀ 前の患者</button><button class="nav-btn next-patient-btn" onclick="callNextPatient()">次の患者 ▶</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="m3-actions">
+        <button class="m3-abtn" onclick="M3.toggleDocs()" title="文書（紹介状・診断書・院外処方箋）"><svg><use href="#i-rezeptplus"/></svg></button>
+        <button class="m3-abtn" onclick="confirmBilling()" title="会計（算定を確定）"><svg><use href="#i-yen"/></svg></button>
+        <button class="m3-abtn" onclick="openDocModal('prescription')" title="院外処方箋を出す"><svg><use href="#i-rxout"/></svg></button>
+        <div class="m3-spacer"></div>
+        <button class="m3-abtn" onclick="saveKarteDraft()" title="保存（一時保存）"><svg><use href="#i-save"/></svg></button>
+        <button class="m3-abtn" onclick="printBilling()" title="印刷"><svg><use href="#i-print"/></svg></button>
+        <button class="m3-abtn" onclick="M3.finishAndNext()" title="診察終了して次の患者へ"><svg><use href="#i-arrow"/></svg></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Patient Edit Modal -->
+<div class="modal-overlay" id="editPatientModal">
+  <div class="modal">
+    <h3>患者情報の編集 <button class="modal-close" onclick="closeModal('editPatientModal')">&times;</button></h3>
+    <div class="edit-form-row"><label>氏名</label><input type="text" id="editName"></div>
+    <div class="edit-form-row"><label>フリガナ</label><input type="text" id="editNameKana" placeholder="タナカタロウ"></div>
+    <!-- 生年月日: 和暦＋西暦を併設（要望#3） -->
+    <div class="edit-form-row" style="align-items:flex-start;">
+      <label style="margin-top:8px;">生年月日</label>
+      <div class="wareki-grid">
+        <div class="wareki-row">
+          <select id="editWEra" onchange="onWarekiInput('edit')">
+            <option value="">元号</option><option>令和</option><option>平成</option><option>昭和</option><option>大正</option><option>明治</option>
+          </select>
+          <input type="number" id="editWY" min="1" max="64" placeholder="年" oninput="onWarekiInput('edit')"><span class="wareki-unit">年</span>
+          <input type="number" id="editWM" min="1" max="12" placeholder="月" oninput="onWarekiInput('edit')"><span class="wareki-unit">月</span>
+          <input type="number" id="editWD" min="1" max="31" placeholder="日" oninput="onWarekiInput('edit')"><span class="wareki-unit">日</span>
+        </div>
+        <div class="wareki-row">
+          <input type="date" id="editDob" oninput="onDobInput('edit')" onchange="onDobInput('edit')">
+          <span class="wareki-hint">西暦と自動で連動</span>
+        </div>
+      </div>
+    </div>
+    <div class="edit-form-row"><label>性別</label><select id="editSex"><option value="男">男</option><option value="女">女</option></select></div>
+    <!-- 住所: 新規患者登録と同じ構成（要望#2） -->
+    <div class="edit-form-row" style="align-items:flex-start;">
+      <label style="margin-top:8px;">住所</label>
+      <div class="addr-grid">
+        <div class="addr-zip-row">
+          <input type="text" id="editZip" placeholder="460-0001" style="width:120px;" oninput="autoFillAddress(this.value,'editPref','editCity')">
+          <span style="font-size:10px;color:var(--primary);">郵便番号で自動入力</span>
+        </div>
+        <div class="addr-detail-row">
+          <input type="text" id="editPref" placeholder="都道府県" style="width:48%;">
+          <input type="text" id="editCity" placeholder="市区町村" style="width:48%;">
+        </div>
+        <input type="text" id="editStreet" placeholder="番地" style="width:100%;">
+        <input type="text" id="editBuilding" placeholder="建物名・号室" style="width:100%;">
+      </div>
+    </div>
+    <div class="edit-form-row"><label>電話番号</label><input type="text" id="editPhone"></div>
+    <div class="edit-form-row"><label>保険種別</label>
+      <select id="editInsurance">
+        <option value="社保3割">社保3割</option><option value="国保3割">国保3割</option>
+        <option value="後期高齢者1割">後期高齢者1割</option><option value="後期高齢者2割">後期高齢者2割</option><option value="後期高齢者3割">後期高齢者3割</option>
+        <option value="公費">公費</option><option value="自費">自費</option>
+      </select>
+    </div>
+    <div class="edit-form-row"><label>アレルギー</label><input type="text" id="editAllergies" placeholder="カンマ区切り"></div>
+    <!-- 要望#6: 支払方法（手入力・選択式） -->
+    <div class="edit-form-row"><label>支払方法</label>
+      <select id="editPayMethod">
+        <option value="">未設定</option><option value="デジスマ">デジスマ</option><option value="現金">現金</option><option value="その他">その他</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('editPatientModal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="savePatientEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Patient Modal (Phase 5 - enhanced) -->
+<div class="modal-overlay" id="newPatientModal">
+  <div class="modal" style="min-width:500px;">
+    <h3>新規患者登録 <button class="modal-close" onclick="closeModal('newPatientModal')">&times;</button></h3>
+
+    <!-- 保険証読取セクション -->
+    <div class="ocr-section">
+      <div class="ocr-header">
+        <span class="ocr-icon">&#128247;</span>
+        <span>保険証読取</span>
+        <button class="btn btn-sm btn-outline" onclick="document.getElementById('ocrFileInput').click()">ファイル選択</button>
+        <button class="btn btn-sm btn-primary" onclick="startOcrCamera()">カメラ起動</button>
+        <input type="file" id="ocrFileInput" accept="image/*" style="display:none" onchange="onOcrFileSelected(this)">
+      </div>
+      <!-- カメラプレビュー -->
+      <div id="ocrCameraWrap" style="display:none;">
+        <video id="ocrVideo" autoplay playsinline style="width:100%;max-height:240px;border-radius:6px;background:#000;"></video>
+        <div style="text-align:center;margin-top:6px;">
+          <button class="btn btn-sm btn-primary" onclick="captureOcrPhoto()">撮影</button>
+          <button class="btn btn-sm btn-outline" onclick="stopOcrCamera()">閉じる</button>
+        </div>
+      </div>
+      <!-- 読取結果プレビュー -->
+      <div id="ocrPreviewWrap" style="display:none;">
+        <div class="ocr-preview-row">
+          <img id="ocrPreviewImg" style="max-height:160px;border-radius:6px;border:1px solid var(--border);">
+          <div id="ocrResultPanel" class="ocr-result-panel">
+            <div id="ocrProgressArea" style="display:none;">
+              <div class="ocr-progress-bar"><div id="ocrProgressFill" class="ocr-progress-fill"></div></div>
+              <span id="ocrProgressText" style="font-size:11px;color:var(--text-muted);">準備中...</span>
+            </div>
+            <div id="ocrResultArea" style="display:none;"></div>
+          </div>
+        </div>
+        <div style="text-align:right;margin-top:6px;">
+          <button class="btn btn-sm btn-outline" onclick="clearOcrPreview()">クリア</button>
+          <button class="btn btn-sm btn-success" id="ocrApplyBtn" style="display:none;" onclick="applyOcrResults()">読取結果を反映</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="edit-form-row">
+      <label>患者番号<span class="req">*</span></label>
+      <input type="text" id="newPatientNo" class="auto-field" readonly>
+      <span style="font-size:10px;color:var(--text-muted);">自動採番</span>
+    </div>
+    <div class="edit-form-row"><label>漢字氏名<span class="req">*</span></label><input type="text" id="newName" placeholder="山田 太郎"><span id="newNameGuess" class="ocr-guess-hint" style="display:none;"></span></div>
+    <div class="edit-form-row"><label>カナ氏名<span class="req">*</span></label><input type="text" id="newNameKana" placeholder="ヤマダ タロウ（全角カナ）"></div>
+    <div class="edit-form-row">
+      <label>性別<span class="req">*</span></label>
+      <div class="radio-group">
+        <label class="radio-label"><input type="radio" name="newSex" value="男" checked> 男性</label>
+        <label class="radio-label"><input type="radio" name="newSex" value="女"> 女性</label>
+      </div>
+    </div>
+    <!-- 生年月日: 和暦＋西暦を併設（要望#3） -->
+    <div class="edit-form-row" style="align-items:flex-start;">
+      <label style="margin-top:8px;">生年月日<span class="req">*</span></label>
+      <div class="wareki-grid">
+        <div class="wareki-row">
+          <select id="newWEra" onchange="onWarekiInput('new')">
+            <option value="">元号</option><option>令和</option><option>平成</option><option>昭和</option><option>大正</option><option>明治</option>
+          </select>
+          <input type="number" id="newWY" min="1" max="64" placeholder="年" oninput="onWarekiInput('new')"><span class="wareki-unit">年</span>
+          <input type="number" id="newWM" min="1" max="12" placeholder="月" oninput="onWarekiInput('new')"><span class="wareki-unit">月</span>
+          <input type="number" id="newWD" min="1" max="31" placeholder="日" oninput="onWarekiInput('new')"><span class="wareki-unit">日</span>
+        </div>
+        <div class="wareki-row">
+          <input type="date" id="newDob" oninput="onDobInput('new')" onchange="onDobInput('new')">
+          <span class="wareki-hint">西暦と自動で連動</span>
+        </div>
+      </div>
+    </div>
+    <div class="edit-form-row" style="align-items:flex-start;">
+      <label style="margin-top:8px;">住所</label>
+      <div class="addr-grid">
+        <div class="addr-zip-row">
+          <input type="text" id="newZip" placeholder="460-0001" style="width:120px;" oninput="autoFillAddress(this.value)">
+          <span style="font-size:10px;color:var(--primary);">郵便番号で自動入力</span>
+        </div>
+        <div class="addr-detail-row">
+          <input type="text" id="newPref" placeholder="都道府県" style="width:48%;">
+          <input type="text" id="newCity" placeholder="市区町村" style="width:48%;">
+        </div>
+        <input type="text" id="newStreet" placeholder="番地" style="width:100%;">
+        <input type="text" id="newBuilding" placeholder="建物名・号室" style="width:100%;">
+      </div>
+    </div>
+    <div class="edit-form-row"><label>電話番号1</label><input type="text" id="newPhone" placeholder="090-1234-5678"></div>
+    <div class="edit-form-row"><label>電話番号2</label><input type="text" id="newPhone2" placeholder="0568-12-3456（自宅等）"></div>
+    <div class="edit-form-row"><label>施設</label><input type="text" id="newFacility" placeholder="（在宅患者の所属施設名）"></div>
+    <div class="edit-form-row"><label>保険者番号</label>
+      <div style="display:flex;gap:6px;">
+        <input type="text" id="newInsurerNumber" placeholder="6桁(国保) or 8桁(社保等)" style="flex:1;" oninput="onNewInsurerNumberInput(this.value)">
+        <span id="newInsurerStatus" style="font-size:11px;align-self:center;white-space:nowrap;"></span>
+      </div>
+    </div>
+    <div class="edit-form-row"><label>保険種別</label>
+      <select id="newInsurance">
+        <option value="社保3割">社保3割</option><option value="国保3割">国保3割</option>
+        <option value="後期高齢者1割">後期高齢者1割</option><option value="後期高齢者2割">後期高齢者2割</option><option value="後期高齢者3割">後期高齢者3割</option>
+        <option value="公費">公費</option><option value="自費">自費</option>
+      </select>
+    </div>
+    <!-- 要望#6: 支払方法（手入力・選択式） -->
+    <div class="edit-form-row"><label>支払方法</label>
+      <select id="newPayMethod">
+        <option value="">未設定</option><option value="デジスマ">デジスマ</option><option value="現金">現金</option><option value="その他">その他</option>
+      </select>
+    </div>
+    <div class="edit-form-row"><label>車両番号</label><input type="text" id="newPlate" placeholder="名古屋 500 あ 12-34"></div>
+    <div class="edit-form-row"><label>レーン</label><input type="number" id="newLane" value="1" min="1" max="10"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('newPatientModal')">キャンセル</button>
+      <button class="btn btn-outline" onclick="addNewPatient(false)">登録のみ</button>
+      <button class="btn btn-success" onclick="addNewPatient(true)">登録して受付</button>
+    </div>
+  </div>
+</div>
+
+<!-- Document Modal -->
+<div class="modal-overlay" id="docModal">
+  <div class="modal">
+    <h3 id="docModalTitle">文書作成 <button class="modal-close" onclick="closeModal('docModal')">&times;</button></h3>
+    <div id="docModalBody"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('docModal')">キャンセル</button>
+      <button class="btn btn-outline" onclick="showToast('印刷します（モック）')">印刷</button>
+      <button class="btn btn-primary" onclick="saveDocument()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Insurance Photo Modal (v0.8: OCR/QR + 削除 + 受給者番号) -->
+<div class="modal-overlay" id="insurancePhotoModal">
+  <div class="modal" style="max-width:560px;">
+    <h3>保険証情報 <button class="modal-close" onclick="closeModal('insurancePhotoModal')">&times;</button></h3>
+
+    <!-- OCR/QR読取セクション（機能10: 既存患者にもOCR/QR追加） -->
+    <div class="ocr-section" style="margin-bottom:10px;">
+      <div class="ocr-header">
+        <span class="ocr-icon">&#128247;</span>
+        <span>保険証読取</span>
+        <button class="btn btn-sm btn-outline" onclick="document.getElementById('insuranceOcrFileInput').click()">ファイル選択</button>
+        <button class="btn btn-sm btn-primary" onclick="startInsuranceOcrCamera()">カメラ起動</button>
+        <input type="file" id="insuranceOcrFileInput" accept="image/*" style="display:none" onchange="onInsuranceOcrFileSelected(this)">
+      </div>
+      <div id="insuranceOcrCameraWrap" style="display:none;">
+        <video id="insuranceOcrVideo" autoplay playsinline style="width:100%;max-height:200px;border-radius:6px;background:#000;"></video>
+        <div style="text-align:center;margin-top:6px;">
+          <button class="btn btn-sm btn-primary" onclick="captureInsuranceOcrPhoto()">撮影</button>
+          <button class="btn btn-sm btn-outline" onclick="stopInsuranceOcrCamera()">閉じる</button>
+        </div>
+      </div>
+      <div id="insuranceOcrPreviewWrap" style="display:none;">
+        <div class="ocr-preview-row">
+          <img id="insuranceOcrPreviewImg" style="max-height:140px;border-radius:6px;border:1px solid var(--border);">
+          <div id="insuranceOcrResultPanel" class="ocr-result-panel">
+            <div id="insuranceOcrProgressArea" style="display:none;">
+              <div class="ocr-progress-bar"><div id="insuranceOcrProgressFill" class="ocr-progress-fill"></div></div>
+              <span id="insuranceOcrProgressText" style="font-size:11px;color:var(--text-muted);">準備中...</span>
+            </div>
+            <div id="insuranceOcrResultArea" style="display:none;"></div>
+          </div>
+        </div>
+        <div style="text-align:right;margin-top:6px;">
+          <button class="btn btn-sm btn-outline" onclick="clearInsuranceOcrPreview()">クリア</button>
+          <button class="btn btn-sm btn-outline" id="insuranceOcrApplyQrOnlyBtn" style="display:none;color:#28a745;border-color:#28a745;" onclick="applyInsuranceOcrResults(true)">QRのみ反映</button>
+          <button class="btn btn-sm btn-success" id="insuranceOcrApplyBtn" style="display:none;" onclick="applyInsuranceOcrResults(false)">全て反映</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 写真エリア（機能4: 削除ボタン追加） -->
+    <div style="text-align:center;margin-bottom:12px;">
+      <div class="insurance-photo-area" style="min-height:100px;" onclick="document.getElementById('insuranceFileInput2').click()">
+        <img id="insurancePhotoPreview" style="display:none;">
+        <span id="insuranceUploadText2">クリックして保険証写真をアップロード</span>
+      </div>
+      <input type="file" id="insuranceFileInput2" accept="image/*" capture="environment" style="display:none" onchange="handleInsurancePhoto(this,true)">
+      <button class="btn btn-sm btn-outline" id="insurancePhotoDeleteBtn" style="display:none;margin-top:4px;color:#dc2626;border-color:#dc2626;" onclick="deleteInsurancePhoto()">写真を削除</button>
+    </div>
+
+    <!-- 保険者番号（自動判定の入力源） -->
+    <fieldset style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+      <legend style="font-size:12px;font-weight:600;color:var(--primary,#2563eb);padding:0 6px;">自動判定</legend>
+      <div class="edit-form-row"><label>保険者番号</label>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="insurerNumberInput" placeholder="6桁(国保) or 8桁(社保等)" style="flex:1;" oninput="onInsurerNumberInput(this.value)">
+          <button class="btn btn-primary" style="font-size:11px;padding:4px 10px;white-space:nowrap;" onclick="runInsuranceCalc()">判定</button>
+        </div>
+      </div>
+      <div class="edit-form-row" style="display:flex;gap:6px;">
+        <div style="flex:2;"><label>記号</label><input type="text" id="insSymbol" placeholder="記号"></div>
+        <div style="flex:2;"><label>番号</label><input type="text" id="insNumber" placeholder="番号"></div>
+        <div style="flex:1;"><label>枝番</label><input type="text" id="insEdaban" placeholder="00" maxlength="2" style="text-align:center;"></div>
+      </div>
+      <div class="edit-form-row" style="display:flex;gap:6px;">
+        <div style="flex:2;"><label>所得区分</label>
+          <select id="incomeLevelSelect">
+            <option value="ippan">一般</option>
+            <option value="itteijoh">一定以上所得</option>
+            <option value="genzai1">現役並みI</option>
+            <option value="genzai2">現役並みII</option>
+            <option value="genzai3">現役並みIII</option>
+            <option value="tei1">低所得I</option>
+            <option value="tei2">低所得II</option>
+          </select>
+        </div>
+      </div>
+      <!-- 判定結果表示エリア -->
+      <div id="insuranceCalcResult" style="margin-top:8px;display:none;"></div>
+    </fieldset>
+
+    <!-- 医療証セクション -->
+    <fieldset style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+      <legend style="font-size:12px;font-weight:600;color:#7c3aed;padding:0 6px;">医療証（公費受給者証等）</legend>
+      <div style="text-align:center;margin-bottom:8px;">
+        <div class="insurance-photo-area" style="min-height:60px;border:1px dashed var(--border);cursor:pointer;" onclick="document.getElementById('iryoFileInput').click()">
+          <img id="iryoPhotoPreview" style="display:none;max-height:120px;">
+          <span id="iryoUploadText" style="font-size:11px;color:var(--text-muted);">医療証写真をアップロード（任意）</span>
+        </div>
+        <input type="file" id="iryoFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleIryoPhoto(this)">
+        <button class="btn btn-sm btn-outline" id="iryoPhotoDeleteBtn" style="display:none;margin-top:4px;color:#dc2626;border-color:#dc2626;" onclick="deleteIryoPhoto()">医療証写真を削除</button>
+      </div>
+      <div class="edit-form-row" style="display:flex;gap:6px;">
+        <div style="flex:3;"><label>医療証種別</label>
+          <select id="iryoType" onchange="onIryoTypeChange(this.value)">
+            <option value="">なし</option>
+            <option value="乳幼児医療">乳幼児医療</option>
+            <option value="子ども医療">子ども医療</option>
+            <option value="障害者医療">障害者医療</option>
+            <option value="ひとり親医療">ひとり親医療</option>
+            <option value="精神通院">精神通院（自立支援）</option>
+            <option value="特定医療費">特定医療費（指定難病）</option>
+            <option value="被爆者">被爆者健康手帳</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+        <div style="flex:1;"><label>法別番号</label><input type="text" id="iryoHobetsu" placeholder="--" maxlength="2" style="text-align:center;font-family:monospace;font-weight:600;"></div>
+      </div>
+      <div class="edit-form-row" style="display:flex;gap:6px;">
+        <div style="flex:1;"><label>受給者番号</label><input type="text" id="iryoRecipientNumber" placeholder="受給者番号"></div>
+      </div>
+      <div class="edit-form-row"><label>有効期間</label>
+        <div style="display:flex;gap:4px;align-items:center;">
+          <input type="date" id="iryoValidFrom" style="flex:1;">
+          <span>〜</span>
+          <input type="date" id="iryoValidTo" style="flex:1;">
+        </div>
+      </div>
+      <div class="edit-form-row"><label>備考</label><textarea id="iryoMemo" rows="2" style="width:100%;font-size:12px;border:1px solid var(--border);border-radius:4px;padding:6px;resize:vertical;" placeholder="自己負担上限額、適用条件等"></textarea></div>
+    </fieldset>
+
+    <!-- 要望#5: 写真を複数枚（サーバー保存＋容量の可視化） -->
+    <fieldset style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+      <legend style="font-size:12px;font-weight:600;color:var(--primary);padding:0 6px;">写真（保険証・医療証・検査結果）</legend>
+      <div id="photoStorageBanner"></div>
+      <div id="patientPhotoGrid" class="photo-grid"></div>
+      <div class="photo-add-row">
+        <select id="photoTypeSelect">
+          <option>保険証</option><option>医療証</option><option>検査結果</option><option>その他</option>
+        </select>
+        <label class="photo-add-btn">＋ 写真を追加
+          <input type="file" accept="image/*" capture="environment" style="display:none" onchange="onAddPatientPhoto(this)">
+        </label>
+        <span id="photoCountInfo" class="photo-count"></span>
+      </div>
+      <div id="photoUsageMeter"></div>
+    </fieldset>
+
+    <!-- 手動設定（従来互換） -->
+    <fieldset style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+      <legend style="font-size:12px;font-weight:600;color:var(--text-muted,#666);padding:0 6px;">手動設定</legend>
+      <div class="edit-form-row"><label>保険者名</label><input type="text" id="insurerName"></div>
+      <div class="edit-form-row"><label>有効期限</label><input type="date" id="insuranceExpiry"></div>
+      <div class="edit-form-row" style="display:flex;gap:8px;">
+        <div style="flex:1;"><label>区分</label><select id="insuranceType"><option value="社保">社保</option><option value="国保">国保</option><option value="後期高齢者">後期高齢者</option><option value="公費">公費</option></select></div>
+        <div style="flex:1;"><label>負担割合</label><select id="insuranceRatio" onchange="updateInsuranceWarn()"><option value="0.3">3割</option><option value="0.2">2割</option><option value="0.1">1割</option><option value="0">0割</option></select></div>
+      </div>
+      <!-- 要望#4: 医療証あり×負担割合の食い違いを保存前に警告（自動では変更しない） -->
+      <div id="insWarnBanner" style="display:none;margin-top:10px;background:#fef3c7;border:1px solid #d97706;border-radius:6px;padding:8px 10px;">
+        <div id="insWarnText" style="font-size:12px;font-weight:700;color:#92400e;"></div>
+        <div style="font-size:11px;color:#92400e;margin-top:3px;">このまま保存すると、その負担割合で確定します。</div>
+        <div style="margin-top:6px;display:flex;gap:6px;">
+          <button type="button" class="btn btn-primary" style="font-size:11px;padding:3px 10px;" onclick="applyKouhiZero()">0割にする</button>
+          <button type="button" class="btn btn-outline" style="font-size:11px;padding:3px 10px;" onclick="dismissInsuranceWarn()">このまま保存する</button>
+        </div>
+      </div>
+    </fieldset>
+
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('insurancePhotoModal')">キャンセル</button>
+      <button class="btn btn-outline" onclick="openInsuranceRuleRef()" style="font-size:11px;">ルール参照</button>
+      <button class="btn btn-primary" onclick="saveInsuranceInfo()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 月遅れ請求モーダル（2026-08-06 要望） -->
+<div class="modal-overlay" id="lateClaimModal">
+  <div class="modal" style="max-width:520px;">
+    <h3>月遅れ請求の設定 <button class="modal-close" onclick="closeModal('lateClaimModal')">&times;</button></h3>
+    <div id="lateClaimTarget" style="background:var(--bg);border-left:3px solid var(--primary);padding:8px 10px;font-size:12px;margin-bottom:12px;"></div>
+
+    <div class="edit-form-row">
+      <label style="font-size:12px;">請求月<span class="req">*</span></label>
+      <select id="lateBillingMonth" style="flex:1;"></select>
+    </div>
+    <div class="edit-form-row">
+      <label style="font-size:12px;">理由</label>
+      <input type="text" id="lateReason" placeholder="提出漏れ／保険証確認待ち など（任意）" style="flex:1;">
+    </div>
+
+    <div style="font-size:12px;font-weight:700;margin:12px 0 4px;">この月の受診　<span id="lateMonthLabel" style="font-weight:400;color:var(--text-muted);"></span></div>
+    <div id="lateVisitList" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;"></div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+      <button class="btn btn-primary" style="font-size:12px;padding:5px 12px;" onclick="markLateCurrentVisit()">この診察のみ月遅れにする</button>
+      <button class="btn btn-primary" id="lateWholeBtn" style="font-size:12px;padding:5px 12px;" onclick="markLateWholeMonth()">この月の受診をすべて月遅れにする</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+      <button class="btn btn-outline" id="lateClearCurBtn" style="font-size:12px;padding:5px 12px;" onclick="clearLateCurrentVisit()">この診察の解除</button>
+      <button class="btn btn-outline" id="lateClearWholeBtn" style="font-size:12px;padding:5px 12px;" onclick="clearLateWholeMonth()">この月をすべて解除</button>
+    </div>
+
+    <div style="font-size:10px;color:var(--text-muted);margin-top:10px;">
+      診療月は変わりません。<b>請求として提出する月だけ</b>を変えます。設定はレセプト点検画面から参照されます。
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('lateClaimModal')">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- カルテ取り消しモーダル（要望#9） -->
+<div class="modal-overlay" id="karteCancelModal">
+  <div class="modal" style="max-width:460px;">
+    <h3>カルテの取り消し <button class="modal-close" onclick="closeModal('karteCancelModal')">&times;</button></h3>
+    <div id="karteCancelTarget" style="background:var(--bg);border-left:3px solid var(--primary);padding:8px 10px;font-size:12px;margin-bottom:12px;"></div>
+
+    <!-- ① 直前保存に戻す -->
+    <div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px;">① 直前に保存した状態に戻す</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;" id="karteCancelSnapInfo"></div>
+      <button class="btn btn-primary" style="font-size:12px;padding:5px 12px;" onclick="resetKarteToLastSave()">直前保存に戻す</button>
+    </div>
+
+    <!-- ② 完全削除 -->
+    <div style="border:1px solid var(--danger);border-radius:8px;padding:12px 14px;">
+      <div style="font-size:13px;font-weight:700;color:var(--danger);margin-bottom:4px;">② カルテを完全に削除する</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">
+        このカルテの記載・処方・傷病名・算定をすべて削除します。<b>元に戻せません。</b>
+      </div>
+      <div class="edit-form-row" style="align-items:flex-start;">
+        <label style="margin-top:6px;font-size:12px;">削除理由<span class="req">*</span></label>
+        <div style="flex:1;">
+          <select id="karteDeleteReason" style="width:100%;margin-bottom:4px;">
+            <option value="">選択してください</option>
+            <option value="患者取り違え">患者取り違え</option>
+            <option value="重複登録">重複登録</option>
+            <option value="受診なし（キャンセル）">受診なし（キャンセル）</option>
+            <option value="テスト入力">テスト入力</option>
+            <option value="その他">その他</option>
+          </select>
+          <input type="text" id="karteDeleteNote" placeholder="詳細（任意）" style="width:100%;">
+        </div>
+      </div>
+      <button class="btn" style="background:var(--danger);color:#fff;font-size:12px;padding:5px 12px;margin-top:6px;" onclick="deleteKarteCompletely()">完全に削除する</button>
+    </div>
+
+    <div style="font-size:10px;color:var(--text-muted);margin-top:10px;">
+      削除の記録（日時・実施者・理由）は端末内の履歴に残ります。
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('karteCancelModal')">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- Insurance Rules Reference Modal (v0.4) -->
+<div class="modal-overlay" id="insuranceRuleModal">
+  <div class="modal" style="max-width:720px;max-height:80vh;overflow-y:auto;">
+    <h3>負担割合ルール一覧 <button class="modal-close" onclick="closeModal('insuranceRuleModal')">&times;</button></h3>
+
+    <div style="font-size:12px;margin-bottom:12px;">
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <button class="btn btn-outline" style="font-size:11px;padding:3px 8px;" onclick="showRuleTab('age')">年齢別ルール</button>
+        <button class="btn btn-outline" style="font-size:11px;padding:3px 8px;" onclick="showRuleTab('houbetsu')">法別番号一覧</button>
+        <button class="btn btn-outline" style="font-size:11px;padding:3px 8px;" onclick="showRuleTab('kouhi')">公費負担一覧</button>
+        <button class="btn btn-outline" style="font-size:11px;padding:3px 8px;" onclick="showRuleTab('local')">地方単独事業</button>
+      </div>
+      <div id="ruleTabContent"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('insuranceRuleModal')">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- Questionnaire Modal -->
+<div class="modal-overlay" id="questionnaireModal">
+  <div class="modal">
+    <h3>問診票データ <button class="modal-close" onclick="closeModal('questionnaireModal')">&times;</button></h3>
+    <div id="questionnaireBody"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('questionnaireModal')">閉じる</button>
+      <button class="btn btn-primary" onclick="applyQuestionnaire()">カルテに反映</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /appContainer -->
+
+<!-- ============================================================
+     USER MANAGER MODAL
+     ============================================================ -->
+<div id="userManagerModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:24px 28px;width:620px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.15);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;font-size:16px;color:#1e293b;">ユーザー管理（ID/PW管理）</h3>
+      <button onclick="closeUserManager()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#64748b;">&times;</button>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;">
+      <thead>
+        <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
+          <th style="text-align:left;padding:8px 6px;">メール</th>
+          <th style="text-align:left;padding:8px 6px;">表示名</th>
+          <th style="text-align:left;padding:8px 6px;">所属院</th>
+          <th style="text-align:left;padding:8px 6px;">権限</th>
+          <th style="text-align:left;padding:8px 6px;">状態</th>
+          <th style="padding:8px 6px;"></th>
+        </tr>
+      </thead>
+      <tbody id="userListBody">
+        <tr><td colspan="6" style="text-align:center;color:#64748b;padding:16px;">読み込み中...</td></tr>
+      </tbody>
+    </table>
+
+    <div style="border-top:1px solid #e2e8f0;padding-top:16px;">
+      <h4 style="margin:0 0 12px;font-size:14px;color:#374151;">新規ユーザー追加</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <input type="email" id="newUserEmail" placeholder="メールアドレス" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+        <input type="text" id="newUserName" placeholder="表示名" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <input type="password" id="newUserPassword" placeholder="パスワード（6文字以上）" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+        <select id="newUserRole" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+          <option value="staff">staff（一般）</option>
+          <option value="doctor">doctor（医師）</option>
+          <option value="admin">admin（管理者）</option>
+          <option value="readonly">readonly（閲覧のみ）</option>
+        </select>
+      </div>
+      <div id="newUserClinics" style="font-size:12px;color:#374151;margin-bottom:12px;">
+        所属院:
+        <label style="margin-left:6px;"><input type="checkbox" value="*"> 全院</label>
+        <label style="margin-left:6px;"><input type="checkbox" value="nishiharu"> 西春</label>
+        <label style="margin-left:6px;"><input type="checkbox" value="yokohama"> 横浜</label>
+        <label style="margin-left:6px;"><input type="checkbox" value="chiba"> 千葉</label>
+        <label style="margin-left:6px;"><input type="checkbox" value="nakagawa"> 中川</label>
+      </div>
+      <button onclick="addNewUser()" style="padding:8px 20px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">追加</button>
+      <span id="addUserError" style="margin-left:12px;font-size:12px;color:#dc2626;"></span>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============================================================
+     レセプト作成モーダル（旧システム準拠レイアウト・2026-09-03追加）
+     ・レイアウトは旧システムの「レセプト作成」ダイアログに合わせている
+     ・右上［即UKE生成］は従来どおりの generateAndOpenReceipt() を温存したもの
+     ============================================================ -->
+<div class="rzm-overlay" id="rezeptCreateModal">
+  <div class="rzm" role="dialog" aria-modal="true" aria-label="レセプト作成">
+
+    <div class="rzm-head">
+      <h2>レセプト作成</h2>
+      <span class="rzm-spacer"></span>
+      <button class="rzm-quick" onclick="rzQuickUKE()" title="従来どおり、当日の確定カルテからUKEを即生成してレセプト点検を開きます">&#9889; 即UKE生成</button>
+      <button class="rzm-x" onclick="closeRezeptCreate()" aria-label="閉じる">&times;</button>
+    </div>
+
+    <div class="rzm-body">
+      <ul class="rzm-tabs">
+        <li class="active" data-rztab="hoken"  onclick="rzSwitchTab('hoken')">医療保険</li>
+        <li data-rztab="rousai" onclick="rzSwitchTab('rousai')">労災</li>
+        <li data-rztab="jibai"  onclick="rzSwitchTab('jibai')">自賠責</li>
+      </ul>
+
+      <!-- ===== 医療保険 ===== -->
+      <div id="rzPane_hoken">
+        <div class="rzm-sec">
+          <div class="rzm-top">
+            <div class="rzm-cond">
+              <div class="rzm-row">
+                <select class="rzm-select" id="rzMode" onchange="rzOnModeChange()">
+                  <option value="monthly">月次レセプト作成</option>
+                  <option value="daily">日次レセプト作成</option>
+                </select>
+              </div>
+              <div class="rzm-row">
+                <div class="rzm-field">
+                  <span class="rzm-lb" id="rzPeriodLabel">診療月</span>
+                  <span class="rzm-pick" id="rzTargetMonthWrap">
+                    <button type="button" class="rzm-date" style="width:79px;" onclick="rzPick('rzTargetMonth')"><span id="rzTargetMonthTxt">----/--</span></button>
+                    <input type="month" id="rzTargetMonth" class="rzm-hidden-input" onchange="rzOnFieldChange()">
+                  </span>
+                  <span class="rzm-pick" id="rzTargetDateWrap" style="display:none;">
+                    <button type="button" class="rzm-date" style="width:141px;" onclick="rzPick('rzTargetDate')"><span id="rzTargetDateTxt">----/--/--</span></button>
+                    <input type="date" id="rzTargetDate" class="rzm-hidden-input" onchange="rzOnFieldChange()">
+                  </span>
+                </div>
+                <div class="rzm-field">
+                  <span class="rzm-lb">請求年月日</span>
+                  <span class="rzm-pick">
+                    <button type="button" class="rzm-date" style="width:141px;" onclick="rzPick('rzClaimDate')"><span id="rzClaimDateTxt">----/--/--</span></button>
+                    <input type="date" id="rzClaimDate" class="rzm-hidden-input" onchange="rzOnFieldChange()">
+                  </span>
+                </div>
+                <label class="rzm-cb"><input type="checkbox" id="rzShaho" checked onchange="rzRenderSections()"><span>社保</span></label>
+                <label class="rzm-cb"><input type="checkbox" id="rzKokuho" checked onchange="rzRenderSections()"><span>国保</span></label>
+              </div>
+            </div>
+            <div class="rzm-links">
+              <a href="receipt_manual.html" target="_blank" rel="noopener"><span class="rzm-q">?</span>レセプト請求 マニュアル＆ヘルプ</a>
+              <a href="receipt_manual.html" target="_blank" rel="noopener"><span class="rzm-q">?</span>返戻オンライン請求 マニュアル＆ヘルプ</a>
+            </div>
+          </div>
+
+          <div class="rzm-adapt">
+            <span>適応症チェックの出力</span>
+            <label class="rzm-cb"><input type="checkbox" id="rzChkDrug" checked><span>医薬品</span></label>
+            <label class="rzm-cb"><input type="checkbox" id="rzChkProc" checked><span>診療行為</span></label>
+          </div>
+
+          <div class="rzm-result" id="rzResult" style="display:none;">
+            <svg class="rzm-result-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+              <path d="M14 2H6.5A1.5 1.5 0 0 0 5 3.5v17A1.5 1.5 0 0 0 6.5 22h11a1.5 1.5 0 0 0 1.5-1.5V7l-5-5z"/>
+              <path d="M14 2v5h5"/><path d="M8.5 14.5l2 2 4-4.5"/>
+            </svg>
+            <div class="rzm-result-main">
+              <span class="rzm-result-title" id="rzResultTitle">点検用レセプト</span>
+              <div class="rzm-result-meta">
+                <span id="rzResultMonth"></span><span id="rzResultStart"></span><span id="rzResultEnd"></span><span id="rzResultCount"></span>
+              </div>
+            </div>
+            <button class="rzm-btn rzm-btn-p" onclick="rzDownload()">ダウンロード</button>
+          </div>
+        </div>
+
+        <div class="rzm-sec">
+          <div class="rzm-acc">
+            <div class="rzm-acc-head">
+              <button class="rzm-caret" data-rzacc="rzHenreiWrap" onclick="rzToggleAcc('rzHenreiWrap')">&#9660;</button>
+              <span class="rzm-acc-title" id="rzHenreiCount">返戻再請求（ 0 件）</span>
+              <span class="rzm-spacer"></span>
+              <button class="rzm-btn rzm-btn-sm" onclick="rzHenreiViewer()">返戻レセプトビューアー</button>
+              <button class="rzm-btn rzm-btn-sm" onclick="rzHenreiOpenPicker()">返戻レセプト取込</button>
+              <input type="file" id="rzHenreiFile" accept=".UKE,.uke,.txt,.csv" multiple style="display:none;" onchange="rzHenreiOnFiles(event)">
+            </div>
+            <div id="rzHenreiWrap"><div class="rzm-box" id="rzHenreiBody">返戻再請求するカルテはありません。</div></div>
+          </div>
+
+          <div class="rzm-acc">
+            <div class="rzm-acc-head">
+              <button class="rzm-caret" data-rzacc="rzLateWrap" onclick="rzToggleAcc('rzLateWrap')">&#9660;</button>
+              <span class="rzm-acc-title" id="rzLateCount">月遅れ（ 0 件）</span>
+            </div>
+            <div id="rzLateWrap"><div class="rzm-box" id="rzLateBody">月遅れするカルテはありません。</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 労災 ===== -->
+      <div id="rzPane_rousai" style="display:none;">
+        <div class="rzm-empty">労災レセプトはこの画面では扱いません。</div>
+      </div>
+
+      <!-- ===== 自賠責 ===== -->
+      <div id="rzPane_jibai" style="display:none;">
+        <div class="rzm-empty">自賠責レセプトはこの画面では扱いません。</div>
+      </div>
+    </div>
+
+    <div class="rzm-foot">
+      <span class="rzm-status" id="rzStatus"></span>
+      <div class="rzm-foot-btns" id="rzFootActions">
+        <button class="rzm-btn" onclick="closeRezeptCreate()">キャンセル</button>
+        <button class="rzm-btn rzm-btn-p" onclick="rzRun('check')">点検用を作成</button>
+        <button class="rzm-btn rzm-btn-p" onclick="rzRun('submit')">提出用を作成</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================================================
+     情報通信機器を用いた診療に係る報告書（別紙様式14）モーダル
+     2026-09-11追加。中身は telemed_report.js が描画する。
+     ============================================================ -->
+<div class="tm-overlay" id="telemedReportModal">
+  <div class="tm" role="dialog" aria-modal="true" aria-label="情報通信機器を用いた診療に係る報告書">
+    <div class="tm-head">
+      <h2>情報通信機器を用いた診療に係る報告書</h2>
+      <span class="tm-head-sub">別紙様式14（8月報告）</span>
+      <span class="tm-spacer-head"></span>
+      <button class="tm-x" onclick="closeTelemedReport()" title="閉じる">&times;</button>
+    </div>
+    <div class="tm-body" id="tmBody"></div>
+  </div>
+</div>
+
+<script src="insurance_calc.js?v=20260820_v32"></script>
+<script src="name_dict.js?v=20260820_v32"></script>
+<script src="ocr_engine.js?v=20260820_v32"></script>
+<script src="qr_decoder.js?v=20260507b"></script>
+<script src="db_integration.js?v=20260915_v21a"></script>
+<script src="supabase_client.js?v=20260915_v21a"></script>
+<script src="reservation_sync.js?v=20260915_v21a"></script>
+<script src="m3_ui.js?v=20260915_v21a"></script>
+<script src="whisper_client.js?v=20260731_v25"></script>
+<script src="billing_revision_2026.js?v=20260602"></script>
+<script src="master_loader.js?v=20260907_v24"></script>
+<script src="auth.js?v=20260915_v21a"></script>
+<script src="ocr_ui.js?v=20260806_v30"></script>
+<script src="inventory_stock.js?v=20260728_v22"></script>
+<script src="drug_suggest.js?v=20260703_v12f"></script>
+<script src="patient_photos.js?v=20260806_v30"></script>
+<script src="app.js?v=20260915_v21a"></script>
+<!-- UKEはShift_JISで書き出す必要があるため（ブラウザ標準のTextEncoderはUTF-8のみ） -->
+<script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.2.0/encoding.min.js"></script>
+<script src="uke_generator.js?v=20260907_v35"></script>
+<script src="rezept_create.js?v=20260915_v21a"></script>
+<script src="telemed_report.js?v=20260915_v21a"></script>
+</body>
+</html>
