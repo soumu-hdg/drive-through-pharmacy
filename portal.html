@@ -158,23 +158,37 @@ body {
     <span class="url">hd-analytics-tau.vercel.app</span>
   </a>
 
+  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/reservation_v3/board.html" target="_blank" style="border:2px solid #2563eb;">
+    <span class="badge" style="background:#dbeafe; color:#2563eb;">予約システム</span>
+    <h3>クリニック予約システム v3（最新・受付ボードは職員ログイン制）</h3>
+    <p>受付ボードを<strong>電子カルテと同じ職員IDでログイン</strong>する方式に変更し、<strong>所属クリニックのボードだけ</strong>が表示されます（総務IDは全院）。予約が入ると電子カルテ（v21）の受付一覧に来院予定が自動で並び、受付するとこちらの予約が「来院済」になる双方向連携つき。患者向け予約サイト・同期デモも同じフォルダにあります。</p>
+    <span class="url">reservation_v3/board.html</span>
+  </a>
+
   <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/reservation_v2/demo.html" target="_blank" style="border:2px solid #2563eb;">
     <span class="badge" style="background:#dbeafe; color:#2563eb;">予約システム</span>
-    <h3>クリニック予約システム（新規・最新版）</h3>
+    <h3>クリニック予約システム（本番・v2）</h3>
     <p>複数院（西春・横浜・千葉・中川）を統括する自前の予約システム。患者が予約すると受付ライブボードへ<strong>リアルタイム反映</strong>。<strong>同じ部屋・同じ担当・同じ機材の二重予約はデータベース自体が拒否</strong>します（画面のチェックだけではありません）。受付ボードは<strong>ルーム／スタッフ／機材の3軸タイムライン</strong>、休憩・機材メンテ・院内業務のブロック登録、院ごとの診療時間・臨時休診の設定に対応。各院が受け付ける診療区分は現場のご指定どおり（西春＝外来・在宅・夜間休日／横浜＝外来・在宅／千葉＝外来・在宅・美容／中川＝在宅・夜間休日）。通信できないときは「予約完了」と表示せず受付を止めます。この同期デモの上部メニューから、お客様向け予約サイト・受付ボードにも切り替えられます。</p>
     <span class="url">reservation_v2/demo.html</span>
   </a>
 
+  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v21/index.html" target="_blank" style="border:2px solid #22c55e;">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>電子カルテ v21（最新・クリニック別のログイン／旧カルテ同型画面）</h3>
+    <p>ログイン画面で<strong>接続クリニック（西春・横浜・千葉・中川）を選び</strong>、IDの所属院と合致したときだけ接続します。データベースも院ごとに参照が分かれ、<strong>他院の患者・カルテは読めません</strong>（総務IDは全院、複数院担当は画面から切替）。受付・カルテ画面は旧カルテ（M3）と同じ配置に作り替えた v20 をそのまま継承し、予約システムの来院予定・様式14（オンライン診療の年次報告）・レセプト作成も同居しています。</p>
+    <span class="url">karte_v21/index.html</span>
+  </a>
+
   <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v18/index.html" target="_blank" style="border:2px solid #22c55e;">
     <span class="badge badge-emr">電子カルテ</span>
-    <h3>電子カルテ v0.18（最新・起動高速化＋Supabase同期）</h3>
+    <h3>電子カルテ v0.18（起動高速化＋Supabase同期）</h3>
     <p>起動時の患者データ読み込みを高速化。従来は約45秒間、全画面ロードで操作できませんでしたが、起動直後から操作できます。患者一覧は軽量取得（約3.5秒）、薬品・処方は背景読み込み。2回目以降はキャッシュ／Supabaseミラー（認証限定・患者情報保護）で即時表示。v0.17の適応症突合・診察料加算点検を継承。</p>
     <span class="url">karte_v18/index.html</span>
   </a>
 
   <a class="card" href="https://karte.hdg-holdings.com/" target="_blank" style="border-left: 4px solid #16a34a;">
     <span class="badge badge-emr" style="background:#16a34a; color:#fff;">本番ドメイン</span>
-    <h3>電子カルテ v0.18（本番 — karte.hdg-holdings.com）</h3>
+    <h3>電子カルテ v20（本番 — karte.hdg-holdings.com）</h3>
     <p>独自ドメイン版。Vercelホスティング＋SSL。レセプト出力全17種（社保/国保総括表・光ディスク送付書・公費請求書等）・SSKマスター60,315件・処方セット・院外処方・医療証・QR+OCR保険証。</p>
     <span class="url">https://karte.hdg-holdings.com/</span>
   </a>
@@ -338,7 +352,22 @@ body {
     <td><a target="_blank" href="https://hd-analytics-tau.vercel.app/clinic-monthly.html">hd-analytics-tau.vercel.app/clinic-monthly.html</a></td>
   </tr>
   <tr style="background:#dbeafe;">
-    <td><strong>クリニック予約システム（同期デモ）</strong><br><span style="font-size:12px;color:#b3402e">※ soumu-lgtm.github.io の同名URLは旧版です。こちらの soumu-hdg 版をご利用ください</span></td>
+    <td><strong>クリニック予約システム v3（最新・受付ボードは職員ログイン制）</strong></td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/reservation_v3/board.html">reservation_v3/board.html</a></td>
+  </tr>
+  <tr>
+    <td>　└ 患者用 予約サイト（v3）</td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/reservation_v3/index.html">reservation_v3/index.html</a></td>
+  </tr>
+  <tr>
+    <td>　└ 同期デモ（v3）</td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/reservation_v3/demo.html">reservation_v3/demo.html</a></td>
+  </tr>
+  <tr style="background:#dbeafe;">
+    <td><strong>クリニック予約システム（本番 v2・同期デモ）</strong><br><span style="font-size:12px;color:#b3402e">※ soumu-lgtm.github.io の同名URLは旧版です。こちらの soumu-hdg 版をご利用ください</span></td>
     <td>アプリ</td>
     <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/reservation_v2/demo.html">reservation_v2/demo.html</a></td>
   </tr>
@@ -353,13 +382,18 @@ body {
     <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/reservation_v2/board.html">reservation_v2/board.html</a></td>
   </tr>
     <tr style="background:#dcfce7;">
-    <td><strong>電子カルテ v0.12（本番ドメイン）</strong></td>
+    <td><strong>電子カルテ v20（本番ドメイン）</strong></td>
     <td>本番</td>
     <td><a target="_blank" href="https://karte.hdg-holdings.com/">https://karte.hdg-holdings.com/</a></td>
   </tr>
   
   <tr style="background:#dcfce7;">
-    <td><strong>電子カルテ v0.18（最新・起動高速化＋Supabase同期）</strong></td>
+    <td><strong>電子カルテ v21（最新・クリニック別のログイン）</strong></td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v21/index.html">karte_v21/index.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>電子カルテ v0.18（起動高速化＋Supabase同期）</strong></td>
     <td>アプリ</td>
     <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v18/index.html">karte_v18/index.html</a></td>
   </tr>
@@ -467,7 +501,7 @@ body {
 </div>
 
 <div class="footer">
-  ハンドレッドドクター 佐川制作プログラムポータル | 最終更新: 2026-09-02
+  ハンドレッドドクター 佐川制作プログラムポータル | 最終更新: 2026-09-15
 </div>
 
 </body>
