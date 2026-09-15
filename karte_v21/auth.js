@@ -41,7 +41,7 @@ function showLoginScreen(msg) {
   const errorEl = document.getElementById('loginError'); if (errorEl) errorEl.textContent = msg || '';
   // v21: 接続クリニックの選択（前回の院を初期選択）
   const box = document.getElementById('loginClinicPicker');
-  if (box && window.ClinicCtx) ClinicCtx.renderPicker(box, { selected: ClinicCtx.boot });
+  if (box && window.ClinicCtx) ClinicCtx.renderPicker(box, { selected: box.dataset.selected || ClinicCtx.boot });   // 所属外で弾かれた直後は選んだ院を保つ
 }
 
 // v21: 認証済みのIDを「選んだ院」に接続する（ログイン直後・セッション復元・Google 復帰で共通）
