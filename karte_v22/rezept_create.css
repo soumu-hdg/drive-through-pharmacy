@@ -219,3 +219,15 @@
   background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' fill='none' stroke='%23242927' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 8px center; background-size: 10px 7px;
 }
+
+/* ===== v22: レセプト作成「労災」タブ（転記用の下書き） ===== */
+.rs-bar { display: flex; align-items: center; gap: 10px; padding: 8px 0 10px; flex-wrap: wrap; }
+.rs-bar label { font-size: 12px; color: #555; }
+.rs-bar input[type="month"] { font-size: 13px; padding: 3px 6px; border: 1px solid #cbd5e1; border-radius: 4px; }
+.rs-sum { font-size: 13px; padding: 8px 10px; background: #fff7ed; border-left: 4px solid #b45309; margin-bottom: 10px; }
+.rs-sum .rs-note { font-size: 11px; color: #92400e; margin-left: 8px; }
+table.rs-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.rs-tbl th, table.rs-tbl td { border-bottom: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+table.rs-tbl th { background: #f8fafc; font-weight: 600; }
+table.rs-tbl td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.rs-help { font-size: 11px; color: #64748b; margin-top: 12px; line-height: 1.7; }

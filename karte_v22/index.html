@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=1280">
 <title>電子カルテ v20（受付・カルテ）</title>
 <link rel="stylesheet" href="style.css?v=20260916_v22a">
-<link rel="stylesheet" href="rezept_create.css?v=20260907_v4">
+<link rel="stylesheet" href="rezept_create.css?v=20260916_v22a">
 <link rel="stylesheet" href="telemed_report.css?v=20260911_v1">
 <link rel="stylesheet" href="m3.css?v=20260914_v20e">
 <!-- CDN: バージョン固定 + SRI(改竄検知) + crossorigin。更新時はハッシュも再計算すること -->
@@ -277,6 +277,13 @@
         <label class="m3-wbtn" style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;" title="院外処方（処方箋をFAX）"><input type="checkbox" id="rxModeExternal" onchange="toggleRxMode(this.checked)" style="margin:0;"> FAX希望</label>
         <select id="m3Claim" onchange="M3.claimChange(this)" title="請求区分"><option value="normal">通常請求</option><option value="late">月遅れ請求</option></select>
         <button class="m3-tbtn flat" onclick="openEditPatientModal()" title="患者情報の編集"><svg><use href="#i-pencil"/></svg></button>
+      </div>
+      <div class="m3-cbar3" id="rousaiVisitBar">
+        <label class="tmv-main"><input type="checkbox" id="rsvOn" onchange="rousaiVisitToggle()"> 労災（労働者災害補償保険）の診療</label>
+        <span class="tmv-detail" id="rsvDetail" style="display:none;">
+          <span class="tmv-note">※一部負担金なし・1点12円で計算します。労働保険番号などは「保険証情報」で登録</span>
+          <span id="rsvWarn" style="display:none;color:#b45309;">この患者に労災情報が未登録です</span>
+        </span>
       </div>
       <div class="m3-cbar3" id="telemedVisitBar">
         <label class="tmv-main"><input type="checkbox" id="tmvOnline" onchange="tmVisitToggle()"> オンライン診療（情報通信機器を用いた診療）</label>
@@ -828,6 +835,41 @@
       <div class="edit-form-row"><label>備考</label><textarea id="iryoMemo" rows="2" style="width:100%;font-size:12px;border:1px solid var(--border);border-radius:4px;padding:6px;resize:vertical;" placeholder="自己負担上限額、適用条件等"></textarea></div>
     </fieldset>
 
+    <!-- 労災（労働者災害補償保険） -->
+    <fieldset style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+      <legend style="font-size:12px;font-weight:600;color:#b45309;padding:0 6px;">労災（労働者災害補償保険）</legend>
+      <label style="font-size:12px;display:block;margin-bottom:8px;">
+        <input type="checkbox" id="rsChk" onchange="rousaiToggleFields()"> この患者は労災の診療がある
+      </label>
+      <div id="rsBody" style="display:none;">
+        <div class="edit-form-row" style="display:flex;gap:6px;">
+          <div style="flex:2;"><label>労働保険番号</label><input type="text" id="rsNo" placeholder="14桁"></div>
+          <div style="flex:2;"><label>災害区分</label>
+            <select id="rsFormType">
+              <option value="5">業務災害（様式5号）</option>
+              <option value="16-3">通勤災害（様式16号の3）</option>
+            </select>
+          </div>
+          <div style="flex:2;"><label>年金証書番号</label><input type="text" id="rsPensionNo" placeholder="傷病年金該当時"></div>
+        </div>
+        <div class="edit-form-row" style="display:flex;gap:6px;">
+          <div style="flex:1;"><label>事業場名</label><input type="text" id="rsOffice"></div>
+          <div style="flex:1;"><label>事業場所在地</label><input type="text" id="rsOfficeAddr"></div>
+        </div>
+        <div class="edit-form-row" style="display:flex;gap:6px;">
+          <div style="flex:1;"><label>災害発生年月日</label><input type="date" id="rsAccidentDate"></div>
+          <div style="flex:1;"><label>療養開始日</label><input type="date" id="rsStartDate"></div>
+          <div style="flex:1;"><label>所轄労働基準監督署</label><input type="text" id="rsKantoku" placeholder="例: 春日井"></div>
+        </div>
+        <div class="edit-form-row" style="display:flex;gap:6px;">
+          <div style="flex:1;"><label>傷病の部位</label><input type="text" id="rsPart" placeholder="例: 右手第2指"></div>
+          <div style="flex:1;"><label>傷病名</label><input type="text" id="rsDisease"></div>
+        </div>
+        <div class="edit-form-row"><label>備考</label><textarea id="rsNote" rows="2" style="width:100%;font-size:12px;border:1px solid var(--border);border-radius:4px;padding:6px;resize:vertical;" placeholder="複数の災害がある場合はここに記載"></textarea></div>
+        <p class="note">請求は専用用紙（診機様式第1号・第3号）に書き写します。下書きは「レセプト作成」の労災タブから印刷できます。</p>
+      </div>
+    </fieldset>
+
     <!-- 要望#5: 写真を複数枚（サーバー保存＋容量の可視化） -->
     <fieldset style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
       <legend style="font-size:12px;font-weight:600;color:var(--primary);padding:0 6px;">写真（保険証・医療証・検査結果）</legend>
@@ -1166,7 +1208,13 @@
 
       <!-- ===== 労災 ===== -->
       <div id="rzPane_rousai" style="display:none;">
-        <div class="rzm-empty">労災レセプトはこの画面では扱いません。</div>
+        <div class="rs-bar">
+          <label>診療年月 <input type="month" id="rsMonth" onchange="rzRousaiLoad()"></label>
+          <button class="btn btn-outline" onclick="rzRousaiLoad()">読み込み</button>
+          <button class="btn btn-primary" onclick="rzRousaiPrint()">転記用の下書きを印刷</button>
+        </div>
+        <div id="rsResult"><div class="rzm-empty">診療年月を選んで「読み込み」を押してください</div></div>
+        <p class="rs-help">請求書・内訳書は厚生労働省指定の専用用紙に記入します（白紙への印刷は不可）。ここでは書き写すための下書きを出します。提出先は当院の所在地を管轄する労働局、期限は診療月の翌月10日です。</p>
       </div>
 
       <!-- ===== 自賠責 ===== -->
@@ -1219,6 +1267,7 @@
 <script src="inventory_stock.js?v=20260728_v22"></script>
 <script src="drug_suggest.js?v=20260703_v12f"></script>
 <script src="patient_photos.js?v=20260806_v30"></script>
+<script src="rousai.js?v=20260916_v22a"></script>
 <script src="santei_rules.js?v=20260916_v33"></script>
 <script src="app.js?v=20260916_v22a"></script>
 <!-- UKEはShift_JISで書き出す必要があるため（ブラウザ標準のTextEncoderはUTF-8のみ） -->

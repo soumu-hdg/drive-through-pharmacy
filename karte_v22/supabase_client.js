@@ -69,6 +69,8 @@ function toSupabasePatient(p, clinicId) {
     address: p.address || null,
     allergies: Array.isArray(p.allergies) ? p.allergies : [],
     medical_history: Array.isArray(p.history) ? p.history : [],
+    // ★2026-09-16: 労災情報（v22）。配列で持ち、画面からは先頭1件を編集する
+    rousai: Array.isArray(p.rousai) && p.rousai.length ? p.rousai : null,
     insurance_type: p.insurance || null,
     copay_rate: p.ratio || null,
     // ★2026-08-20修正: 保険者番号のフォールバックに insuranceNumber（"12345-678(01)" のような
@@ -114,6 +116,8 @@ function applySupabasePatientRow(p, r) {
   set('iryoType', r.iryo_type); set('iryoHobetsu', r.iryo_hobetsu); set('iryoRecipientNumber', r.iryo_recipient_number); set('iryoRecipientEdaban', r.iryo_recipient_edaban);
   set('iryoValidFrom', r.iryo_valid_from); set('iryoValidTo', r.iryo_valid_to); set('iryoMemo', r.iryo_memo);
   if (Array.isArray(r.allergies) && r.allergies.length && !(p.allergies || []).length) p.allergies = r.allergies.slice();
+  // ★2026-09-16: 労災情報（v22）
+  if (Array.isArray(r.rousai) && r.rousai.length) p.rousai = r.rousai.slice();
   return p;
 }
 
@@ -212,6 +216,8 @@ function toSupabaseVisit(p, karteState, clinicId) {
     // ★2026-09-11: オンライン診療（情報通信機器を用いた診療）の記録。
     //   年1回の「情報通信機器を用いた診療に係る報告書（別紙様式14）」の集計元になる。
     ...(typeof tmVisitFields === 'function' ? tmVisitFields(karteState) : {}),
+    // ★2026-09-16: 労災（v22）。医療保険のレセプト集計から外すための印と金額
+    ...(typeof rousaiVisitFields === 'function' ? rousaiVisitFields(karteState) : {}),
   };
 }
 

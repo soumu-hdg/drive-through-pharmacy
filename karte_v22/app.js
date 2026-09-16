@@ -573,6 +573,8 @@ function saveCurrentKarte() {
   if (memoEl) { const p = patients.find(x => x.id === currentPatientId); if (p) p.memo = memoEl.value; }
   // オンライン診療の記録（別紙様式14の報告用）
   if (typeof tmVisitSaveToKarte === 'function') tmVisitSaveToKarte(k);
+  // 労災の記録（v22）
+  if (typeof rousaiVisitSaveToKarte === 'function') rousaiVisitSaveToKarte(k);
 }
 
 function loadCurrentKarte() {
@@ -591,6 +593,8 @@ function loadCurrentKarte() {
   if (extChk) extChk.checked = k.rxModeExternal || false;
   // オンライン診療の記録（別紙様式14の報告用）
   if (typeof tmVisitLoadFromKarte === 'function') tmVisitLoadFromKarte(k);
+  // 労災の記録（v22）
+  if (typeof rousaiVisitLoadFromKarte === 'function') rousaiVisitLoadFromKarte(k);
 }
 
 function renderAllKarte() {
@@ -1571,7 +1575,9 @@ function recalcBilling() {
   });
   if (er) er.classList.toggle('excluded', !!ex.exam);
   const totalTen = shoshinTen + gairaiTen + surchargeTen + shohouTen + chouzaiTen + yakuzaiTen + examTen + extraTen;
-  const burden = Math.round(totalTen * 10 * p.ratio);
+  // ★v22: 労災は1点12円・患者の一部負担金なし
+  const isRousai = !!k.isRousai;
+  const burden = isRousai ? 0 : Math.round(totalTen * 10 * p.ratio);
   // ★2026-08-20: 算定結果をカルテに保持し、Supabaseの visits.revenue_points と
   //   billing_items_used に書けるようにする（従来は0固定で、売上と診療内容が突合できなかった）
   k.totalPoints = totalTen;
@@ -1593,7 +1599,9 @@ function recalcBilling() {
   document.getElementById('billChouzai').textContent = chouzaiTen > 0 ? chouzaiTen + '点' : (isExternal && numDrugs > 0 ? '(院外)' : '---');
   document.getElementById('billYakuzai').textContent = yakuzaiTen > 0 ? yakuzaiTen + '点' : (isExternal && numDrugs > 0 ? '(院外)' : '---');
   document.getElementById('billTotal').textContent = totalTen + '点';
-  document.getElementById('billBurden').textContent = burden.toLocaleString() + '円';
+  document.getElementById('billBurden').textContent = isRousai
+    ? '0円（労災 請求額 ' + Math.round(totalTen * (typeof ROUSAI_YEN_PER_POINT === 'number' ? ROUSAI_YEN_PER_POINT : 12)).toLocaleString() + '円）'
+    : burden.toLocaleString() + '円';
   renderAddedBillingList();
   if (typeof renderSanteiCandidates === 'function') renderSanteiCandidates();
   if (typeof renderSanteiAutoBar === 'function') renderSanteiAutoBar();
@@ -2174,6 +2182,7 @@ function handleInsurancePhoto(input, isModal) {
 }
 function openInsuranceModal() {
   const p = patients.find(x => x.id === currentPatientId);
+  if (typeof rousaiLoadToModal === 'function') rousaiLoadToModal(p);
   if (p.insurancePhoto) { document.getElementById('insurancePhotoPreview').src = p.insurancePhoto; document.getElementById('insurancePhotoPreview').style.display = 'block'; document.getElementById('insuranceUploadText2').style.display = 'none'; document.getElementById('insurancePhotoDeleteBtn').style.display = ''; }
   else { document.getElementById('insurancePhotoPreview').style.display = 'none'; document.getElementById('insuranceUploadText2').style.display = ''; document.getElementById('insurancePhotoDeleteBtn').style.display = 'none'; }
   document.getElementById('insSymbol').value = p.insSymbol || '';
@@ -2286,6 +2295,8 @@ function saveInsuranceInfo() {
   // ★v20（シート撤去）: 公費枝番・受給者番号などの入力欄があれば p に反映してから Supabase patients に保存
   [['kouhiNumberInput', 'kouhiNumber'], ['kouhiEdaban', 'kouhiEdaban'], ['recipientNumber', 'recipientNumber'], ['recipientEdaban', 'recipientEdaban'], ['iryoRecipientEdaban', 'iryoRecipientEdaban']]
     .forEach(function (pair) { const el = document.getElementById(pair[0]); if (el && typeof el.value === 'string') p[pair[1]] = el.value; });
+  // ★v22: 労災情報
+  if (typeof rousaiSaveFromModal === 'function') rousaiSaveFromModal(p);
   savePatientToApi(p);
   closeModal('insurancePhotoModal'); renderAllKarte(); showToast('保険証・医療証情報を更新');
 }
