@@ -474,6 +474,16 @@ function processInsuranceOcrImage(dataUrl) {
       ocrFields._qrResult = qrResult;
     }
 
+    // 自動判定: 撮ったものが医療証なら、医療証欄へ回せるようにしておく
+    if (typeof OCR_ENGINE !== 'undefined' && OCR_ENGINE.detectCardKind) {
+      var kind = OCR_ENGINE.detectCardKind(ocrData.text || '');
+      ocrFields._cardKind = kind.kind;
+      if (kind.kind === 'iryo' && OCR_ENGINE.extractIryoFields) {
+        var iryoFields = OCR_ENGINE.extractIryoFields(ocrData.text || '');
+        iryoFields._cardKind = kind.kind;
+        window._iryoOcrResult = iryoFields;
+      }
+    }
     window._insuranceOcrResult = ocrFields;
 
     // 結果表示
@@ -497,6 +507,11 @@ function processInsuranceOcrImage(dataUrl) {
 function renderInsuranceOcrResultHTML(f) {
   var hasQR = f._qrResult && f._qrResult.format !== 'unknown';
   var h = '';
+  if (f._cardKind === 'iryo') {
+    h += '<div style="background:#ede9fe;border:1px solid #7c3aed;border-radius:4px;padding:4px 8px;margin-bottom:6px;font-size:11px;color:#5b21b6;">'
+      + '&#9888; これは<b>医療証</b>のようです。下の「医療証」欄に入れられます。'
+      + '<button class="btn btn-sm btn-outline" style="margin-left:6px;" onclick="applyIryoOcrResults()">医療証欄に反映</button></div>';
+  }
   if (hasQR) {
     h += '<div style="background:#d4edda;border:1px solid #28a745;border-radius:4px;padding:4px 8px;margin-bottom:6px;font-size:11px;color:#155724;font-weight:700;">&#10004; QRコード読取成功</div>';
   }
@@ -548,4 +563,165 @@ function applyInsuranceOcrResults(qrOnly) {
 function clearInsuranceOcrPreview() {
   document.getElementById('insuranceOcrPreviewWrap').style.display = 'none';
   window._insuranceOcrResult = null;
+}
+
+// ===== 医療証（公費受給者証等）の読み取り =====
+// 保険証と同じ流れ（ファイル選択 or カメラ → 撮影 → OCR → 目視確認 → 反映）。
+// 医療証にはQRコードが無いため、すべてOCRの参考値。自動保存も負担割合の自動変更もしない。
+var iryoOcrStream = null;
+
+function startIryoOcrCamera() {
+  const wrap = document.getElementById('iryoOcrCameraWrap');
+  const video = document.getElementById('iryoOcrVideo');
+  wrap.style.display = '';
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(function (stream) {
+    iryoOcrStream = stream;
+    video.srcObject = stream;
+  }).catch(function (e) { showToast('カメラ起動失敗: ' + e.message); wrap.style.display = 'none'; });
+}
+function stopIryoOcrCamera() {
+  if (iryoOcrStream) { iryoOcrStream.getTracks().forEach(function (t) { t.stop(); }); iryoOcrStream = null; }
+  document.getElementById('iryoOcrCameraWrap').style.display = 'none';
+}
+function captureIryoOcrPhoto() {
+  const video = document.getElementById('iryoOcrVideo');
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  stopIryoOcrCamera();
+  processIryoOcrImage(canvas.toDataURL('image/jpeg', 0.9));
+}
+function onIryoOcrFileSelected(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function (e) { processIryoOcrImage(e.target.result); };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+function processIryoOcrImage(dataUrl) {
+  document.getElementById('iryoOcrPreviewWrap').style.display = '';
+  document.getElementById('iryoOcrPreviewImg').src = dataUrl;
+  document.getElementById('iryoOcrProgressArea').style.display = '';
+  document.getElementById('iryoOcrResultArea').style.display = 'none';
+  document.getElementById('iryoOcrApplyBtn').style.display = 'none';
+  document.getElementById('iryoOcrProgressText').textContent = 'OCR実行中...';
+  document.getElementById('iryoOcrProgressFill').style.width = '10%';
+
+  var run;
+  if (typeof OCR_ENGINE !== 'undefined' && OCR_ENGINE.recognize) {
+    run = OCR_ENGINE.recognize(dataUrl, function (status, pct) {
+      document.getElementById('iryoOcrProgressText').textContent = status;
+      document.getElementById('iryoOcrProgressFill').style.width = (10 + pct * 90) + '%';
+    });
+  } else {
+    run = Tesseract.recognize(dataUrl, 'jpn', {
+      logger: function (m) { if (m.progress) { document.getElementById('iryoOcrProgressFill').style.width = (10 + m.progress * 90) + '%'; } }
+    }).then(function (r) { return { text: r.data.text }; });
+  }
+
+  run.then(function (ocrData) {
+    document.getElementById('iryoOcrProgressArea').style.display = 'none';
+    var text = ocrData.text || '';
+    var fields = (typeof OCR_ENGINE !== 'undefined' && OCR_ENGINE.extractIryoFields)
+      ? OCR_ENGINE.extractIryoFields(text) : { rawText: text };
+    var kind = (typeof OCR_ENGINE !== 'undefined' && OCR_ENGINE.detectCardKind)
+      ? OCR_ENGINE.detectCardKind(text) : { kind: 'unknown' };
+    fields._cardKind = kind.kind;
+    window._iryoOcrResult = fields;
+    // 保険証を撮っていた場合は、保険証欄へ回せるようにしておく
+    if (kind.kind === 'hoken' && typeof OCR_ENGINE !== 'undefined' && OCR_ENGINE.extractInsuranceFields) {
+      window._insuranceOcrResult = OCR_ENGINE.extractInsuranceFields(text);
+    }
+    var area = document.getElementById('iryoOcrResultArea');
+    area.style.display = '';
+    area.innerHTML = renderIryoOcrResultHTML(fields);
+    document.getElementById('iryoOcrApplyBtn').style.display = '';
+  }).catch(function (e) {
+    document.getElementById('iryoOcrProgressArea').style.display = 'none';
+    var area = document.getElementById('iryoOcrResultArea');
+    area.style.display = '';
+    area.textContent = '読取エラー: ' + (e.message || '');
+  });
+
+  // 医療証写真としても保存する（保険証側と同じ扱い）
+  var p = patients.find(function (x) { return x.id === currentPatientId; });
+  if (p) {
+    p.iryoPhoto = dataUrl;
+    var prev = document.getElementById('iryoPhotoPreview');
+    if (prev) { prev.src = dataUrl; prev.style.display = 'block'; }
+    var txt = document.getElementById('iryoUploadText'); if (txt) txt.style.display = 'none';
+    var del = document.getElementById('iryoPhotoDeleteBtn'); if (del) del.style.display = '';
+  }
+}
+function renderIryoOcrResultHTML(f) {
+  var h = '';
+  if (f._cardKind === 'hoken') {
+    h += '<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:4px 8px;margin-bottom:6px;font-size:11px;color:#856404;">'
+      + '&#9888; これは<b>保険証</b>のようです。'
+      + '<button class="btn btn-sm btn-outline" style="margin-left:6px;" onclick="applyInsuranceOcrResults(false)">保険証欄に反映</button></div>';
+  }
+  var rows = [
+    { l: '医療証種別', v: f.iryoType },
+    { l: '法別番号', v: f.hobetsu },
+    { l: '公費負担者番号', v: f.kouhiNumber },
+    { l: '受給者番号', v: f.recipientNumber },
+    { l: '有効期間(開始)', v: f.validFrom },
+    { l: '有効期間(終了)', v: f.validTo },
+    { l: '自己負担上限', v: f.copayLimit },
+    { l: '交付者', v: f.issuer }
+  ];
+  var found = 0;
+  rows.forEach(function (r) {
+    if (!r.v) return;
+    found++;
+    h += '<div style="font-size:11px;display:flex;gap:4px;margin-bottom:2px;"><span style="color:var(--text-muted);min-width:96px;">' + r.l + '</span><b>' + esc(r.v) + '</b>'
+      + ' <span style="color:#f59e0b;font-size:10px;">&#9888;要確認</span></div>';
+  });
+  if (f.typeMismatch) {
+    h += '<div style="font-size:10px;color:#856404;margin-top:4px;">&#9888; 表題は「' + esc(f.iryoType) + '」ですが、法別番号は「' + esc(f.typeMismatch) + '」に該当します。証を見てどちらか選んでください。</div>';
+  }
+  if (!found) {
+    h += '<div style="font-size:11px;color:#dc2626;">読み取れた項目がありません。明るい場所で、証全体がまっすぐ写るように撮り直してください。</div>';
+    if (f.rawText) {
+      h += '<div style="font-size:10px;white-space:pre-wrap;max-height:80px;overflow-y:auto;color:var(--text-muted);margin-top:4px;border-top:1px solid var(--border);padding-top:4px;">' + esc(f.rawText) + '</div>';
+    }
+  } else {
+    h += '<div style="font-size:10px;color:#856404;margin-top:4px;">&#9888; 医療証にQRコードはないため、すべてOCRの参考値です。反映後に必ず証と見比べてください。</div>';
+  }
+  return h;
+}
+function applyIryoOcrResults() {
+  var f = window._iryoOcrResult;
+  if (!f) return;
+  var set = function (id, val) { var el = document.getElementById(id); if (el && val) el.value = val; };
+  if (f.iryoType) {
+    var sel = document.getElementById('iryoType');
+    if (sel) {
+      var ok = Array.prototype.some.call(sel.options, function (o) { return o.value === f.iryoType; });
+      sel.value = ok ? f.iryoType : 'その他';
+      if (typeof onIryoTypeChange === 'function') onIryoTypeChange(sel.value);
+    }
+  }
+  // 法別番号は証の実物を優先（種別からの自動入力を上書きする）
+  set('iryoHobetsu', f.hobetsu);
+  set('iryoRecipientNumber', f.recipientNumber);
+  set('iryoValidFrom', f.validFrom);
+  set('iryoValidTo', f.validTo);
+  if (f.copayLimit || f.issuer || f.kouhiNumber) {
+    var memo = document.getElementById('iryoMemo');
+    if (memo) {
+      var add = [];
+      if (f.kouhiNumber) add.push('公費負担者番号 ' + f.kouhiNumber);
+      if (f.copayLimit) add.push('自己負担上限 ' + f.copayLimit);
+      if (f.issuer) add.push('交付 ' + f.issuer);
+      var line = add.join(' / ');
+      if (line && memo.value.indexOf(line) < 0) memo.value = (memo.value ? memo.value + '\n' : '') + line;
+    }
+  }
+  if (typeof updateInsuranceWarn === 'function') updateInsuranceWarn();
+  showToast('医療証の読取結果を反映しました（内容をご確認ください）');
+}
+function clearIryoOcrPreview() {
+  document.getElementById('iryoOcrPreviewWrap').style.display = 'none';
+  window._iryoOcrResult = null;
 }

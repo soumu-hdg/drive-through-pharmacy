@@ -1084,11 +1084,161 @@ const OCR_ENGINE = (() => {
     return preprocessInsuranceCard(imgElement);
   }
 
+  // ===== 医療証（公費受給者証等）の読み取り =====
+  // 様式は自治体・制度ごとに違うため、確実に読めた項目だけを埋めて、必ず目視確認してもらう方針。
+  // 保険証と違い QR コードは無いので、すべて OCR の参考値として扱う。
+  const IRYO_HINTS = /受給者証|受給資格者証|医療費受給|自立支援医療|特定医療費|指定難病|福祉医療|子ども医療|こども医療|乳幼児医療|ひとり親|母子家庭|父子家庭|障害者医療|被爆者健康手帳|公費負担者番号|負担者番号|受給者番号/;
+  const HOKEN_HINTS = /被保険者|保険者番号|記号|資格取得|健康保険|協会けんぽ|国民健康保険/;
+
+  // 法別番号 → 医療証種別（画面の iryoType の選択肢と合わせる）
+  const HOBETSU_TO_IRYO_TYPE = {
+    '21': '精神通院', '54': '特定医療費', '19': '被爆者',
+    '81': '子ども医療', '82': '乳幼児医療', '83': '障害者医療', '84': 'ひとり親医療'
+  };
+  // 証の表題から種別を推定する
+  const IRYO_TITLE_RULES = [
+    [/自立支援医療|精神通院/, '精神通院'],
+    [/特定医療費|指定難病/, '特定医療費'],
+    [/被爆者/, '被爆者'],
+    [/乳幼児/, '乳幼児医療'],
+    [/子[どとゞ][もちま]|こども|小児|児童/, '子ども医療'],
+    [/ひとり親|母子家庭|父子家庭/, 'ひとり親医療'],
+    [/障害|障がい/, '障害者医療']
+  ];
+
+  function countHits(text, re) {
+    return (text.match(new RegExp(re.source, 'g')) || []).length;
+  }
+
+  // 写っているのが「保険証」か「医療証」かを見分ける（自動判定）
+  function detectCardKind(ocrText) {
+    const t = (ocrText || '').replace(/\s+/g, '');
+    const iryo = countHits(t, IRYO_HINTS);
+    const hoken = countHits(t, HOKEN_HINTS);
+    let kind = 'unknown';
+    if (iryo > 0 && iryo >= hoken) kind = 'iryo';
+    else if (hoken > 0 && hoken > iryo) kind = 'hoken';
+    return { kind: kind, iryoScore: iryo, hokenScore: hoken };
+  }
+
+  function pad2(v) { return ('0' + parseInt(v, 10)).slice(-2); }
+
+  // 和暦・西暦の日付を YYYY-MM-DD にする（input type=date にそのまま入れられる形）
+  // OCRは「令和」を「名和」「今和」などに読み違えるので、和の前の1文字は幅を持たせる。
+  const IRYO_DATE_RE = /([令名今冷零]和|平成|昭和)(\d{1,2}|元)年(\d{1,2})月(\d{1,2})日|(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/g;
+
+  function toIsoDate(m) {
+    if (m[1]) {
+      const era = /和$/.test(m[1]) && m[1] !== '昭和' ? '令和' : m[1];
+      const y = eraToWestern(era, m[2] === '元' ? 1 : parseInt(m[2], 10));
+      return y + '-' + pad2(m[3]) + '-' + pad2(m[4]);
+    }
+    return m[5] + '-' + pad2(m[6]) + '-' + pad2(m[7]);
+  }
+
+  function findDates(text) {
+    const re = new RegExp(IRYO_DATE_RE.source, 'g');
+    const out = [];
+    let m;
+    while ((m = re.exec(text)) !== null) out.push({ iso: toIsoDate(m), index: m.index });
+    return out;
+  }
+
+  // 医療証から「公費負担者番号・受給者番号・有効期間・種別・自己負担上限額・交付者」を拾う
+  // OCRは字間に空白を入れたり字を読み違えたりするので、空白を全部取った文字列を主に見る。
+  function extractIryoFields(ocrText) {
+    const raw = ocrText || '';
+    const noSpace = raw.replace(/\s+/g, '');
+    const lines = raw.split(/\n+/).map(function (l) { return l.replace(/\s+/g, ''); }).filter(function (l) { return l; });
+    const r = {
+      kouhiNumber: null, hobetsu: null, recipientNumber: null,
+      validFrom: null, validTo: null, iryoType: null,
+      copayLimit: null, issuer: null, confidence: 0, rawText: raw
+    };
+
+    // --- 公費負担者番号（8桁・先頭2桁が法別番号） ---
+    let m = noSpace.match(/(?:公費)?負担者番[号呈][:：_\-]{0,3}(\d{8})/);
+    if (m) r.kouhiNumber = m[1];
+    if (!r.kouhiNumber) {
+      // ラベルを読み取れなかったとき: 法別番号として意味のある2桁で始まる8桁を採用
+      const cands = noSpace.match(/\d{8}/g) || [];
+      for (let i = 0; i < cands.length; i++) {
+        const h = cands[i].slice(0, 2);
+        if (HOBETSU_TO_IRYO_TYPE[h] || /^(1[0-9]|2[0-9]|3[0-8]|5[0-4]|6[0-6]|7[0-9]|8[0-9])$/.test(h)) { r.kouhiNumber = cands[i]; break; }
+      }
+    }
+    if (r.kouhiNumber) r.hobetsu = r.kouhiNumber.slice(0, 2);
+
+    // --- 受給者番号（7桁が基本。自治体により英字・ハイフン入り） ---
+    // 「受給」は「受紹」「受絵」などに化けるので、受と番号の間は文字種を問わず2文字まで許す
+    const recipPatterns = [
+      /受給者番[号呈][:：_\-]{0,3}([0-9A-Za-z\-]{4,12})/,
+      /受[^0-9]{0,3}番[号呈][:：_\-]{0,3}([0-9A-Za-z\-]{4,12})/,
+      /受[^0-9]{0,4}(\d{7})/
+    ];
+    for (let i = 0; i < recipPatterns.length && !r.recipientNumber; i++) {
+      m = noSpace.match(recipPatterns[i]);
+      if (m && m[1] !== r.kouhiNumber) r.recipientNumber = m[1];
+    }
+
+    // --- 有効期間（「有効期間」「有効期限」「適用期間」の後ろにある日付） ---
+    const dates = findDates(noSpace);
+    const label = noSpace.search(/有効期[間限]|適用期間|認定期間/);
+    if (dates.length) {
+      let after = label >= 0 ? dates.filter(function (d) { return d.index >= label; }) : [];
+      if (!after.length) after = dates;
+      const limitOnly = label >= 0 && /有効期限/.test(noSpace.slice(label, label + 6));
+      if (limitOnly && after.length === 1) {
+        r.validTo = after[0].iso;
+      } else {
+        r.validFrom = after[0].iso;
+        if (after.length > 1) r.validTo = after[1].iso;
+      }
+      // 開始が終了より後なら入れ替える（読み違えの保険）
+      if (r.validFrom && r.validTo && r.validFrom > r.validTo) {
+        const t = r.validFrom; r.validFrom = r.validTo; r.validTo = t;
+      }
+    }
+
+    // --- 自己負担上限額（月額） ---
+    m = noSpace.match(/自己負担(?:上限)?(?:月?額)?[:：]?([\d,]{2,9})円/);
+    if (m) r.copayLimit = m[1].replace(/,/g, '') + '円';
+
+    // --- 交付者（行ごとに見る。氏名の行を拾わないように後ろの行から探す） ---
+    for (let i = lines.length - 1; i >= 0 && !r.issuer; i--) {
+      if (/氏名|患者|保護者|生年月日/.test(lines[i])) continue;
+      m = lines[i].match(/([一-龥]{2,8}[市区町村])長/) || lines[i].match(/([一-龥]{2,4}[都道府県])知事/);
+      if (m) r.issuer = m[1];
+    }
+
+    // --- 種別（表題から推定 → だめなら法別番号から） ---
+    for (let i = 0; i < IRYO_TITLE_RULES.length; i++) {
+      if (IRYO_TITLE_RULES[i][0].test(noSpace)) { r.iryoType = IRYO_TITLE_RULES[i][1]; break; }
+    }
+    if (!r.iryoType && r.hobetsu && HOBETSU_TO_IRYO_TYPE[r.hobetsu]) r.iryoType = HOBETSU_TO_IRYO_TYPE[r.hobetsu];
+    if (!r.iryoType && r.kouhiNumber) r.iryoType = 'その他';
+
+    // 表題から決めた種別と法別番号が食い違うときは、確認できるように両方残す
+    if (r.iryoType && r.hobetsu && HOBETSU_TO_IRYO_TYPE[r.hobetsu] && HOBETSU_TO_IRYO_TYPE[r.hobetsu] !== r.iryoType) {
+      r.typeMismatch = HOBETSU_TO_IRYO_TYPE[r.hobetsu];
+    }
+
+    let n = 0;
+    if (r.kouhiNumber) n++;
+    if (r.recipientNumber) n++;
+    if (r.validTo || r.validFrom) n++;
+    if (r.iryoType) n++;
+    r.confidence = n * 25;
+    return r;
+  }
+
   return {
     init,
     recognize,
     recognizeNumbers,
     extractInsuranceFields,
+    extractIryoFields,
+    detectCardKind,
     normalizeOcrText,
     preprocessImage,
     preprocessInsuranceCard,

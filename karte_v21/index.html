@@ -758,6 +758,39 @@
         <input type="file" id="iryoFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleIryoPhoto(this)">
         <button class="btn btn-sm btn-outline" id="iryoPhotoDeleteBtn" style="display:none;margin-top:4px;color:#dc2626;border-color:#dc2626;" onclick="deleteIryoPhoto()">医療証写真を削除</button>
       </div>
+      <!-- 医療証読取（写真から自動で入力する） -->
+      <div class="ocr-section">
+        <div class="ocr-header">
+          <span class="ocr-icon">&#128247;</span>
+          <span>医療証読取</span>
+          <button class="btn btn-sm btn-outline" onclick="document.getElementById('iryoOcrFileInput').click()">ファイル選択</button>
+          <button class="btn btn-sm btn-primary" onclick="startIryoOcrCamera()">カメラ起動</button>
+          <input type="file" id="iryoOcrFileInput" accept="image/*" style="display:none" onchange="onIryoOcrFileSelected(this)">
+        </div>
+        <div id="iryoOcrCameraWrap" style="display:none;">
+          <video id="iryoOcrVideo" autoplay playsinline style="width:100%;max-height:200px;border-radius:6px;background:#000;"></video>
+          <div style="text-align:center;margin-top:6px;">
+            <button class="btn btn-sm btn-primary" onclick="captureIryoOcrPhoto()">撮影</button>
+            <button class="btn btn-sm btn-outline" onclick="stopIryoOcrCamera()">閉じる</button>
+          </div>
+        </div>
+        <div id="iryoOcrPreviewWrap" style="display:none;">
+          <div class="ocr-preview-row">
+            <img id="iryoOcrPreviewImg" style="max-height:140px;border-radius:6px;border:1px solid var(--border);">
+            <div id="iryoOcrResultPanel" class="ocr-result-panel">
+              <div id="iryoOcrProgressArea" style="display:none;">
+                <div class="ocr-progress-bar"><div id="iryoOcrProgressFill" class="ocr-progress-fill"></div></div>
+                <span id="iryoOcrProgressText" style="font-size:11px;color:var(--text-muted);">準備中...</span>
+              </div>
+              <div id="iryoOcrResultArea" style="display:none;"></div>
+            </div>
+          </div>
+          <div style="text-align:right;margin-top:6px;">
+            <button class="btn btn-sm btn-outline" onclick="clearIryoOcrPreview()">クリア</button>
+            <button class="btn btn-sm btn-success" id="iryoOcrApplyBtn" style="display:none;" onclick="applyIryoOcrResults()">読取結果を反映</button>
+          </div>
+        </div>
+      </div>
       <div class="edit-form-row" style="display:flex;gap:6px;">
         <div style="flex:3;"><label>医療証種別</label>
           <select id="iryoType" onchange="onIryoTypeChange(this.value)">
@@ -1151,7 +1184,7 @@
 
 <script src="insurance_calc.js?v=20260820_v32"></script>
 <script src="name_dict.js?v=20260820_v32"></script>
-<script src="ocr_engine.js?v=20260820_v32"></script>
+<script src="ocr_engine.js?v=20260916_v33"></script>
 <script src="qr_decoder.js?v=20260507b"></script>
 <script src="db_integration.js?v=20260915_v21a"></script>
 <script src="supabase_client.js?v=20260915_v21a"></script>
@@ -1161,7 +1194,7 @@
 <script src="billing_revision_2026.js?v=20260602"></script>
 <script src="master_loader.js?v=20260907_v24"></script>
 <script src="auth.js?v=20260915_v21b"></script>
-<script src="ocr_ui.js?v=20260806_v30"></script>
+<script src="ocr_ui.js?v=20260916_v33"></script>
 <script src="inventory_stock.js?v=20260728_v22"></script>
 <script src="drug_suggest.js?v=20260703_v12f"></script>
 <script src="patient_photos.js?v=20260806_v30"></script>
