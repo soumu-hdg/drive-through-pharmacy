@@ -1174,3 +1174,6 @@ body.resizing img {
 }
 .sr-opt.on { border-color: var(--primary); color: var(--primary); font-weight: 700; background: var(--primary-light); }
 .sr-opt input { margin-right: 3px; vertical-align: -1px; }
+
+.santei-cand .sc-tag { font-size: 10px; color: #b45309; border: 1px solid #f59e0b; border-radius: 2px; padding: 0 4px; margin-left: 6px; }
+.santei-cand .sc-memo { display: block; font-size: 10px; color: var(--text-muted); margin-top: 1px; }

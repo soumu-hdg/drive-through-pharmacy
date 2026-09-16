@@ -1523,8 +1523,9 @@ function ensureStandardAddons(k, isFirst) {
   desired.forEach(function(d){
     if (removed[d.name]) return;
     if (k.addedBillingItems.find(function(x){ return x.name === d.name; })) return;
-    if (mode === 'auto') k.addedBillingItems.push({ name:d.name, points:d.points, std:true });
-    else k.santeiCandidates.push({ name:d.name, points:d.points });   // 候補を出す
+    // 月1回の加算は、その月に算定済みかを画面が知らないので自動では入れない（二重算定を出さないため）
+    if (mode === 'auto' && d.limit !== 'month') k.addedBillingItems.push({ name:d.name, points:d.points, std:true });
+    else k.santeiCandidates.push({ name:d.name, points:d.points, note:d.note || '', limit:d.limit || 'visit' });
   });
 }
 function recalcBilling() {
@@ -2690,13 +2691,18 @@ function renderSanteiCandidates() {
   if (!box) return;
   var k = karteData[currentPatientId];
   var list = (k && k.santeiCandidates) || [];
-  if (!list.length || santeiAutoMode() !== 'suggest') { box.style.display = 'none'; box.innerHTML = ''; return; }
+  // 「まとめて入れる」でも、月1回の加算は候補として残るのでここは常に描く
+  if (!list.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
   box.style.display = '';
   var total = list.reduce(function (s, c) { return s + c.points; }, 0);
-  box.innerHTML = '<div class="sc-head">候補（まだ算定に入っていません）'
+  var head = (santeiAutoMode() === 'auto') ? '月1回の加算（自動では入れません）' : '候補（まだ算定に入っていません）';
+  box.innerHTML = '<div class="sc-head">' + head
     + '<button class="sc-all" onclick="acceptAllSanteiCandidates()">すべて入れる ' + total + '点</button></div>'
     + list.map(function (c, i) {
-        return '<div class="sc-row"><span class="sc-name">' + esc(c.name) + '</span>'
+        return '<div class="sc-row"><span class="sc-name">' + esc(c.name)
+          + (c.limit === 'month' ? '<span class="sc-tag">月1回</span>' : '')
+          + (c.note ? '<span class="sc-memo">' + esc(c.note) + '</span>' : '')
+          + '</span>'
           + '<span class="sc-pts">' + c.points + '点</span>'
           + '<button class="sc-yes" onclick="acceptSanteiCandidate(' + i + ')">入れる</button>'
           + '<button class="sc-no" onclick="dismissSanteiCandidate(' + i + ')">消す</button></div>';

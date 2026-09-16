@@ -25,7 +25,27 @@ var SanteiRules = (function () {
     { key: 'bukka', name: '外来・在宅物価対応料', first: 4, re: 4, def: 'on',
       note: '初診・再診とも算定' },
     { key: 'baseup', name: '外来・在宅ベースアップ評価料', first: 17, re: 4, def: 'on',
-      note: '初診17点・再診4点' }
+      note: '初診17点・再診4点' },
+    // ここから下は当院で算定しているか未確認のため既定は「未設定」。分かったものから「算定する」に変える。
+    // 点数の出どころ = master/consultation_add.json（官報・令和8年度改定で確定させたもの）
+    { key: 'gairai_kansen', name: '外来感染対策向上加算', first: 6, re: 6, def: 'unset', limit: 'month',
+      note: '届出が要る。月1回だけ算定できる' },
+    { key: 'renkei_kyouka', name: '連携強化加算', first: 3, re: 3, def: 'unset', limit: 'month',
+      note: '外来感染対策向上加算の届出が前提。月1回' },
+    { key: 'surveillance', name: 'サーベイランス強化加算', first: 1, re: 1, def: 'unset', limit: 'month',
+      note: '外来感染対策向上加算の届出が前提。月1回' },
+    { key: 'kokinyaku', name: '抗菌薬適正使用体制加算', first: 5, re: 5, def: 'unset', limit: 'month',
+      note: '外来感染対策向上加算の届出が前提。月1回' },
+    { key: 'meisai', name: '明細書発行体制等加算', first: null, re: 1, def: 'unset',
+      note: '再診のときに毎回。電子的診療情報連携体制整備加算とは同月に併算定できない' },
+    { key: 'jikangai_taisei1', name: '時間外対応体制加算1', first: null, re: 7, def: 'unset',
+      note: '届出の区分に応じて1〜4のどれか1つだけを「算定する」にする' },
+    { key: 'jikangai_taisei2', name: '時間外対応体制加算2', first: null, re: 5, def: 'unset',
+      note: '届出の区分に応じて1〜4のどれか1つだけ' },
+    { key: 'jikangai_taisei3', name: '時間外対応体制加算3', first: null, re: 4, def: 'unset',
+      note: '届出の区分に応じて1〜4のどれか1つだけ' },
+    { key: 'jikangai_taisei4', name: '時間外対応体制加算4', first: null, re: 2, def: 'unset',
+      note: '届出の区分に応じて1〜4のどれか1つだけ' }
   ];
 
   var modes = null;        // { rule_key: 'on' | 'off' | 'unset' }
@@ -101,14 +121,16 @@ var SanteiRules = (function () {
     return isFirst ? rule.first : rule.re;
   }
 
-  /** この受診種別で「算定する」に設定されている加算 */
+  /** この受診種別で「算定する」に設定されている加算
+   *  limit==='month' の加算は、その月に算定済みかを画面が知らないので
+   *  「まとめて入れる」でも自動では入れず、必ず候補どまりにする（二重算定を出さないため）。 */
   function desired(isFirst) {
     var out = [];
     CATALOG.forEach(function (r) {
       if (modeOf(r.key) !== 'on') return;
       var p = pointsOf(r, isFirst);
       if (p === null || p === undefined) return;
-      out.push({ key: r.key, name: r.name, points: p });
+      out.push({ key: r.key, name: r.name, points: p, limit: r.limit || 'visit', note: r.note || '' });
     });
     return out;
   }
