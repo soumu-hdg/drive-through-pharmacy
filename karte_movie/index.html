@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>電子カルテ　予約から会計まで｜解説動画</title>
+<title>電子カルテ　解説動画</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Noto+Serif+JP:wght@500;600&display=swap" rel="stylesheet">
@@ -13,45 +13,60 @@
   --paper:#f6f3ec; --ink:#1a1c1e; --teal:#0e7c66; --teal-d:#0a5f4e;
   --amber:#c9821f; --line:#ded7c9; --sub:#6d6459;
 }
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;}
 body{margin:0;background:var(--paper);color:var(--ink);
   font-family:"Noto Sans JP",-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
   line-height:1.75;}
 .wrap{max-width:900px;margin:0 auto;padding:0 18px 64px;}
-header{border-bottom:2px solid var(--ink);padding:26px 0 16px;margin-bottom:22px;}
+header{border-bottom:2px solid var(--ink);padding:26px 0 16px;margin-bottom:20px;}
 .eyebrow{font-family:"Noto Serif JP",serif;font-weight:600;font-size:13px;letter-spacing:.22em;
   color:var(--teal);margin-bottom:8px;}
 h1{font-weight:900;font-size:27px;line-height:1.35;margin:0 0 10px;letter-spacing:-.01em;}
 h1 .u{border-bottom:5px solid var(--amber);padding-bottom:1px;}
 .meta{font-size:13px;color:var(--sub);display:flex;gap:16px;flex-wrap:wrap;}
 .meta b{color:var(--ink);font-weight:700;}
+
+.index{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);
+  border:1px solid var(--line);margin-bottom:34px;}
+.index a{display:block;background:#fdfcf9;padding:15px 16px;text-decoration:none;color:inherit;
+  border-left:4px solid var(--teal);}
+.index a:hover{background:#f0ece1;}
+.index .k{font-size:11.5px;letter-spacing:.14em;color:var(--teal);font-weight:700;}
+.index .n{display:block;font-weight:900;font-size:16.5px;margin-top:3px;}
+.index .s{display:block;font-size:12.5px;color:var(--sub);margin-top:2px;}
+
+section{margin-bottom:46px;scroll-margin-top:12px;}
+h2{font-weight:900;font-size:21px;margin:0 0 4px;line-height:1.4;}
+h2 .no{font-family:"Noto Serif JP",serif;color:var(--teal);margin-right:9px;}
+.sub{font-size:13px;color:var(--sub);margin:0 0 12px;}
+.sub b{color:var(--ink);}
 .player{background:#0d0f10;border:1px solid var(--ink);}
 video{display:block;width:100%;height:auto;background:#0d0f10;}
-.hint{font-size:12.5px;color:var(--sub);margin:8px 2px 26px;}
-.sec{font-family:"Noto Serif JP",serif;font-weight:600;font-size:13px;letter-spacing:.18em;
-  color:var(--sub);border-left:4px solid var(--teal);padding-left:10px;margin:0 0 12px;}
+.hint{font-size:12.5px;color:var(--sub);margin:8px 2px 22px;}
+.lbl{font-family:"Noto Serif JP",serif;font-weight:600;font-size:12.5px;letter-spacing:.18em;
+  color:var(--sub);border-left:4px solid var(--teal);padding-left:10px;margin:0 0 11px;}
 .chaps{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1px;
-  background:var(--line);border:1px solid var(--line);margin-bottom:30px;}
+  background:var(--line);border:1px solid var(--line);margin-bottom:24px;}
 .chap{display:flex;align-items:baseline;gap:12px;background:#fdfcf9;border:0;width:100%;
-  text-align:left;padding:13px 14px;cursor:pointer;font:inherit;color:inherit;
+  text-align:left;padding:12px 14px;cursor:pointer;font:inherit;color:inherit;
   border-left:4px solid transparent;transition:background .12s;}
 .chap:hover,.chap:focus-visible{background:#f0ece1;border-left-color:var(--teal);outline:none;}
 .chap .t{font-variant-numeric:tabular-nums;font-weight:700;font-size:13px;color:var(--teal);
   min-width:42px;}
 .chap .n{font-weight:700;font-size:14.5px;}
 .chap .d{display:block;font-weight:400;font-size:12.5px;color:var(--sub);margin-top:2px;}
-.points{border-left:4px solid var(--ink);padding:2px 0 2px 16px;margin:0 0 30px;}
-.points li{margin-bottom:9px;font-size:14.5px;}
+.points{border-left:4px solid var(--ink);padding:2px 0 2px 16px;margin:0 0 20px;}
+.points li{margin-bottom:8px;font-size:14.5px;}
 .points li:last-child{margin-bottom:0;}
 .points b{background:linear-gradient(transparent 62%,#f2dcb4 62%);}
-.dl{display:inline-block;border:1.5px solid var(--ink);padding:9px 18px;font-size:13.5px;
+.dl{display:inline-block;border:1.5px solid var(--ink);padding:8px 16px;font-size:13px;
   font-weight:700;text-decoration:none;color:var(--ink);background:#fdfcf9;}
 .dl:hover{background:var(--ink);color:var(--paper);}
 footer{margin-top:34px;padding-top:14px;border-top:1px solid var(--line);
   font-size:11.5px;color:#8d857a;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;}
 @media(max-width:560px){
-  h1{font-size:21px;} .wrap{padding:0 14px 48px;}
-  .chaps{grid-template-columns:1fr;}
+  h1{font-size:21px;} h2{font-size:18px;} .wrap{padding:0 14px 48px;}
+  .chaps,.index{grid-template-columns:1fr;}
 }
 </style>
 </head>
@@ -59,42 +74,82 @@ footer{margin-top:34px;padding-top:14px;border-top:1px solid var(--line);
 <div class="wrap">
 <header>
   <div class="eyebrow">解説動画　EXPLAINER</div>
-  <h1>電子カルテ<br><span class="u">予約から会計まで、通して見る</span></h1>
+  <h1>電子カルテ<br><span class="u">操作の様子を、そのまま録画しました</span></h1>
   <div class="meta">
-    <span><b>3分54秒</b>／全26場面</span>
+    <span><b>2本</b>／合計5分34秒</span>
     <span>2026年9月17日</span>
     <span>HUNDRED DOCTOR GROUP</span>
   </div>
 </header>
 
-<div class="player">
-  <video id="v" controls playsinline preload="metadata" poster="poster.jpg">
-    <source src="karte_flow_20260917.mp4" type="video/mp4">
-    お使いのブラウザでは再生できません。下の「動画ファイルを保存」からご覧ください。
-  </video>
-</div>
-<p class="hint">※ 音声はありません。画面下の字幕で説明します。通信量の目安は約10MB（Wi-Fi推奨）。</p>
+<nav class="index">
+  <a href="#flow"><span class="k">01</span><span class="n">予約から会計まで、通して見る</span><span class="s">3分54秒・全26場面</span></a>
+  <a href="#rezept"><span class="k">02</span><span class="n">レセプト作成</span><span class="s">1分40秒・全10場面</span></a>
+</nav>
 
-<p class="sec">見たいところから　CHAPTERS</p>
-<div class="chaps">
-  <button class="chap" data-t="4"><span class="t">0:04</span><span><span class="n">1. 予約</span><span class="d">患者さんがスマホで予約する</span></span></button>
-  <button class="chap" data-t="35"><span class="t">0:35</span><span><span class="n">2. 受付</span><span class="d">予約はそのまま受付とカルテに入る</span></span></button>
-  <button class="chap" data-t="88"><span class="t">1:28</span><span><span class="n">3. 診察</span><span class="d">所見・検査・病名・処方をカルテに書く</span></span></button>
-  <button class="chap" data-t="166"><span class="t">2:46</span><span><span class="n">4. 算定</span><span class="d">点数は自動。加算は選び方を決められる</span></span></button>
-  <button class="chap" data-t="194"><span class="t">3:14</span><span><span class="n">5. 会計と在庫</span><span class="d">確定で会計が締まり、薬の在庫も動く</span></span></button>
-  <button class="chap" data-t="230"><span class="t">3:50</span><span><span class="n">まとめ</span><span class="d">1人の患者さんの流れを振り返る</span></span></button>
-</div>
+<section id="flow">
+  <h2><span class="no">01</span>予約から会計まで、通して見る</h2>
+  <p class="sub"><b>3分54秒・全26場面</b>　1人の患者さんの流れに沿って、今回入れた機能も出てくる場所で紹介します</p>
+  <div class="player">
+    <video id="v1" controls playsinline preload="metadata" poster="poster.jpg">
+      <source src="karte_flow_20260917.mp4" type="video/mp4">
+      お使いのブラウザでは再生できません。下の「動画ファイルを保存」からご覧ください。
+    </video>
+  </div>
+  <p class="hint">※ 音声はありません。画面下の字幕で説明します。通信量の目安は約10MB（Wi-Fi推奨）。</p>
 
-<p class="sec">この動画で分かること　POINTS</p>
-<ul class="points">
-  <li>患者さんがスマホで取った予約が、<b>受付を開く前から受付一覧に「予約済」として並んでいる</b>こと</li>
-  <li>保険証に加えて<b>医療証（子ども医療・自立支援など）も写真から読み取れる</b>こと</li>
-  <li>点数は自動で計算され、<b>加算は「候補を出す」まででとどめて担当者が選べる</b>こと</li>
-  <li>会計を確定すると<b>院内処方で出した薬の在庫が減り、在庫管理アプリと同じ数字になる</b>こと</li>
-  <li>会計まで終わると<b>予約側が「来院済」に戻る</b>こと</li>
-</ul>
+  <p class="lbl">見たいところから　CHAPTERS</p>
+  <div class="chaps">
+    <button class="chap" data-v="v1" data-t="4"><span class="t">0:04</span><span><span class="n">1. 予約</span><span class="d">患者さんがスマホで予約する</span></span></button>
+    <button class="chap" data-v="v1" data-t="35"><span class="t">0:35</span><span><span class="n">2. 受付</span><span class="d">予約はそのまま受付とカルテに入る</span></span></button>
+    <button class="chap" data-v="v1" data-t="88"><span class="t">1:28</span><span><span class="n">3. 診察</span><span class="d">所見・検査・病名・処方をカルテに書く</span></span></button>
+    <button class="chap" data-v="v1" data-t="166"><span class="t">2:46</span><span><span class="n">4. 算定</span><span class="d">点数は自動。加算は選び方を決められる</span></span></button>
+    <button class="chap" data-v="v1" data-t="194"><span class="t">3:14</span><span><span class="n">5. 会計と在庫</span><span class="d">確定で会計が締まり、薬の在庫も動く</span></span></button>
+    <button class="chap" data-v="v1" data-t="230"><span class="t">3:50</span><span><span class="n">まとめ</span><span class="d">1人の患者さんの流れを振り返る</span></span></button>
+  </div>
 
-<p><a class="dl" href="karte_flow_20260917.mp4" download>動画ファイルを保存（10MB）</a></p>
+  <p class="lbl">この動画で分かること　POINTS</p>
+  <ul class="points">
+    <li>患者さんがスマホで取った予約が、<b>受付を開く前から受付一覧に「予約済」として並んでいる</b>こと</li>
+    <li>保険証に加えて<b>医療証（子ども医療・自立支援など）も写真から読み取れる</b>こと</li>
+    <li>点数は自動で計算され、<b>加算は「候補を出す」まででとどめて担当者が選べる</b>こと</li>
+    <li>会計を確定すると<b>院内処方で出した薬の在庫が減り、在庫管理アプリと同じ数字になる</b>こと</li>
+    <li>会計まで終わると<b>予約側が「来院済」に戻る</b>こと</li>
+  </ul>
+  <p><a class="dl" href="karte_flow_20260917.mp4" download>動画ファイルを保存（10MB）</a></p>
+</section>
+
+<section id="rezept">
+  <h2><span class="no">02</span>レセプト作成</h2>
+  <p class="sub"><b>1分40秒・全10場面</b>　旧カルテと同じ並び・同じ操作で、同じ結果が出ることを確かめます</p>
+  <div class="player">
+    <video id="v2" controls playsinline preload="metadata" poster="poster_rezept.jpg">
+      <source src="karte_rezept_20260917.mp4" type="video/mp4">
+      お使いのブラウザでは再生できません。下の「動画ファイルを保存」からご覧ください。
+    </video>
+  </div>
+  <p class="hint">※ 音声はありません。通信量の目安は約3MB。表示されている患者はすべて架空のデータです。</p>
+
+  <p class="lbl">見たいところから　CHAPTERS</p>
+  <div class="chaps">
+    <button class="chap" data-v="v2" data-t="11"><span class="t">0:11</span><span><span class="n">1. 条件を決める</span><span class="d">診療月・請求年月日・社保／国保を選ぶ</span></span></button>
+    <button class="chap" data-v="v2" data-t="30"><span class="t">0:30</span><span><span class="n">2. 点検用を作る</span><span class="d">その月の受診を集めてレセプトを作る</span></span></button>
+    <button class="chap" data-v="v2" data-t="40"><span class="t">0:40</span><span><span class="n">3. 一覧で確かめる</span><span class="d">実日数・合計点数・警告の件数が並ぶ</span></span></button>
+    <button class="chap" data-v="v2" data-t="49"><span class="t">0:49</span><span><span class="n">4. 中身と点検結果</span><span class="d">1枚の中身と、病名・薬・点数の点検</span></span></button>
+    <button class="chap" data-v="v2" data-t="68"><span class="t">1:08</span><span><span class="n">5. 提出用を作る</span><span class="d">提出用ファイルと作成の記録</span></span></button>
+    <button class="chap" data-v="v2" data-t="77"><span class="t">1:17</span><span><span class="n">6. 返戻・月遅れ・労災</span><span class="d">再請求の選び方と、労災の下書き印刷</span></span></button>
+  </div>
+
+  <p class="lbl">この動画で分かること　POINTS</p>
+  <ul class="points">
+    <li>タブ（医療保険・労災・自賠責）、月次／日次、診療月と請求年月の<b>並びが旧カルテと同じ</b>であること</li>
+    <li>点検用の一覧に<b>実日数・合計点数・警告の件数・点数の検算</b>が出ること</li>
+    <li>レセプト1枚の中身（保険・傷病名・診療行為・薬剤の明細）と、<b>病名と薬の適応や算定の組み合わせの点検結果</b>が見られること</li>
+    <li><b>返戻の再請求と月遅れ</b>の欄が、旧カルテと同じ位置にあり選び方も同じであること</li>
+    <li>これまで中身の無かった<b>労災のタブから、専用用紙へ書き写すための下書きを出せる</b>こと</li>
+  </ul>
+  <p><a class="dl" href="karte_rezept_20260917.mp4" download>動画ファイルを保存（3MB）</a></p>
+</section>
 
 <footer>
   <span>画面の患者情報はすべてデモ用の架空データです</span>
@@ -102,12 +157,13 @@ footer{margin-top:34px;padding-top:14px;border-top:1px solid var(--line);
 </footer>
 </div>
 <script>
-var v = document.getElementById('v');
 document.querySelectorAll('.chap').forEach(function (b) {
   b.addEventListener('click', function () {
+    var v = document.getElementById(b.dataset.v);
+    if (!v) return;
     v.currentTime = parseFloat(b.dataset.t);
     v.play().catch(function () {});
-    v.scrollIntoView({behavior: 'smooth', block: 'start'});
+    v.scrollIntoView({behavior: 'smooth', block: 'center'});
   });
 });
 </script>
