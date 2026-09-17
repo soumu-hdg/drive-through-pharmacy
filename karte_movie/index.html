@@ -26,7 +26,7 @@ h1 .u{border-bottom:5px solid var(--amber);padding-bottom:1px;}
 .meta{font-size:13px;color:var(--sub);display:flex;gap:16px;flex-wrap:wrap;}
 .meta b{color:var(--ink);font-weight:700;}
 
-.index{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);
+.index{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1px;background:var(--line);
   border:1px solid var(--line);margin-bottom:34px;}
 .index a{display:block;background:#fdfcf9;padding:15px 16px;text-decoration:none;color:inherit;
   border-left:4px solid var(--teal);}
@@ -76,7 +76,7 @@ footer{margin-top:34px;padding-top:14px;border-top:1px solid var(--line);
   <div class="eyebrow">解説動画　EXPLAINER</div>
   <h1>電子カルテ<br><span class="u">操作の様子を、そのまま録画しました</span></h1>
   <div class="meta">
-    <span><b>2本</b>／合計5分34秒</span>
+    <span><b>3本</b>／合計6分50秒</span>
     <span>2026年9月17日</span>
     <span>HUNDRED DOCTOR GROUP</span>
   </div>
@@ -85,6 +85,7 @@ footer{margin-top:34px;padding-top:14px;border-top:1px solid var(--line);
 <nav class="index">
   <a href="#flow"><span class="k">01</span><span class="n">予約から会計まで、通して見る</span><span class="s">3分54秒・全26場面</span></a>
   <a href="#rezept"><span class="k">02</span><span class="n">レセプト作成</span><span class="s">1分40秒・全10場面</span></a>
+  <a href="#inventory"><span class="k">03</span><span class="n">薬の在庫との同期</span><span class="s">1分16秒・全7場面</span></a>
 </nav>
 
 <section id="flow">
@@ -149,6 +150,38 @@ footer{margin-top:34px;padding-top:14px;border-top:1px solid var(--line);
     <li>これまで中身の無かった<b>労災のタブから、専用用紙へ書き写すための下書きを出せる</b>こと</li>
   </ul>
   <p><a class="dl" href="karte_rezept_20260917.mp4" download>動画ファイルを保存（4MB）</a></p>
+</section>
+
+<section id="inventory">
+  <h2><span class="no">03</span>薬の在庫との同期</h2>
+  <p class="sub"><b>1分16秒・全7場面</b>　カルテの操作で薬の在庫が動き、在庫管理アプリと同じ数字になります</p>
+  <div class="player">
+    <video id="v3" controls playsinline preload="metadata" poster="poster_inventory.jpg">
+      <source src="karte_inventory_20260917.mp4" type="video/mp4">
+      お使いのブラウザでは再生できません。下の「動画ファイルを保存」からご覧ください。
+    </video>
+  </div>
+  <p class="hint">※ 音声はありません。通信量の目安は約4MB。表示されている患者はすべて架空のデータです。</p>
+
+  <p class="lbl">見たいところから　CHAPTERS</p>
+  <div class="chaps">
+    <button class="chap" data-v="v3" data-t="9"><span class="t">0:09</span><span><span class="n">1. 院内薬を見る</span><span class="d">在庫数と残り少ない薬の印は在庫アプリと同じ表から</span></span></button>
+    <button class="chap" data-v="v3" data-t="18"><span class="t">0:18</span><span><span class="n">2. 処方に入れる</span><span class="d">減らす数は「1回量 × 日数」で数える</span></span></button>
+    <button class="chap" data-v="v3" data-t="29"><span class="t">0:29</span><span><span class="n">3. 確定で減る</span><span class="d">院内処方の薬だけ在庫が減る</span></span></button>
+    <button class="chap" data-v="v3" data-t="38"><span class="t">0:38</span><span><span class="n">4. 動かさない薬</span><span class="d">減らさなかった薬は理由を付けて出す</span></span></button>
+    <button class="chap" data-v="v3" data-t="49"><span class="t">0:49</span><span><span class="n">5. 二重に減らさない</span><span class="d">二度押しても在庫は動かない</span></span></button>
+    <button class="chap" data-v="v3" data-t="61"><span class="t">1:01</span><span><span class="n">6. 取り消しで戻す</span><span class="d">減らした分は戻り、記録は残る</span></span></button>
+  </div>
+
+  <p class="lbl">この動画で分かること　POINTS</p>
+  <ul class="points">
+    <li>カルテの院内薬の一覧が、<b>在庫管理アプリと同じ表</b>を読んでいること（在庫数も残り少ない薬の赤い印も同じ）</li>
+    <li>減らす数は<b>1回量 × 日数</b>で数えること（1回3錠を5日分なら15錠）</li>
+    <li>外用薬のように在庫を追わない薬や、在庫の薬品と結び付かなかった薬は<b>減らさずに理由を出す</b>こと</li>
+    <li>同じ受診で確定を押し直しても<b>二重に減らない</b>こと</li>
+    <li>カルテを取り消すと<b>減らした分が在庫に戻り</b>、いつ誰がどの受診で動かしたかの記録は残ること</li>
+  </ul>
+  <p><a class="dl" href="karte_inventory_20260917.mp4" download>動画ファイルを保存（4MB）</a></p>
 </section>
 
 <footer>
