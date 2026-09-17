@@ -1177,3 +1177,9 @@ body.resizing img {
 
 .santei-cand .sc-tag { font-size: 10px; color: #b45309; border: 1px solid #f59e0b; border-radius: 2px; padding: 0 4px; margin-left: 6px; }
 .santei-cand .sc-memo { display: block; font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+
+/* v22: 在庫を動かさなかった薬の知らせ（無言で飛ばさないための枠） */
+.inv-note { margin-top: 6px; padding: 6px 8px; background: #fff7ed; border-left: 3px solid #b45309;
+  font-size: 11px; color: #7c2d12; line-height: 1.6; }
+.inv-note ul { margin: 3px 0 0 16px; padding: 0; }
+.inv-note li { margin: 1px 0; }

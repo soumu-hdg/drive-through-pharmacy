@@ -1,7 +1,7 @@
 // ===== 在庫管理アプリ連携モジュール (inventory_stock.js) 2026-07-03 =====
 // 薬品在庫管理アプリ（GAS getStock）から在庫を取得し、院内薬タブに
 // 在庫数＋横バーで表示する。残少（stock <= threshold）は短く赤（在庫アプリと同基準）。
-// ★読み取り専用。カルテからの在庫増減（書き戻し）は未実装（本番運用前のため）。
+// ★2026-09-17: 在庫アプリと同じ Supabase を直接見る。カルテの確定で在庫を減らし、取り消しで戻す。
 // 依存(実行時グローバル): drugTabMode, renderBillingMenu（app.js）
 
 // 薬品在庫管理アプリ本番GAS（portalの「薬品在庫管理」= getStockで121件・thresholdあり）
@@ -25,23 +25,36 @@ function invNorm(s) {
 }
 
 // 在庫データ取得（院内薬タブ初回表示時に遅延ロード）
-async function loadInventoryStock() {
-  if (invStockLoaded || invStockLoading) return;
+async function loadInventoryStock(force) {
+  if ((invStockLoaded && !force) || invStockLoading) return;
   invStockLoading = true;
   invStockError = null;
   try {
-    const res = await fetch(INV_GAS_URL + '?action=getStock&token=' + encodeURIComponent(INV_GAS_TOKEN));
-    const data = await res.json();
-    if (!data || !data.success || !Array.isArray(data.stock)) {
-      throw new Error((data && data.error) || 'getStock応答が不正');
+    // ★2026-09-17: 在庫アプリと同じ Supabase のビューを直接読む（GAS経由は廃止）。
+    //   在庫を減らすかの判定は必ず stock_untracked を使う（画面側で category 文字列を判定しない）。
+    if (typeof isSupabaseReady !== 'function' || !isSupabaseReady()) {
+      throw new Error('Supabaseに接続していません');
     }
-    invStockList = data.stock.filter(function (s) { return s && s.name; });
+    const res = await supabaseClient
+      .from('pharmacy_v_medicines')
+      .select('code,name,unit,current_stock,threshold,stock_untracked,price,active')
+      .eq('active', true)
+      .order('code');
+    if (res.error) throw new Error(res.error.message || '在庫の取得に失敗');
+    invStockList = (res.data || []).filter(function (s) { return s && s.name; })
+      .map(function (s) {
+        return { code: s.code, name: s.name, unit: s.unit, currentStock: s.current_stock,
+                 threshold: s.threshold, stockUntracked: !!s.stock_untracked, price: s.price };
+      });
     invStockMap = {};
-    invStockList.forEach(function (s) { invStockMap[invNorm(s.name)] = s; });
+    invStockList.forEach(function (s) {
+      invStockMap[invNorm(s.name)] = s;
+      invStockMap['#' + s.code] = s;       // コードでも引けるようにする
+    });
     invStockLoaded = true;
   } catch (e) {
     invStockError = e.message || String(e);
-    console.error('在庫管理アプリ連携エラー:', e);
+    console.error('在庫連携エラー:', e);
   } finally {
     invStockLoading = false;
     // 院内薬タブが開いていれば再描画
@@ -108,4 +121,98 @@ function invDrugMenu() {
   return invStockList.map(function (s) {
     return { id: 'inv_' + s.code, name: s.name, price: resolveInvPrice(s.name), unit: s.unit || 'T', category: '院内', _inv: s };
   });
+}
+
+// ===== v22（2026-09-17）: カルテの操作を在庫に反映する =====
+// 決めごと（ユーザー確定 2026-09-16）
+//   ・院内処方だけ減らす（院外処方箋は減らさない）
+//   ・在庫を追わない薬（stock_untracked＝外用など）は減らさない … 判定はDB側のビューで行う
+//   ・数量は「1回量 × 日数」
+//   ・同じ受診で二度減らさない。取り消したら戻す。名寄せできなかった薬は必ず画面に出す。
+
+/** この受診を表す印。クリニック・患者番号・診療日で一意にする（保存のUUIDに依存しない） */
+function invVisitKey(p, dateStr) {
+  var clinic = (typeof currentClinicId === 'function') ? currentClinicId() : 'nishiharu';
+  var no = (p && (p.patientNo || p.id)) || '';
+  var d = dateStr || (typeof selectedDate !== 'undefined' ? selectedDate : '');
+  return clinic + '|' + no + '|' + d;
+}
+
+/** 処方から「在庫を動かす品目」を作る。コードが分かるものはコードで、無ければ名前で引く */
+function invItemsFromKarte(k) {
+  var items = [], unresolved = [];
+  ((k && k.prescriptions) || []).forEach(function (rx) {
+    var d = rx.drug || {};
+    var qty = Math.round((Number(rx.qty) || 0) * (Number(rx.days) || Number(k.rxDays) || 0));
+    if (qty <= 0) return;
+    var code = null;
+    if (typeof d.id === 'string' && d.id.indexOf('inv_') === 0) code = d.id.slice(4);
+    if (!code) {
+      var e = getInvEntry(d.name);
+      if (e) code = e.code;
+    }
+    if (!code) { unresolved.push(d.name || '(名称なし)'); return; }
+    items.push({ code: code, qty: qty, name: d.name || '' });
+  });
+  return { items: items, unresolved: unresolved };
+}
+
+/** カルテの確定で在庫を減らす。戻り値＝画面に出すための内訳 */
+async function invApplyDispense(p, k) {
+  if (!k || k.rxModeExternal) return null;          // 院外処方は在庫を動かさない
+  var built = invItemsFromKarte(k);
+  if (!built.items.length && !built.unresolved.length) return null;
+  if (typeof isSupabaseReady !== 'function' || !isSupabaseReady()) {
+    return { error: 'Supabaseに接続していないため在庫を更新できませんでした', unresolved: built.unresolved };
+  }
+  var operator = '';
+  try { operator = (typeof currentUserEmail === 'function' && currentUserEmail()) || ''; } catch (e) { operator = ''; }
+  var res = await supabaseClient.rpc('pharmacy_dispense_from_karte', {
+    p_visit_id: invVisitKey(p),
+    p_patient_no: (p && (p.patientNo || p.id)) || '',
+    p_patient_name: (p && p.name) || '',
+    p_operator: operator || 'karte',
+    p_occurred_on: (typeof selectedDate !== 'undefined' && selectedDate) || null,
+    p_items: built.items
+  });
+  if (res.error) return { error: res.error.message || '在庫の更新に失敗しました', unresolved: built.unresolved };
+  var out = res.data || {};
+  out.unresolved = built.unresolved;
+  invStockLoaded = false;
+  loadInventoryStock(true);          // 画面の在庫表示を更新
+  return out;
+}
+
+/** カルテを取り消したときに在庫を戻す */
+async function invCancelDispense(p, dateStr) {
+  if (typeof isSupabaseReady !== 'function' || !isSupabaseReady()) return null;
+  var res = await supabaseClient.rpc('pharmacy_cancel_karte_dispense', {
+    p_visit_id: invVisitKey(p, dateStr), p_operator: 'karte'
+  });
+  if (res.error) { console.warn('在庫の戻しに失敗', res.error); return null; }
+  invStockLoaded = false;
+  loadInventoryStock(true);
+  return res.data || null;
+}
+
+/** 結果を画面に出す。減らせなかったものは必ず見せる（無言で飛ばさない） */
+function invShowDispenseResult(r) {
+  if (!r) return;
+  var applied = (r.applied || []).length;
+  if (r.error) { if (typeof showToast === 'function') showToast('在庫: ' + r.error); }
+  else if (applied) {
+    var head = (r.applied || []).map(function (a) { return a.name + ' −' + a.qty + (a.unit || ''); }).join('、');
+    if (typeof showToast === 'function') showToast('在庫を減らしました: ' + head);
+  }
+  var warn = [];
+  (r.untracked || []).forEach(function (u) { warn.push(u.name + '（在庫を追わない薬のため減らしていません）'); });
+  (r.unknown || []).forEach(function (u) { warn.push((u.name || u.code) + '（在庫マスタに無いため減らしていません）'); });
+  (r.unresolved || []).forEach(function (n) { warn.push(n + '（在庫の薬品と結び付かないため減らしていません）'); });
+  (r.already || []).forEach(function (a) { warn.push(a.name + '（この受診では反映済み）'); });
+  var box = document.getElementById('invDispenseNote');
+  if (!box) return;
+  if (!warn.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = '';
+  box.innerHTML = '<b>在庫を動かさなかった薬</b><ul>' +
+    warn.map(function (w) { return '<li>' + (typeof esc === 'function' ? esc(w) : w) + '</li>'; }).join('') + '</ul>';
 }

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1280">
 <title>電子カルテ v20（受付・カルテ）</title>
-<link rel="stylesheet" href="style.css?v=20260916_v22a">
+<link rel="stylesheet" href="style.css?v=20260917_v22b">
 <link rel="stylesheet" href="rezept_create.css?v=20260916_v22a">
 <link rel="stylesheet" href="telemed_report.css?v=20260911_v1">
 <link rel="stylesheet" href="m3.css?v=20260914_v20e">
@@ -403,6 +403,7 @@
                 <div class="billing-divider"></div>
                 <div class="billing-total"><span>合計点数</span><span id="billTotal">---</span></div>
                 <div class="billing-burden"><span>患者負担額</span><span id="billBurden">---</span></div>
+                <div id="invDispenseNote" class="inv-note" style="display:none;"></div>
               </div>
               <div class="billing-actions">
                 <button class="btn btn-outline" onclick="saveKarteDraft()">一時保存</button>
@@ -1264,12 +1265,12 @@
 <script src="master_loader.js?v=20260907_v24"></script>
 <script src="auth.js?v=20260916_v22a"></script>
 <script src="ocr_ui.js?v=20260916_v33"></script>
-<script src="inventory_stock.js?v=20260728_v22"></script>
+<script src="inventory_stock.js?v=20260917_v22b"></script>
 <script src="drug_suggest.js?v=20260703_v12f"></script>
 <script src="patient_photos.js?v=20260806_v30"></script>
 <script src="rousai.js?v=20260916_v22a"></script>
 <script src="santei_rules.js?v=20260916_v33"></script>
-<script src="app.js?v=20260916_v22a"></script>
+<script src="app.js?v=20260917_v22b"></script>
 <!-- UKEはShift_JISで書き出す必要があるため（ブラウザ標準のTextEncoderはUTF-8のみ） -->
 <script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.2.0/encoding.min.js"></script>
 <script src="uke_generator.js?v=20260907_v35"></script>

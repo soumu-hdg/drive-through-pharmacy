@@ -1730,6 +1730,12 @@ function confirmBilling() {
   document.getElementById('examStartBtn').classList.remove('active');
   renderWaitingList();
   saveKarteSnapshot();          // 要望#9: 「直前保存に戻す」用のスナップショット
+  // ★v22（2026-09-17）: 院内処方の在庫を減らす。減らせなかった薬は画面に出す（無言で飛ばさない）
+  if (typeof invApplyDispense === 'function') {
+    invApplyDispense(p, k).then(function (r) {
+      if (typeof invShowDispenseResult === 'function') invShowDispenseResult(r);
+    }).catch(function (e) { console.warn('在庫の反映に失敗', e); });
+  }
   showToast(p.name + 'さんの診察を確定しました');
 }
 
@@ -1825,7 +1831,16 @@ function deleteKarteCompletely() {
   insertDeleteLogToSupabase({ karteRef: karteId, patientNo: p.id, visitDate: selectedDate, reason: reason, detail: note, operator: currentOperator() }, currentClinicId()).then(function (lg) {
     if (!lg || !lg.success) { showSaveError('カルテ削除の記録', (lg && lg.error) || '不明', deleteKarteCompletely); showToast('削除の記録が書けないため削除を中止しました'); return; }
     deleteKarteFromSupabase(p.id, selectedDate, currentClinicId()).then(function (r) {
-      if (r && r.success) { console.log('[削除] Supabase OK', r.deleted); finishLocal(); }
+      if (r && r.success) {
+        console.log('[削除] Supabase OK', r.deleted);
+        // ★v22: この受診で減らした在庫を戻す
+        if (typeof invCancelDispense === 'function') {
+          invCancelDispense(p, selectedDate).then(function (c) {
+            if (c && (c.restored || []).length) showToast('在庫を' + c.restored.length + '件戻しました');
+          });
+        }
+        finishLocal();
+      }
       else showSaveError('カルテ削除', (r && r.error) || '不明', deleteKarteCompletely);
     });
   });
