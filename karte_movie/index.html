@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>電子カルテ　予約から会計まで｜解説動画</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Noto+Serif+JP:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f6f3ec; --ink:#1a1c1e; --teal:#0e7c66; --teal-d:#0a5f4e;
+  --amber:#c9821f; --line:#ded7c9; --sub:#6d6459;
+}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Noto Sans JP",-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  line-height:1.75;}
+.wrap{max-width:900px;margin:0 auto;padding:0 18px 64px;}
+header{border-bottom:2px solid var(--ink);padding:26px 0 16px;margin-bottom:22px;}
+.eyebrow{font-family:"Noto Serif JP",serif;font-weight:600;font-size:13px;letter-spacing:.22em;
+  color:var(--teal);margin-bottom:8px;}
+h1{font-weight:900;font-size:27px;line-height:1.35;margin:0 0 10px;letter-spacing:-.01em;}
+h1 .u{border-bottom:5px solid var(--amber);padding-bottom:1px;}
+.meta{font-size:13px;color:var(--sub);display:flex;gap:16px;flex-wrap:wrap;}
+.meta b{color:var(--ink);font-weight:700;}
+.player{background:#0d0f10;border:1px solid var(--ink);}
+video{display:block;width:100%;height:auto;background:#0d0f10;}
+.hint{font-size:12.5px;color:var(--sub);margin:8px 2px 26px;}
+.sec{font-family:"Noto Serif JP",serif;font-weight:600;font-size:13px;letter-spacing:.18em;
+  color:var(--sub);border-left:4px solid var(--teal);padding-left:10px;margin:0 0 12px;}
+.chaps{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);margin-bottom:30px;}
+.chap{display:flex;align-items:baseline;gap:12px;background:#fdfcf9;border:0;width:100%;
+  text-align:left;padding:13px 14px;cursor:pointer;font:inherit;color:inherit;
+  border-left:4px solid transparent;transition:background .12s;}
+.chap:hover,.chap:focus-visible{background:#f0ece1;border-left-color:var(--teal);outline:none;}
+.chap .t{font-variant-numeric:tabular-nums;font-weight:700;font-size:13px;color:var(--teal);
+  min-width:42px;}
+.chap .n{font-weight:700;font-size:14.5px;}
+.chap .d{display:block;font-weight:400;font-size:12.5px;color:var(--sub);margin-top:2px;}
+.points{border-left:4px solid var(--ink);padding:2px 0 2px 16px;margin:0 0 30px;}
+.points li{margin-bottom:9px;font-size:14.5px;}
+.points li:last-child{margin-bottom:0;}
+.points b{background:linear-gradient(transparent 62%,#f2dcb4 62%);}
+.dl{display:inline-block;border:1.5px solid var(--ink);padding:9px 18px;font-size:13.5px;
+  font-weight:700;text-decoration:none;color:var(--ink);background:#fdfcf9;}
+.dl:hover{background:var(--ink);color:var(--paper);}
+footer{margin-top:34px;padding-top:14px;border-top:1px solid var(--line);
+  font-size:11.5px;color:#8d857a;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+@media(max-width:560px){
+  h1{font-size:21px;} .wrap{padding:0 14px 48px;}
+  .chaps{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">解説動画　EXPLAINER</div>
+  <h1>電子カルテ<br><span class="u">予約から会計まで、通して見る</span></h1>
+  <div class="meta">
+    <span><b>3分54秒</b>／全26場面</span>
+    <span>2026年9月17日</span>
+    <span>HUNDRED DOCTOR GROUP</span>
+  </div>
+</header>
+
+<div class="player">
+  <video id="v" controls playsinline preload="metadata" poster="poster.jpg">
+    <source src="karte_flow_20260917.mp4" type="video/mp4">
+    お使いのブラウザでは再生できません。下の「動画ファイルを保存」からご覧ください。
+  </video>
+</div>
+<p class="hint">※ 音声はありません。画面下の字幕で説明します。通信量の目安は約10MB（Wi-Fi推奨）。</p>
+
+<p class="sec">見たいところから　CHAPTERS</p>
+<div class="chaps">
+  <button class="chap" data-t="4"><span class="t">0:04</span><span><span class="n">1. 予約</span><span class="d">患者さんがスマホで予約する</span></span></button>
+  <button class="chap" data-t="35"><span class="t">0:35</span><span><span class="n">2. 受付</span><span class="d">予約はそのまま受付とカルテに入る</span></span></button>
+  <button class="chap" data-t="88"><span class="t">1:28</span><span><span class="n">3. 診察</span><span class="d">所見・検査・病名・処方をカルテに書く</span></span></button>
+  <button class="chap" data-t="166"><span class="t">2:46</span><span><span class="n">4. 算定</span><span class="d">点数は自動。加算は選び方を決められる</span></span></button>
+  <button class="chap" data-t="194"><span class="t">3:14</span><span><span class="n">5. 会計と在庫</span><span class="d">確定で会計が締まり、薬の在庫も動く</span></span></button>
+  <button class="chap" data-t="230"><span class="t">3:50</span><span><span class="n">まとめ</span><span class="d">1人の患者さんの流れを振り返る</span></span></button>
+</div>
+
+<p class="sec">この動画で分かること　POINTS</p>
+<ul class="points">
+  <li>患者さんがスマホで取った予約が、<b>受付を開く前から受付一覧に「予約済」として並んでいる</b>こと</li>
+  <li>保険証に加えて<b>医療証（子ども医療・自立支援など）も写真から読み取れる</b>こと</li>
+  <li>点数は自動で計算され、<b>加算は「候補を出す」まででとどめて担当者が選べる</b>こと</li>
+  <li>会計を確定すると<b>院内処方で出した薬の在庫が減り、在庫管理アプリと同じ数字になる</b>こと</li>
+  <li>会計まで終わると<b>予約側が「来院済」に戻る</b>こと</li>
+</ul>
+
+<p><a class="dl" href="karte_flow_20260917.mp4" download>動画ファイルを保存（10MB）</a></p>
+
+<footer>
+  <span>画面の患者情報はすべてデモ用の架空データです</span>
+  <span>電子カルテ 解説動画　2026-09-17</span>
+</footer>
+</div>
+<script>
+var v = document.getElementById('v');
+document.querySelectorAll('.chap').forEach(function (b) {
+  b.addEventListener('click', function () {
+    v.currentTime = parseFloat(b.dataset.t);
+    v.play().catch(function () {});
+    v.scrollIntoView({behavior: 'smooth', block: 'start'});
+  });
+});
+</script>
+</body>
+</html>
