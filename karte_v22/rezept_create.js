@@ -262,6 +262,11 @@ function rzDbRecord(v) {
     insurerNumber: pt.insurer_number || '',
     insSymbol: pt.ins_symbol || '',
     insNumber: pt.ins_number || '',
+    insEdaban: pt.ins_edaban || '',
+    nameKana: pt.name_kana || '',
+    kouhiNumber: pt.kouhi_number || '',
+    recipientNumber: pt.recipient_number || '',
+    rousai: pt.rousai || null,
     insuranceNumber: '',
     arrivedAt: String(v.visit_time || v.arrived_at || '').slice(0, 8),
     status: v.status || 'none',
@@ -290,7 +295,7 @@ async function rzFetchFromDb(fromDate, toDate) {
   try {
     const { data, error } = await supabaseClient
       .from('visits')
-      .select('id,visit_date,visit_time,arrived_at,visit_type,status,patients(*),kartes(*),prescriptions(*),diseases_assigned(*)')
+      .select('id,visit_date,visit_time,arrived_at,visit_type,status,is_rousai,patients(*),kartes(*),prescriptions(*),diseases_assigned(*)')
       .eq('clinic_id', currentClinicId())   // v21: 接続クリニックの受診だけ
       .gte('visit_date', fromDate)
       .lte('visit_date', toDate)
@@ -301,6 +306,7 @@ async function rzFetchFromDb(fromDate, toDate) {
     }
     const recs = [];
     (data || []).forEach(function (v) {
+      if (v.is_rousai) return;                                 // 労災の受診は医療保険のレセプトに入れない（労災タブで請求）
       const r = rzDbRecord(v);
       if (!rzHasContent(r.patient.status, r.karte)) return;   // 画面と同じ条件で絞る
       recs.push(r);
@@ -322,7 +328,7 @@ async function rzCollect(useDb) {
   const wantShaho  = document.getElementById('rzShaho').checked;
   const wantKokuho = document.getElementById('rzKokuho').checked;
 
-  let all = rzCollectScreen(dates);
+  let all = rzCollectScreen(dates).filter(function (r) { return !(r.karte && r.karte.isRousai); });   // 労災は別請求
   let dbInfo = null;
 
   if (useDb && dates.length > 0) {
@@ -339,7 +345,7 @@ async function rzCollect(useDb) {
 
   const normal = [], late = [];
   all.forEach(function (rec) {
-    const org = (typeof getReviewOrg === 'function') ? getReviewOrg(rec.patient.insurance) : '1';
+    const org = (typeof getReviewOrg === 'function') ? getReviewOrg(rec.patient.insurance, rec.patient.insurerNumber) : '1';
     if (org === '1' && !wantShaho) return;
     if (org === '2' && !wantKokuho) return;
     const lc = (typeof getLateClaim === 'function') ? getLateClaim(rec.patient.id, rec.visitDate) : null;
@@ -381,8 +387,18 @@ async function rzRun(kind) {
   const billingMonth = period.replace(/-/g, '').substring(0, 6);
   // 月次は「1患者＝1枚」に集約する。日次は従来どおり受診ごと。
   const uke = picked.normal.length
-    ? generateUKE(picked.normal, billingMonth, { aggregate: !daily })
+    ? (await (async function () {
+        if (typeof ukeLoadServiceTable === 'function') await ukeLoadServiceTable();   // 診療識別の表
+        return generateUKE(picked.normal, billingMonth, { aggregate: !daily, claimYm: rzClaimYm() });
+      })())
     : {};
+  // 書き上げたUKEを読み戻して形式を点検する（提出が通っている出力と同じ決まり）
+  const ukeCheck = [];
+  if (typeof ukeValidate === 'function') {
+    [['社保', uke.shaho], ['国保', uke.kokuho]].forEach(function (pair) {
+      if (pair[1]) ukeValidate(pair[1]).forEach(function (m) { ukeCheck.push(pair[0] + '：' + m); });
+    });
+  }
 
   // 返戻の再請求ぶん（含める にした行）。診療年月は変えず、請求年月だけ当月にする。
   const resub = rzBuildResubmitUKE(henrei);
@@ -401,7 +417,8 @@ async function rzRun(kind) {
     kokuho: uke.kokuho || '',
     henreiCount: henrei.length,
     henreiShaho: resub.shaho || '',
-    henreiKokuho: resub.kokuho || ''
+    henreiKokuho: resub.kokuho || '',
+    ukeCheck: ukeCheck
   };
   try { localStorage.setItem(RZ_JOB_KEY, JSON.stringify(rzLastJob)); } catch (e) { console.warn('作成結果の保存に失敗:', e); }
 
@@ -447,18 +464,29 @@ function rzRenderResult() {
     cnt.textContent = '通常 ' + (rzLastJob.count || 0) + '件' +
       (rzLastJob.fromDb ? '（うちDB ' + rzLastJob.fromDb + '件）' : '') +
       (rzLastJob.henreiCount ? ' ／ 返戻再請求 ' + rzLastJob.henreiCount + '件' : '');
+    // 形式点検（UKEを読み戻した結果）
+    let chk = document.getElementById('rzUkeCheck');
+    if (!chk) {
+      chk = document.createElement('div');
+      chk.id = 'rzUkeCheck';
+      chk.style.cssText = 'margin-top:6px;font-size:12px;line-height:1.5;';
+      cnt.parentNode.appendChild(chk);
+    }
+    const list = rzLastJob.ukeCheck || [];
+    if (!rzLastJob.shaho && !rzLastJob.kokuho) chk.textContent = '';
+    else if (!list.length) chk.innerHTML = '<span style="color:#0e7c66;font-weight:700;">形式点検：問題なし</span>（レコードの並び・項目数・文字・点数の読み戻し）';
+    else chk.innerHTML = '<span style="color:#b3261e;font-weight:700;">形式点検：' + list.length + '件</span><br>' +
+      list.slice(0, 8).map(function (m) { return esc(m); }).join('<br>') + (list.length > 8 ? '<br>…ほか' + (list.length - 8) + '件' : '');
   }
 }
 
 // UKEは現行システムと同じ Shift_JIS で書き出す（読み込めない機関があるため）。
 // 変換ライブラリが読めなかったときだけUTF-8にフォールバックする。
 function rzUkeBlob(text) {
-  try {
-    if (typeof Encoding !== 'undefined' && Encoding.convert && Encoding.stringToCode) {
-      const sjis = Encoding.convert(Encoding.stringToCode(text), { to: 'SJIS', from: 'UNICODE' });
-      return new Blob([new Uint8Array(sjis)], { type: 'application/octet-stream' });
-    }
-  } catch (e) { console.warn('Shift_JIS変換に失敗したためUTF-8で出力します:', e); }
+  const bytes = (typeof ukeToSjisBytes === 'function') ? ukeToSjisBytes(text) : null;
+  if (bytes) return new Blob([bytes], { type: 'application/octet-stream' });
+  // 変換ライブラリが読めないと Shift_JIS にできない。提出には使えないので必ず知らせる。
+  showToast('Shift_JISに変換できませんでした（通信を確認してください）。このファイルは提出に使わないでください');
   return new Blob([text], { type: 'text/plain;charset=utf-8' });
 }
 

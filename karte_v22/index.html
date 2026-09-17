@@ -866,8 +866,26 @@
           <div style="flex:1;"><label>傷病の部位</label><input type="text" id="rsPart" placeholder="例: 右手第2指"></div>
           <div style="flex:1;"><label>傷病名</label><input type="text" id="rsDisease"></div>
         </div>
+        <div class="edit-form-row" style="display:flex;gap:6px;">
+          <div style="flex:1;"><label>労働局コード</label><input type="text" id="rsBureauCode" placeholder="23（愛知）" maxlength="2"></div>
+          <div style="flex:1;"><label>監督署コード</label><input type="text" id="rsOfficeCode" placeholder="2桁" maxlength="2"></div>
+          <div style="flex:1;"><label>新継再別</label>
+            <select id="rsNewContinuing">
+              <option value="">自動（療養開始月なら新規）</option>
+              <option value="1">新規</option><option value="3">転医始診</option>
+              <option value="5">継続</option><option value="7">再発</option>
+            </select>
+          </div>
+          <div style="flex:1;"><label>転帰事由</label>
+            <select id="rsOutcome">
+              <option value="3">継続</option><option value="1">治ゆ</option>
+              <option value="5">転医</option><option value="7">中止</option><option value="9">死亡</option>
+            </select>
+          </div>
+        </div>
+        <div class="edit-form-row"><label>傷病の経過（50文字以内）</label><input type="text" id="rsCourse" maxlength="50" placeholder="例: 作業中に右手を切創。処置継続中"></div>
         <div class="edit-form-row"><label>備考</label><textarea id="rsNote" rows="2" style="width:100%;font-size:12px;border:1px solid var(--border);border-radius:4px;padding:6px;resize:vertical;" placeholder="複数の災害がある場合はここに記載"></textarea></div>
-        <p class="note">請求は専用用紙（診機様式第1号・第3号）に書き写します。下書きは「レセプト作成」の労災タブから印刷できます。</p>
+        <p class="note">請求は「レセプト作成」の労災タブで電子ファイル（労災レセ電 RREC）として作れます。初回請求は労働局・監督署コードと事業場が必要です。労働者のカナは患者情報のカナ（姓と名の間に空白）を使います。</p>
       </div>
     </fieldset>
 
@@ -1212,10 +1230,13 @@
         <div class="rs-bar">
           <label>診療年月 <input type="month" id="rsMonth" onchange="rzRousaiLoad()"></label>
           <button class="btn btn-outline" onclick="rzRousaiLoad()">読み込み</button>
-          <button class="btn btn-primary" onclick="rzRousaiPrint()">転記用の下書きを印刷</button>
+          <label>提出日 <input type="date" id="rsSubmitDate"></label>
+          <button class="btn btn-primary" onclick="rzRousaiUke()">労災レセ電を作成</button>
+          <button class="btn btn-outline" onclick="rzRousaiPrint()">転記用の下書きを印刷</button>
         </div>
         <div id="rsResult"><div class="rzm-empty">診療年月を選んで「読み込み」を押してください</div></div>
-        <p class="rs-help">請求書・内訳書は厚生労働省指定の専用用紙に記入します（白紙への印刷は不可）。ここでは書き写すための下書きを出します。提出先は当院の所在地を管轄する労働局、期限は診療月の翌月10日です。</p>
+        <div id="rsUkeResult"></div>
+        <p class="rs-help">「労災レセ電を作成」で労災レセプト電算処理システム用のファイル（RRECnn00.UKE）を作ります。専用用紙への書き写しは不要です。初回請求（新規・転医始診・再発）は監督署ごとに1ファイル、継続分は1ファイルにまとまります。提出期限は診療月の翌月10日です。</p>
       </div>
 
       <!-- ===== 自賠責 ===== -->
@@ -1268,13 +1289,16 @@
 <script src="inventory_stock.js?v=20260917_v22b"></script>
 <script src="drug_suggest.js?v=20260703_v12f"></script>
 <script src="patient_photos.js?v=20260806_v30"></script>
-<script src="rousai.js?v=20260916_v22a"></script>
+<script src="rousai.js?v=20260917_a"></script>
 <script src="santei_rules.js?v=20260916_v33"></script>
 <script src="app.js?v=20260917_v22b"></script>
 <!-- UKEはShift_JISで書き出す必要があるため（ブラウザ標準のTextEncoderはUTF-8のみ） -->
 <script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.2.0/encoding.min.js"></script>
-<script src="uke_generator.js?v=20260907_v35"></script>
-<script src="rezept_create.js?v=20260916_v22a"></script>
+<script src="uke_format.js?v=20260917_a"></script>
+<script src="uke_validate.js?v=20260917_a"></script>
+<script src="uke_generator.js?v=20260917_a"></script>
+<script src="rousai_uke.js?v=20260917_a"></script>
+<script src="rezept_create.js?v=20260917_a"></script>
 <script src="telemed_report.js?v=20260916_v22a"></script>
 </body>
 </html>

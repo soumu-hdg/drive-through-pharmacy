@@ -120,10 +120,20 @@ function getInsuranceTypeCode(insurance) {
   return '06';
 }
 
-// 審査機関コード（1=社保, 2=国保）
-function getReviewOrg(insurance) {
-  if (insurance.includes('国保')) return '2';
-  return '1'; // 社保・後期高齢者・その他
+// 審査機関コード（1=社保＝支払基金, 2=国保連合会）
+//   保険者番号で決める: 6桁・法別00/67＝国民健康保険、39＝後期高齢者 → どちらも国保連合会。
+//   保険者番号が無いときだけ保険の表示名で判断する。
+function getReviewOrg(insurance, insurerNumber) {
+  const num = (typeof ukeDigits === 'function') ? ukeDigits(insurerNumber) : String(insurerNumber || '').replace(/\D/g, '');
+  if (num) {
+    if (num.length === 6) return '2';
+    const law = num.slice(0, 2);
+    if (num.length === 8 && (law === '00' || law === '67' || law === '39')) return '2';
+    return '1';
+  }
+  const ins = String(insurance || '');
+  if (ins.includes('国保') || ins.includes('後期')) return '2';
+  return '1';
 }
 
 // 生年月日→UKE形式（YYYYMMDD）
@@ -145,8 +155,8 @@ function generateUKE(confirmedPatients, billingMonth, opts) {
   const prefCode = '13'; // 東京
 
   // 社保と国保で分ける
-  const shahoPatients = confirmedPatients.filter(p => getReviewOrg(p.patient.insurance) === '1');
-  const kokuhoPatients = confirmedPatients.filter(p => getReviewOrg(p.patient.insurance) === '2');
+  const shahoPatients = confirmedPatients.filter(p => getReviewOrg(p.patient.insurance, p.patient.insurerNumber) === '1');
+  const kokuhoPatients = confirmedPatients.filter(p => getReviewOrg(p.patient.insurance, p.patient.insurerNumber) === '2');
 
   const results = {};
 
@@ -203,9 +213,10 @@ function computeVisitItems(pd) {
         k.prescriptions.forEach(function (rx) {
           const dCode = (rx.drug.code && /^[0-9A-Z]{9,12}$/.test(rx.drug.code)) ? rx.drug.code : ((DRUG_CODE_MAP[rx.drug.id] || {}).code || '9999999999');
           const days = rx.days || k.rxDays || 7;
-          const raw = (rx.drug.price || 0) * rx.qty * days / 10;
-          const yaku = Math.max(1, (typeof goshagochoNyuu === 'function') ? goshagochoNyuu(raw) : Math.round(raw));
-          iy.push({ code: dCode, qty: rx.qty, points: yaku });
+          // 薬剤料は1日分で点数にする（15円以下は1点、以降10円ごとに1点＝五捨五超入）
+          const dayRaw = (rx.drug.price || 0) * rx.qty / 10;
+          const dayPoints = Math.max(1, (typeof goshagochoNyuu === 'function') ? goshagochoNyuu(dayRaw) : Math.round(dayRaw));
+          iy.push({ code: dCode, qty: rx.qty, days: days, dayPoints: dayPoints, points: dayPoints * days, note: rx.note || '' });
         });
       }
     }
@@ -243,72 +254,136 @@ function groupVisitsByPatient(patientList) {
 }
 
 // ============================================================
-// 出力書式（2026-09-07）
-//   現行システムが実際に出したUKEと突き合わせ、レコードの項目数・並び・
-//   終端コードまでそろえた。値の意味は変えていない。
-//   実測: RE=38項目 / HO=15 / SY=8 / SI=44 / IY=44 / JD=33 / MF=33 / GO=4項目、
-//         レコード順は RE→HO→JD→MF→SY→SI/IY、末尾は CRLF + 0x1A(EOF)。
+// 出力書式（2026-09-17 改訂）
+//   提出が通っている出力の書き方に合わせた。記録の位置・文字の決まりは uke_format.js。
+//   ・IR の年月は「請求年月」（診療年月の翌月）。RE の年月が「診療年月」
+//   ・RE レセプト種別 = 1(医科) + 保険種別(1医保/2公費/3後期) + 併用数 + 本人家族・年齢区分
+//   ・RE 給付割合は国民健康保険のときだけ入れる
+//   ・氏名・記号・番号は全角モード、保険者番号は右詰め8桁、カタカナ氏名は全角カタカナ
+//   ・並びは RE→HO→KO→SN→JD→MF→SY→明細（診療識別の昇順）
+//   ・薬剤(IY)は 点数=1日分、回数=日数、算定日には日数を入れる
+//   ・GO の件数は「HO と KO の数」、点数は主保険の請求点数の合計
+//   ・社保／国保の振り分けは保険者番号で決める（後期高齢者は国保連合会へ）
 // ============================================================
-const UKE_REC_LEN = { RE: 38, HO: 15, KO: 12, SY: 8, SI: 44, IY: 44, JD: 33, MF: 33, CO: 5, SN: 9, GO: 4 };
+const UKE_REC_LEN = UKE_FIELD_COUNTS;
 
-// 医療機関情報（IRレコード）。現行システムの出力と同じ値にしてある。
+// 医療機関情報（IRレコード）
 const UKE_INST = {
   pref: '23',              // 都道府県（愛知）
   tensu: '1',              // 点数表（医科）
-  code: '7400840',         // 医療機関コード
+  code: '7400840',         // 医療機関コード（7桁）
   name: '西春内科・在宅クリニック',
   reserved: '00',
   phone: '0568-25-5080'
 };
 
-function ukeRec(type, fields) {
-  const n = UKE_REC_LEN[type] || fields.length;
-  const a = fields.slice();
-  a[0] = type;
-  while (a.length < n) a.push('');
-  for (let i = 0; i < a.length; i++) if (a[i] === undefined || a[i] === null) a[i] = '';
-  return a.join(',');
+// 診療識別・剤形の表（支払基金の公開マスタから作成: master/uke_service_codes.json）
+let UKE_SERVICE_TABLE = null;
+async function ukeLoadServiceTable() {
+  if (UKE_SERVICE_TABLE) return UKE_SERVICE_TABLE;
+  try {
+    const res = await fetch('master/uke_service_codes.json?v=20260917');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    UKE_SERVICE_TABLE = await res.json();
+  } catch (e) {
+    console.warn('[UKE] 診療識別の表を読めませんでした。カルテ側の区分で出力します:', e);
+    UKE_SERVICE_TABLE = { service: {}, drugForm: {} };
+  }
+  return UKE_SERVICE_TABLE;
+}
+function ukeServiceOf(code, fallback) {
+  const t = UKE_SERVICE_TABLE && UKE_SERVICE_TABLE.service ? UKE_SERVICE_TABLE.service[code] : null;
+  return t || fallback || '80';
+}
+// 薬剤の診療識別: 21内服 / 22頓服 / 23外用 / 33注射
+function ukeDrugServiceOf(code, note) {
+  if (/頓服/.test(note || '')) return '22';
+  const f = UKE_SERVICE_TABLE && UKE_SERVICE_TABLE.drugForm ? UKE_SERVICE_TABLE.drugForm[code] : null;
+  if (f === '6') return '23';
+  if (f === '4') return '33';
+  return '21';
 }
 
-// レセプト種別（RE[2]）は4桁。実ファイルは 1112 / 1116 / 1114 / 1212 のように入る。
-//   1桁目 = 単独/公費併用の数、2桁目 = 1社保・3国保・6後期、3桁目 = 本人/家族、4桁目 = 年齢区分
-//   ★本人/家族の区別はカルテに持っていないため本人(1)で出す。年齢は生年月日から判定する。
-function receiptTypeCode(p, kouhiCount) {
-  const ins = String(p.insurance || '');
-  const kind = ins.indexOf('国保') !== -1 ? '3' : (ins.indexOf('後期') !== -1 ? '6' : '1');
-  const tanpuku = String(1 + (kouhiCount || 0));
-  const honke = '1';
-  let age = (typeof p.age === 'number' && p.age > 0) ? p.age : null;
-  if (age === null && p.dob) {
-    const d = new Date(p.dob);
-    if (!isNaN(d)) age = Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000));
+// 満年齢（診療日時点）
+function ukeAgeAt(dob, visitDate) {
+  const b = ukeDate(dob), v = ukeDate(visitDate);
+  if (!b || !v) return null;
+  let age = parseInt(v.slice(0, 4), 10) - parseInt(b.slice(0, 4), 10);
+  if (v.slice(4) < b.slice(4)) age--;
+  return age;
+}
+// 未就学児か（6歳に達した日以後の最初の3月31日まで）
+function ukeIsPreschool(dob, visitDate) {
+  const b = ukeDate(dob), v = ukeDate(visitDate);
+  if (!b || !v) return false;
+  const by = parseInt(b.slice(0, 4), 10), bmd = b.slice(4);
+  const schoolYear = (bmd <= '0401') ? by + 6 : by + 7;
+  return v < String(schoolYear) + '0401';
+}
+
+// 公費（医療証）の情報。負担者番号8桁があるものだけ出す。
+function ukePublicExpenses(p) {
+  const list = [];
+  const payer = ukeDigits(p.kouhiNumber);
+  if (payer.length === 8) {
+    list.push({ payer: payer, recipient: ukeDigits(p.recipientNumber || p.kouhiRecipient || p.iryoRecipientNumber || '') });
   }
-  let ageCode = '2';                                   // 入院外・一般
-  if (age !== null) { if (age < 6) ageCode = '4'; else if (age >= 70) ageCode = '6'; }
-  return tanpuku + kind + honke + ageCode;
+  return list;
+}
+
+// 本人・家族、年齢の区分（RE レセプト種別の4桁目。外来）
+//   2=本人 / 4=未就学者 / 6=家族 / 8=高齢者一般・低所得 / 0=高齢者7割給付
+function ukePersonTypeCode(p, visitDate) {
+  const elderly = ukeIsElderlyInsurer(p.insurerNumber) ||
+    (function () { const a = ukeAgeAt(p.dob, visitDate); return a !== null && a >= 70; })();
+  if (elderly) return (Number(p.ratio) === 0.3) ? '0' : '8';
+  if (ukeIsPreschool(p.dob, visitDate)) return '4';
+  const rel = String(p.relationship || p.honninKazoku || '');
+  if (rel === '2' || /家族|被扶養/.test(rel)) return '6';
+  return '2';
+}
+
+// レセプト種別（4桁）
+function receiptTypeCode(p, publicCount, visitDate) {
+  const hasInsurance = !!ukeDigits(p.insurerNumber) || String(p.insurance || '') !== '公費';
+  let ins;
+  if (!hasInsurance) ins = '2';
+  else if (ukeIsElderlyInsurer(p.insurerNumber) || String(p.insurance || '').indexOf('後期') !== -1) ins = '3';
+  else ins = '1';
+  const count = (ins === '2') ? String(publicCount) : String(1 + publicCount);
+  const person = (ins === '2') ? '2' : ukePersonTypeCode(p, visitDate);
+  return '1' + ins + count + person;
+}
+
+// 給付割合（国民健康保険のときだけ）
+function ukeBenefitRate(p) {
+  if (!ukeIsKokuhoInsurer(p.insurerNumber)) return '';
+  const r = Number(p.ratio);
+  if (r === 0.1 || r === 0.2 || r === 0.3) return String(Math.round(100 - r * 100));
+  return '';
 }
 
 function buildUkeText(patientList, reviewOrg, instCode, instName, prefCode, billingMonth, opts) {
-  // ★karte_v18パーサ整合版: IR/RE/HO/SY/SI/IY/JD を正しいフィールド位置で出力。
-  //   総点数(HO[5]) = SI/IY 点数の合計 → 点数検算が必ず一致する。
-  // ★2026-09-07: opts.aggregate で「同一患者の同月受診を1枚に集約」する月次モードを追加。
-  //   実日数・回数・算定日をまとめるので、同じ患者が月内に複数回来院しても2枚にならない。
   opts = opts || {};
+  const serviceMonth = ukeMonth(billingMonth);
+  const claimMonth = ukeMonth(opts.claimYm) || ukeNextMonth(serviceMonth);
   const lines = [];
-  lines.push(['IR', reviewOrg, UKE_INST.pref, UKE_INST.tensu, UKE_INST.code, '',
-              UKE_INST.name, billingMonth, UKE_INST.reserved, UKE_INST.phone].join(','));
+  lines.push(ukeMakeRecord('IR', {
+    2: reviewOrg, 3: UKE_INST.pref, 4: UKE_INST.tensu, 5: UKE_INST.code,
+    7: UKE_INST.name, 8: claimMonth, 9: UKE_INST.reserved, 10: ukePhone(UKE_INST.phone)
+  }));
 
   const groups = opts.aggregate ? groupVisitsByPatient(patientList)
                                 : patientList.map(function (pd) { return [pd]; });
 
-  let seq = 1;
-  let grandTotal = 0;
+  let seq = 1, goCount = 0, goPoints = 0;
   for (const group of groups) {
     const head = group[0];
     const p = head.patient;
-    const insurerNum = p.insurerNumber || '39130000';
 
-    // --- 受診日ごとの算定を集計（SIは cat|code|points、IYは code|qty|points で束ねる）---
+    // --- 受診日ごとの算定を集める ---
+    //   SI: 診療識別|コード|点数 で束ね、算定日ごとの回数を持つ
+    //   IY: コード|1日量|1日分点数 で束ね、算定日に日数を持つ
     const siMap = new Map();
     const iyMap = new Map();
     const dayList = [];
@@ -319,47 +394,79 @@ function buildUkeText(patientList, reviewOrg, instCode, instName, prefCode, bill
       if (dayList.indexOf(day) === -1) dayList.push(day);
       const items = computeVisitItems(pd);
       items.si.forEach(function (s) {
-        const key = s.cat + '|' + s.code + '|' + s.points;
-        if (!siMap.has(key)) siMap.set(key, { cat: s.cat, code: s.code, points: s.points, days: [] });
-        siMap.get(key).days.push(day);
+        const cat = ukeServiceOf(s.code, s.cat);
+        const key = cat + '|' + s.code + '|' + s.points;
+        if (!siMap.has(key)) siMap.set(key, { cat: cat, code: s.code, points: s.points, days: {} });
+        const e = siMap.get(key);
+        e.days[day] = (e.days[day] || 0) + 1;
         totalPoints += s.points;
       });
       items.iy.forEach(function (x) {
-        const key = x.code + '|' + x.qty + '|' + x.points;
-        if (!iyMap.has(key)) iyMap.set(key, { code: x.code, qty: x.qty, points: x.points, days: [] });
-        iyMap.get(key).days.push(day);
-        totalPoints += x.points;
+        const cat = ukeDrugServiceOf(x.code, x.note);
+        const key = cat + '|' + x.code + '|' + x.qty + '|' + x.dayPoints;
+        if (!iyMap.has(key)) iyMap.set(key, { cat: cat, code: x.code, qty: x.qty, points: x.dayPoints, days: {} });
+        const e = iyMap.get(key);
+        e.days[day] = (e.days[day] || 0) + x.days;
+        totalPoints += x.dayPoints * x.days;
       });
     });
     dayList.sort(function (a, b) { return a - b; });
-    grandTotal += totalPoints;
 
-    const jitsuNissu = dayList.length;                    // 診療実日数（集約すると受診回数）
+    const pubs = ukePublicExpenses(p);
+    const insurer = ukeDigits(p.insurerNumber);
+    const hasInsurance = !!insurer || String(p.insurance || '') !== '公費';
+    const jitsuNissu = dayList.length;
 
-    // RE: [1]連番 [2]レセプト種別(4桁) [3]診療年月 [4]氏名 [5]性別 [6]生年月日 [13]カルテ番号 [36]カナ氏名
-    //     ★給付割合(RE[7])と一部負担金(HO[6])は現行システムの出力でも空。合わせて空にしている。
-    const re = [];
-    re[1] = seq; re[2] = receiptTypeCode(p, 0); re[3] = billingMonth; re[4] = p.name;
-    re[5] = sexToCode(p.sex); re[6] = dobToUke(p.dob);
-    re[13] = (p.id || '').replace(/\D/g, '') || String(seq);
-    if (p.nameKana) re[36] = p.nameKana;
-    lines.push(ukeRec('RE', re));
+    // RE
+    lines.push(ukeMakeRecord('RE', {
+      2: seq,
+      3: receiptTypeCode(p, pubs.length, head.visitDate),
+      4: serviceMonth,
+      5: p.name,
+      6: sexToCode(p.sex),
+      7: ukeDate(p.dob),
+      8: ukeBenefitRate(p),
+      14: p.id || p.patientNo || String(seq),
+      37: p.nameKana || p.kana || ''
+    }));
 
-    // HO: [1]保険者番号 [2]記号 [3]番号 [4]実日数 [5]総点数
-    const symbol = (p.insuranceNumber || '').split('-')[0] || (p.insSymbol || '');
-    const number = ((p.insuranceNumber || '').split('-')[1] || '').replace(/[()]/g, '') || (p.insNumber || '');
-    lines.push(ukeRec('HO', [null, insurerNum, symbol, number, jitsuNissu, totalPoints]));
+    // HO（保険）
+    if (hasInsurance) {
+      let symbol = p.insSymbol || '', number = p.insNumber || '';
+      if (!symbol && !number && p.insuranceNumber) {
+        symbol = (p.insuranceNumber.split('-')[0] || '');
+        number = ((p.insuranceNumber.split('-')[1] || '').replace(/\(.*\)$/, ''));
+      }
+      lines.push(ukeMakeRecord('HO', { 2: insurer, 3: symbol, 4: number, 5: jitsuNissu, 6: totalPoints }));
+      goCount++;
+      goPoints += totalPoints;
+    }
+    // KO（公費）: 医療証の負担者番号があるときだけ。明細はすべて公費の対象として扱う。
+    pubs.forEach(function (pub) {
+      lines.push(ukeMakeRecord('KO', {
+        2: pub.payer, 3: ukeZeroFill(pub.recipient, 7), 5: jitsuNissu, 6: totalPoints
+      }));
+      goCount++;
+    });
+    if (!hasInsurance && pubs.length) goPoints += totalPoints;   // 公費単独は第1公費の点数
+    // SN（資格確認・枝番）: 後期高齢者は枝番を出さない
+    const edaban = ukeDigits(p.insEdaban);
+    if (hasInsurance && edaban && !ukeIsElderlyInsurer(insurer)) {
+      lines.push(ukeMakeRecord('SN', { 2: '1', 3: '01', 7: ukeZeroFill(edaban, 2) }));
+    }
+    // JD（受診日）: 負担者ごとに1行
+    const payerTypes = [];
+    if (hasInsurance) payerTypes.push('1');
+    pubs.forEach(function (_, i) { if (i < 4) payerTypes.push(String(i + 2)); });
+    payerTypes.forEach(function (t) {
+      const jd = { 2: t };
+      dayList.forEach(function (d) { jd[d + 2] = '1'; });
+      lines.push(ukeMakeRecord('JD', jd));
+    });
+    // MF（窓口負担額）: 令和3年9月診療分から。外来は区分00のみ。
+    if (hasInsurance && serviceMonth >= '202109') lines.push(ukeMakeRecord('MF', { 2: '00' }));
 
-    // JD: [1]負担者種別 [2..32]受診日(day = i-1)  ※現行システムはHOの次に置く
-    const jd = [];
-    jd[1] = '1';
-    dayList.forEach(function (d) { jd[d + 1] = '1'; });
-    lines.push(ukeRec('JD', jd));
-
-    // MF: 現行システムは [1]='00' のみを出している
-    lines.push(ukeRec('MF', [null, '00']));
-
-    // SY: [1]傷病名コード [2]診療開始日 [3]転帰区分(1=継続) [6]主病フラグ(01)
+    // SY（傷病名）
     const syList = [];
     const syIndex = {};
     group.forEach(function (pd) {
@@ -368,46 +475,52 @@ function buildUkeText(patientList, reviewOrg, instCode, instName, prefCode, bill
       const mainPos = mainIdx >= 0 ? mainIdx : 0;
       ds.forEach(function (d, di) {
         const dCode = resolveDiseaseCode(d);
-        const startDate = (pd.visitDate || billingMonth + '01').replace(/-/g, '');
-        if (syIndex[dCode] !== undefined) {
-          const cur = syList[syIndex[dCode]];
+        const startDate = ukeDate(d.startDate || pd.visitDate) || (serviceMonth + '01');
+        const key = dCode === '0000999' ? dCode + '|' + (d.name || '') : dCode;
+        if (syIndex[key] !== undefined) {
+          const cur = syList[syIndex[key]];
           if (startDate < cur.start) cur.start = startDate;
           return;
         }
-        syIndex[dCode] = syList.length;
-        syList.push({ code: dCode, start: startDate, main: (di === mainPos) });
+        syIndex[key] = syList.length;
+        syList.push({ code: dCode, name: d.name || '', start: startDate, main: (di === mainPos) });
       });
     });
     let mainSeen = false;
     syList.forEach(function (s) { if (s.main && !mainSeen) { mainSeen = true; } else { s.main = false; } });
     if (!mainSeen && syList.length > 0) syList[0].main = true;
     syList.forEach(function (s) {
-      const sy = [];
-      sy[1] = s.code; sy[2] = s.start; sy[3] = '1'; sy[6] = s.main ? '01' : '';
-      lines.push(ukeRec('SY', sy));
+      lines.push(ukeMakeRecord('SY', {
+        2: s.code, 3: s.start, 4: '1',
+        6: s.code === '0000999' ? s.name : '',
+        7: s.main ? '01' : ''
+      }));
     });
 
-    // SI: [1]診療識別 [2]負担区分 [3]コード [5]点数 [6]回数 [13..43]算定日
-    siMap.forEach(function (s) {
-      const rec = [];
-      rec[1] = s.cat; rec[2] = '1'; rec[3] = s.code; rec[5] = s.points; rec[6] = s.days.length;
-      s.days.forEach(function (d) { rec[12 + d] = '1'; });
-      lines.push(ukeRec('SI', rec));
+    // 明細（SI/IY）: 診療識別の昇順。同じ識別の中は診療行為→薬剤の順。
+    const burden = pubs.length ? (hasInsurance ? '2' : '5') : '1';
+    const details = [];
+    siMap.forEach(function (s) { details.push({ type: 'SI', v: s }); });
+    iyMap.forEach(function (x) { details.push({ type: 'IY', v: x }); });
+    details.sort(function (a, b) {
+      if (a.v.cat !== b.v.cat) return a.v.cat < b.v.cat ? -1 : 1;
+      if (a.type !== b.type) return a.type === 'SI' ? -1 : 1;
+      return 0;
     });
-    // IY: [1]診療識別(80) [2]負担区分 [3]コード [4]数量 [5]点数 [6]回数 [13..43]算定日
-    iyMap.forEach(function (x) {
-      const rec = [];
-      rec[1] = '80'; rec[2] = '1'; rec[3] = x.code; rec[4] = x.qty; rec[5] = x.points; rec[6] = x.days.length;
-      x.days.forEach(function (d) { rec[12 + d] = '1'; });
-      lines.push(ukeRec('IY', rec));
+    details.forEach(function (d) {
+      const v = d.v;
+      const count = Object.keys(v.days).reduce(function (a, k) { return a + v.days[k]; }, 0);
+      const rec = { 2: v.cat, 3: burden, 4: v.code, 6: v.points, 7: count };
+      if (d.type === 'IY') rec[5] = v.qty;
+      Object.keys(v.days).forEach(function (day) { rec[ukeDayPosition(d.type, parseInt(day, 10))] = v.days[day]; });
+      lines.push(ukeMakeRecord(d.type, rec));
     });
 
     seq++;
   }
-  // GO: [1]レセプト件数 [2]総点数 [3]=99
-  lines.push(ukeRec('GO', [null, seq - 1, grandTotal, '99']));
-  // 末尾は CRLF + 0x1A（現行システムの出力と同じ終端）
-  return lines.join('\r\n') + '\r\n\x1A';
+  // GO: 件数は HO と KO の数、点数は主保険の請求点数の合計
+  lines.push(ukeMakeRecord('GO', { 2: goCount, 3: goPoints, 4: '99' }));
+  return ukeJoinLines(lines);
 }
 
 // === UKEデータをsessionStorageに保存してreceipt.htmlを開く共通処理 ===

@@ -30,6 +30,8 @@ function rousaiLoadToModal(p) {
   set('rsAccidentDate', r.accidentDate); set('rsPart', r.part); set('rsDisease', r.disease);
   set('rsPensionNo', r.pensionNo); set('rsKantoku', r.kantoku); set('rsStartDate', r.startDate);
   set('rsNote', r.note);
+  set('rsBureauCode', r.bureauCode || '23'); set('rsOfficeCode', r.officeCode); set('rsCourse', r.course);
+  set('rsNewContinuing', r.newContinuing); set('rsOutcome', r.outcome || '3');
   var form = document.getElementById('rsFormType');
   if (form) form.value = r.formType || '5';
   rousaiToggleFields();
@@ -48,7 +50,10 @@ function rousaiSaveFromModal(p) {
     no: val('rsNo'), office: val('rsOffice'), officeAddr: val('rsOfficeAddr'),
     accidentDate: val('rsAccidentDate'), part: val('rsPart'), disease: val('rsDisease'),
     formType: val('rsFormType') || '5', pensionNo: val('rsPensionNo'),
-    kantoku: val('rsKantoku'), startDate: val('rsStartDate'), note: val('rsNote')
+    kantoku: val('rsKantoku'), startDate: val('rsStartDate'), note: val('rsNote'),
+    // 労災レセ電（RREC）で使う項目
+    bureauCode: val('rsBureauCode'), officeCode: val('rsOfficeCode'), course: val('rsCourse'),
+    newContinuing: val('rsNewContinuing'), outcome: val('rsOutcome') || '3'
   }];
 }
 
@@ -117,7 +122,7 @@ async function rzRousaiLoad() {
   var range = rousaiMonthRange(ym);
   var res = await supabaseClient
     .from('visits')
-    .select('id,visit_date,visit_type,revenue_points,rousai_no,rousai_yen,patients(patient_no,name,sex,dob,rousai),kartes(*),prescriptions(*),diseases_assigned(*)')
+    .select('id,visit_date,visit_time,arrived_at,visit_type,status,revenue_points,rousai_no,rousai_yen,patients(*),kartes(*),prescriptions(*),diseases_assigned(*)')
     .eq('clinic_id', currentClinicId())
     .eq('is_rousai', true)
     .gte('visit_date', range.from)
@@ -245,4 +250,48 @@ function rousaiPrintCSS() {
     + 'ul.rx{margin:4px 0 8px 18px;padding:0;} ul.rx li{margin:2px 0;}'
     + '.memo{font-size:11px;color:#555;margin-top:8px;}'
     + '@media print{.sheet{padding:10mm;}}';
+}
+
+// ===== 労災レセ電（RREC）を作る =====
+async function rzRousaiUke() {
+  var out = document.getElementById('rsUkeResult');
+  var rows = window._rousaiRows;
+  if (!rows || window._rousaiYm !== rzRousaiMonth()) { await rzRousaiLoad(); rows = window._rousaiRows; }
+  if (!rows || !rows.length) { showToast('この月の労災の受診がありません'); if (out) out.innerHTML = ''; return; }
+  await Promise.all([ukeLoadServiceTable(), rousaiLoadCodeTable()]);
+  var records = rows.map(function (v) {
+    var rec = rzDbRecord(v);
+    var pt = v.patients || {};
+    rec.patient.rousai = pt.rousai || null;
+    rec.karte.isRousai = true;
+    return rec;
+  });
+  var ym = window._rousaiYm || rzRousaiMonth();
+  var sd = document.getElementById('rsSubmitDate');
+  var files = buildRousaiUke(records, { serviceYm: ym, submitDate: sd && sd.value ? sd.value : '' });
+  window._rousaiUkeFiles = files;
+  var grand = files.reduce(function (a, f) { return a + f.total; }, 0);
+  out.innerHTML = '<div class="rs-sum"><b>労災レセ電</b>　' + files.length + 'ファイル ／ 請求金額 ' + grand.toLocaleString() + '円'
+    + '<span class="rs-note">（点数×12円＋労災の円建て項目。初診料3,850円・再診料1,430円など）</span></div>'
+    + files.map(function (f, i) {
+        var ok = !f.warnings.length;
+        return '<div class="rs-file" style="border-left:4px solid ' + (ok ? '#0e7c66' : '#b3261e') + ';padding:6px 10px;margin:6px 0;background:#fff;">'
+          + '<b>' + esc(f.filename) + '</b>　' + (f.initial ? '初回請求' : '継続') + ' ／ ' + f.count + '件 ／ ' + f.total.toLocaleString() + '円　'
+          + '<button class="btn btn-outline" style="padding:2px 10px;" onclick="rzRousaiUkeDownload(' + i + ')">ダウンロード</button>'
+          + (ok ? '<div style="color:#0e7c66;font-size:12px;margin-top:4px;">点検：問題なし</div>'
+                : '<div style="color:#b3261e;font-size:12px;margin-top:4px;">点検：' + f.warnings.length + '件<br>'
+                  + f.warnings.map(function (m) { return esc(m); }).join('<br>') + '</div>')
+          + '</div>';
+      }).join('');
+}
+function rzRousaiUkeDownload(i) {
+  var f = (window._rousaiUkeFiles || [])[i];
+  if (!f) return;
+  if (f.warnings.length && !confirm('点検で ' + f.warnings.length + ' 件の指摘があります。このままダウンロードしますか？')) return;
+  var blob = rzUkeBlob(f.content);
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = f.filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
 }
