@@ -1,0 +1,5942 @@
+/* リセット */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* 変数 */
+:root {
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --primary-light: #dbeafe;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+    --sidebar-width: 240px;
+    --radius: 6px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+    background: var(--gray-100);
+    color: var(--gray-800);
+    line-height: 1.5;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* レイアウト */
+.app {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* サイドバー */
+.sidebar {
+    width: var(--sidebar-width);
+    background: var(--gray-900);
+    color: white;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    overflow-y: auto;
+}
+
+.sidebar-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--gray-700);
+}
+
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: white;
+    transition: opacity 0.2s;
+}
+
+.sidebar-logo:hover {
+    opacity: 0.8;
+}
+
+.sidebar-logo .logo-mark {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #3B82F6, #1D4ED8);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: white;
+}
+
+.sidebar-logo .logo-text {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.sidebar-nav {
+    padding: 12px 0;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    color: var(--gray-400);
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.nav-item:hover {
+    background: var(--gray-800);
+    color: white;
+}
+
+.nav-item.active {
+    background: var(--primary);
+    color: white;
+}
+
+.nav-icon {
+    font-size: 18px;
+}
+
+/* メインコンテンツ */
+.main {
+    flex: 1;
+    margin-left: var(--sidebar-width);
+    padding: 24px;
+}
+
+/* ページ */
+.page {
+    display: none;
+}
+
+.page.active {
+    display: block;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.page-header h2 {
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.date-display {
+    font-size: 14px;
+    color: var(--gray-500);
+}
+
+/* 統計カード */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.stat-label {
+    font-size: 14px;
+    color: var(--gray-500);
+    margin-top: 4px;
+}
+
+/* セクションカード */
+.section-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 24px;
+}
+
+.section-card h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.card-header h3 {
+    margin-bottom: 0;
+}
+
+/* テーブル */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th,
+.table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.table th {
+    font-weight: 600;
+    color: var(--gray-600);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.table tbody tr:hover {
+    background: var(--gray-50);
+}
+
+/* ステータスバッジ */
+.status {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-confirmed {
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+.status-checked_in {
+    background: #d1fae5;
+    color: #059669;
+}
+
+.status-completed {
+    background: var(--gray-200);
+    color: var(--gray-600);
+}
+
+.status-cancelled {
+    background: #fee2e2;
+    color: var(--danger);
+}
+
+.status-no_show {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.sync-pill-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.sync-pill {
+    min-height: 24px;
+    padding: 3px 7px;
+    border: 1px solid var(--gray-300);
+    border-radius: 999px;
+    background: var(--gray-50);
+    color: var(--gray-600);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+button.sync-pill {
+    cursor: pointer;
+}
+
+.sync-pill.done {
+    border-color: #a7f3d0;
+    background: #ecfdf5;
+    color: #047857;
+}
+
+/* ボタン */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius);
+    background: white;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.btn:hover {
+    background: var(--gray-50);
+}
+
+.btn-primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+}
+
+.btn-outline {
+    background: white;
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.btn-outline:hover {
+    background: var(--gray-50);
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.btn-success {
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
+}
+
+.btn-danger {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: white;
+}
+
+/* フォーム */
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.form-row {
+    display: flex;
+    gap: 16px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+.form-group label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--gray-700);
+}
+
+.required {
+    color: var(--danger);
+}
+
+.input {
+    padding: 8px 12px;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius);
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.input-color {
+    width: 60px;
+    height: 36px;
+    padding: 2px;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius);
+    cursor: pointer;
+}
+
+.help-text {
+    font-size: 13px;
+    color: var(--gray-500);
+    margin-bottom: 16px;
+}
+
+/* フィルター */
+.filters {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.filters .input {
+    width: auto;
+}
+
+/* 予約一覧ビュー */
+.reservation-view-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 14px 20px;
+    background: white;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.reservation-switch-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    background: var(--gray-100);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+}
+
+.reservation-switch {
+    min-height: 32px;
+    padding: 6px 12px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--gray-600);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.reservation-switch.active {
+    background: white;
+    color: var(--primary);
+    box-shadow: var(--shadow);
+}
+
+.reservation-range-caption {
+    color: var(--gray-600);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.reservation-views {
+    padding: 16px 20px 28px;
+}
+
+.reservation-empty-state,
+.reservation-empty-day,
+.reservation-calendar-empty {
+    color: var(--gray-500);
+    font-size: 13px;
+}
+
+.reservation-empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
+    background: white;
+    border: 1px dashed var(--gray-300);
+    border-radius: var(--radius);
+}
+
+.reservation-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.reservation-day-section {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.reservation-day-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+    color: var(--gray-800);
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.reservation-timeline-list {
+    padding: 12px 16px 16px;
+}
+
+.reservation-empty-day {
+    padding: 18px 16px;
+}
+
+.reservation-timeline-item {
+    display: grid;
+    grid-template-columns: 96px 18px minmax(0, 1fr);
+    gap: 12px;
+    position: relative;
+}
+
+.reservation-timeline-item + .reservation-timeline-item {
+    margin-top: 12px;
+}
+
+.reservation-time-node {
+    color: var(--gray-700);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.35;
+    padding-top: 12px;
+    text-align: right;
+}
+
+.reservation-timeline-dot {
+    position: relative;
+}
+
+.reservation-timeline-dot::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: -12px;
+    left: 8px;
+    width: 2px;
+    background: var(--gray-200);
+}
+
+.reservation-timeline-dot::after {
+    content: "";
+    position: absolute;
+    top: 16px;
+    left: 3px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.reservation-timeline-card {
+    padding: 12px 14px;
+    border: 1px solid var(--gray-200);
+    border-left: 4px solid var(--primary);
+    border-radius: var(--radius);
+    background: white;
+}
+
+.reservation-timeline-item.status-cancelled .reservation-timeline-card {
+    border-left-color: var(--danger);
+    background: #fff7f7;
+}
+
+.reservation-timeline-item.status-completed .reservation-timeline-card {
+    border-left-color: var(--success);
+}
+
+.reservation-card-top,
+.reservation-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.reservation-treatment {
+    color: var(--gray-900);
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.reservation-department-label {
+    color: var(--gray-500);
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.reservation-patient {
+    color: var(--gray-700);
+    font-size: 14px;
+    font-weight: 700;
+    margin-top: 2px;
+}
+
+.reservation-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    margin-top: 8px;
+    color: var(--gray-500);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.reservation-table-clinic {
+    margin-bottom: 3px;
+    color: var(--gray-500);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.reservation-card-footer {
+    margin-top: 10px;
+}
+
+.reservation-calendar-shell {
+    overflow-x: auto;
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.reservation-calendar-grid {
+    display: grid;
+    min-width: 720px;
+}
+
+.reservation-calendar-day {
+    min-height: 150px;
+    padding: 10px;
+    border-right: 1px solid var(--gray-200);
+    border-bottom: 1px solid var(--gray-200);
+    background: white;
+}
+
+.reservation-calendar-day.outside-month {
+    background: var(--gray-50);
+    color: var(--gray-400);
+}
+
+.reservation-calendar-day-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--gray-700);
+    font-size: 12px;
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+
+.reservation-calendar-events {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.reservation-calendar-event {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 4px 8px;
+    padding: 8px;
+    border-left: 3px solid var(--primary);
+    border-radius: 4px;
+    background: var(--primary-light);
+    color: var(--gray-800);
+    font-size: 12px;
+}
+
+.reservation-calendar-event.status-cancelled {
+    border-left-color: var(--danger);
+    background: #fee2e2;
+}
+
+.reservation-calendar-event.status-completed {
+    border-left-color: var(--success);
+    background: #dcfce7;
+}
+
+.reservation-event-time {
+    color: var(--gray-600);
+    font-weight: 800;
+}
+
+.reservation-event-menu,
+.reservation-event-patient {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reservation-event-menu {
+    font-weight: 800;
+}
+
+.reservation-event-patient {
+    grid-column: 2;
+    color: var(--gray-600);
+    font-weight: 700;
+}
+
+.reservation-calendar-day .reservation-calendar-empty {
+    padding: 6px 0;
+}
+
+.reservation-calendar-day {
+    min-width: 180px;
+}
+
+.reservation-calendar-day .status {
+    white-space: nowrap;
+}
+
+.reservation-calendar-day .action-buttons {
+    justify-content: flex-start;
+}
+
+.reservation-calendar-day .sync-pill-list {
+    margin-top: 6px;
+}
+
+.reservation-calendar-day .sync-pill {
+    background: white;
+}
+
+.reservation-calendar-day .btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.reservation-calendar-day:first-child {
+    border-left: 0;
+}
+
+.reservation-calendar-day:nth-child(7n) {
+    border-right: 0;
+}
+
+.reservation-calendar-day:nth-last-child(-n + 7) {
+    border-bottom: 0;
+}
+
+.reservation-calendar-day .reservation-calendar-empty {
+    color: var(--gray-400);
+    font-size: 12px;
+}
+
+.reservation-calendar-day .reservation-calendar-events:empty::after {
+    content: "予約なし";
+    color: var(--gray-400);
+    font-size: 12px;
+}
+
+.reservation-calendar-day .reservation-calendar-event + .reservation-calendar-event {
+    margin-top: 0;
+}
+
+.reservation-calendar-day .reservation-event-patient::before {
+    content: "患者: ";
+    color: var(--gray-500);
+    font-weight: 600;
+}
+
+.reservation-calendar-day .reservation-event-menu::before {
+    content: "施術: ";
+    color: var(--gray-500);
+    font-weight: 600;
+}
+
+.reservation-calendar-day-head span:last-child {
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--gray-100);
+    color: var(--gray-600);
+}
+
+.reservation-calendar-day.outside-month {
+    min-height: 88px;
+    background: #fbfbfc;
+    border-color: var(--gray-100);
+    color: var(--gray-400);
+}
+
+.reservation-calendar-day.outside-month .reservation-calendar-day-head {
+    justify-content: flex-start;
+    margin-bottom: 0;
+    color: inherit;
+}
+
+.reservation-calendar-day.outside-month .reservation-calendar-day-head span:last-child,
+.reservation-calendar-day.outside-month .reservation-calendar-events {
+    display: none;
+}
+
+.reservation-calendar-grid.reservation-calendar-range-day {
+    grid-template-columns: 1fr;
+    min-width: 420px;
+}
+
+.reservation-calendar-grid.reservation-calendar-range-week {
+    grid-template-columns: repeat(7, minmax(160px, 1fr));
+}
+
+.reservation-calendar-grid.reservation-calendar-range-month {
+    grid-template-columns: repeat(7, minmax(132px, 1fr));
+}
+
+.reservation-resource-axis-group.hidden {
+    display: none;
+}
+
+.reservation-resource-shell {
+    overflow: auto;
+    max-height: 690px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    background: white;
+    box-shadow: var(--shadow);
+}
+
+.reservation-resource-head {
+    display: grid;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    min-width: max-content;
+    background: white;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.reservation-resource-corner,
+.reservation-resource-heading {
+    min-height: 42px;
+    padding: 7px 10px;
+    border-right: 1px solid var(--gray-200);
+    color: var(--gray-800);
+    font-size: 12px;
+    font-weight: 800;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.reservation-resource-heading small {
+    display: block;
+    margin-top: 2px;
+    color: var(--gray-500);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.reservation-resource-corner {
+    position: sticky;
+    left: 0;
+    z-index: 6;
+    background: white;
+    color: var(--gray-600);
+}
+
+.reservation-resource-body {
+    display: grid;
+    min-width: max-content;
+    height: calc(var(--resource-total-minutes) * var(--resource-px-per-minute));
+}
+
+.reservation-resource-time-rail {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    border-right: 1px solid var(--gray-200);
+    background: white;
+}
+
+.reservation-resource-time-rail span {
+    position: absolute;
+    right: 9px;
+    transform: translateY(-50%);
+    color: var(--gray-600);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.reservation-resource-column {
+    position: relative;
+    min-width: 170px;
+    border-right: 1px solid var(--gray-200);
+    background:
+        repeating-linear-gradient(
+            to bottom,
+            transparent 0,
+            transparent calc(var(--resource-quarter-height) - 1px),
+            rgba(148, 163, 184, 0.28) var(--resource-quarter-height),
+            transparent calc(var(--resource-quarter-height) + 1px)
+        ),
+        repeating-linear-gradient(
+            to bottom,
+            transparent 0,
+            transparent calc(var(--resource-hour-height) - 1px),
+            rgba(100, 116, 139, 0.35) var(--resource-hour-height),
+            transparent calc(var(--resource-hour-height) + 1px)
+        );
+}
+
+.reservation-resource-event {
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    min-height: 28px;
+    padding: 6px 8px;
+    overflow: hidden;
+    border-radius: 4px;
+    background: #f05f8f;
+    color: white;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
+}
+
+.reservation-resource-event.status-cancelled {
+    background:
+        repeating-linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.18) 0,
+            rgba(255, 255, 255, 0.18) 1px,
+            transparent 1px,
+            transparent 10px
+        ),
+        #6b7280;
+}
+
+.reservation-resource-event.status-completed {
+    background: #22c55e;
+}
+
+.reservation-resource-event.status-checked_in {
+    background: #3b82f6;
+}
+
+.reservation-resource-event-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: white;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.reservation-resource-event-time {
+    margin-top: 2px;
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.reservation-resource-now-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 2;
+    height: 2px;
+    background: #ef4444;
+    pointer-events: none;
+}
+
+@media (max-width: 980px) {
+    #page-reservations .page-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    #page-reservations .filters {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .reservation-view-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .reservation-timeline-item {
+        grid-template-columns: 72px 16px minmax(0, 1fr);
+        gap: 10px;
+    }
+
+    .reservation-card-top,
+    .reservation-card-footer {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+/* 施術メニュー管理 */
+.treatment-resource-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+.treatment-resource-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-700);
+}
+
+.treatment-resource-field .input {
+    max-width: 180px;
+}
+
+.treatment-menu-table th:first-child,
+.treatment-menu-table td:first-child {
+    width: 96px;
+}
+
+.treatment-menu-table th:nth-child(4),
+.treatment-menu-table td:nth-child(4),
+.treatment-menu-table th:nth-child(5),
+.treatment-menu-table td:nth-child(5) {
+    width: 120px;
+}
+
+.treatment-menu-table .input {
+    width: 100%;
+}
+
+.treatment-menu-list-table {
+    min-width: 1080px;
+    table-layout: fixed;
+}
+
+#page-treatment-menu-items .department-table-container {
+    overflow-x: auto;
+}
+
+.treatment-menu-list-table th:nth-child(1),
+.treatment-menu-list-table td:nth-child(1) {
+    width: 190px;
+}
+
+.treatment-menu-list-table th:nth-child(2),
+.treatment-menu-list-table td:nth-child(2) {
+    width: 290px;
+}
+
+.treatment-menu-list-table th:nth-child(3),
+.treatment-menu-list-table td:nth-child(3) {
+    width: 260px;
+}
+
+.treatment-menu-list-table th:nth-child(4),
+.treatment-menu-list-table td:nth-child(4) {
+    width: 160px;
+}
+
+.treatment-menu-list-table th:nth-child(5),
+.treatment-menu-list-table td:nth-child(5) {
+    width: 86px;
+}
+
+.treatment-menu-list-table th:nth-child(6),
+.treatment-menu-list-table td:nth-child(6) {
+    width: 140px;
+}
+
+.treatment-menu-list-table th,
+.treatment-menu-list-table td {
+    vertical-align: top;
+}
+
+.treatment-menu-list-table .treatment-resource-chip {
+    max-width: 100%;
+    white-space: normal;
+}
+
+.treatment-active-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--gray-700);
+}
+
+.treatment-menu-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.admin-row-actions {
+    min-width: 160px;
+    white-space: nowrap;
+}
+
+.admin-action-pair {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 28px;
+}
+
+.admin-action-pair.compact {
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.admin-action-edit,
+.admin-action-copy,
+.admin-action-delete {
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+
+.admin-action-edit,
+.admin-action-copy {
+    min-width: 80px;
+    min-height: 36px;
+    padding: 10px 18px;
+    border-radius: 5px;
+    background: #e5e8eb;
+    color: #111827;
+}
+
+.admin-action-copy {
+    min-width: 64px;
+    background: #eef1f4;
+}
+
+.admin-action-edit:hover,
+.admin-action-copy:hover {
+    background: #d9dde1;
+}
+
+.admin-action-delete {
+    padding: 8px 4px;
+    color: #ef4444;
+}
+
+.admin-action-delete:hover {
+    color: #dc2626;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.admin-action-edit:active,
+.admin-action-copy:active,
+.admin-action-delete:active {
+    transform: scale(0.97);
+}
+
+.admin-action-edit:disabled,
+.admin-action-copy:disabled,
+.admin-action-delete:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+    text-decoration: none;
+    transform: none;
+}
+
+.treatment-menu-inactive {
+    opacity: 0.62;
+}
+
+/* タブ */
+.tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.tab {
+    padding: 12px 20px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--gray-500);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab:hover {
+    color: var(--gray-700);
+}
+
+.tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* テンプレートグリッド */
+.template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.template-card {
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 16px;
+}
+
+.template-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.template-dept {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.template-day {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--gray-100);
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.template-time {
+    font-size: 14px;
+    color: var(--gray-600);
+    margin-bottom: 8px;
+}
+
+.template-info {
+    font-size: 13px;
+    color: var(--gray-500);
+}
+
+.template-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--gray-100);
+}
+
+/* モーダルオーバーレイ */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal-overlay.hidden {
+    display: none;
+}
+
+.modal-overlay > .modal {
+    position: relative;
+    background: white;
+    border-radius: var(--radius);
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* モーダル */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.modal-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--gray-400);
+    cursor: pointer;
+}
+
+.modal-close:hover {
+    color: var(--gray-600);
+}
+
+.modal-content form {
+    padding: 20px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+/* アクションボタングループ */
+.action-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+/* ローディング */
+.loading {
+    display: flex;
+    justify-content: center;
+    padding: 40px;
+}
+
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--gray-200);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* レスポンシブ */
+@media (max-width: 1024px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        width: 60px;
+    }
+
+    .sidebar-header h1,
+    .nav-item span:not(.nav-icon) {
+        display: none;
+    }
+
+    .main {
+        margin-left: 60px;
+    }
+
+    .nav-item {
+        justify-content: center;
+        padding: 16px;
+    }
+}
+
+/* DigiSma-like reservation calendar list */
+body {
+    background: #f5f6f7;
+    color: #111;
+    font-size: 13px;
+}
+
+.app {
+    align-items: stretch;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.app-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 50px;
+    padding: 0 6px 0 8px;
+    background: #fff;
+    border-top: 1px solid #d9d9d9;
+    border-bottom: 1px solid #cfcfcf;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.header-brand {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    height: 100%;
+    color: #111;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.header-brand:hover {
+    background: #f7faf7;
+}
+
+.header-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin-right: 6px;
+    color: #00531b;
+    font-size: 25px;
+}
+
+.header-leaf {
+    display: block;
+    width: 30px;
+    height: 30px;
+}
+
+.header-leaf path:first-child {
+    fill: currentColor;
+}
+
+.header-leaf path:last-child {
+    fill: none;
+    stroke: #fff;
+    stroke-linecap: round;
+    stroke-width: 1.9;
+}
+
+.header-title {
+    min-width: 0;
+    overflow: hidden;
+    color: #111;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: 16px;
+    color: #00531b;
+    flex-shrink: 0;
+}
+
+.header-icon-btn,
+.header-admin-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    border: 0;
+    background: transparent;
+    color: #00531b;
+    cursor: pointer;
+}
+
+.header-icon-btn {
+    width: 32px;
+}
+
+.header-svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+}
+
+.header-icon-btn .header-svg path {
+    fill: currentColor;
+}
+
+.header-icon-btn .header-svg circle {
+    fill: #fff;
+}
+
+.header-search .header-svg {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+}
+
+.header-search .header-svg path {
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-width: 2;
+}
+
+.header-search .header-svg circle:first-child {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+}
+
+.header-search .header-svg circle:last-child {
+    fill: currentColor;
+}
+
+.admin-caret {
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid currentColor;
+}
+
+.header-admin-btn {
+    gap: 4px;
+    padding: 0 2px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.header-icon-btn:hover,
+.header-admin-btn:hover {
+    color: #003f15;
+}
+
+.header-search {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: 160px;
+    height: 28px;
+    padding: 0 11px;
+    border: 1px solid #cfd8d3;
+    border-radius: 999px;
+    background: #fbfdfc;
+    color: #00531b;
+}
+
+.header-search input {
+    min-width: 0;
+    width: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #50605a;
+    font-size: 12px;
+}
+
+.header-search input::placeholder {
+    color: #5d6b66;
+}
+
+.app-shell {
+    display: flex;
+    flex: 1;
+    min-height: calc(100vh - 50px);
+}
+
+@media (max-width: 760px) {
+    .app-header {
+        padding-right: 4px;
+    }
+
+    .header-title {
+        font-size: 13px;
+    }
+
+    .header-actions {
+        gap: 4px;
+        margin-left: 8px;
+    }
+
+    .header-search {
+        display: none;
+    }
+
+    .header-admin-btn {
+        font-size: 12px;
+    }
+}
+
+.sidebar {
+    width: 256px;
+    left: 0;
+    top: 50px;
+    background: #fff;
+    color: #111;
+    border-right: 1px solid #dcdcdc;
+    box-shadow: none;
+}
+
+.sidebar-header {
+    height: 96px;
+    padding: 28px 20px 20px;
+    border-bottom: none;
+    text-align: center;
+}
+
+.sidebar-logo {
+    justify-content: center;
+    color: #111;
+}
+
+.sidebar-logo .logo-mark {
+    display: none;
+}
+
+.sidebar-logo .logo-text {
+    font-size: 25px;
+    font-weight: 400;
+    letter-spacing: 0;
+}
+
+.sidebar-header h1 {
+    font-size: 25px;
+    font-weight: 400;
+    letter-spacing: 0;
+}
+
+.sidebar-nav {
+    padding: 0;
+}
+
+.nav-item {
+    height: 48px;
+    padding: 0 20px;
+    color: #111;
+    font-size: 15px;
+    gap: 0;
+    border-left: 4px solid transparent;
+}
+
+.nav-item:hover {
+    background: #f6f6f6;
+    color: #111;
+}
+
+.nav-item.active {
+    background: #f1f1f1;
+    color: #111;
+    border-left-color: #2f7cd3;
+    border-top: 2px solid #111;
+    border-bottom: 2px solid #111;
+}
+
+.nav-item.muted {
+    cursor: default;
+}
+
+.nav-section-label {
+    padding: 34px 20px 12px;
+    color: #7a8792;
+    font-size: 14px;
+}
+
+.main {
+    margin-left: 256px;
+    padding: 0;
+    min-height: calc(100vh - 50px);
+}
+
+.page {
+    min-height: 100vh;
+}
+
+.calendar-list-header {
+    position: relative;
+    width: min(1338px, calc(100vw - 430px));
+    min-height: 145px;
+    margin: 0 auto;
+    padding-top: 48px;
+}
+
+.calendar-list-header h2 {
+    text-align: center;
+    font-size: 24px;
+    font-weight: 400;
+}
+
+.calendar-add-btn {
+    position: absolute;
+    top: 41px;
+    right: 0;
+    width: 96px;
+    height: 36px;
+    justify-content: center;
+    border-radius: 5px;
+    background: #2d73d2;
+    border-color: #2d73d2;
+    font-size: 14px;
+}
+
+.calendar-list-table {
+    width: min(1338px, calc(100vw - 430px));
+    margin: 0 auto;
+    background: #fff;
+}
+
+.calendar-list-column-heads {
+    display: grid;
+    grid-template-columns: 230px 520px minmax(360px, 1fr) 112px;
+    min-height: 30px;
+    align-items: center;
+    color: #4b6871;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.calendar-list-column-heads > div {
+    text-align: center;
+}
+
+.calendar-list-column-heads > div:first-child {
+    text-align: center;
+}
+
+.calendar-list-row {
+    display: grid;
+    grid-template-columns: 230px 520px minmax(360px, 1fr) 112px;
+    border-top: 1px solid #ddd;
+    min-height: 100px;
+}
+
+.calendar-name-cell,
+.calendar-schedule-cell,
+.calendar-closure-cell,
+.calendar-actions-cell {
+    min-width: 0;
+    padding: 14px 22px;
+}
+
+.calendar-name-cell {
+    padding-left: 24px;
+}
+
+.calendar-title {
+    margin: 0 0 9px;
+    color: #111;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.calendar-meta {
+    margin-top: 5px;
+    font-size: 12px;
+    color: #111;
+    white-space: nowrap;
+}
+
+.calendar-schedule-cell {
+    padding-top: 10px;
+    overflow-x: auto;
+}
+
+.schedule-period {
+    margin-bottom: 11px;
+}
+
+.schedule-period:last-child {
+    margin-bottom: 0;
+}
+
+.schedule-period-range {
+    margin-bottom: 2px;
+    color: #111;
+    font-size: 14px;
+}
+
+.mini-schedule {
+    border-collapse: collapse;
+    width: auto;
+    max-width: 100%;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+.mini-schedule th,
+.mini-schedule td {
+    border: 1px solid #dde2e5;
+    height: 28px;
+    padding: 0 7px;
+    text-align: center;
+    white-space: nowrap;
+    background: #fff;
+}
+
+.mini-schedule th {
+    background: #eef0f1;
+    color: #111;
+    font-weight: 600;
+}
+
+.mini-schedule th.sat {
+    color: #1f66d1;
+}
+
+.mini-schedule th.sun,
+.mini-schedule th.holiday {
+    color: #e63030;
+    background: #fff2f2;
+}
+
+.mini-schedule .time-cell {
+    min-width: 82px;
+    text-align: left;
+}
+
+.mini-schedule .setting-cell {
+    min-width: 94px;
+    text-align: left;
+}
+
+.schedule-dot {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #2d73d2;
+    vertical-align: middle;
+}
+
+.schedule-dash {
+    color: #75808a;
+}
+
+.schedule-note {
+    margin-top: 4px;
+    color: #111;
+    font-size: 12px;
+}
+
+.calendar-closure-cell {
+    align-self: center;
+    font-size: 14px;
+}
+
+.calendar-closure-cell ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.calendar-closure-cell li {
+    margin: 3px 0;
+}
+
+.not-configured {
+    color: #4d5963;
+}
+
+.calendar-actions-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+}
+
+.calendar-edit-btn,
+.calendar-delete-btn {
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.calendar-edit-btn {
+    width: 96px;
+    height: 36px;
+    border-radius: 5px;
+    background: #e1e5e8;
+    color: #111;
+    font-size: 14px;
+}
+
+.calendar-edit-btn:hover {
+    background: #d2d8dc;
+}
+
+.calendar-delete-btn {
+    background: transparent;
+    color: #e53935;
+    font-size: 14px;
+}
+
+.calendar-delete-btn:hover {
+    text-decoration: underline;
+}
+
+/* ドロワー（スライドパネル） */
+.drawer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.drawer-overlay.visible {
+    opacity: 1;
+}
+
+.calendar-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: calc(100% - 294px);
+    max-width: 1100px;
+    height: 100vh;
+    background: #fff;
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+}
+
+.calendar-drawer.visible {
+    transform: translateX(0);
+}
+
+.drawer-header {
+    flex-shrink: 0;
+    padding: 20px 32px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.drawer-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+    text-align: center;
+}
+
+.drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 40px;
+}
+
+.drawer-footer {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    padding: 20px 32px;
+    background: #f8f9fa;
+    border-top: 1px solid #e5e7eb;
+}
+
+.drawer-close-btn {
+    min-width: 120px;
+    height: 44px;
+    font-size: 15px;
+}
+
+.drawer-save-btn {
+    min-width: 120px;
+    height: 44px;
+    font-size: 15px;
+    background: #2563eb;
+    border-color: #2563eb;
+}
+
+.drawer-save-btn:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+@media (max-width: 1180px) {
+    .calendar-drawer {
+        width: calc(100% - 256px);
+    }
+}
+
+/* セクションタイトル */
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--gray-800);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary);
+}
+
+.section-desc {
+    font-size: 13px;
+    color: var(--gray-500);
+    margin-bottom: 16px;
+}
+
+.facility-review-form {
+    max-width: 760px;
+}
+
+.facility-review-hint {
+    margin: 0;
+    color: var(--gray-500);
+    font-size: 12px;
+}
+
+.facility-review-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* リンクチェックグリッド（診療科・スタッフ共通） */
+.link-check-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 24px;
+    padding: 8px 0;
+}
+
+.link-check-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.link-check-item:hover {
+    background: var(--gray-100);
+    border-color: var(--gray-300);
+}
+
+.link-check-item.checked {
+    background: var(--primary-light);
+    border-color: var(--primary);
+}
+
+.link-check-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+}
+
+.link-check-item .item-name {
+    font-size: 14px;
+    color: var(--gray-700);
+}
+
+.link-check-item.checked .item-name {
+    color: var(--primary-dark);
+    font-weight: 500;
+}
+
+.link-check-item .lock-icon {
+    margin-left: 4px;
+}
+
+.link-check-item .item-role {
+    font-size: 12px;
+    color: var(--gray-400);
+    margin-left: 4px;
+}
+
+.link-check-item.checked .item-role {
+    color: var(--primary);
+}
+
+.calendar-form-shell,
+.drawer-body {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    color: #111;
+}
+
+.calendar-form-section {
+    padding: 0 0 28px;
+    background: #fff;
+}
+
+.drawer-body .calendar-form-section:first-child {
+    padding-top: 0;
+}
+
+.calendar-form-section + .calendar-form-section {
+    border-top: 1px solid #dedede;
+    padding-top: 28px;
+}
+
+.calendar-form-section h2 {
+    margin-bottom: 24px;
+    font-size: 22px;
+    font-weight: 400;
+}
+
+.calendar-field-row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    align-items: start;
+    gap: 10px;
+    margin-bottom: 24px;
+    font-size: 15px;
+}
+
+.calendar-field-row > label,
+.field-label {
+    padding-top: 10px;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.calendar-text-input {
+    width: 200px;
+    height: 48px;
+    border: 1px solid #327af0;
+    border-radius: 4px;
+    padding: 0 14px;
+    font-size: 16px;
+}
+
+.calendar-text-input:focus,
+.calendar-number-input:focus,
+.calendar-select:focus,
+.temporary-reason:focus {
+    outline: none;
+    border-color: #327af0;
+    box-shadow: 0 0 0 1px #327af0;
+}
+
+.department-check-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 26px 28px;
+    padding-top: 3px;
+}
+
+.department-check-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 145px;
+    color: #222;
+    font-size: 15px;
+    white-space: nowrap;
+}
+
+.department-check-item input,
+.checkbox-label input {
+    width: 18px;
+    height: 18px;
+    accent-color: #327af0;
+}
+
+.department-check-item.locked {
+    color: #222;
+}
+
+.lock-icon {
+    position: relative;
+    display: inline-block;
+    width: 12px;
+    height: 10px;
+    margin-left: 1px;
+    border-radius: 2px;
+    background: #3e4b4b;
+}
+
+.lock-icon::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: -7px;
+    width: 8px;
+    height: 8px;
+    border: 2px solid #3e4b4b;
+    border-bottom: none;
+    border-radius: 7px 7px 0 0;
+}
+
+.compact-field-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.compact-field-row label {
+    width: 140px;
+    padding-top: 0;
+}
+
+.calendar-number-input {
+    width: 56px;
+    height: 48px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0 12px;
+    font-size: 15px;
+}
+
+.radio-field-row {
+    align-items: center;
+}
+
+.radio-field-row .field-label {
+    padding-top: 0;
+}
+
+.radio-label,
+.checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: 24px;
+    font-size: 15px;
+}
+
+.radio-label input {
+    width: 20px;
+    height: 20px;
+    accent-color: #327af0;
+}
+
+.start-rule-controls {
+    display: grid;
+    gap: 12px;
+}
+
+.inline-selects,
+.schedule-time-controls,
+.temporary-time-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.calendar-select {
+    height: 48px;
+    min-width: 68px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    padding: 0 12px;
+    font-size: 14px;
+}
+
+.target-period-row {
+    grid-template-columns: 140px auto auto auto auto auto auto auto auto auto auto auto auto;
+    align-items: center;
+    gap: 10px;
+}
+
+.target-period-row .field-label {
+    padding-top: 0;
+}
+
+.target-period-row .period-from-year,
+.target-period-row .period-until-year {
+    min-width: 182px;
+}
+
+.schedule-config-table {
+    border: 1px solid #dde2e5;
+    margin-bottom: 14px;
+    overflow-x: auto;
+}
+
+.schedule-config-head,
+.schedule-config-row {
+    display: grid;
+    grid-template-columns: 396px repeat(8, 37px) minmax(440px, 1fr);
+    min-width: 1128px;
+}
+
+.schedule-config-head > div {
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid #dde2e5;
+    background: #eef0f1;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.schedule-config-head > div:last-child {
+    border-right: none;
+}
+
+.schedule-config-head .sat {
+    color: #1f66d1;
+}
+
+.schedule-config-head .sun,
+.schedule-config-head .holiday {
+    color: #e63030;
+    background: #fff2f2;
+}
+
+.schedule-config-row {
+    min-height: 84px;
+    border-top: 1px solid #dde2e5;
+}
+
+.schedule-config-row > * {
+    border-right: 1px solid #dde2e5;
+}
+
+.schedule-config-row > *:last-child,
+.schedule-config-row .week-checks {
+    border-right: none;
+}
+
+.schedule-time-controls {
+    padding: 8px 6px;
+}
+
+.schedule-time-controls .calendar-select,
+.temporary-time-controls .calendar-select {
+    min-width: 62px;
+}
+
+.day-circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.day-circle input {
+    position: absolute;
+    opacity: 0;
+}
+
+.day-circle span {
+    width: 24px;
+    height: 24px;
+    border: 1px dashed #c8d0d5;
+    border-radius: 50%;
+    background: #fff;
+}
+
+.day-circle input:checked + span {
+    border: none;
+    background: #2d73d2;
+}
+
+.schedule-slot-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 8px 0;
+    border-right: none;
+}
+
+.schedule-slot-controls input {
+    width: 50px;
+    height: 48px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0 8px;
+    font-size: 14px;
+}
+
+.week-checks {
+    grid-column: 10 / 11;
+    display: flex;
+    gap: 12px;
+    padding: 0 8px 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.week-checks label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #333;
+    font-size: 14px;
+}
+
+.week-checks input {
+    width: 18px;
+    height: 18px;
+    accent-color: #2d73d2;
+}
+
+.time-change-note {
+    margin: 8px 0 12px;
+    font-size: 14px;
+}
+
+.outline-action-btn {
+    height: 38px;
+    min-width: 160px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: 1px solid #2d73d2;
+    border-radius: 5px;
+    background: #fff;
+    color: #2d73d2;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.outline-action-btn:hover {
+    background: #f5f9ff;
+}
+
+.plus-symbol {
+    font-size: 24px;
+    line-height: 1;
+}
+
+.section-divider {
+    height: 1px;
+    margin: 24px 0;
+    background: #dedede;
+}
+
+.holiday-priority-row {
+    margin-top: 28px;
+    margin-bottom: 0;
+}
+
+.temporary-setting-section h2 {
+    margin-bottom: 26px;
+}
+
+.temporary-add-btn {
+    margin-left: 150px;
+}
+
+/* 臨時設定ブロック */
+.temporary-setting-block {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.temp-setting-header {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+}
+
+.remove-temp-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: #9ca3af;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.remove-temp-btn:hover {
+    background: #fee2e2;
+    color: #ef4444;
+}
+
+.temp-setting-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    align-items: flex-start;
+}
+
+.temp-setting-row:last-child {
+    margin-bottom: 0;
+}
+
+.temp-field-label {
+    min-width: 100px;
+    padding-top: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.temp-field-content {
+    flex: 1;
+}
+
+.temp-period-options,
+.temp-status-options {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.temp-period-options:last-child,
+.temp-status-options:last-child {
+    margin-bottom: 0;
+}
+
+.temp-yearly-fields,
+.temp-once-fields,
+.temp-open-fields {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.temp-yearly-fields.hidden,
+.temp-once-fields.hidden,
+.temp-open-fields.hidden {
+    display: none;
+}
+
+.temp-yearly-fields .calendar-select,
+.temp-once-fields .calendar-select,
+.temp-open-fields .calendar-select {
+    height: 40px;
+    min-width: 60px;
+}
+
+.temp-once-fields .temp-once-from-year,
+.temp-once-fields .temp-once-until-year {
+    min-width: 170px;
+}
+
+.range-separator {
+    margin: 0 6px;
+    color: #6b7280;
+}
+
+.slot-separator {
+    width: 16px;
+}
+
+.temp-open-fields input[type="number"] {
+    width: 50px;
+    height: 40px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0 8px;
+    font-size: 14px;
+    text-align: center;
+}
+
+.temp-open-fields span {
+    font-size: 14px;
+    color: #374151;
+}
+
+/* 旧スタイル（互換性のため残す） */
+.temporary-setting-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 14px 150px;
+}
+
+.temporary-setting-row input,
+.temporary-setting-row select {
+    height: 42px;
+}
+
+.temporary-reason {
+    width: 220px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0 12px;
+    font-size: 14px;
+}
+
+.remove-inline-btn {
+    border: none;
+    background: transparent;
+    color: #8b969c;
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+}
+
+.remove-inline-btn:hover {
+    color: #e53935;
+}
+
+.calendar-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 24px;
+    border-top: 1px solid #dedede;
+}
+
+@media (min-width: 1181px) and (max-width: 1420px) {
+    .calendar-list-header,
+    .calendar-list-table {
+        width: calc(100vw - 360px);
+    }
+
+    .calendar-list-column-heads,
+    .calendar-list-row {
+        grid-template-columns: 180px minmax(360px, 1fr) minmax(170px, .75fr) 86px;
+    }
+
+    .calendar-name-cell,
+    .calendar-schedule-cell,
+    .calendar-closure-cell,
+    .calendar-actions-cell {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    .calendar-meta,
+    .schedule-note,
+    .mini-schedule {
+        font-size: 11px;
+    }
+
+    .calendar-closure-cell {
+        font-size: 12px;
+    }
+
+    .calendar-edit-btn {
+        width: 76px;
+    }
+}
+
+@media (max-width: 1180px) {
+    .sidebar {
+        left: 0;
+    }
+
+    .main {
+        margin-left: 256px;
+    }
+
+    .calendar-list-header,
+    .calendar-list-table {
+        width: calc(100vw - 286px);
+    }
+
+    .calendar-list-column-heads,
+    .calendar-list-row {
+        grid-template-columns: 160px minmax(340px, 1fr) minmax(150px, .7fr) 80px;
+    }
+}
+
+/* =====================================================
+   問診票 - 一覧
+   ===================================================== */
+.questionnaire-list {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.questionnaire-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--gray-200);
+    transition: background 0.15s;
+}
+
+.questionnaire-list-item:last-child {
+    border-bottom: none;
+}
+
+.questionnaire-list-item:hover {
+    background: var(--gray-50);
+}
+
+.questionnaire-name {
+    font-size: 15px;
+    color: var(--primary);
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.questionnaire-name:hover {
+    text-decoration: underline;
+}
+
+.questionnaire-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.questionnaire-action-btn {
+    background: var(--gray-100);
+    border: 1px solid var(--gray-300);
+    border-radius: 4px;
+    padding: 6px 16px;
+    font-size: 13px;
+    color: var(--gray-700);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.questionnaire-action-btn:hover {
+    background: var(--gray-200);
+}
+
+.questionnaire-action-btn.delete {
+    background: transparent;
+    border: none;
+    color: var(--danger);
+}
+
+.questionnaire-action-btn.delete:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+/* =====================================================
+   問診票 - エディタドロワー
+   ===================================================== */
+.questionnaire-tabs {
+    display: flex;
+    gap: 0;
+}
+
+.questionnaire-tab {
+    background: none;
+    border: none;
+    padding: 12px 32px;
+    font-size: 15px;
+    color: var(--gray-500);
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s;
+}
+
+.questionnaire-tab:hover {
+    color: var(--gray-700);
+}
+
+.questionnaire-tab.active {
+    color: var(--primary);
+}
+
+.questionnaire-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary);
+}
+
+.questionnaire-drawer-body {
+    padding: 0;
+}
+
+.questionnaire-tab-content {
+    display: none;
+    height: 100%;
+}
+
+.questionnaire-tab-content.active {
+    display: block;
+}
+
+/* 問診エディタレイアウト */
+.questionnaire-editor {
+    display: flex;
+    height: 100%;
+}
+
+.questionnaire-main {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.questionnaire-title-bar {
+    background: var(--gray-100);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 24px;
+}
+
+.questionnaire-title-input {
+    width: 100%;
+    border: none;
+    background: none;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--gray-800);
+    outline: none;
+}
+
+.questionnaire-title-input::placeholder {
+    color: var(--gray-400);
+}
+
+/* 問診項目 */
+.questionnaire-items {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.questionnaire-item {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 20px;
+    position: relative;
+}
+
+.questionnaire-item-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.questionnaire-item-label {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--gray-800);
+}
+
+.questionnaire-required-badge {
+    background: var(--danger);
+    color: #fff;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.questionnaire-item-delete {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: var(--gray-400);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+}
+
+.questionnaire-item-delete:hover {
+    color: var(--danger);
+}
+
+/* 入力フィールドプレビュー */
+.questionnaire-input-preview {
+    margin-top: 12px;
+}
+
+.questionnaire-text-input {
+    width: 100%;
+    max-width: 400px;
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: var(--gray-400);
+    background: var(--gray-50);
+}
+
+.questionnaire-text-input::placeholder {
+    color: var(--gray-400);
+}
+
+/* チェックボックスグリッド */
+.questionnaire-checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px 24px;
+    margin-top: 8px;
+}
+
+.questionnaire-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--gray-700);
+}
+
+.questionnaire-checkbox-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+}
+
+/* はい/いいえトグル */
+.questionnaire-toggle-group {
+    display: flex;
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    overflow: hidden;
+    max-width: 300px;
+}
+
+.questionnaire-toggle-btn {
+    flex: 1;
+    padding: 10px 16px;
+    background: #fff;
+    border: none;
+    font-size: 14px;
+    color: var(--gray-600);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.questionnaire-toggle-btn:not(:last-child) {
+    border-right: 1px solid var(--gray-300);
+}
+
+.questionnaire-toggle-btn.active {
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+/* ラジオボタンリスト */
+.questionnaire-radio-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.questionnaire-radio-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.questionnaire-radio-item:hover {
+    background: var(--gray-50);
+}
+
+.questionnaire-radio-item input[type="radio"] {
+    display: none;
+}
+
+.questionnaire-radio-item.selected {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+/* 部位選択プレビュー */
+.questionnaire-body-part-preview {
+    margin-top: 12px;
+}
+
+.body-part-image-container {
+    border: 2px dashed var(--gray-300);
+    border-radius: 8px;
+    padding: 32px;
+    text-align: center;
+    background: var(--gray-50);
+}
+
+.body-part-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* 画像アップロードプレビュー */
+.questionnaire-image-upload-preview {
+    margin-top: 8px;
+}
+
+.image-upload-placeholder {
+    border: 2px dashed var(--gray-300);
+    border-radius: 8px;
+    padding: 32px;
+    text-align: center;
+    background: var(--gray-50);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* 説明のみ */
+.questionnaire-description-only {
+    background: var(--gray-50);
+    border-radius: 8px;
+    padding: 16px;
+    border-left: 3px solid var(--primary);
+}
+
+/* 問診サイドバー */
+.questionnaire-sidebar {
+    width: 180px;
+    background: var(--gray-50);
+    border-left: 1px solid var(--gray-200);
+    display: flex;
+    flex-direction: column;
+}
+
+.questionnaire-sidebar-search {
+    padding: 12px;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.questionnaire-search-input {
+    width: 100%;
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    background: #fff;
+}
+
+.questionnaire-sidebar-items {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+}
+
+.questionnaire-sidebar-items .sidebar-item {
+    display: block;
+    padding: 10px 16px;
+    color: var(--primary);
+    text-decoration: none;
+    font-size: 14px;
+    transition: background 0.15s;
+    border-left: 3px solid transparent;
+}
+
+.questionnaire-sidebar-items .sidebar-item:hover {
+    background: var(--gray-100);
+}
+
+.questionnaire-sidebar-items .sidebar-item.active {
+    background: var(--primary-light);
+    border-left-color: var(--primary);
+}
+
+.sidebar-section-title {
+    padding: 12px 16px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sidebar-section-title:first-child {
+    padding-top: 6px;
+}
+
+.sidebar-item-custom {
+    font-style: italic;
+}
+
+/* カスタム項目編集モーダル */
+#customItemModal {
+    background: rgba(0, 0, 0, 0.35);
+    align-items: center;
+    justify-content: center;
+}
+
+.custom-item-dialog {
+    width: min(800px, calc(100vw - 90px));
+    max-height: min(82vh, 650px);
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: none;
+    overflow: hidden;
+}
+
+.custom-item-form {
+    display: flex;
+    flex-direction: column;
+    max-height: min(82vh, 650px);
+}
+
+.custom-item-modal-header {
+    flex: 0 0 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid #d8d8d8;
+    background: #fff;
+}
+
+.custom-item-modal-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 400;
+    color: #111;
+}
+
+.custom-item-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 62px 26px 48px;
+}
+
+.custom-edit-row {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr);
+    column-gap: 28px;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.custom-edit-row > label,
+.custom-edit-row > .custom-row-label {
+    font-size: 16px;
+    color: #111;
+}
+
+.custom-edit-input,
+.custom-edit-textarea {
+    width: 100%;
+    border: 1px solid #d8d8d8;
+    border-radius: 4px;
+    color: #111;
+    font-size: 16px;
+}
+
+.custom-edit-input {
+    height: 48px;
+    padding: 0 16px;
+}
+
+.custom-edit-textarea {
+    min-height: 120px;
+    padding: 14px 16px;
+    resize: vertical;
+}
+
+.custom-edit-input:focus,
+.custom-edit-textarea:focus,
+.custom-option-input:focus,
+.custom-date-input:focus,
+.custom-select:focus {
+    outline: none;
+    border-color: #2f7df6;
+    box-shadow: 0 0 0 1px #2f7df6;
+}
+
+.custom-edit-input::placeholder,
+.custom-edit-textarea::placeholder,
+.custom-option-input::placeholder {
+    color: #9aa3b2;
+}
+
+.custom-checkbox-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    color: #111;
+}
+
+.custom-checkbox-line input,
+.custom-radio-line input,
+.custom-weekday-grid input {
+    width: 18px;
+    height: 18px;
+    accent-color: #357bd3;
+}
+
+.custom-stacked-checks {
+    display: grid;
+    gap: 24px;
+}
+
+.custom-choice-editor {
+    display: grid;
+    gap: 16px;
+}
+
+.custom-choice-actions {
+    display: flex;
+    gap: 16px;
+}
+
+.custom-outline-btn {
+    height: 48px;
+    min-width: 160px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid #2f7df6;
+    border-radius: 5px;
+    background: #fff;
+    color: #2f7df6;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.custom-outline-btn:hover {
+    background: #f5f9ff;
+}
+
+.custom-weekday-grid {
+    display: flex;
+    gap: 20px;
+}
+
+.custom-weekday-grid label {
+    display: grid;
+    gap: 4px;
+    justify-items: center;
+    font-size: 16px;
+}
+
+.custom-weekday-grid .sun,
+.custom-weekday-grid .holiday {
+    color: #e53935;
+}
+
+.custom-radio-line {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-size: 16px;
+}
+
+.custom-radio-line label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.custom-select {
+    height: 48px;
+    min-width: 108px;
+    border: 1px solid #d8d8d8;
+    border-radius: 4px;
+    background: #fff;
+    padding: 0 14px;
+    font-size: 16px;
+}
+
+.custom-select:disabled {
+    background: #edf0f3;
+    color: #9aa3b2;
+}
+
+.custom-date-range {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 16px;
+}
+
+.custom-date-input {
+    width: 160px;
+    height: 44px;
+    border: 1px solid #d8d8d8;
+    border-radius: 4px;
+    padding: 0 12px;
+    font-size: 16px;
+}
+
+.custom-required-row {
+    margin-top: -2px;
+    margin-bottom: 0;
+}
+
+.custom-item-modal-actions {
+    flex: 0 0 96px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 48px;
+    border-top: 1px solid #d8d8d8;
+    background: #fff;
+}
+
+.custom-modal-close-btn,
+.custom-modal-save-btn {
+    width: 160px;
+    height: 48px;
+    border: none;
+    border-radius: 5px;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.custom-modal-close-btn {
+    background: #e1e5e8;
+    color: #111;
+}
+
+.custom-modal-save-btn {
+    background: #347bd2;
+    color: #fff;
+}
+
+.custom-modal-close-btn:hover {
+    background: #d4dade;
+}
+
+.custom-modal-save-btn:hover {
+    background: #256bc1;
+}
+
+/* カスタム項目選択肢 */
+.custom-option-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.custom-option-input {
+    flex: 1;
+    height: 44px;
+    border: 1px solid #d8d8d8;
+    border-radius: 4px;
+    padding: 0 12px;
+    font-size: 16px;
+}
+
+.custom-option-remove {
+    width: 36px;
+    height: 36px;
+    background: var(--gray-100);
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--gray-500);
+    transition: all 0.15s;
+}
+
+.custom-option-remove:hover {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: white;
+}
+
+/* 問診設定タブ */
+.questionnaire-settings {
+    padding: 24px;
+}
+
+/* 郵便番号入力プレビュー */
+.questionnaire-postal-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.questionnaire-postal-input span {
+    font-size: 14px;
+    color: var(--gray-600);
+}
+
+.questionnaire-postal-input input {
+    width: 120px;
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 14px;
+    background: var(--gray-50);
+}
+
+/* 単位付き入力 */
+.questionnaire-unit-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.questionnaire-unit-input input {
+    flex: 1;
+    max-width: 200px;
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 14px;
+    background: var(--gray-50);
+}
+
+.questionnaire-unit-input span {
+    font-size: 14px;
+    color: var(--gray-700);
+}
+
+/* 説明テキスト */
+.questionnaire-description {
+    font-size: 13px;
+    color: var(--gray-500);
+    margin-bottom: 12px;
+    line-height: 1.6;
+}
+
+/* カスタムアラートモーダル */
+.custom-alert-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.custom-alert-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.custom-alert-overlay.hidden {
+    display: none;
+}
+
+.custom-alert {
+    background: white;
+    border-radius: 16px;
+    padding: 32px 40px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    transform: scale(0.9) translateY(20px);
+    transition: transform 0.3s ease;
+    max-width: 400px;
+    width: 90%;
+}
+
+.custom-alert-overlay.visible .custom-alert {
+    transform: scale(1) translateY(0);
+}
+
+.custom-alert-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #d97706;
+}
+
+.custom-alert-icon.success {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    color: #059669;
+}
+
+.custom-alert-icon.error {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #dc2626;
+}
+
+.custom-alert-message {
+    font-size: 16px;
+    color: #374151;
+    margin: 0 0 24px;
+    line-height: 1.6;
+}
+
+.custom-alert-btn {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border: none;
+    padding: 12px 48px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.custom-alert-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+}
+
+.custom-alert-btn:active {
+    transform: translateY(0);
+}
+
+/* 診療科テーブル */
+.department-table-container {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.department-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.department-table thead {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.department-table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+}
+
+.department-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 14px;
+    color: #334155;
+    vertical-align: middle;
+}
+
+.department-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.department-table .col-name {
+    width: 220px;
+}
+
+.department-table .col-first,
+.department-table .col-revisit,
+.department-table .col-calendar {
+    width: 160px;
+}
+
+.department-table .col-url {
+    width: 80px;
+    text-align: center;
+}
+
+.department-table .col-actions {
+    width: 170px;
+    text-align: left;
+}
+
+/* 診療科行 */
+.dept-row {
+    cursor: default;
+}
+
+.dept-row-group {
+    background: #f8fafc;
+}
+
+.dept-row-group td {
+    font-weight: 500;
+}
+
+.dept-row-child td:first-child {
+    padding-left: 40px;
+}
+
+.dept-drag-handle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    color: #94a3b8;
+    cursor: grab;
+    margin-right: 8px;
+}
+
+.dept-drag-handle:active {
+    cursor: grabbing;
+}
+
+.dept-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dept-group-icon {
+    color: #94a3b8;
+    font-size: 16px;
+}
+
+.dept-name {
+    color: #ea580c;
+    font-weight: 500;
+}
+
+.dept-lock-icon {
+    color: #94a3b8;
+    font-size: 12px;
+    margin-left: 4px;
+}
+
+.dept-calendar-name {
+    color: #334155;
+}
+
+.dept-none {
+    color: #94a3b8;
+}
+
+/* URL コピーボタン */
+.dept-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.dept-copy-btn:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #334155;
+}
+
+.dept-copy-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* 操作ボタン */
+.dept-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 28px;
+}
+
+.dept-edit-btn {
+    min-width: 80px;
+    min-height: 36px;
+    padding: 10px 18px;
+    background: #e5e8eb;
+    border: 0;
+    border-radius: 5px;
+    color: #111827;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+
+.dept-edit-btn:hover {
+    background: #d9dde1;
+}
+
+.dept-delete-btn {
+    padding: 8px 4px;
+    background: transparent;
+    border: none;
+    color: #ef4444;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+
+.dept-delete-btn:hover {
+    color: #dc2626;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* ヘッダーボタングループ */
+.header-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-secondary {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+    color: #334155;
+}
+
+.btn-secondary:hover {
+    background: #e2e8f0;
+}
+
+/* 診療科グループ追加モーダル */
+.dept-group-modal-content {
+    max-width: 590px;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.24);
+}
+
+.treatment-menu-modal-content {
+    width: min(1180px, calc(100vw - 48px));
+    max-width: none !important;
+    max-height: calc(100vh - 42px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.treatment-menu-modal-content #treatmentMenuForm {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+}
+
+.treatment-menu-modal-content .dept-group-modal-body {
+    flex: 1 1 auto;
+    display: block;
+    min-height: 0;
+    padding: 18px 28px 24px;
+    overflow-y: auto;
+}
+
+.treatment-menu-editor {
+    background: #f8fafc;
+}
+
+.treatment-menu-editor-section {
+    padding: 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.treatment-menu-editor-section + .treatment-menu-editor-section {
+    margin-top: 14px;
+}
+
+.treatment-menu-editor-section-emphasis {
+    border-color: #bfdbfe;
+    background: #f8fbff;
+}
+
+.treatment-menu-section-title {
+    margin-bottom: 14px;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.treatment-menu-section-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    align-items: end;
+}
+
+.treatment-menu-section-grid-copy,
+.treatment-menu-section-grid-reservation {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.treatment-menu-section-grid-basic {
+    grid-template-columns: minmax(260px, 2fr) minmax(160px, 1fr) minmax(140px, 1fr) minmax(120px, 0.8fr) minmax(170px, 1fr);
+}
+
+.treatment-menu-section-grid-basic .treatment-menu-field-wide {
+    grid-column: auto;
+}
+
+.treatment-menu-modal-content .form-row {
+    display: contents;
+}
+
+.treatment-menu-modal-content .form-group {
+    min-width: 0;
+}
+
+.treatment-menu-modal-content .treatment-menu-field-wide {
+    grid-column: span 2;
+}
+
+.treatment-menu-modal-content .treatment-menu-field-full {
+    grid-column: 1 / -1;
+}
+
+.treatment-menu-check-field {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+}
+
+.treatment-menu-modal-divider {
+    margin: 8px 0 0;
+    padding-top: 14px;
+    border-top: 1px solid #e5e7eb;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.treatment-detail-menu-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.treatment-detail-menu-add {
+    min-height: 34px;
+    padding: 7px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 5px;
+    background: #e5e8eb;
+    color: #111827;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.treatment-detail-menu-add-bottom {
+    margin-top: 10px;
+    justify-self: flex-start;
+}
+
+.treatment-detail-menu-list {
+    display: grid;
+    gap: 10px;
+}
+
+.treatment-detail-menu-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 52px;
+    grid-template-areas:
+        "main delete"
+        "reservation delete";
+    gap: 12px;
+    align-items: start;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.treatment-detail-menu-main,
+.treatment-detail-menu-reservation {
+    display: grid;
+    gap: 8px;
+}
+
+.treatment-detail-menu-main {
+    grid-area: main;
+    grid-template-columns: minmax(180px, 1.2fr) minmax(110px, 0.55fr) minmax(160px, 0.9fr) minmax(190px, 1fr);
+}
+
+.treatment-detail-menu-reservation {
+    grid-area: reservation;
+    grid-template-columns: minmax(92px, 0.7fr) minmax(92px, 0.65fr) minmax(130px, 1fr) minmax(150px, 1fr);
+    padding: 10px;
+    border: 1px solid #dbeafe;
+    border-radius: 6px;
+    background: #f8fbff;
+}
+
+.treatment-detail-field {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+}
+
+.treatment-detail-field span {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.treatment-detail-menu-row input {
+    width: 100%;
+    min-width: 0;
+}
+
+.treatment-detail-menu-delete {
+    grid-area: delete;
+    min-height: 34px;
+    align-self: center;
+    border: 0;
+    background: transparent;
+    color: #ef4444;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.treatment-detail-menu-empty {
+    width: 100%;
+    padding: 12px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+}
+
+.treatment-menu-image-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.treatment-menu-image-size {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.treatment-menu-file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.treatment-menu-image-dropzone {
+    position: relative;
+    cursor: pointer;
+    outline: none;
+}
+
+.treatment-menu-image-preview {
+    position: relative;
+    min-height: 164px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #64748b;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    overflow: hidden;
+    background-position: center;
+    background-size: cover;
+    transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.treatment-menu-image-dropzone:hover .treatment-menu-image-preview,
+.treatment-menu-image-dropzone:focus-visible .treatment-menu-image-preview,
+.treatment-menu-image-dropzone.dragging .treatment-menu-image-preview {
+    border-color: #2563eb;
+    background: #f1f6ff;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.treatment-menu-image-placeholder {
+    color: #334155;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.treatment-menu-image-subtext {
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.treatment-menu-file-button,
+.treatment-menu-image-selected {
+    min-height: 34px;
+    padding: 8px 18px;
+    border-radius: 5px;
+    background: #e5e8eb;
+    color: #111827;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.treatment-menu-image-preview.has-image {
+    border-style: solid;
+    color: #fff;
+}
+
+.treatment-menu-image-preview.has-image::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.36));
+}
+
+.treatment-menu-image-selected {
+    position: relative;
+    z-index: 1;
+    background: rgba(15, 23, 42, 0.72);
+    color: #fff;
+}
+
+.treatment-recommendation-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.treatment-recommendation-option {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    min-height: 38px;
+    padding: 8px 10px;
+    border: 1px solid #dbe3ef;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.treatment-recommendation-option input {
+    flex: 0 0 auto;
+}
+
+.treatment-recommendation-option span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.treatment-recommendation-empty {
+    grid-column: 1 / -1;
+    padding: 12px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    color: #64748b;
+    background: #f8fafc;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.dept-group-modal-header {
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 24px;
+    border-bottom: 1px solid #d8dce1;
+}
+
+.dept-group-modal-header h3 {
+    margin: 0;
+    color: #111827;
+    font-size: 18px;
+    font-weight: 500;
+}
+
+#departmentGroupForm {
+    padding: 0;
+}
+
+.dept-group-modal-body {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+    min-height: 88px;
+    padding: 16px 46px 16px 32px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.dept-group-modal-label {
+    color: #374151;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.dept-group-modal-input {
+    width: 100%;
+    height: 48px;
+    padding: 0 14px;
+    border: 1px solid #2f74e0;
+    border-radius: 4px;
+    color: #111827;
+    font-size: 16px;
+    background: #fff;
+}
+
+.dept-group-modal-input:focus {
+    outline: none;
+    border-color: #2f74e0;
+    box-shadow: 0 0 0 2px rgba(47, 116, 224, 0.16);
+}
+
+.dept-group-modal-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 16px;
+    background: #fff;
+}
+
+.dept-group-modal-btn {
+    height: 48px;
+    border: none;
+    border-radius: 5px;
+    font-size: 18px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dept-group-modal-btn.secondary {
+    background: #e9ecef;
+    color: #111827;
+}
+
+.dept-group-modal-btn.secondary:hover {
+    background: #dde2e6;
+}
+
+.dept-group-modal-btn.primary {
+    background: #3478d4;
+    color: #fff;
+}
+
+.dept-group-modal-btn.primary:hover {
+    background: #2f6fc6;
+    box-shadow: 0 4px 12px rgba(47, 111, 198, 0.24);
+}
+
+@media (max-width: 680px) {
+    .dept-group-modal-content {
+        max-width: calc(100vw - 28px);
+    }
+
+    .dept-group-modal-body {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 16px;
+    }
+
+    .dept-group-modal-footer {
+        gap: 10px;
+    }
+
+    .treatment-menu-modal-content .form-row {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .treatment-menu-modal-content {
+        width: calc(100vw - 28px);
+    }
+
+    .treatment-menu-modal-content .dept-group-modal-body {
+        padding: 16px;
+    }
+
+    .treatment-menu-section-grid,
+    .treatment-menu-section-grid-basic,
+    .treatment-menu-section-grid-copy,
+    .treatment-menu-section-grid-reservation,
+    .treatment-detail-menu-main,
+    .treatment-detail-menu-reservation {
+        grid-template-columns: 1fr;
+    }
+
+    .treatment-menu-modal-content .treatment-menu-field-wide,
+    .treatment-menu-modal-content .treatment-menu-field-full {
+        grid-column: 1;
+    }
+
+    .treatment-recommendation-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .treatment-detail-menu-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .treatment-detail-menu-row {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "main"
+            "reservation"
+            "delete";
+    }
+
+    .treatment-detail-menu-delete {
+        justify-self: flex-start;
+        align-self: start;
+    }
+}
+
+/* ================================================
+   診療科ドロワー
+   ================================================ */
+.department-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 520px;
+    height: 100vh;
+    background: white;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+}
+
+.department-drawer.active {
+    transform: translateX(0);
+}
+
+.department-drawer .drawer-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.department-drawer .drawer-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+}
+
+.department-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+/* フォームグループ */
+.dept-form-group {
+    margin-bottom: 20px;
+}
+
+.dept-form-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #334155;
+    margin-bottom: 8px;
+}
+
+.dept-form-hint {
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 8px;
+}
+
+.dept-form-hint a {
+    color: #3b82f6;
+    text-decoration: none;
+}
+
+.dept-form-hint a:hover {
+    text-decoration: underline;
+}
+
+.dept-form-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #334155;
+    background: white;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.dept-form-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.dept-form-input::placeholder {
+    color: #94a3b8;
+}
+
+.dept-form-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #334155;
+    background: white;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+}
+
+.dept-form-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.dept-form-select-small {
+    width: 100px;
+}
+
+.dept-form-select-inline {
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #334155;
+    background: white;
+    margin: 0 8px;
+    width: 70px;
+}
+
+.dept-form-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #334155;
+    background: white;
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+}
+
+.dept-form-textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.dept-form-textarea::placeholder {
+    color: #94a3b8;
+}
+
+.dept-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+/* ラジオボタン */
+.dept-radio-group {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.dept-radio-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #334155;
+}
+
+.dept-radio-label input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: #3b82f6;
+    cursor: pointer;
+}
+
+/* チェックボックス */
+.dept-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #334155;
+}
+
+.dept-checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: #3b82f6;
+    cursor: pointer;
+}
+
+/* 期限設定 */
+.dept-limit-config {
+    display: flex;
+    align-items: center;
+    margin-top: 12px;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #334155;
+}
+
+/* 情報アイコン */
+.dept-info-icon {
+    color: #94a3b8;
+    margin-left: 4px;
+    cursor: help;
+}
+
+.dept-info-icon:hover {
+    color: #64748b;
+}
+
+/* ドロワーフッター */
+.department-drawer .drawer-footer {
+    padding: 16px 24px;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.department-drawer .drawer-close-btn {
+    background: white;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+}
+
+.department-drawer .drawer-close-btn:hover {
+    background: #f1f5f9;
+}
+
+.department-drawer .drawer-save-btn {
+    min-width: 120px;
+}
+
+/* ========================================
+   施術メニュー ドラッグ＆ドロップ
+   ======================================== */
+
+.treatment-menu-table .col-drag {
+    width: 40px;
+    text-align: center;
+}
+
+.treatment-menu-table .drag-handle {
+    cursor: grab;
+    color: #94a3b8;
+    font-size: 14px;
+    padding: 8px;
+    user-select: none;
+}
+
+.treatment-menu-table .drag-handle:hover {
+    color: #64748b;
+}
+
+.treatment-menu-table .drag-handle:active {
+    cursor: grabbing;
+}
+
+.treatment-menu-table tr.dragging {
+    opacity: 0.5;
+    background: #e2e8f0;
+}
+
+.treatment-menu-table tr.drag-over {
+    border-top: 2px solid #3b82f6;
+}
+
+.treatment-menu-table tr[draggable="true"] {
+    transition: background-color 0.15s ease;
+}
+
+/* 一括保存ボタン配置 */
+.section-card .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* メニュー追加ボタン（テーブル下部） */
+.treatment-menu-add-row {
+    background: #f8fafc;
+}
+
+.treatment-menu-add-row td {
+    padding: 18px 0;
+    text-align: center;
+    border-top: 1px dashed #e2e8f0;
+}
+
+.btn-add-menu {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 180px;
+    padding: 10px 24px;
+    background: white;
+    border: 1px dashed #94a3b8;
+    border-radius: 6px;
+    color: #64748b;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-add-menu:hover {
+    background: #f8fafc;
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+.btn-add-menu i {
+    font-size: 12px;
+}
+
+/* 施術メニュー リソースバー */
+.treatment-resource-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+}
+
+.treatment-resource-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.treatment-resource-title {
+    color: var(--gray-800);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.treatment-resource-counts {
+    margin-top: 3px;
+    color: var(--gray-500);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.treatment-resource-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.treatment-staff-list {
+    display: grid;
+    gap: 8px;
+}
+
+.treatment-staff-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) 140px auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.treatment-staff-row .input {
+    min-width: 0;
+}
+
+.treatment-master-list {
+    display: grid;
+    gap: 8px;
+}
+
+.treatment-master-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 1.2fr) minmax(140px, 0.9fr) 92px auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.treatment-master-row .input {
+    min-width: 0;
+}
+
+.treatment-room-code {
+    display: none !important;
+}
+
+.treatment-master-row:has(.treatment-room-code) {
+    grid-template-columns: minmax(180px, 1fr) 92px auto;
+}
+
+.treatment-equipment-row {
+    grid-template-columns: minmax(180px, 1.2fr) minmax(140px, 0.8fr) 108px 82px auto;
+}
+
+.treatment-resource-list-row {
+    min-height: 44px;
+    padding: 4px 0;
+    border-bottom: 1px solid #edf0f3;
+}
+
+.treatment-staff-row.treatment-resource-list-row,
+.treatment-master-row.treatment-resource-list-row {
+    grid-template-columns: minmax(220px, 1fr) 160px auto;
+}
+
+.treatment-equipment-row.treatment-resource-list-row {
+    grid-template-columns: minmax(220px, 1fr) 96px auto;
+}
+
+.treatment-resource-list-name {
+    min-width: 0;
+    color: #111827;
+    font-size: 14px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.treatment-resource-list-meta {
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.treatment-resource-row-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 18px;
+    white-space: nowrap;
+}
+
+.treatment-resource-edit-modal {
+    max-width: 720px;
+}
+
+.treatment-resource-edit-body {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 16px;
+}
+
+.treatment-detail-item-modal {
+    width: min(1260px, calc(100vw - 40px));
+    max-width: none !important;
+    max-height: calc(100vh - 32px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.treatment-detail-item-modal #treatmentDetailItemForm {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+}
+
+.treatment-detail-item-body {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 28px;
+    min-height: 0;
+    padding: 24px 30px 32px;
+    overflow-y: auto;
+}
+
+.treatment-detail-form-row {
+    display: grid;
+    gap: 10px;
+}
+
+.treatment-detail-form-row.compact {
+    gap: 8px;
+}
+
+.treatment-detail-form-row.readonly {
+    gap: 14px;
+}
+
+.treatment-detail-form-label {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.treatment-detail-static-value {
+    min-height: 34px;
+    color: #111827;
+    font-size: 15px;
+    line-height: 34px;
+}
+
+.treatment-detail-line-control,
+.treatment-detail-date-input {
+    width: 100%;
+    height: 38px;
+    padding: 0;
+    border: 0;
+    border-bottom: 1px solid #d1d5db;
+    border-radius: 0;
+    background: transparent;
+    color: #111827;
+    font-size: 15px;
+    outline: none;
+}
+
+.treatment-detail-line-control:focus,
+.treatment-detail-date-input:focus,
+.treatment-detail-textarea:focus,
+.treatment-detail-small-input:focus {
+    border-color: #111827;
+}
+
+.treatment-detail-line-control:disabled,
+.treatment-detail-small-input:disabled {
+    background: #dedede;
+    color: #94a3b8;
+}
+
+.treatment-detail-price-input {
+    max-width: 360px;
+}
+
+.treatment-detail-inline-controls {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    flex-wrap: wrap;
+}
+
+.treatment-detail-inline-check {
+    min-height: 34px;
+    color: #111827;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.treatment-detail-inline-check.muted {
+    color: #94a3b8;
+}
+
+.treatment-detail-inline-check input {
+    width: 18px;
+    height: 18px;
+    accent-color: #2f00ff;
+}
+
+.treatment-detail-help {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.55;
+}
+
+.treatment-detail-textarea {
+    width: 100%;
+    min-height: 106px;
+    padding: 10px 0;
+    border: 0;
+    border-bottom: 1px solid #d1d5db;
+    border-radius: 0;
+    background: transparent;
+    color: #111827;
+    font-size: 15px;
+    line-height: 1.55;
+    resize: vertical;
+    outline: none;
+}
+
+.treatment-detail-textarea.caution {
+    min-height: 142px;
+}
+
+.treatment-detail-separator {
+    height: 2px;
+    background: #2f2f2f;
+}
+
+.treatment-detail-date-range {
+    display: grid;
+    grid-template-columns: 260px max-content 260px;
+    justify-content: start;
+    align-items: center;
+    gap: 16px;
+    max-width: 580px;
+}
+
+.treatment-detail-date-range span {
+    color: #111827;
+    font-size: 16px;
+}
+
+.treatment-detail-small-input {
+    width: 96px;
+    height: 34px;
+    padding: 0 8px;
+    border: 0;
+    border-bottom: 1px solid #d1d5db;
+    border-radius: 0;
+    background: transparent;
+    color: #111827;
+    font-size: 14px;
+    outline: none;
+}
+
+.treatment-detail-step-list {
+    display: grid;
+    gap: 14px;
+    max-width: 900px;
+}
+
+.treatment-detail-step-row {
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) 150px 112px 34px 34px;
+    gap: 16px;
+    align-items: center;
+}
+
+.treatment-detail-step-row .treatment-detail-line-control {
+    height: 36px;
+}
+
+.treatment-detail-step-minutes {
+    display: grid;
+    grid-template-columns: minmax(70px, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+}
+
+.treatment-detail-step-minutes span {
+    color: #111827;
+    font-size: 14px;
+}
+
+.treatment-detail-step-row .treatment-detail-inline-check {
+    white-space: nowrap;
+}
+
+.treatment-detail-step-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: 0;
+    border-radius: 50%;
+    background: #2f00ff;
+    color: white;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.treatment-detail-step-icon-btn.remove {
+    font-size: 20px;
+}
+
+.treatment-detail-step-empty {
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.dept-group-modal-btn.danger {
+    border-color: transparent;
+    background: transparent;
+    color: #dc2626;
+}
+
+.dept-group-modal-btn.danger:hover {
+    background: #fef2f2;
+}
+
+.treatment-detail-item-modal .dept-group-modal-footer {
+    grid-template-columns: minmax(120px, 1fr) 140px minmax(220px, 340px);
+    align-items: center;
+    padding: 18px 30px 24px;
+}
+
+.treatment-detail-item-modal .dept-group-modal-btn.primary {
+    background: #54ad4f;
+}
+
+.treatment-detail-item-modal .dept-group-modal-btn.primary:hover {
+    background: #469946;
+    box-shadow: 0 4px 12px rgba(70, 153, 70, 0.22);
+}
+
+.treatment-detail-item-modal .dept-group-modal-btn.secondary {
+    height: 42px;
+    font-size: 14px;
+}
+
+.treatment-detail-item-modal .dept-group-modal-btn.danger {
+    justify-self: start;
+    height: 42px;
+    padding: 0 18px;
+    font-size: 14px;
+}
+
+.treatment-detail-item-row td {
+    vertical-align: middle;
+}
+
+.treatment-detail-menu-name-cell {
+    display: grid;
+    gap: 3px;
+    min-width: 220px;
+}
+
+.treatment-detail-menu-name {
+    color: #111827;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.treatment-detail-menu-sub,
+.treatment-detail-menu-note,
+.treatment-detail-empty-cell {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.treatment-detail-menu-note {
+    display: grid;
+    gap: 2px;
+    max-width: 360px;
+    line-height: 1.45;
+}
+
+.treatment-detail-menu-price {
+    color: #111827;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.treatment-menu-step-summary {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.treatment-menu-step-summary li {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    gap: 4px;
+    align-items: baseline;
+    color: #111827;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.treatment-menu-step-number {
+    color: #475569;
+    font-weight: 800;
+}
+
+.treatment-menu-step-label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.treatment-menu-step-duration {
+    color: #111827;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.treatment-menu-price-block {
+    display: grid;
+    gap: 5px;
+}
+
+.treatment-menu-tax-label {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.treatment-menu-visible-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.treatment-menu-visible-badge.visible {
+    background: #ecfdf3;
+    color: #17603a;
+}
+
+.treatment-menu-visible-badge.hidden-state {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.treatment-detail-empty-cell {
+    padding: 22px 12px;
+    text-align: center;
+}
+
+.treatment-menu-subsection-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.treatment-equipment-requirement-list {
+    display: grid;
+    gap: 8px;
+}
+
+.treatment-equipment-requirement-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) 120px auto;
+    gap: 8px;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #dbeafe;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.treatment-equipment-requirement-row select,
+.treatment-equipment-requirement-row input {
+    min-width: 0;
+}
+
+.treatment-equipment-requirement-empty {
+    padding: 12px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.muted-cell {
+    color: var(--gray-400);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+@media (max-width: 720px) {
+    .treatment-detail-date-range {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        max-width: 100%;
+    }
+
+    .treatment-resource-head,
+    .treatment-resource-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .treatment-staff-row,
+    .treatment-master-row,
+    .treatment-equipment-row,
+    .treatment-equipment-requirement-row {
+        grid-template-columns: 1fr;
+    }
+
+    .treatment-resource-row-actions {
+        justify-content: flex-start;
+    }
+}
+
+.treatment-resource-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--gray-700);
+}
+
+.treatment-resource-field span {
+    white-space: nowrap;
+}
+
+.treatment-resource-field input {
+    width: 60px;
+    padding: 6px 8px;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius);
+    text-align: center;
+}
+
+.advanced-master-card {
+    width: min(1338px, calc(100vw - 430px));
+    margin: 0 auto 24px;
+    padding: 16px;
+    background: var(--white);
+}
+
+.advanced-master-table {
+    border: 1px solid var(--gray-200);
+    border-radius: 6px;
+    box-shadow: none;
+}
+
+.advanced-master-table .input {
+    width: 100%;
+    min-width: 0;
+}
+
+.beauty-category-row .input,
+.treatment-step-row .input {
+    height: 36px;
+}
+
+.beauty-category-name-text {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    color: #111827;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.treatment-linked-menu-section {
+    display: grid;
+    gap: 10px;
+    padding: 14px 0 4px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.treatment-linked-menu-section.hidden {
+    display: none;
+}
+
+.treatment-linked-menu-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.treatment-linked-menu-list {
+    display: grid;
+    gap: 8px;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.treatment-linked-menu-item {
+    display: grid;
+    gap: 4px;
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #f8fafc;
+}
+
+.treatment-linked-menu-name {
+    color: #111827;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.treatment-linked-menu-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.treatment-linked-menu-empty {
+    padding: 12px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.treatment-step-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    width: min(1338px, calc(100vw - 430px));
+    margin: 0 auto 16px;
+}
+
+.treatment-step-link-btn {
+    border: 0;
+    background: transparent;
+    color: #1d00ff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.treatment-step-link-btn:hover,
+.treatment-step-name-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.treatment-step-bulk-btn {
+    margin-left: auto;
+    min-width: 180px;
+}
+
+#page-treatment-steps .advanced-master-card,
+#page-treatment-steps .treatment-step-toolbar {
+    width: min(1500px, calc(100vw - 300px));
+}
+
+#page-treatment-steps .advanced-master-table {
+    overflow-x: auto;
+}
+
+.treatment-step-table {
+    min-width: 980px;
+    table-layout: fixed;
+}
+
+.treatment-step-table th:nth-child(1),
+.treatment-step-table td:nth-child(1) {
+    width: 120px;
+}
+
+.treatment-step-table th:nth-child(2),
+.treatment-step-table td:nth-child(2) {
+    width: 460px;
+}
+
+.treatment-step-table th:nth-child(3),
+.treatment-step-table td:nth-child(3) {
+    width: 180px;
+}
+
+.treatment-step-table th:nth-child(4),
+.treatment-step-table td:nth-child(4) {
+    width: 140px;
+}
+
+.treatment-step-table th,
+.treatment-step-table td {
+    height: 40px;
+    padding: 8px 16px;
+}
+
+.treatment-step-id-cell {
+    width: 120px;
+    color: #111827;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.treatment-step-name-link {
+    border: 0;
+    background: transparent;
+    color: #1d00ff;
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.treatment-step-modal {
+    width: min(960px, calc(100vw - 48px));
+    max-width: none !important;
+    max-height: calc(100vh - 42px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.treatment-step-modal #treatmentStepForm {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+}
+
+.treatment-step-modal-body {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 22px;
+    min-height: 0;
+    padding: 28px 34px 34px;
+    overflow-y: auto;
+}
+
+.treatment-step-basic-fields {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    align-items: stretch;
+}
+
+.treatment-step-editor-section {
+    display: grid;
+    gap: 12px;
+    max-width: 100%;
+}
+
+.treatment-step-type-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.treatment-step-type-option {
+    display: grid;
+    grid-template-columns: 28px minmax(130px, 0.35fr) minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    min-height: 58px;
+    padding: 12px 16px;
+    border: 1px solid #d8dde5;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.treatment-step-type-option.selected {
+    border-color: #ff4f83;
+}
+
+.treatment-step-type-option input {
+    width: 20px;
+    height: 20px;
+    accent-color: #2f00ff;
+}
+
+.treatment-step-type-name {
+    color: #111827;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.treatment-step-type-note {
+    color: #111827;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.treatment-step-assignment-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    min-height: 0;
+    padding: 18px;
+    border: 1px solid #d8dde5;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.treatment-step-assignment-column {
+    display: grid;
+    align-content: flex-start;
+    gap: 10px;
+    min-width: 0;
+}
+
+.treatment-step-assignment-column:not(:last-child) {
+    padding-bottom: 16px;
+    border-bottom: 1px solid #edf0f3;
+}
+
+.treatment-step-assignment-title {
+    color: #111827;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.treatment-step-assignment-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #111827;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.treatment-step-assignment-check input {
+    width: 18px;
+    height: 18px;
+    accent-color: #2f00ff;
+}
+
+.treatment-step-assignment-empty {
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.treatment-step-modal-footer {
+    display: grid;
+    grid-template-columns: minmax(160px, 1fr) auto;
+    gap: 16px;
+    align-items: center;
+    padding: 16px 34px;
+}
+
+.treatment-step-modal-actions {
+    display: flex;
+    gap: 10px;
+}
+
+@media (max-width: 720px) {
+    .treatment-step-basic-fields,
+    .treatment-step-type-option,
+    .treatment-step-modal-footer {
+        grid-template-columns: 1fr;
+    }
+
+    .treatment-step-modal-actions {
+        flex-direction: column;
+    }
+}
+
+.treatment-master-count-cell {
+    color: #475569;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.treatment-resource-checkboxes {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    padding: 8px 10px;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius);
+    background: var(--white);
+}
+
+.treatment-staff-checkboxes {
+    max-height: 118px;
+    align-items: flex-start;
+    overflow-y: auto;
+}
+
+.treatment-step-checkboxes {
+    max-height: 136px;
+    align-items: flex-start;
+    overflow-y: auto;
+}
+
+.treatment-resource-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.treatment-resource-checkbox input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--primary);
+}
+
+.treatment-resource-chip-list {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 120px;
+}
+
+.treatment-resource-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: #eef4ff;
+    color: #3151a3;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.treatment-category-chip {
+    background: #ecfdf3;
+    color: #17603a;
+}
+
+.treatment-step-chip-list {
+    max-width: 360px;
+}
+
+@media (max-width: 1180px) {
+    .advanced-master-card {
+        width: calc(100vw - 286px);
+    }
+
+    .treatment-step-chip-list {
+        max-width: 260px;
+    }
+}
+
+/* テキストミュート */
+.text-muted {
+    color: var(--gray-400);
+    font-size: 13px;
+}
+
+/* 臨時休診タグ */
+.closure-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background: #fef3c7;
+    color: #92400e;
+    border-radius: 4px;
+    font-size: 12px;
+    margin: 2px 4px 2px 0;
+}
+
+/* ステータスバッジ */
+.status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.status-badge.inactive {
+    background: var(--gray-200);
+    color: var(--gray-600);
+}
+
+/* 施術メニュー非表示行 */
+.treatment-menu-inactive {
+    opacity: 0.6;
+    background: var(--gray-50);
+}
+
+/* アクションボタン（編集・削除） */
+.dept-action-btn {
+    min-width: 80px;
+    min-height: 36px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+    border-radius: 5px;
+    background: #e5e8eb;
+    color: #111827;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+
+.dept-action-btn:hover {
+    background: #d9dde1;
+}
+
+.dept-action-btn:active {
+    transform: scale(0.97);
+}
+
+.dept-action-btn.delete {
+    min-width: auto;
+    min-height: auto;
+    padding: 8px 4px;
+    background: transparent;
+    color: #ef4444;
+}
+
+.dept-action-btn.delete:hover {
+    color: #dc2626;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.dept-action-btn.delete:active {
+    transform: scale(0.97);
+}
+
+/* =====================================================
+   クリニックセレクター
+   ===================================================== */
+.clinic-selector-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #dcdcdc;
+}
+
+.clinic-selector {
+    flex: 1;
+    padding: 8px 12px;
+    background: #fff;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    color: #111;
+    font-size: 13px;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2357606a' d='M2.5 4.5L6 8l3.5-3.5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+}
+
+.clinic-selector:hover {
+    border-color: #8c959f;
+}
+
+.clinic-selector:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.clinic-settings-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: #f6f8fa;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    color: #57606a;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.clinic-settings-btn:hover {
+    background: #eef2f6;
+    color: #111;
+    border-color: #8c959f;
+}
+
+/* =====================================================
+   クリニック管理モーダル
+   ===================================================== */
+.clinic-modal-content {
+    width: 480px;
+    max-width: 90vw;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.clinic-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.clinic-modal-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--gray-800);
+}
+
+.clinic-modal-body {
+    padding: 20px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.clinic-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.clinic-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--gray-50);
+    border-radius: 8px;
+    transition: background 0.15s;
+}
+
+.clinic-list-item:hover {
+    background: var(--gray-100);
+}
+
+.clinic-list-item.editing {
+    background: var(--primary-light);
+}
+
+.clinic-item-name {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--gray-800);
+}
+
+.clinic-item-input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid var(--gray-300);
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.clinic-item-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.clinic-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.clinic-item-btn {
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+
+.clinic-item-btn.edit {
+    min-width: 64px;
+    min-height: 32px;
+    padding: 8px 14px;
+    background: #e5e8eb;
+    border-radius: 5px;
+    color: #111827;
+}
+
+.clinic-item-btn.edit:hover {
+    background: #d9dde1;
+}
+
+.clinic-item-btn.delete {
+    padding: 8px 4px;
+    background: transparent;
+    color: #ef4444;
+}
+
+.clinic-item-btn.delete:hover {
+    color: #dc2626;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.clinic-item-btn.edit:active,
+.clinic-item-btn.delete:active {
+    transform: scale(0.97);
+}
+
+.clinic-item-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+    text-decoration: none;
+    transform: none;
+}
+
+.clinic-item-btn.save {
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: var(--primary);
+    color: white;
+}
+
+.clinic-item-btn.save:hover {
+    background: var(--primary-dark);
+}
+
+.clinic-item-btn.cancel {
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: var(--gray-200);
+    color: var(--gray-700);
+}
+
+.clinic-item-btn.cancel:hover {
+    background: var(--gray-300);
+}
+
+.clinic-add-form {
+    display: flex;
+    gap: 8px;
+    padding-top: 16px;
+    border-top: 1px solid var(--gray-200);
+}
+
+.clinic-name-input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.clinic-name-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.clinic-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 16px 20px;
+    border-top: 1px solid var(--gray-200);
+    background: var(--gray-50);
+}

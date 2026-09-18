@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>西春内科・在宅クリニック｜Web予約</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css?v=nishiharu-reservation-20260916-1">
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+    <div class="app">
+        <!-- ヘッダー -->
+        <header class="header">
+            <div class="header-brand" aria-label="西春内科・在宅クリニック">
+                <span class="header-emblem" aria-hidden="true"><span>N</span></span>
+                <span class="header-brand-copy">
+                    <strong>西春内科・在宅クリニック</strong>
+                    <small>NISHIHARU INTERNAL MEDICINE &amp; HOME CARE CLINIC</small>
+                </span>
+            </div>
+            <div class="header-context">
+                <span class="header-context-label">WEB RESERVATION</span>
+                <h1 class="header-title" id="pageTitle">マイページ</h1>
+            </div>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <main class="main">
+            <!-- ========== マイページ ========== -->
+            <div class="page active" id="page-mypage">
+                <div class="page-intro page-intro-mypage">
+                    <p class="page-intro-eyebrow">MY PAGE</p>
+                    <h2>ご予約と受診情報</h2>
+                    <p>ご予約の確認や診療履歴の閲覧はこちらから。</p>
+                </div>
+                <section class="line-auth-panel" id="lineAuthPanel" aria-label="西春内科・在宅クリニック公式LINE連携">
+                    <div class="line-auth-status" id="lineAuthStatus">
+                        <span class="line-auth-avatar">LINE</span>
+                        <span>
+                            <strong>西春内科・在宅クリニック公式LINE</strong>
+                            <small>公式LINEから予約すると通知を受け取れます</small>
+                        </span>
+                    </div>
+                    <div class="line-auth-actions">
+                        <button type="button" class="line-login-btn" id="lineLoginBtn">公式LINEから開く</button>
+                        <button type="button" class="line-logout-btn hidden" id="lineLogoutBtn">連携解除</button>
+                    </div>
+                </section>
+
+                <section class="line-auth-panel google-auth-panel" id="googleAuthPanel" aria-label="Googleログイン">
+                    <div class="line-auth-status" id="googleAuthStatus">
+                        <span class="line-auth-avatar google-auth-avatar">G</span>
+                        <span>
+                            <strong>Googleでログイン</strong>
+                            <small>Gmailへ予約通知を送れます</small>
+                        </span>
+                    </div>
+                    <div class="line-auth-actions">
+                        <button type="button" class="google-login-btn" id="googleLoginBtn">Googleでログイン</button>
+                        <button type="button" class="google-logout-btn hidden" id="googleLogoutBtn">ログアウト</button>
+                    </div>
+                </section>
+
+                <!-- 予約済みセクション -->
+                <section class="section" id="mypageReservationSection">
+                    <h2 class="section-title">予約済み</h2>
+                    <div class="mypage-reservations" id="mypageReservations">
+                        <div class="reservation-empty">
+                            <p>現在予約はありません</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <h2 class="section-title">診療履歴</h2>
+
+                    <!-- 患者選択 -->
+                    <div class="patient-selector" id="mypagePatientSelector">
+                        <select class="patient-select" id="mypagePatientSelect">
+                            <option value="">患者様を選択してください</option>
+                        </select>
+                    </div>
+
+                    <!-- 診療履歴リスト -->
+                    <div class="history-list" id="historyList">
+                        <div class="history-empty">
+                            <p>患者様を選択すると、過去の診療履歴が表示されます。</p>
+                        </div>
+                    </div>
+
+                </section>
+            </div>
+
+            <!-- ========== 予約ページ ========== -->
+            <div class="page hidden" id="page-reservation">
+                <div class="page-intro page-intro-reservation">
+                    <p class="page-intro-eyebrow">ONLINE RESERVATION</p>
+                    <h2>かんたんWeb予約</h2>
+                    <p>ご希望の診療科と日時を順番にお選びください。</p>
+                </div>
+                <!-- ステップインジケーター -->
+                <div class="steps" id="reservationSteps">
+                    <div class="step active" data-step="1">
+                        <span class="step-number">1</span>
+                        <span class="step-label">診療科</span>
+                    </div>
+                    <div class="step" data-step="2">
+                        <span class="step-number">2</span>
+                        <span class="step-label">施術・日時</span>
+                    </div>
+                    <div class="step" data-step="3">
+                        <span class="step-number">3</span>
+                        <span class="step-label">患者情報</span>
+                    </div>
+                    <div class="step" data-step="4">
+                        <span class="step-number">4</span>
+                        <span class="step-label">確認</span>
+                    </div>
+                </div>
+
+                <!-- Step 0: クリニック選択 -->
+                <section class="section" id="step0">
+                    <div class="clinic-selection">
+                        <div class="section-heading">
+                            <p class="section-kicker">まずはじめに</p>
+                            <h2 class="section-title">クリニックを選択してください</h2>
+                        </div>
+
+                        <div class="clinic-list" id="clinicList">
+                            <!-- 動的に追加 -->
+                        </div>
+
+                        <div class="clinic-empty hidden" id="clinicEmpty">
+                            <p>クリニックが登録されていません。</p>
+                            <p class="clinic-empty-sub">管理画面でクリニックを追加してください。</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 1: 診療科選択 -->
+                <section class="section hidden" id="step1">
+                    <!-- 選択中のクリニック名 -->
+                    <div class="selected-clinic-badge" id="selectedClinicBadge">
+                        <span class="clinic-badge-icon"><i class="fas fa-hospital"></i></span>
+                        <span class="clinic-badge-name" id="clinicName">クリニック名</span>
+                        <button type="button" class="clinic-badge-change" id="changeClinicBtn">変更</button>
+                    </div>
+
+                    <!-- 予約済み表示 -->
+                    <div class="upcoming-reservations hidden" id="upcomingReservations">
+                        <!-- 動的に追加 -->
+                    </div>
+
+                    <div class="department-selection">
+                        <div class="section-heading">
+                            <p class="section-kicker">実施する診療科やメニュー</p>
+                            <h2 class="section-title">診療科を選択してください</h2>
+                        </div>
+
+                        <div class="department-list" id="departmentList">
+                            <!-- 動的に追加 -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 2: 日時選択 -->
+                <section class="section hidden" id="step2">
+                    <section class="booking-calendar-panel" aria-label="予約日時選択">
+                        <div class="selected-department" id="selectedDepartment">診療科を選択してください</div>
+
+                        <div class="treatment-menu-panel">
+                            <div class="section-heading compact-heading">
+                                <p class="section-kicker">施術メニュー</p>
+                                <h2 class="section-title">メニューを選択してください</h2>
+                            </div>
+                            <div class="treatment-concern-tabs" id="treatmentConcernTabs" aria-label="肌悩みで絞り込み"></div>
+                            <div class="treatment-menu-list" id="treatmentMenuList"></div>
+                        </div>
+
+                        <div class="treatment-detail-panel hidden" id="treatmentDetailPanel">
+                            <div class="treatment-detail-panel-head">
+                                <div>
+                                    <p class="section-kicker">細かい施術メニュー</p>
+                                    <h2 class="section-title">メニューを選択してください</h2>
+                                </div>
+                                <button type="button" class="treatment-detail-reset" id="changeTreatmentMenu">施術を選び直す</button>
+                            </div>
+                            <div class="treatment-detail-list" id="treatmentDetailList"></div>
+                        </div>
+
+                        <div class="calendar-nav">
+                            <button class="btn-nav" id="prevWeek">&lt; 前週</button>
+                            <span class="current-week" id="currentWeek"></span>
+                            <button class="btn-nav" id="nextWeek">次週 &gt;</button>
+                        </div>
+
+                        <div class="calendar-table-wrap">
+                            <div class="calendar" id="calendar">
+                                <p class="select-date-msg">診療科を選択してください</p>
+                            </div>
+                        </div>
+
+                        <div class="time-slots" id="timeSlots">
+                            <p class="select-date-msg">○の日時を選択すると確認画面へ進みます</p>
+                        </div>
+
+                        <div class="form-actions compact-actions">
+                            <button type="button" class="btn-back" id="backToStep1">診療科を選び直す</button>
+                        </div>
+                    </section>
+                </section>
+
+                <!-- Step 3: 患者情報選択 -->
+                <section class="section hidden" id="step3">
+                    <h2 class="section-title">患者様を選択</h2>
+                    <div class="reservation-patient-list" id="reservationPatientList">
+                        <!-- 動的に追加 -->
+                    </div>
+
+                    <div class="form-actions compact-actions">
+                        <button type="button" class="btn-back" id="backToStep2">日時を選び直す</button>
+                    </div>
+                    <div class="reservation-same-day-addons" id="reservationSameDayAddOns"></div>
+                </section>
+
+                <!-- Step 4: 確認 -->
+                <section class="section hidden" id="step4">
+                    <h2 class="section-title">予約内容の確認</h2>
+
+                    <div class="reservation-summary hidden" id="reservationSummary"></div>
+
+                    <div class="confirm-card" id="confirmCard">
+                        <!-- 動的に追加 -->
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-back" id="backToStep3">戻る</button>
+                        <button type="button" class="btn-primary" id="submitReservation">予約を確定する</button>
+                    </div>
+                </section>
+
+                <!-- 完了画面 -->
+                <section class="section hidden" id="stepComplete">
+                    <div class="complete-card">
+                        <div class="complete-icon">&#10003;</div>
+                        <h2>予約が完了しました</h2>
+                        <p class="complete-message">
+                            ご予約ありがとうございます。
+                        </p>
+                        <div class="complete-details" id="completeDetails"></div>
+
+                        <div class="after-reservation-actions" id="afterReservationActions">
+                            <div class="post-task-card" id="questionnaireTaskCard">
+                                <div class="post-task-status" id="questionnaireTaskStatus">未回答</div>
+                                <div class="post-task-body">
+                                    <h3>続けてWeb問診に回答してください</h3>
+                                </div>
+                                <button class="btn-primary post-task-button" id="openQuestionnaire">問診記入</button>
+                            </div>
+
+                            <div class="questionnaire-panel hidden" id="questionnairePanel">
+                                <div class="questionnaire-panel-header">
+                                    <h3 id="questionnaireTitle">問診票</h3>
+                                    <button class="btn-link" id="closeQuestionnairePanel">閉じる</button>
+                                </div>
+                                <form class="form" id="questionnaireForm"></form>
+                            </div>
+
+                            <div class="post-task-card" id="insuranceTaskCard">
+                                <div class="post-task-status" id="insuranceTaskStatus">未登録</div>
+                                <div class="post-task-body">
+                                    <h3>保険証を登録できます</h3>
+                                </div>
+                                <label class="btn-back post-task-upload">
+                                    画像を選択
+                                    <input type="file" id="insuranceCardInput" accept="image/*">
+                                </label>
+                            </div>
+
+                            <div class="insurance-preview hidden" id="insurancePreview">
+                                <img id="insurancePreviewImage" alt="保険証プレビュー">
+                                <button class="btn-primary" id="uploadInsuranceCard">保険証を登録</button>
+                            </div>
+
+                            <div class="post-task-card hidden" id="googleReviewTaskCard">
+                                <div class="post-task-status">任意</div>
+                                <div class="post-task-body">
+                                    <h3>Googleで口コミを書く</h3>
+                                </div>
+                                <a class="btn-primary post-task-button google-review-button" id="googleReviewButton" href="#" target="_blank" rel="noopener">口コミを書く</a>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary" id="backToMypage">マイページへ戻る</button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- ========== 設定ページ ========== -->
+            <div class="page hidden" id="page-settings">
+                <div class="page-intro page-intro-settings">
+                    <p class="page-intro-eyebrow">ACCOUNT SETTINGS</p>
+                    <h2>登録情報・予約管理</h2>
+                    <p>患者様情報や通知、予約内容を確認できます。</p>
+                </div>
+                <section class="section">
+                    <h2 class="section-title">設定</h2>
+
+                    <!-- 予約一覧 -->
+                    <div class="settings-section">
+                        <h3 class="settings-section-title">予約一覧</h3>
+                        <div class="reservation-management-list" id="settingsReservationList">
+                            <div class="reservation-empty">
+                                <p>予約はありません</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-list">
+                        <div class="settings-item">
+                            <div class="settings-item-label">通知設定</div>
+                            <div class="settings-toggle">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="notificationToggle" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="settings-item-label">アプリ情報</div>
+                            <span class="settings-value">バージョン 1.0.0</span>
+                        </div>
+                    </div>
+
+                    <!-- 患者様情報管理セクション -->
+                    <div class="settings-section">
+                        <h3 class="settings-section-title">患者様情報管理</h3>
+
+                        <!-- 登録済み患者一覧 -->
+                        <div class="patient-management-list" id="settingsPatientList">
+                            <!-- 動的に追加 -->
+                        </div>
+
+                        <!-- 新規患者登録フォーム -->
+                        <div class="settings-patient-form">
+                            <button type="button" class="btn-toggle-new-patient full-width" id="toggleSettingsNewPatient">
+                                <span>＋ 新規患者様を登録</span>
+                            </button>
+                            <div class="new-patient-form-panel hidden" id="settingsNewPatientForm">
+                                <form class="form account-form" id="settingsAccountForm">
+                                    <div class="form-section-title">新規患者様情報</div>
+                                    <div class="form-group">
+                                        <label for="settingsPatientName">お名前 <span class="required">必須</span></label>
+                                        <input type="text" id="settingsPatientName" name="name" required placeholder="山田 太郎">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="settingsPatientKana">フリガナ</label>
+                                        <input type="text" id="settingsPatientKana" name="kana" placeholder="ヤマダ タロウ">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="settingsPatientPhonePart1">電話番号 <span class="required">必須</span></label>
+                                        <div class="phone-input-group" data-phone-target="settingsPatientPhone" data-phone-required="true">
+                                            <input class="phone-input" type="tel" id="settingsPatientPhonePart1" inputmode="numeric" maxlength="4" autocomplete="tel-area-code" placeholder="090" aria-label="電話番号1">
+                                            <span class="phone-separator">-</span>
+                                            <input class="phone-input" type="tel" id="settingsPatientPhonePart2" inputmode="numeric" maxlength="4" autocomplete="tel-local-prefix" placeholder="1234" aria-label="電話番号2">
+                                            <span class="phone-separator">-</span>
+                                            <input class="phone-input" type="tel" id="settingsPatientPhonePart3" inputmode="numeric" maxlength="4" autocomplete="tel-local-suffix" placeholder="5678" aria-label="電話番号3">
+                                            <input type="hidden" id="settingsPatientPhone" name="phone">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="settingsPatientEmail">メールアドレス</label>
+                                        <input type="email" id="settingsPatientEmail" name="email" placeholder="example@email.com">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="settingsPatientBirthdate">生年月日 <span class="required">必須</span></label>
+                                        <input type="date" id="settingsPatientBirthdate" name="birthdate" required>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button type="button" class="btn-back" id="cancelSettingsNewPatient">キャンセル</button>
+                                        <button type="submit" class="btn-primary">登録</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- データ削除 -->
+                    <div class="settings-section danger-section">
+                        <h3 class="settings-section-title">データ管理</h3>
+                        <button type="button" class="btn-danger full-width" id="clearAllData">すべてのデータを削除</button>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- 下部ナビゲーション -->
+        <nav class="bottom-nav">
+            <button class="bottom-nav-item active" data-page="mypage">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span>マイページ</span>
+            </button>
+            <button class="bottom-nav-item" data-page="reservation">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <span>予約</span>
+            </button>
+            <button class="bottom-nav-item" data-page="settings">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                <span>設定</span>
+            </button>
+        </nav>
+
+        <!-- 患者情報編集モーダル -->
+        <div class="edit-modal hidden" id="editPatientModal">
+            <div class="edit-modal-overlay" id="editModalOverlay"></div>
+            <div class="edit-modal-content">
+                <div class="edit-modal-header">
+                    <h3>患者情報を編集</h3>
+                    <button type="button" class="edit-modal-close" id="editModalClose">&times;</button>
+                </div>
+                <form class="form" id="editPatientForm">
+                    <input type="hidden" id="editPatientId" name="patientId">
+                    <input type="hidden" id="editPatientType" name="patientType">
+
+                    <div class="form-group">
+                        <label for="editPatientName">お名前 <span class="required">必須</span></label>
+                        <input type="text" id="editPatientName" name="name" required placeholder="山田 太郎">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editPatientNameKana">フリガナ</label>
+                        <input type="text" id="editPatientNameKana" name="kana" placeholder="ヤマダ タロウ">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editPatientPhonePart1">電話番号</label>
+                        <div class="phone-input-group" data-phone-target="editPatientPhone">
+                            <input class="phone-input" type="tel" id="editPatientPhonePart1" inputmode="numeric" maxlength="4" autocomplete="tel-area-code" placeholder="090" aria-label="電話番号1">
+                            <span class="phone-separator">-</span>
+                            <input class="phone-input" type="tel" id="editPatientPhonePart2" inputmode="numeric" maxlength="4" autocomplete="tel-local-prefix" placeholder="1234" aria-label="電話番号2">
+                            <span class="phone-separator">-</span>
+                            <input class="phone-input" type="tel" id="editPatientPhonePart3" inputmode="numeric" maxlength="4" autocomplete="tel-local-suffix" placeholder="5678" aria-label="電話番号3">
+                            <input type="hidden" id="editPatientPhone" name="phone">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editPatientEmail">メールアドレス</label>
+                        <input type="email" id="editPatientEmail" name="email" placeholder="example@email.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editPatientBirthdate">生年月日 <span class="required">必須</span></label>
+                        <input type="date" id="editPatientBirthdate" name="birthdate" required>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-back" id="editModalCancel">キャンセル</button>
+                        <button type="submit" class="btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 問診票モーダル -->
+        <div class="edit-modal hidden" id="questionnaireModal">
+            <div class="edit-modal-overlay" id="questionnaireModalOverlay"></div>
+            <div class="edit-modal-content questionnaire-modal-content">
+                <div class="edit-modal-header">
+                    <h3 id="mypageQuestionnaireTitle">問診票</h3>
+                    <button type="button" class="edit-modal-close" id="questionnaireModalClose">&times;</button>
+                </div>
+                <form class="form" id="mypageQuestionnaireFormWrapper">
+                    <div id="mypageQuestionnaireForm">
+                        <!-- 動的に追加 -->
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 診療履歴詳細モーダル -->
+        <div class="edit-modal hidden" id="historyDetailModal">
+            <div class="edit-modal-overlay" id="historyDetailModalOverlay"></div>
+            <div class="edit-modal-content history-detail-modal-content">
+                <div class="edit-modal-header">
+                    <h3>診療データ</h3>
+                    <button type="button" class="edit-modal-close" id="historyDetailModalClose">&times;</button>
+                </div>
+                <div class="history-detail-modal-body" id="historyDetailModalBody"></div>
+                <div class="history-detail-modal-actions">
+                    <button type="button" class="btn-primary" id="historyDetailModalDone">閉じる</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=nishiharu-clean-20260916-2"></script>
+    <script>
+        window.addEventListener('load', () => {
+            window.setTimeout(() => {
+                window.pageController?.updateMypagePatientSelect?.();
+                window.pageController?.syncAndRenderReservations?.('mypage');
+            }, 100);
+        });
+    </script>
+</body>
+</html>
+

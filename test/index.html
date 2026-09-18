@@ -1,0 +1,3641 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DigiMaster - 電子カルテ</title>
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="styles.css?v=receipt-download-loading-20260916-1">
+</head>
+<body>
+  <!-- ログイン画面 -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-container">
+      <div class="login-logo">
+        <div class="logo-icon">
+          <i class="fas fa-heartbeat"></i>
+        </div>
+        <h1 class="logo-text">
+          <span class="logo-sub">デジマスター</span>
+          DigiMaster
+        </h1>
+      </div>
+      <div id="login-facility-context" class="login-facility-context" aria-live="polite">
+        <div class="login-facility-icon"><i class="fas fa-clinic-medical"></i></div>
+        <div>
+          <span id="login-certificate-status">ID・パスワードでログインできます</span>
+          <strong id="login-facility-name">西春内科・在宅クリニック</strong>
+          <small id="login-certificate-detail">端末証明書は不要です</small>
+        </div>
+      </div>
+      <form id="login-form" class="login-form">
+        <div class="form-group">
+          <input type="text" id="login-id" placeholder="ログインID">
+        </div>
+        <div class="form-group">
+          <input type="password" id="login-password" placeholder="パスワード">
+        </div>
+        <button type="submit" class="login-btn">ログイン</button>
+        <a href="#" class="forgot-link">ログインできない・パスワードをお忘れの場合</a>
+      </form>
+    </div>
+  </div>
+
+  <!-- 受付一覧画面 -->
+  <div id="reception-screen" class="reception-screen hidden">
+    <!-- 受付ヘッダー -->
+    <header class="reception-header">
+      <div class="reception-header-left">
+        <a href="#" class="clinic-logo" id="btn-go-today" title="本日のTOPページへ">
+          <div class="logo-mark">
+            <i class="fas fa-clinic-medical"></i>
+          </div>
+        </a>
+        <div class="clinic-info">
+          <span class="clinic-name" id="reception-facility-name">受付</span>
+        </div>
+      </div>
+      <div class="reception-header-right">
+        <div class="header-icons">
+          <button class="icon-btn" title="カレンダー"><i class="fas fa-calendar-alt"></i></button>
+          <button class="icon-btn" title="一覧"><i class="fas fa-th-list"></i></button>
+          <button class="icon-btn" id="btn-reception-edit-history" title="受付編集履歴"><i class="fas fa-history"></i></button>
+          <button class="icon-btn" id="btn-rme-daily-report" title="RMEレポート"><span class="icon-text">RME</span></button>
+          <button class="icon-btn" title="リンク"><i class="fas fa-link"></i></button>
+          <button class="icon-btn" id="btn-header-search" title="患者検索"><i class="fas fa-search"></i></button>
+          <button class="icon-btn" title="ダウンロード"><i class="fas fa-download"></i></button>
+          <button class="icon-btn" title="通知"><i class="fas fa-bell"></i></button>
+        </div>
+        <div class="header-search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" placeholder="Q&Aを検索する" class="header-search-input">
+        </div>
+        <div class="header-icons">
+          <button class="icon-btn" title="メッセージ"><i class="fas fa-comment-dots"></i></button>
+          <button class="icon-btn" title="ダウンロード"><i class="fas fa-cloud-download-alt"></i></button>
+        </div>
+        <div class="user-dropdown" id="user-dropdown">
+          <button class="user-dropdown-btn" id="user-dropdown-btn">
+            <span id="reception-user-name">ユーザー</span>
+            <i class="fas fa-caret-down"></i>
+          </button>
+          <div class="user-dropdown-menu" id="user-dropdown-menu">
+            <a href="#" class="dropdown-item" id="menu-password">
+              <i class="fas fa-key"></i> パスワード変更
+            </a>
+            <a href="#" class="dropdown-item" id="menu-facility">
+              <i class="fas fa-building"></i> 施設管理
+            </a>
+            <a href="#" class="dropdown-item" id="menu-reservation-admin">
+              <i class="fas fa-calendar-check"></i> 予約管理
+            </a>
+            <div class="dropdown-divider"></div>
+            <a href="#" class="dropdown-item" id="menu-logout">
+              <i class="fas fa-sign-out-alt"></i> ログアウト
+            </a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- 受付ツールバー -->
+    <div class="reception-toolbar">
+      <div class="toolbar-left">
+        <button class="toolbar-nav-btn" id="btn-prev-date"><i class="fas fa-chevron-left"></i></button>
+        <span class="toolbar-date-display" id="toolbar-date-display">2026/05/04 (月)</span>
+        <button class="toolbar-nav-btn" id="btn-next-date"><i class="fas fa-chevron-right"></i></button>
+        <span class="patient-count" id="patient-count">0 / 0件</span>
+        <button class="toolbar-btn receipt-claim-open-btn" id="btn-receipt-claim">
+          <i class="fas fa-file-invoice"></i> レセプト作成
+        </button>
+        <button class="toolbar-btn filter-btn" id="btn-filter">
+          <i class="fas fa-filter"></i>
+        </button>
+        <button class="toolbar-btn" id="btn-clear-filter"><i class="fas fa-times"></i></button>
+        <input type="date" id="reception-date" class="hidden">
+      </div>
+      <div class="toolbar-right">
+        <button class="toolbar-icon-btn" title="カレンダー"><i class="far fa-calendar"></i></button>
+        <div class="office-report-menu" id="office-report-menu">
+          <button class="toolbar-icon-btn office-report-menu-btn" id="office-report-menu-btn" type="button" title="帳票一覧" aria-label="帳票一覧" aria-expanded="false" aria-controls="office-report-menu-panel">
+            <i class="fas fa-list"></i>
+          </button>
+          <div class="office-report-menu-panel" id="office-report-menu-panel" role="menu" aria-label="帳票一覧">
+            <a href="#" class="dropdown-item office-report-dropdown-item" data-office-report-action="monthly" role="menuitem">月計表</a>
+            <a href="#" class="dropdown-item office-report-dropdown-item" data-office-report-action="generic-drug-usage" role="menuitem">後発品使用量集計表</a>
+            <a href="#" class="dropdown-item office-report-dropdown-item" data-office-report-action="psychotropic-list" role="menuitem">向精神薬投与患者一覧</a>
+            <a href="#" class="dropdown-item office-report-dropdown-item" data-office-report-action="business-report" role="menuitem">経営データ集計</a>
+            <a href="#" class="dropdown-item office-report-dropdown-item" data-office-report-action="carryover-list" role="menuitem">繰越金有り患者一覧表</a>
+            <a href="#" class="dropdown-item office-report-dropdown-item" data-office-report-action="efp-file" role="menuitem">EFPファイル</a>
+          </div>
+        </div>
+        <button class="toolbar-icon-btn" title="更新"><i class="fas fa-sync-alt"></i></button>
+        <button class="toolbar-icon-btn" title="設定"><i class="fas fa-cog"></i></button>
+      </div>
+    </div>
+
+    <!-- 患者検索モーダル（M3風フルスクリーン） -->
+    <div id="patient-search-modal" class="patient-search-screen hidden">
+      <div class="patient-search-container">
+        <!-- 検索ヘッダー -->
+        <div class="patient-search-header">
+          <h3>患者検索</h3>
+          <button class="search-close-btn" id="search-modal-close">&times;</button>
+        </div>
+
+        <!-- 検索バー -->
+        <div class="patient-search-bar">
+          <div class="search-input-wrapper">
+            <i class="fas fa-search"></i>
+            <input type="text" id="search-query" placeholder="患者番号、フリガナ、名前、生年月日（1999/1/1 または H11/1/1）、施設を入力してください" autocomplete="off">
+          </div>
+          <button class="btn btn-primary" onclick="showPatientModal()">
+            <i class="fas fa-user-plus"></i> 新規患者登録
+          </button>
+        </div>
+
+        <!-- 検索結果テーブル -->
+        <div class="patient-search-results">
+          <table class="search-results-table" id="search-results-table">
+            <thead>
+              <tr>
+                <th class="col-patient-no">患者番号</th>
+                <th class="col-kana">フリガナ</th>
+                <th class="col-name">名前</th>
+                <th class="col-gender">性</th>
+                <th class="col-birth">生年月日</th>
+                <th class="col-age">年齢</th>
+                <th class="col-last">最終受付日</th>
+                <th class="col-memo">患者メモ</th>
+                <th class="col-actions">アクション</th>
+              </tr>
+            </thead>
+            <tbody id="search-results-body">
+              <!-- 検索結果がここに入る -->
+            </tbody>
+          </table>
+          <div class="search-no-results" id="search-no-results">
+            <i class="fas fa-search"></i>
+            <p>検索キーワードを入力してください</p>
+          </div>
+        </div>
+
+        <!-- フッター -->
+        <div class="patient-search-footer">
+          <button class="btn btn-outline" id="btn-bulk-reservation">
+            <i class="fas fa-calendar-check"></i> 一括予約
+          </button>
+          <button class="btn btn-outline" id="btn-csv-download">
+            <i class="fas fa-download"></i> 検索結果をCSVダウンロード
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 患者一覧テーブル -->
+    <div class="reception-body">
+      <table class="patient-table" id="patient-table">
+        <thead>
+          <tr>
+            <th class="col-num">番号 <i class="fas fa-sort sort-icon"></i></th>
+            <th class="col-appointment">予約 <i class="fas fa-sort sort-icon"></i></th>
+            <th class="col-time">時間 <i class="fas fa-sort sort-icon"></i></th>
+            <th class="col-status">ステータス <i class="fas fa-sort sort-icon"></i></th>
+            <th class="col-patient-id">患者番号 <i class="fas fa-sort sort-icon"></i></th>
+            <th class="col-patient-name">患者氏名 <i class="fas fa-sort sort-icon"></i></th>
+            <th class="col-birth-date">生年月日</th>
+            <th class="col-age">年齢 <i class="fas fa-sort sort-icon"></i></th>
+            <th class="col-insurance">保険 <i class="fas fa-sort sort-icon"></i></th>
+            <th class="col-department">診療科</th>
+            <th class="col-doctor">医師</th>
+            <th class="col-last-visit">前回診療日</th>
+            <th class="col-patient-memo">患者メモ</th>
+            <th class="col-reception-memo">受付メモ</th>
+            <th class="col-actions col-first-visit">初</th>
+            <th class="col-actions col-terminal">端</th>
+            <th class="col-actions col-payment">支払</th>
+            <th class="col-actions">会計</th>
+            <th class="col-actions">処方箋</th>
+            <th class="col-actions">出</th>
+            <th class="col-actions">電</th>
+            <th class="col-actions">警</th>
+          </tr>
+        </thead>
+        <tbody id="patient-table-body">
+          <!-- 患者データがここに入る -->
+        </tbody>
+      </table>
+      <div class="no-patients" id="no-patients">
+        <i class="fas fa-user-slash no-patients-icon"></i>
+        <p>本日の受付患者はいません</p>
+        <button class="btn btn-primary" onclick="showPatientModal()">
+          <i class="fas fa-user-plus"></i> 新規患者登録
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 施設管理画面 -->
+  <div id="facility-screen" class="facility-screen hidden">
+    <header class="facility-page-header">
+      <div class="facility-page-header-left">
+        <button type="button" class="facility-logo-btn" id="btn-facility-back" title="受付一覧へ戻る">
+          <svg class="facility-brand-logo" viewBox="0 0 32 40" aria-hidden="true" focusable="false">
+            <path class="facility-brand-leaf-main" d="M17.4 1.2c.1 7.9-1.8 13.2-5.1 18.4-3.6 5.6-4.9 11.6-.2 17.1-2.6-1-5.4-4.3-5.5-8.7-.2-6.1 3.7-10.9 6.8-15.6 2.2-3.5 3.5-7.1 4-11.2Z"/>
+            <path class="facility-brand-leaf-sub" d="M21.1 11.5c5.6 4.2 8.8 9.9 8.1 16.4-.5 5-3 9-7.3 11.2 2.7-4 3.5-8.1 2.5-12.3-.9-4.1-3.2-7.3-3.3-15.3Z"/>
+            <path class="facility-brand-stem" d="M11.1 38.4c5.2-4.4 8.4-10.1 10.2-17.2"/>
+          </svg>
+        </button>
+        <span class="facility-page-title" id="facility-page-title">施設管理画面</span>
+      </div>
+    </header>
+
+    <div class="facility-page-body">
+      <aside class="facility-side-nav">
+        <button type="button" class="facility-side-item active" data-facility-section="medical">医療機関情報</button>
+        <button type="button" class="facility-side-item" data-facility-section="users">利用者管理</button>
+        <button type="button" class="facility-side-item" data-facility-section="masters">マスタ管理</button>
+        <button type="button" class="facility-side-item" data-facility-section="accident">労災・自賠</button>
+        <button type="button" class="facility-side-item" data-facility-section="lab-company">検査会社管理</button>
+        <button type="button" class="facility-side-item" data-facility-section="lab-items">院内検査項目</button>
+        <button type="button" class="facility-side-item" data-facility-section="login-log">ログインログ</button>
+        <button type="button" class="facility-side-item" data-facility-section="audit-log">監査ログ</button>
+        <button type="button" class="facility-side-item" data-facility-section="support-log">サポート依頼ログ</button>
+        <button type="button" class="facility-side-item" data-facility-section="shared-password">共通パスワード設定</button>
+        <button type="button" class="facility-side-item" data-facility-section="integration">連携</button>
+        <button type="button" class="facility-side-item" data-facility-section="documents">文書雛形</button>
+        <button type="button" class="facility-side-item" data-facility-section="certificates">証明書</button>
+        <button type="button" class="facility-side-item" data-facility-section="attachments">添付ファイル使用量</button>
+        <button type="button" class="facility-side-item" data-facility-section="monthly-count">月別受付回数</button>
+        <button type="button" class="facility-side-item" data-facility-section="other">その他設定</button>
+        <button type="button" class="facility-side-item" data-facility-section="warnings">警告管理</button>
+        <button type="button" class="facility-side-item" data-facility-section="data-submit">データ提出加算設定</button>
+        <button type="button" class="facility-side-item" data-facility-section="hpki">HPKIクライアント証明書</button>
+        <button type="button" class="facility-side-item" data-facility-section="rme">RME通知管理</button>
+        <button type="button" class="facility-side-item" data-facility-section="auto-calc">自動算定</button>
+      </aside>
+
+      <main class="facility-main">
+        <section class="facility-page-section" data-facility-panel="medical">
+          <h2>医療機関情報</h2>
+          <div class="facility-info-wrap">
+            <div class="facility-info-actions">
+              <button type="button" class="facility-edit-btn" id="btn-facility-page-edit">
+                <i class="fas fa-pen"></i> 編集
+              </button>
+            </div>
+            <table class="facility-info-table">
+              <tbody id="facility-medical-info-body">
+                <tr><td colspan="2">医療機関情報を読み込み中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="facility-page-section hidden" data-facility-panel="users">
+          <h2>利用者管理</h2>
+          <button type="button" class="facility-new-btn" id="btn-user-register">
+            <i class="fas fa-plus"></i> 新規登録
+          </button>
+          <div class="facility-user-filter">
+            <label>
+              <input type="checkbox" id="facility-hide-inactive-users" checked>
+              <span>無効な利用者を非表示</span>
+            </label>
+          </div>
+          <div class="facility-table-scroll">
+            <table class="facility-users-table">
+              <thead>
+                <tr>
+                  <th>ログインID</th>
+                  <th>利用者名</th>
+                  <th>役割</th>
+                  <th>施設管理権限</th>
+                  <th>状態</th>
+                  <th>最終更新日時</th>
+                  <th>最終ログイン日時</th>
+                  <th></th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="facility-users-body"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="facility-page-section hidden" data-facility-panel="certificates">
+          <h2>証明書</h2>
+          <button type="button" class="facility-new-btn" id="btn-certificate-register">
+            <i class="fas fa-plus"></i> 新規登録
+          </button>
+          <div class="facility-table-scroll">
+            <table class="facility-users-table facility-certificate-table">
+              <thead>
+                <tr>
+                  <th>コモンネーム</th>
+                  <th>発行日</th>
+                  <th>有効期限</th>
+                  <th>状態</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="facility-certificates-body">
+                <tr><td colspan="5" class="facility-empty-cell">証明書を読み込み中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="facility-page-section hidden" data-facility-panel="monthly-count">
+          <h2>月別受付回数</h2>
+          <div class="facility-table-scroll">
+            <table class="facility-users-table facility-monthly-count-table">
+              <thead>
+                <tr>
+                  <th>受付年月</th>
+                  <th>受付回数</th>
+                </tr>
+              </thead>
+              <tbody id="facility-monthly-count-body">
+                <tr><td colspan="2" class="facility-empty-cell">受付回数を読み込み中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="facility-page-section hidden" data-facility-panel="masters">
+          <h2>マスタ管理</h2>
+          <div class="facility-master-content">
+            <section class="facility-master-import">
+              <h3>CSVからの取り込み</h3>
+              <p>マスタの取り込み後、新しいマスタが利用できるようになるまでに時間がかかる場合がございます。</p>
+              <table class="facility-master-import-table">
+                <thead>
+                  <tr>
+                    <th>マスタ名</th>
+                    <th>一覧</th>
+                    <th>CSVファイル</th>
+                    <th></th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>診療科</td>
+                    <td><button type="button" class="facility-list-btn">一覧</button></td>
+                    <td><input type="file"></td>
+                    <td><button type="button" class="facility-import-btn">取り込み</button></td>
+                    <td><button type="button" class="facility-format-btn">フォーマットを確認する</button></td>
+                  </tr>
+                  <tr>
+                    <td>医師</td>
+                    <td><button type="button" class="facility-list-btn">一覧</button></td>
+                    <td><input type="file"></td>
+                    <td><button type="button" class="facility-import-btn">取り込み</button></td>
+                    <td><button type="button" class="facility-format-btn">フォーマットを確認する</button></td>
+                  </tr>
+                  <tr>
+                    <td>傷病名</td>
+                    <td><button type="button" class="facility-list-btn">一覧</button></td>
+                    <td><input type="file"></td>
+                    <td><button type="button" class="facility-import-btn">取り込み</button></td>
+                    <td><button type="button" class="facility-format-btn">フォーマットを確認する</button></td>
+                  </tr>
+                  <tr>
+                    <td>用法</td>
+                    <td><button type="button" class="facility-list-btn">一覧</button></td>
+                    <td><input type="file"></td>
+                    <td><button type="button" class="facility-import-btn">取り込み</button></td>
+                    <td><button type="button" class="facility-format-btn">フォーマットを確認する</button></td>
+                  </tr>
+                  <tr>
+                    <td>材料</td>
+                    <td><button type="button" class="facility-list-btn">一覧</button></td>
+                    <td><input type="file"></td>
+                    <td><button type="button" class="facility-import-btn">取り込み</button></td>
+                    <td><button type="button" class="facility-format-btn">フォーマットを確認する</button></td>
+                  </tr>
+                  <tr>
+                    <td>部位</td>
+                    <td><button type="button" class="facility-list-btn">一覧</button></td>
+                    <td><input type="file"></td>
+                    <td><button type="button" class="facility-import-btn">取り込み</button></td>
+                    <td><button type="button" class="facility-format-btn">フォーマットを確認する</button></td>
+                  </tr>
+                  <tr>
+                    <td>コメント</td>
+                    <td><button type="button" class="facility-list-btn">一覧</button></td>
+                    <td><input type="file"></td>
+                    <td><button type="button" class="facility-import-btn">取り込み</button></td>
+                    <td><button type="button" class="facility-format-btn">フォーマットを確認する</button></td>
+                  </tr>
+                  <tr>
+                    <td>自費</td>
+                    <td><button type="button" class="facility-list-btn">一覧</button></td>
+                    <td><input type="file"></td>
+                    <td><button type="button" class="facility-import-btn">取り込み</button></td>
+                    <td><button type="button" class="facility-format-btn">フォーマットを確認する</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="facility-official-master-panel">
+              <div class="facility-official-master-heading">
+                <h3>公式マスター取込状況</h3>
+                <button type="button" class="facility-list-btn" id="btn-official-master-refresh">
+                  <i class="fas fa-sync-alt"></i> 再読込
+                </button>
+              </div>
+              <div class="facility-official-master-summary" id="official-master-import-summary">読み込み前</div>
+              <table class="facility-official-master-table">
+                <thead>
+                  <tr>
+                    <th>マスター</th>
+                    <th>状態</th>
+                    <th>取込件数</th>
+                    <th>差分</th>
+                    <th>取込日時</th>
+                    <th>ファイル</th>
+                  </tr>
+                </thead>
+                <tbody id="official-master-import-body">
+                  <tr><td colspan="6" class="facility-master-empty">読み込み前</td></tr>
+                </tbody>
+              </table>
+              <details class="facility-official-master-history">
+                <summary>取込履歴・差分確認</summary>
+                <table class="facility-official-master-table">
+                  <thead>
+                    <tr>
+                      <th>日時</th>
+                      <th>マスター</th>
+                      <th>状態</th>
+                      <th>取込</th>
+                      <th>差分</th>
+                      <th>メッセージ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="official-master-import-history-body">
+                    <tr><td colspan="6" class="facility-master-empty">読み込み前</td></tr>
+                  </tbody>
+                </table>
+              </details>
+            </section>
+
+            <section class="facility-master-list">
+              <div class="facility-master-heading">
+                <h3>施設マスタ</h3>
+                <button type="button" class="facility-new-btn facility-master-new-btn" id="btn-facility-master-register">
+                  <i class="fas fa-plus"></i> 新規登録
+                </button>
+              </div>
+              <table class="facility-master-table">
+                <thead>
+                  <tr>
+                    <th>施設名</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="facility-master-body"></tbody>
+              </table>
+            </section>
+
+            <section class="facility-orca-import">
+              <h3>初回取り込み(ORCAから)</h3>
+              <div class="facility-orca-alert">
+                <strong>通常は行う必要のない機能です。</strong>
+                <button type="button">開く</button>
+              </div>
+            </section>
+          </div>
+        </section>
+        <section class="facility-page-section hidden" data-facility-panel="documents">
+          <h2>文書ひな形</h2>
+          <div class="facility-document-content">
+            <section class="facility-document-list-section">
+              <div class="facility-document-heading">
+                <div>
+                  <h3>文書ひな形一覧</h3>
+                  <p>Word（.docx）またはExcel（.xlsx）のひな形を登録できます。表示名は重複できません。</p>
+                </div>
+                <button type="button" class="facility-new-btn" id="btn-facility-document-register">
+                  <i class="fas fa-plus"></i> 新規登録
+                </button>
+              </div>
+              <div class="facility-document-table-wrap">
+                <table class="facility-document-table">
+                  <thead>
+                    <tr>
+                      <th>表示名</th>
+                      <th>ファイル名</th>
+                      <th>形式</th>
+                      <th>更新日時</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="facility-document-template-body"></tbody>
+                </table>
+              </div>
+            </section>
+            <section class="facility-document-parameters">
+              <h3>文書ひな形自動反映パラメータ一覧</h3>
+              <p>下記のパラメータをテンプレート内の反映したい位置に記載してください。ファイル形式は docx または xlsx 形式で作成してください。</p>
+              <div class="facility-document-parameter-grid" id="facility-document-parameter-list"></div>
+            </section>
+          </div>
+        </section>
+        <section class="facility-page-section hidden" data-facility-panel="accident">
+          <h2>労災・自賠</h2>
+          <div class="facility-info-wrap facility-accident-wrap">
+            <div class="facility-info-actions">
+              <button type="button" class="facility-edit-btn" id="btn-accident-edit">
+                <i class="fas fa-pen"></i> 編集
+              </button>
+            </div>
+            <table class="facility-info-table facility-accident-table">
+              <tbody>
+                <tr>
+                  <th>労災指定医療機関コード</th>
+                  <td id="accident-code-display">2392381</td>
+                </tr>
+                <tr>
+                  <th>自賠責計算区分</th>
+                  <td>
+                    <div class="facility-accident-radio-list">
+                      <label class="facility-accident-radio">
+                        <input type="radio" name="accident-method-display" id="accident-method-workers-display" checked tabindex="-1" aria-disabled="true">
+                        <span>労災準拠　点数単価 12円　加算率 120%</span>
+                      </label>
+                      <label class="facility-accident-radio">
+                        <input type="radio" name="accident-method-display" id="accident-method-health-display" tabindex="-1" aria-disabled="true">
+                        <span>健保準拠　技術点単価 10円　医薬品等点単価 10円</span>
+                      </label>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="facility-page-section hidden" data-facility-panel="shared-password">
+          <h2>共通パスワード設定</h2>
+          <div class="facility-shared-password-wrap">
+            <div class="facility-shared-password-help">
+              <p>ダウンロードしたZIP・PDFなどのファイルを開くときに入力するパスワードとなります。</p>
+              <p>設定したパスワードを共通で使用します。</p>
+              <p>パスワードを忘れてしまった場合は、再度設定してください。</p>
+            </div>
+            <table class="facility-shared-password-table">
+              <tbody>
+                <tr>
+                  <th>パスワード</th>
+                  <td>
+                    <span id="shared-password-status">パスワードが設定されていません。</span>
+                    <button type="button" id="btn-shared-password-setting" class="facility-shared-password-btn">パスワード設定</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="facility-page-section hidden" data-facility-panel="login-log">
+          <h2>ログインログ</h2>
+          <div class="facility-log-toolbar">
+            <button type="button" class="facility-log-date-btn" id="login-log-prev-date">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="facility-log-date-display" id="login-log-date-display">2026/07/09 (木)</span>
+            <button type="button" class="facility-log-date-btn" id="login-log-next-date">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+          <div class="facility-log-table-wrap">
+            <table class="facility-log-table">
+              <thead>
+                <tr>
+                  <th>日時</th>
+                  <th>種別</th>
+                  <th>利用者ID</th>
+                  <th>利用者名など</th>
+                </tr>
+              </thead>
+              <tbody id="facility-login-log-body"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="facility-page-section hidden" data-facility-panel="audit-log">
+          <h2>監査ログ</h2>
+          <div class="facility-log-toolbar">
+            <button type="button" class="facility-log-date-btn" id="audit-log-prev-date">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="facility-log-date-display" id="audit-log-date-display">2026/07/09 (木)</span>
+            <button type="button" class="facility-log-date-btn" id="audit-log-next-date">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+          <div class="facility-log-table-wrap">
+            <table class="facility-log-table facility-audit-log-table">
+              <thead>
+                <tr>
+                  <th>アクセス日時</th>
+                  <th>ログインID</th>
+                  <th>利用者名</th>
+                  <th>操作</th>
+                  <th>検索キーワード</th>
+                  <th>患者ID</th>
+                  <th>患者氏名</th>
+                </tr>
+              </thead>
+              <tbody id="facility-audit-log-body"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="facility-page-section hidden" data-facility-panel="other">
+          <h2>その他設定</h2>
+          <div class="facility-other-content">
+            <div class="facility-other-heading">
+              <h3>その他設定</h3>
+              <button type="button" class="facility-save-btn facility-other-save-btn" id="btn-m3-feature-settings-save">保存</button>
+            </div>
+            <table class="facility-other-setting-table">
+              <tbody>
+                <tr class="facility-other-section-row">
+                  <th colspan="2">カルテ</th>
+                </tr>
+                <tr>
+                  <th>カルテ保存時処方監査確認</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-chart-prescription-audit" value="on" data-facility-other-setting="chartPrescriptionAuditCheck"> する</label>
+                    <label><input type="radio" name="facility-other-chart-prescription-audit" value="off" data-facility-other-setting="chartPrescriptionAuditCheck"> しない</label>
+                  </td>
+                </tr>
+                <tr>
+                  <th>処方監査の表示レベル</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-prescription-audit-level" value="1" data-facility-other-setting="prescriptionAuditMinimumLevel"> レベル1以上</label>
+                    <label><input type="radio" name="facility-other-prescription-audit-level" value="2" data-facility-other-setting="prescriptionAuditMinimumLevel"> レベル2以上</label>
+                    <label><input type="radio" name="facility-other-prescription-audit-level" value="3" data-facility-other-setting="prescriptionAuditMinimumLevel"> レベル3のみ</label>
+                  </td>
+                </tr>
+                <tr>
+                  <th>カルテ保存時算定チェック確認</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-chart-calculation-check" value="on" data-facility-other-setting="chartCalculationCheck"> する</label>
+                    <label><input type="radio" name="facility-other-chart-calculation-check" value="off" data-facility-other-setting="chartCalculationCheck"> しない</label>
+                  </td>
+                </tr>
+                <tr>
+                  <th>バイタル</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-vital-growth" value="on" data-facility-other-setting="vitalGrowthCurve"> 成長曲線タブを表示する</label>
+                    <label><input type="radio" name="facility-other-vital-growth" value="off" data-facility-other-setting="vitalGrowthCurve"> 表示しない</label>
+                  </td>
+                </tr>
+                <tr class="facility-other-section-row">
+                  <th colspan="2">受付・処方箋</th>
+                </tr>
+                <tr>
+                  <th>受け付けた時のステータス</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-reception-status" value="exam_waiting" data-facility-other-setting="receptionInitialStatus"> 診察待</label>
+                    <label><input type="radio" name="facility-other-reception-status" value="waiting" data-facility-other-setting="receptionInitialStatus"> 受付中</label>
+                  </td>
+                </tr>
+                <tr>
+                  <th>受付編集履歴</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-reception-history" value="on" data-facility-other-setting="receptionEditHistory"> 表示する</label>
+                    <label><input type="radio" name="facility-other-reception-history" value="off" data-facility-other-setting="receptionEditHistory"> 表示しない</label>
+                  </td>
+                </tr>
+                <tr>
+                  <th>処方箋一般名記載</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-prescription-general-name" value="on" data-facility-other-setting="prescriptionGeneralNameDefault"> する</label>
+                    <label><input type="radio" name="facility-other-prescription-general-name" value="off" data-facility-other-setting="prescriptionGeneralNameDefault"> しない</label>
+                  </td>
+                </tr>
+                <tr>
+                  <th>リフィル不可の処方箋</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-non-refill-strike" value="on" data-facility-other-setting="strikeThroughNonRefillPrescription"> 取消線を引く</label>
+                    <label><input type="radio" name="facility-other-non-refill-strike" value="off" data-facility-other-setting="strikeThroughNonRefillPrescription"> 引かない</label>
+                  </td>
+                </tr>
+                <tr>
+                  <th>引換番号付き紙処方箋の発行</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-paper-prescription-exchange-number" value="on" data-facility-other-setting="issueExchangeNumberPaperPrescription"> する</label>
+                    <label><input type="radio" name="facility-other-paper-prescription-exchange-number" value="off" data-facility-other-setting="issueExchangeNumberPaperPrescription"> しない</label>
+                  </td>
+                </tr>
+                <tr class="facility-other-section-row">
+                  <th colspan="2">連携</th>
+                </tr>
+                <tr>
+                  <th>エージェント連携</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-agent-integration" value="karte" data-facility-other-setting="agentIntegration"> する（カルテ単体）</label>
+                    <label><input type="radio" name="facility-other-agent-integration" value="orca" data-facility-other-setting="agentIntegration"> する（ORCA連携）</label>
+                    <label><input type="radio" name="facility-other-agent-integration" value="none" data-facility-other-setting="agentIntegration"> しない</label>
+                  </td>
+                </tr>
+                <tr>
+                  <th>カルテ送信時病名自動送信</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-diagnosis-auto-send" value="on" data-facility-other-setting="autoSendDiagnosesOnKarteSend"> する</label>
+                    <label><input type="radio" name="facility-other-diagnosis-auto-send" value="off" data-facility-other-setting="autoSendDiagnosesOnKarteSend"> しない</label>
+                  </td>
+                </tr>
+                <tr>
+                  <th>自動精算機連携</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-payment-machine" value="on" data-facility-other-setting="autoPaymentMachineIntegration"> する</label>
+                    <label><input type="radio" name="facility-other-payment-machine" value="off" data-facility-other-setting="autoPaymentMachineIntegration"> しない</label>
+                  </td>
+                </tr>
+                <tr>
+                  <th>院外でも処方有無フラグをONにする</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-payment-machine-prescription-flag" value="on" data-facility-other-setting="autoPaymentMachineExternalPrescriptionFlag"> する</label>
+                    <label><input type="radio" name="facility-other-payment-machine-prescription-flag" value="off" data-facility-other-setting="autoPaymentMachineExternalPrescriptionFlag"> しない</label>
+                  </td>
+                </tr>
+                <tr>
+                  <th>領収書に予約QRコードを記載する</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-receipt-reservation-qr" value="on" data-facility-other-setting="receiptDigismaReservationQr"> する</label>
+                    <label><input type="radio" name="facility-other-receipt-reservation-qr" value="off" data-facility-other-setting="receiptDigismaReservationQr"> しない</label>
+                  </td>
+                </tr>
+                <tr class="facility-other-section-row">
+                  <th colspan="2">オンライン資格確認等システム</th>
+                </tr>
+                <tr>
+                  <th>オンライン資格確認等システム</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-online-eligibility" value="on" data-facility-other-setting="onlineEligibilitySystem"> する</label>
+                    <label><input type="radio" name="facility-other-online-eligibility" value="off" data-facility-other-setting="onlineEligibilitySystem"> しない</label>
+                  </td>
+                </tr>
+                <tr>
+                  <th>医療扶助</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-medical-assistance" value="on" data-facility-other-setting="medicalAssistanceEligibility"> 有効</label>
+                    <label><input type="radio" name="facility-other-medical-assistance" value="off" data-facility-other-setting="medicalAssistanceEligibility"> 無効</label>
+                  </td>
+                </tr>
+                <tr>
+                  <th>PMH（医療費助成）</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-pmh" value="on" data-facility-other-setting="pmhEligibility"> 有効</label>
+                    <label><input type="radio" name="facility-other-pmh" value="off" data-facility-other-setting="pmhEligibility"> 無効</label>
+                  </td>
+                </tr>
+                <tr class="facility-other-section-row">
+                  <th colspan="2">電子処方箋</th>
+                </tr>
+                <tr>
+                  <th>電子処方箋</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-electronic-prescription" value="on" data-facility-other-setting="electronicPrescription"> する</label>
+                    <label><input type="radio" name="facility-other-electronic-prescription" value="off" data-facility-other-setting="electronicPrescription"> しない</label>
+                  </td>
+                </tr>
+                <tr>
+                  <th>追加機能（リフィル処方・口頭同意）</th>
+                  <td>
+                    <label><input type="radio" name="facility-other-electronic-prescription-extra" value="on" data-facility-other-setting="electronicPrescriptionRefillOrOralConsent"> 有効</label>
+                    <label><input type="radio" name="facility-other-electronic-prescription-extra" value="off" data-facility-other-setting="electronicPrescriptionRefillOrOralConsent"> 無効</label>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="facility-page-section hidden" data-facility-panel="warnings">
+          <h2>警告管理</h2>
+          <div class="facility-warning-table-wrap">
+            <table class="facility-warning-table">
+              <thead>
+                <tr>
+                  <th>処置行為・医薬品</th>
+                  <th>種類</th>
+                  <th>レベル</th>
+                  <th>カルテ</th>
+                  <th>要確認レセプト一覧</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="facility-warning-body"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="facility-page-section hidden" data-facility-panel="data-submit">
+          <h2>データ提出加算設定</h2>
+          <div class="facility-data-submit-wrap">
+            <div class="facility-info-actions">
+              <button type="button" class="facility-edit-btn" id="btn-data-submit-edit">
+                <i class="fas fa-pen"></i> 編集
+              </button>
+            </div>
+            <div class="facility-data-submit-code-row">
+              <span>医療機関コード（9桁）</span>
+              <span class="facility-data-submit-code-value" id="data-submit-code-display"></span>
+              <span>※申請時のコード</span>
+            </div>
+            <h3 class="facility-data-submit-subtitle">診療科設定</h3>
+            <table class="facility-data-submit-table">
+              <thead>
+                <tr>
+                  <th>診療科コード</th>
+                  <th>レセプト診療科コード</th>
+                  <th>診療科区分</th>
+                </tr>
+              </thead>
+              <tbody id="facility-data-submit-body">
+                <tr><td colspan="3" class="facility-empty-cell">設定を読み込み中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="facility-page-section hidden" data-facility-panel="rme">
+          <h2>RME通知管理</h2>
+          <div class="facility-rme-management-wrap">
+            <table class="facility-rme-management-table">
+              <thead>
+                <tr>
+                  <th>RME通知</th>
+                  <th>管理</th>
+                </tr>
+              </thead>
+              <tbody id="facility-rme-management-body">
+                <tr><td colspan="2" class="facility-empty-cell">RME通知設定を読み込み中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="facility-page-section hidden" data-facility-panel="auto-calc">
+          <h2>自動算定</h2>
+          <a href="#" class="facility-auto-help">
+            <i class="far fa-question-circle"></i> 自動算定 マニュアル＆ヘルプ
+          </a>
+          <div class="facility-auto-content">
+            <section class="facility-auto-selection">
+              <div class="facility-auto-section-title">
+                <h3>自動算定機能の選択</h3>
+                <button type="button" class="facility-save-btn facility-auto-save-btn" id="btn-auto-calc-settings-save">保存</button>
+              </div>
+              <table class="facility-auto-setting-table">
+                <tbody>
+                  <tr>
+                    <th>「初再診料」の自動算定</th>
+                    <td>
+                      <label><input type="radio" name="auto-initial-fee" value="on"> する</label>
+                      <label><input type="radio" name="auto-initial-fee" value="off" checked> しない</label>
+                      <div class="facility-auto-sub-option">
+                        <label><input type="checkbox" disabled> 「小児科外来診療料」を自動算定</label>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>診療科の「時間外加算」の自動算定</th>
+                    <td>
+                      <label><input type="radio" name="auto-overtime" value="on"> する</label>
+                      <label><input type="radio" name="auto-overtime" value="off" checked> しない</label>
+                      <div class="facility-auto-sub-option">
+                        <label><input type="checkbox" disabled> 「小児科」を標榜</label>
+                        <label><input type="checkbox" disabled> 「時間外特例加算」を算定</label>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>「特定疾患療養管理料」の自動算定</th>
+                    <td>
+                      <label><input type="radio" name="auto-specific-disease" value="on" checked> する</label>
+                      <label><input type="radio" name="auto-specific-disease" value="off"> しない</label>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>「皮膚科特定疾患指導管理料」の自動算定</th>
+                    <td>
+                      <label><input type="radio" name="auto-dermatology" value="on"> する</label>
+                      <label><input type="radio" name="auto-dermatology" value="off" checked> しない</label>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>「てんかん指導料」の自動算定</th>
+                    <td>
+                      <label><input type="radio" name="auto-epilepsy" value="on"> する</label>
+                      <label><input type="radio" name="auto-epilepsy" value="off" checked> しない</label>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>「難病外来指導管理料１」の自動算定</th>
+                    <td>
+                      <label><input type="radio" name="auto-intractable" value="on"> する</label>
+                      <label><input type="radio" name="auto-intractable" value="off" checked> しない</label>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="facility-auto-actions">
+              <div class="facility-auto-section-title">
+                <h3>自動算定する診療行為</h3>
+                <button type="button" class="facility-new-btn facility-auto-add-btn" id="btn-auto-calc-action-add">
+                  <i class="fas fa-plus"></i> 追加
+                </button>
+              </div>
+              <table class="facility-auto-action-table">
+                <thead>
+                  <tr>
+                    <th>グループ</th>
+                    <th>自動算定する診療行為</th>
+                    <th>算定条件</th>
+                    <th>自動算定期間</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="facility-auto-action-body"></tbody>
+              </table>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- メイン画面（カルテ）- M3風 -->
+  <div id="main-screen" class="main-screen hidden">
+    <!-- ヘッダー（患者情報バー） -->
+    <header class="app-header">
+      <div class="header-left">
+        <button class="btn-back" id="btn-back-to-list" title="一覧に戻る">
+          <i class="fas fa-leaf"></i>
+        </button>
+        <div class="header-patient-info" id="header-patient-info">
+          <span class="patient-id-text" id="header-patient-id">-</span>
+          <span class="patient-name" id="header-patient-name">-</span>
+          <span class="patient-kana" id="header-patient-kana">-</span>
+          <span class="patient-age" id="header-patient-age">-</span>
+          <span class="patient-gender-badge" id="header-patient-gender">-</span>
+          <span class="patient-calendar-icon"><i class="fas fa-calendar-alt"></i></span>
+        </div>
+        <div class="header-icons-left">
+          <button class="icon-btn-sm" title="メモ"><i class="fas fa-comment"></i></button>
+          <button class="icon-btn-sm" title="印刷"><i class="fas fa-print"></i></button>
+          <button class="icon-btn-sm has-badge" title="通知"><i class="fas fa-bell"></i><span class="badge">0</span></button>
+          <button class="icon-btn-sm" title="カレンダー"><i class="fas fa-calendar"></i></button>
+          <button class="icon-btn-sm" id="btn-rme-daily-report-main" title="RMEレポート">RME</button>
+        </div>
+        <div class="header-alert-note">への紹介を検討してください。</div>
+      </div>
+      <div class="header-right">
+        <div class="header-icons">
+          <button class="icon-btn" title="更新"><i class="fas fa-sync-alt"></i></button>
+          <button class="icon-btn" title="ノート"><i class="fas fa-clipboard"></i></button>
+          <button class="icon-btn" title="リンク"><i class="fas fa-link"></i></button>
+          <button class="icon-btn" title="検索"><i class="fas fa-search"></i></button>
+          <button class="icon-btn" title="通知"><i class="fas fa-bell"></i></button>
+          <button class="icon-btn" title="ヘルプ"><i class="fas fa-question-circle"></i></button>
+        </div>
+        <div class="user-dropdown" id="user-dropdown-main">
+          <button class="user-dropdown-btn" id="user-dropdown-btn-main">
+            <span id="login-user-name">ユーザー</span>
+            <i class="fas fa-caret-down"></i>
+          </button>
+          <div class="user-dropdown-menu">
+            <a href="#" class="dropdown-item" id="menu-password-main"><i class="fas fa-key"></i> パスワード変更</a>
+            <a href="#" class="dropdown-item" id="menu-facility-main"><i class="fas fa-building"></i> 施設管理</a>
+            <a href="#" class="dropdown-item" id="menu-reservation-admin-main"><i class="fas fa-calendar-check"></i> 予約管理</a>
+            <div class="dropdown-divider"></div>
+            <a href="#" class="dropdown-item" id="btn-logout"><i class="fas fa-sign-out-alt"></i> ログアウト</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- M3風 共通ヘッダーバー（3ゾーン横並び） -->
+    <div class="m3-common-header">
+      <!-- 患者情報ゾーンヘッダー -->
+      <div class="m3-header-zone m3-header-zone-patient">
+        <!-- 2行タブ -->
+        <div class="m3-panel-tabs-wrapper">
+          <div class="m3-panel-tabs-row">
+            <button class="m3-panel-tab">患者情報</button>
+            <button class="m3-panel-tab">保険等</button>
+            <button class="m3-panel-tab">問診</button>
+            <button class="m3-panel-tab">副作用薬等</button>
+            <button class="m3-panel-tab">バイタル</button>
+            <button class="m3-panel-tab">検査結果</button>
+            <button class="m3-panel-tab">PHR</button>
+          </div>
+          <div class="m3-panel-tabs-row">
+            <button class="m3-panel-tab active">診療履歴</button>
+            <button class="m3-panel-tab">投薬履歴</button>
+            <button class="m3-panel-tab">ファイル</button>
+            <button class="m3-panel-tab">サマリー</button>
+            <button class="m3-panel-tab">傷病名</button>
+            <button class="m3-panel-tab">定期</button>
+            <button class="m3-panel-tab">オン資等</button>
+          </div>
+        </div>
+      </div>
+      <!-- カルテゾーンヘッダー -->
+      <div class="m3-header-zone m3-header-zone-karte">
+        <!-- 1行目: 日付 + 保険タブ + 操作 -->
+        <div class="m3-karte-header-row1">
+          <div class="m3-karte-tabs-left">
+            <span class="m3-karte-date" id="karte-date-display">-</span>
+            <span class="m3-karte-tag" id="karte-insurance-tab">協会</span>
+            <button type="button" class="m3-tag-close" id="btn-karte-tab-close" title="タブを閉じる"><i class="fas fa-times"></i></button>
+            <button type="button" class="m3-tag-add" id="btn-karte-tab-add" title="追加"><i class="fas fa-plus"></i></button>
+          </div>
+          <div class="m3-karte-header-actions">
+            <button type="button" class="m3-karte-icon-action" id="btn-karte-refresh" title="更新"><i class="fas fa-sync-alt"></i></button>
+            <button type="button" class="m3-karte-icon-action" id="btn-open-record-update-history" title="更新履歴"><i class="fas fa-history"></i></button>
+            <button type="button" class="m3-karte-icon-action" id="btn-open-deleted-records" title="削除カルテの復元"><i class="fas fa-undo-alt"></i></button>
+            <button type="button" class="m3-karte-header-btn" id="btn-regular-register">定期登録</button>
+            <button type="button" class="m3-karte-header-btn" id="btn-set-register">セット登録</button>
+            <button type="button" class="m3-karte-header-btn" id="btn-karte-list">カルテ一覧</button>
+          </div>
+        </div>
+        <!-- 2行目: 診療コンテキスト -->
+        <div class="m3-karte-header-row2" id="karte-context-row">
+          <div class="m3-karte-context-left">
+            <span class="m3-header-value dept" id="karte-context-department">内科</span>
+            <span class="m3-header-value doctor" id="karte-context-doctor">-</span>
+            <span class="m3-header-value insurance" id="karte-context-insurance">協会</span>
+            <span class="m3-header-value public-expense" id="karte-context-public-expense">-</span>
+            <span class="m3-header-status" id="karte-context-status">未承認</span>
+          </div>
+          <div class="m3-karte-context-right">
+              <select class="m3-claim-select" id="karte-claim-type" aria-label="請求区分">
+                <option value="normal">通常請求</option>
+                <option value="resubmit">返戻再請求</option>
+                <option value="resubmit_paper">返戻再請求（紙）</option>
+                <option value="month_delay">月遅れ</option>
+            </select>
+            <button type="button" class="m3-karte-icon-action" id="btn-karte-context-edit" title="診療情報を編集"><i class="fas fa-pen"></i></button>
+          </div>
+        </div>
+      </div>
+      <!-- オーダーゾーンヘッダー（2行タブ + 全て） -->
+      <div class="m3-header-zone m3-header-zone-order">
+        <div class="m3-order-header-wrap">
+          <div class="m3-panel-tabs-wrapper">
+            <div class="m3-panel-tabs-row">
+              <button type="button" class="m3-panel-tab">セット</button>
+              <button type="button" class="m3-panel-tab active">診察</button>
+              <button type="button" class="m3-panel-tab">在宅</button>
+              <button type="button" class="m3-panel-tab">投薬</button>
+              <button type="button" class="m3-panel-tab">注射</button>
+              <button type="button" class="m3-panel-tab">処置</button>
+            </div>
+            <div class="m3-panel-tabs-row">
+              <button type="button" class="m3-panel-tab">手術</button>
+              <button type="button" class="m3-panel-tab">麻酔</button>
+              <button type="button" class="m3-panel-tab">検査</button>
+              <button type="button" class="m3-panel-tab">画像</button>
+              <button type="button" class="m3-panel-tab">リハ他</button>
+              <button type="button" class="m3-panel-tab">自費</button>
+            </div>
+          </div>
+          <div class="m3-all-btn-wrap">
+            <button type="button" class="m3-all-btn">全て</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- M3風 サブヘッダーバー（4ゾーン統一構造） -->
+    <div class="m3-sub-header">
+      <!-- 患者情報ゾーン -->
+      <div class="m3-subheader-zone m3-subheader-patient">
+        <input type="text" placeholder="キーワードでカルテを検索" class="m3-subheader-search">
+        <button class="m3-icon-btn"><i class="fas fa-download"></i></button>
+        <button class="m3-icon-btn"><i class="fas fa-caret-down"></i></button>
+      </div>
+      <!-- カルテゾーン（主訴・所見 + 処置・行為をまとめる） -->
+      <div class="m3-subheader-zone m3-subheader-karte">
+        <div class="m3-subheader-karte-inner">
+          <div class="m3-subheader-soap-part">
+            <div class="m3-subheader-toolset">
+              <span class="m3-subheader-title">主訴・所見</span>
+              <button type="button" class="m3-tool-btn" data-karte-color="#000000" title="文字色: 黒">A</button>
+              <button type="button" class="m3-tool-btn text-red" data-karte-color="#dc3545" title="文字色: 赤">A</button>
+              <button type="button" class="m3-tool-btn text-blue" data-karte-color="#0d6efd" title="文字色: 青">A</button>
+              <button type="button" class="m3-tool-size-btn" id="btn-karte-font-smaller" title="文字を小さく">−</button>
+              <span class="m3-font-size" id="karte-font-size-display">14</span>
+              <button type="button" class="m3-tool-size-btn" id="btn-karte-font-larger" title="文字を大きく">+</button>
+            </div>
+            <button type="button" class="m3-icon-btn" id="btn-clear-soap" title="主訴・所見を削除"><i class="fas fa-trash-alt"></i></button>
+          </div>
+          <div class="m3-subheader-proc-part">
+            <div class="m3-subheader-toolset">
+              <span class="m3-subheader-title">処置・行為</span>
+            </div>
+            <button type="button" class="m3-icon-btn" id="btn-clear-procedure" title="処置・行為を削除"><i class="fas fa-trash-alt"></i></button>
+          </div>
+        </div>
+      </div>
+      <!-- オーダーゾーン -->
+      <div class="m3-subheader-zone m3-subheader-order">
+        <input type="text" placeholder="キーワードを入力してください" class="m3-subheader-search">
+      </div>
+    </div>
+
+    <!-- M3風 メインコンテンツ（3ゾーン構造） -->
+    <div class="m3-karte-body">
+      <!-- 患者情報ゾーン（診療履歴コンテンツ） -->
+      <aside class="m3-panel m3-panel-left">
+        <!-- 患者情報タブコンテンツ -->
+        <div class="m3-tab-content" id="patient-info-content" style="display: none;">
+          <!-- 患者情報セクション -->
+          <div class="m3-patient-section">
+            <div class="m3-section-header">
+              <span class="m3-section-title">患者情報</span>
+              <div class="m3-section-actions">
+                <button class="m3-icon-btn-sm"><i class="fas fa-sync-alt"></i></button>
+                <button class="m3-icon-btn-sm"><i class="fas fa-pen"></i></button>
+              </div>
+            </div>
+            <div class="m3-patient-table">
+              <div class="m3-patient-row">
+                <span class="m3-patient-label">氏名</span>
+                <span class="m3-patient-value">
+                  <span class="m3-patient-kana" id="patient-detail-kana">-</span>
+                  <span class="m3-patient-kanji" id="patient-detail-name">-</span>
+                </span>
+              </div>
+              <div class="m3-patient-row">
+                <span class="m3-patient-label">性別</span>
+                <span class="m3-patient-value" id="patient-detail-gender">-</span>
+              </div>
+              <div class="m3-patient-row">
+                <span class="m3-patient-label">生年月日</span>
+                <span class="m3-patient-value" id="patient-detail-birth">-</span>
+              </div>
+              <div class="m3-patient-row">
+                <span class="m3-patient-label">年齢</span>
+                <span class="m3-patient-value" id="patient-detail-age">-</span>
+              </div>
+              <div class="m3-patient-row">
+                <span class="m3-patient-label">住所</span>
+                <span class="m3-patient-value" id="patient-detail-address">-</span>
+              </div>
+              <div class="m3-patient-row">
+                <span class="m3-patient-label">電話番号</span>
+                <span class="m3-patient-value" id="patient-detail-phone">-</span>
+              </div>
+              <div class="m3-patient-row">
+                <span class="m3-patient-label">施設</span>
+                <span class="m3-patient-value" id="patient-detail-facility"></span>
+              </div>
+            </div>
+          </div>
+          <!-- 患者メモセクション -->
+          <div class="m3-patient-section">
+            <div class="m3-section-header">
+              <span class="m3-section-title">患者メモ</span>
+              <div class="m3-section-actions">
+                <button class="m3-icon-btn-sm"><i class="fas fa-sync-alt"></i></button>
+                <button class="m3-icon-btn-sm"><i class="fas fa-pen"></i></button>
+              </div>
+            </div>
+            <div class="m3-memo-content patient-note-content" id="patient-detail-memo">
+              <p></p>
+            </div>
+          </div>
+          <!-- 労務不能に関する意見セクション -->
+          <div class="m3-patient-section gray-bg">
+            <div class="m3-section-header">
+              <span class="m3-section-title">労務不能に関する意見</span>
+              <div class="m3-section-actions">
+                <button class="m3-icon-btn-sm"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="m3-memo-content empty">
+              <p>労務不能に関する意見が登録されていません。</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 診療履歴タブコンテンツ -->
+        <div class="m3-tab-content" id="history-content">
+          <div class="m3-history-list" id="history-list">
+            <div class="m3-memo-content empty">
+              <p>診療履歴がありません。</p>
+            </div>
+          </div>
+        </div><!-- /診療履歴タブコンテンツ -->
+
+        <!-- 保険等タブコンテンツ -->
+        <div class="m3-tab-content" id="insurance-content" style="display: none;">
+          <div class="insurance-check-bar">
+            <span class="insurance-check-label">保険証確認</span>
+            <span class="insurance-last-confirmed">前回確認日: <span id="insurance-last-confirmed-date">-</span></span>
+          </div>
+          <div class="m3-patient-section insurance-section">
+            <div class="m3-section-header insurance-section-header">
+              <span class="m3-section-title">医療保険</span>
+              <div class="m3-section-actions insurance-actions">
+                <label class="insurance-current-toggle"><input type="checkbox" checked> 現在有効</label>
+                <button class="m3-icon-btn-sm insurance-add-btn" id="btn-add-insurance" title="医療保険を追加"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="m3-insurance-list" id="insurance-list">
+              <div class="insurance-empty">有効な医療保険が登録されていません。</div>
+            </div>
+          </div>
+          <div class="m3-patient-section insurance-section">
+            <div class="m3-section-header insurance-section-header">
+              <span class="m3-section-title">公費</span>
+              <div class="m3-section-actions insurance-actions">
+                <label class="insurance-current-toggle"><input type="checkbox" checked> 現在有効</label>
+                <button class="m3-icon-btn-sm insurance-add-btn" id="btn-add-public-expense" title="公費を追加"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="m3-insurance-list" id="public-expense-list">
+              <div class="insurance-empty">公費情報が登録されていません。</div>
+            </div>
+          </div>
+          <div class="m3-patient-section insurance-section">
+            <div class="m3-section-header insurance-section-header">
+              <span class="m3-section-title">労災・自賠責</span>
+              <div class="m3-section-actions insurance-actions">
+                <label class="insurance-current-toggle"><input type="checkbox" id="labor-auto-current-toggle" checked> 現在有効</label>
+                <div class="labor-auto-add-control">
+                  <button class="m3-icon-btn-sm insurance-add-btn" id="btn-add-labor-auto" title="労災・自賠責を追加"><i class="fas fa-plus"></i></button>
+                  <div id="labor-auto-add-menu" class="labor-auto-add-menu hidden" role="menu">
+                    <button type="button" data-labor-auto-add="labor" role="menuitem">労災</button>
+                    <button type="button" data-labor-auto-add="auto" role="menuitem">自賠責</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="m3-insurance-list" id="labor-auto-list">
+              <div class="insurance-empty">有効な労災・自賠責が登録されていません。</div>
+            </div>
+          </div>
+          <div class="m3-patient-section insurance-section">
+            <div class="m3-section-header insurance-section-header">
+              <span class="m3-section-title">レセプト特記事項</span>
+              <div class="m3-section-actions insurance-actions">
+                <label class="insurance-current-toggle"><input type="checkbox" id="receipt-special-note-current-toggle" checked> 現在有効</label>
+                <button class="m3-icon-btn-sm insurance-add-btn" id="btn-add-receipt-special-note" title="レセプト特記事項を追加"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="m3-insurance-list" id="receipt-special-note-list">
+              <div class="insurance-empty">レセプト特記事項が登録されていません。</div>
+            </div>
+          </div>
+          <div class="m3-patient-section insurance-section">
+            <div class="m3-section-header insurance-section-header">
+              <span class="m3-section-title">症状詳記</span>
+              <div class="m3-section-actions insurance-actions">
+                <label class="insurance-current-toggle"><input type="checkbox" id="receipt-symptom-detail-current-toggle" checked> 現在有効</label>
+                <button class="m3-icon-btn-sm insurance-add-btn" id="btn-add-receipt-symptom-detail" title="症状詳記・傷病の経過を追加"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="m3-insurance-list" id="receipt-symptom-detail-list">
+              <div class="insurance-empty">症状詳記が登録されていません。</div>
+            </div>
+          </div>
+          <div class="m3-patient-section insurance-section">
+            <div class="m3-section-header insurance-section-header">
+              <span class="m3-section-title">レセプト摘要欄コメント</span>
+              <div class="m3-section-actions insurance-actions">
+                <label class="insurance-current-toggle"><input type="checkbox" id="receipt-summary-comment-current-toggle" checked> 現在有効</label>
+                <button class="m3-icon-btn-sm insurance-add-btn" id="btn-add-receipt-summary-comment" title="レセプト摘要欄コメントを追加"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="m3-insurance-list" id="receipt-summary-comment-list">
+              <div class="insurance-empty">レセプト摘要欄コメントが登録されていません。</div>
+            </div>
+          </div>
+          <div class="m3-patient-section insurance-section">
+            <div class="m3-section-header insurance-section-header">
+              <span class="m3-section-title">福祉請求書備考欄コメント</span>
+              <div class="m3-section-actions insurance-actions">
+                <label class="insurance-current-toggle"><input type="checkbox" id="welfare-invoice-comment-current-toggle" checked> 現在有効</label>
+                <button class="m3-icon-btn-sm insurance-add-btn" id="btn-add-welfare-invoice-comment" title="福祉請求書備考欄コメントを追加"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="m3-insurance-list" id="welfare-invoice-comment-list">
+              <div class="insurance-empty">福祉請求書備考欄コメントが登録されていません。</div>
+            </div>
+          </div>
+          <div class="m3-patient-section insurance-section">
+            <div class="m3-section-header insurance-section-header">
+              <span class="m3-section-title">レセプト一部負担金欄</span>
+              <div class="m3-section-actions insurance-actions">
+                <label class="insurance-current-toggle"><input type="checkbox" id="receipt-copayment-past-toggle"> 過去分</label>
+                <button class="m3-icon-btn-sm insurance-add-btn" id="btn-add-receipt-copayment" title="レセプト一部負担金欄を追加"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="m3-insurance-list" id="receipt-copayment-list">
+              <div class="insurance-empty">レセプト一部負担金欄が登録されていません。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 問診タブコンテンツ -->
+        <div class="m3-tab-content" id="interview-content" style="display: none;">
+          <div class="m3-patient-section">
+            <div class="m3-section-header">
+              <span class="m3-section-title">問診票</span>
+              <div class="m3-section-actions">
+                <button class="m3-icon-btn-sm"><i class="fas fa-plus"></i></button>
+                <button class="m3-icon-btn-sm"><i class="fas fa-pen"></i></button>
+              </div>
+            </div>
+            <div class="m3-interview-content" id="interview-data">
+              <div class="m3-memo-content empty">
+                <p>問診票が登録されていません。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 副作用薬等タブコンテンツ -->
+        <div class="m3-tab-content" id="allergy-content" style="display: none;">
+          <div class="clinical-profile-section">
+            <div class="clinical-profile-header">
+              <span class="clinical-profile-title">アレルギー</span>
+              <div class="clinical-profile-actions">
+                <button type="button" class="clinical-profile-icon-btn" id="btn-refresh-allergy" title="再読み込み"><i class="fas fa-sync-alt"></i></button>
+                <button type="button" class="clinical-profile-icon-btn" id="btn-add-allergy" title="追加"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="m3-allergy-list" id="allergy-list">
+              <div class="clinical-profile-empty">アレルギーが登録されていません。</div>
+            </div>
+          </div>
+
+          <div class="clinical-profile-section">
+            <div class="clinical-profile-header">
+              <span class="clinical-profile-title">副作用薬</span>
+              <div class="clinical-profile-actions">
+                <button type="button" class="clinical-profile-icon-btn" id="btn-refresh-adverse-drug" title="再読み込み"><i class="fas fa-sync-alt"></i></button>
+                <button type="button" class="clinical-profile-icon-btn" id="btn-add-adverse-drug" title="追加"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="clinical-profile-list" id="adverse-drug-list">
+              <div class="clinical-profile-empty">副作用薬が登録されていません。</div>
+            </div>
+          </div>
+
+          <div class="clinical-profile-section">
+            <div class="clinical-profile-header">
+              <span class="clinical-profile-title">常用薬</span>
+              <div class="clinical-profile-actions">
+                <button type="button" class="clinical-profile-icon-btn" id="btn-refresh-regular-drug" title="再読み込み"><i class="fas fa-sync-alt"></i></button>
+                <button type="button" class="clinical-profile-icon-btn" id="btn-add-regular-drug" title="追加"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="clinical-profile-list" id="regular-drug-list">
+              <div class="clinical-profile-empty">常用薬が登録されていません。</div>
+            </div>
+          </div>
+
+          <div class="clinical-profile-section">
+            <div class="clinical-profile-header">
+              <span class="clinical-profile-title">既往歴</span>
+              <div class="clinical-profile-actions">
+                <button type="button" class="clinical-profile-icon-btn" id="btn-refresh-past-history" title="再読み込み"><i class="fas fa-sync-alt"></i></button>
+                <button type="button" class="clinical-profile-icon-btn" id="btn-add-past-history" title="追加"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="clinical-profile-list" id="past-history-list">
+              <div class="clinical-profile-empty">既往歴が登録されていません。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- バイタルタブコンテンツ -->
+        <div class="m3-tab-content" id="vital-content" style="display: none;">
+          <div class="m3-patient-section">
+            <div class="m3-section-header">
+              <span class="m3-section-title">バイタルサイン</span>
+              <div class="m3-section-actions">
+                <button type="button" class="m3-icon-btn-sm" id="btn-refresh-vital" title="再読み込み"><i class="fas fa-sync-alt"></i></button>
+                <button type="button" class="m3-icon-btn-sm" id="btn-add-vital" title="追加"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="m3-vital-list" id="vital-list">
+              <div class="vital-table-scroll">
+                <table class="vital-table" aria-label="バイタル履歴">
+                  <thead id="vital-table-head">
+                    <tr>
+                      <th class="vital-item-head">項目</th>
+                    </tr>
+                  </thead>
+                  <tbody id="vital-data">
+                    <tr><td class="no-data">バイタルサインが登録されていません。</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="vital-view-tabs" role="tablist" aria-label="バイタル表示切替">
+                <button type="button" class="vital-view-tab active" data-vital-view="graph">グラフ</button>
+                <button type="button" class="vital-view-tab" data-vital-view="growth">成長曲線</button>
+              </div>
+              <div class="vital-chart-panel" id="vital-graph-panel" data-vital-panel="graph">
+                <div class="vital-chart-empty">グラフ表示する項目にチェックを入れてください。</div>
+              </div>
+              <div class="vital-chart-panel hidden" id="vital-growth-panel" data-vital-panel="growth">
+                <div class="vital-chart-empty">18歳未満の患者に、身長または体重の記録がある場合に表示します。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 検査結果タブコンテンツ -->
+        <div class="m3-tab-content" id="labresult-content" style="display: none;">
+          <div class="m3-patient-section">
+            <div class="m3-section-header">
+              <span class="m3-section-title">検査結果</span>
+              <div class="m3-section-actions">
+                <button class="m3-icon-btn-sm"><i class="fas fa-sync-alt"></i></button>
+              </div>
+            </div>
+            <div class="m3-labresult-list" id="labresult-list">
+              <div class="m3-memo-content empty">
+                <p>検査結果が登録されていません。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PHRタブコンテンツ -->
+        <div class="m3-tab-content" id="phr-content" style="display: none;">
+          <div class="m3-patient-section m3-aux-section">
+            <div class="m3-section-header">
+              <span class="m3-section-title">PHR</span>
+              <div class="m3-section-actions">
+                <button type="button" class="m3-icon-btn-sm" id="btn-refresh-phr" title="再読み込み"><i class="fas fa-sync-alt"></i></button>
+                <button type="button" class="m3-icon-btn-sm" id="btn-edit-phr" title="PHR情報を編集"><i class="fas fa-cog"></i></button>
+              </div>
+            </div>
+            <div class="m3-aux-list" id="phr-list">
+              <div class="m3-memo-content empty">
+                <p>PHR情報が登録されていません。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 投薬履歴タブコンテンツ -->
+        <div class="m3-tab-content" id="medication-history-content" style="display: none;">
+          <div class="m3-medication-history-shell">
+            <div class="m3-medication-list" id="medication-history-list">
+              <div class="m3-medication-history-empty">投薬履歴が登録されていません。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ファイルタブコンテンツ -->
+        <div class="m3-tab-content" id="file-content" style="display: none;">
+          <div class="m3-patient-section file-section">
+            <div class="m3-section-header">
+              <span class="m3-section-title">ファイル</span>
+              <span class="patient-file-storage-usage" id="patient-file-storage-usage"></span>
+              <div class="m3-section-actions">
+                <button type="button" class="patient-file-toolbar-btn" id="btn-patient-document-create">
+                  文書作成
+                </button>
+                <div class="patient-document-template-anchor" id="patient-document-template-anchor">
+                  <button type="button" class="patient-file-toolbar-btn" id="btn-patient-document-template">
+                    文書ひな形 <i class="fas fa-caret-down"></i>
+                  </button>
+                  <div class="patient-document-template-dropdown hidden" id="patient-document-template-dropdown"></div>
+                </div>
+                <button class="m3-icon-btn-sm" id="btn-refresh-patient-files" title="再読み込み"><i class="fas fa-sync-alt"></i></button>
+                <button class="m3-icon-btn-sm" id="btn-add-patient-file" title="ファイルを追加"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <input type="file" id="patient-file-input" multiple hidden>
+            <div class="m3-file-list patient-file-dropzone" id="file-list"></div>
+          </div>
+        </div>
+
+        <!-- サマリータブコンテンツ -->
+        <div class="m3-tab-content" id="summary-content" style="display: none;">
+          <div class="m3-patient-section m3-aux-section">
+            <div class="m3-section-header">
+              <span class="m3-section-title">サマリー</span>
+              <div class="m3-section-actions">
+                <button type="button" class="m3-icon-btn-sm" id="btn-refresh-summary" title="再読み込み"><i class="fas fa-sync-alt"></i></button>
+                <button type="button" class="m3-icon-btn-sm" id="btn-edit-summary" title="編集"><i class="fas fa-pen"></i></button>
+              </div>
+            </div>
+            <div class="m3-aux-list" id="summary-list">
+              <div class="m3-memo-content empty">
+                <p>サマリーを表示する患者を選択してください。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 傷病名タブコンテンツ -->
+        <div class="m3-tab-content" id="disease-content" style="display: none;">
+          <div class="m3-patient-section">
+            <div class="m3-section-header">
+              <div class="diagnosis-section-tools">
+                <label class="diagnosis-bulk-check">
+                  <input type="checkbox" id="diagnosis-select-all">
+                </label>
+                <button type="button" class="diagnosis-toolbar-btn" id="btn-bulk-diagnosis-outcome">一括転帰</button>
+              </div>
+              <div class="m3-section-actions">
+                <button class="m3-icon-btn-sm" id="btn-open-diagnosis-history" title="傷病名更新履歴"><i class="fas fa-history"></i></button>
+                <button class="m3-icon-btn-sm" id="btn-open-diagnosis-modal" title="傷病名を追加"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="m3-disease-list" id="disease-list">
+              <div class="m3-memo-content empty">
+                <p>傷病名が登録されていません。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 定期タブコンテンツ -->
+        <div class="m3-tab-content" id="periodic-content" style="display: none;">
+          <div class="m3-patient-section m3-aux-section">
+            <div class="m3-section-header">
+              <span class="m3-section-title">定期</span>
+              <div class="m3-section-actions">
+                <button type="button" class="m3-icon-btn-sm" id="btn-refresh-periodic" title="再読み込み"><i class="fas fa-sync-alt"></i></button>
+                <button type="button" class="m3-icon-btn-sm" id="btn-add-periodic" title="現在のカルテを定期登録"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="m3-aux-list" id="periodic-list">
+              <div class="m3-memo-content empty">
+                <p>定期登録がありません。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- オン資等タブコンテンツ -->
+        <div class="m3-tab-content" id="online-qualification-content" style="display: none;">
+          <div class="m3-patient-section m3-aux-section">
+            <div class="m3-section-header">
+              <span class="m3-section-title">オン資等</span>
+              <div class="m3-section-actions">
+                <button type="button" class="m3-icon-btn-sm" id="btn-refresh-online-qualification" title="再読み込み"><i class="fas fa-sync-alt"></i></button>
+                <button type="button" class="m3-icon-btn-sm" id="btn-save-online-qualification" title="確認状態を保存"><i class="fas fa-save"></i></button>
+              </div>
+            </div>
+            <div class="m3-aux-list" id="online-qualification-list">
+              <div class="m3-memo-content empty">
+                <p>オン資等の確認状態がありません。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- カルテ・処置ゾーン（中央2パネル） -->
+      <div class="m3-zone-karte-wrapper">
+
+        <!-- 中央2パネルコンテナ -->
+        <div class="m3-karte-panels">
+          <!-- 主訴・所見パネル -->
+          <main class="m3-panel m3-panel-soap">
+            <div class="m3-soap-editor" id="karte-editor" contenteditable="true">
+            </div>
+          </main>
+
+      <!-- 中央右パネル: 処置・行為 -->
+      <aside class="m3-panel m3-panel-procedure">
+        <div class="m3-procedure-list" id="procedure-items">
+          <!-- 初期状態は空 -->
+        </div>
+          </aside>
+        <div class="m3-soap-footer">
+          <button type="button" class="m3-karte-btn" id="btn-add-schema">シェーマ追加</button>
+          <label class="m3-checkbox">
+            <input type="checkbox" id="karte-rx-one-package-remark">
+            処方箋備考に一包化を記載
+          </label>
+          <button class="m3-karte-btn primary">適応症追加</button>
+        </div>
+        </div>
+      </div>
+
+      <!-- オーダーゾーン（右パネル） -->
+      <aside class="m3-panel m3-panel-right">
+        <div class="m3-panel-content">
+          <!-- セットツリー / 診療行為リスト -->
+          <div class="m3-set-tree" id="category-tree">
+            <!-- 動的に読み込み -->
+          </div>
+        </div>
+        <!-- オーダーゾーン内フッター -->
+        <div class="m3-order-footer">
+          <div class="m3-footer-group">
+            <button class="m3-footer-btn" id="btn-prescription" title="処方入力"><i class="fas fa-prescription"></i></button>
+            <button class="m3-footer-btn" id="btn-auto-calc" title="自動算定"><i class="fas fa-calculator"></i></button>
+            <button class="m3-footer-btn" id="btn-billing" title="会計"><i class="fas fa-yen-sign"></i></button>
+            <button class="m3-footer-btn" id="btn-lab-order" title="検査依頼"><i class="fas fa-flask"></i></button>
+          </div>
+          <div class="m3-footer-group">
+            <button type="button" class="m3-footer-btn" id="btn-temp-save" title="保存"><i class="fas fa-save"></i></button>
+            <button class="m3-footer-btn" id="btn-print" title="印刷"><i class="fas fa-print"></i></button>
+            <button type="button" class="m3-footer-btn" id="btn-confirm" title="保存して確定"><i class="fas fa-arrow-right"></i></button>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- 非表示の患者セレクター（内部用） -->
+    <select id="patient-selector" class="hidden">
+      <option value="">患者を選択</option>
+    </select>
+    <input type="date" id="karte-date" class="hidden">
+  </div>
+
+  <!-- 患者登録モーダル -->
+  <div id="patient-modal" class="modal hidden">
+    <div class="modal-content modal-patient">
+      <div class="modal-header">
+        <h3 id="modal-title">患者情報登録</h3>
+        <button class="modal-close" id="modal-close">&times;</button>
+      </div>
+      <form id="patient-form" class="modal-body-patient">
+        <!-- 患者番号 -->
+        <div class="form-row-patient">
+          <label class="form-label-patient">患者番号</label>
+          <div class="form-input-area">
+            <span class="required-badge">必須</span>
+            <input type="text" id="patient-id" class="input-medium">
+            <button type="button" class="btn-online-check" id="btn-check-online">オンライン資格確認</button>
+            <div class="patient-field-error hidden" data-patient-error-for="patientNo" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <!-- 漢字氏名 -->
+        <div class="form-row-patient">
+          <label class="form-label-patient">漢字氏名</label>
+          <div class="form-input-area">
+            <span class="required-badge">必須</span>
+            <input type="text" id="patient-name" class="input-wide">
+            <div class="patient-field-error hidden" data-patient-error-for="name" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <!-- カナ氏名 -->
+        <div class="form-row-patient">
+          <label class="form-label-patient">カナ氏名</label>
+          <div class="form-input-area">
+            <span class="required-badge">必須</span>
+            <input type="text" id="patient-kana" class="input-wide" placeholder="全角カナ">
+            <div class="patient-field-error hidden" data-patient-error-for="kana" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <!-- 性別 -->
+        <div class="form-row-patient">
+          <label class="form-label-patient">性別</label>
+          <div class="form-input-area">
+            <span class="required-badge">必須</span>
+            <div class="radio-group-patient">
+              <label class="radio-label"><input type="radio" name="gender" value="male" checked> 男性</label>
+              <label class="radio-label"><input type="radio" name="gender" value="female"> 女性</label>
+            </div>
+            <div class="patient-field-error hidden" data-patient-error-for="gender" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <!-- 生年月日 -->
+        <div class="form-row-patient">
+          <label class="form-label-patient">生年月日</label>
+          <div class="form-input-area">
+            <span class="required-badge">必須</span>
+            <div class="date-inputs-patient">
+              <!-- 年 -->
+              <div class="combobox" id="year-combobox">
+                <input type="text" id="birth-year" class="combobox-input input-year" autocomplete="off">
+                <button type="button" class="combobox-btn" tabindex="-1"><i class="fas fa-caret-down"></i></button>
+                <div class="combobox-dropdown" id="year-dropdown">
+                  <!-- JavaScriptで動的生成 -->
+                </div>
+              </div>
+              <span class="date-separator">年</span>
+              <!-- 月 -->
+              <div class="combobox" id="month-combobox">
+                <input type="text" id="birth-month" class="combobox-input input-month" autocomplete="off">
+                <button type="button" class="combobox-btn" tabindex="-1"><i class="fas fa-caret-down"></i></button>
+                <div class="combobox-dropdown" id="month-dropdown">
+                  <!-- JavaScriptで動的生成 -->
+                </div>
+              </div>
+              <span class="date-separator">月</span>
+              <!-- 日 -->
+              <div class="combobox" id="day-combobox">
+                <input type="text" id="birth-day" class="combobox-input input-day" autocomplete="off">
+                <button type="button" class="combobox-btn" tabindex="-1"><i class="fas fa-caret-down"></i></button>
+                <div class="combobox-dropdown" id="day-dropdown">
+                  <!-- JavaScriptで動的生成 -->
+                </div>
+              </div>
+              <span class="date-separator">日</span>
+            </div>
+            <div class="patient-field-error hidden" data-patient-error-for="birthDate" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <!-- 住所セクション -->
+        <div class="form-row-patient">
+          <label class="form-label-patient">住所</label>
+          <div class="form-input-area address-section">
+            <div class="postal-row">
+              <input type="text" id="postal-code" class="input-postal" placeholder="郵便番号" maxlength="8">
+              <button type="button" class="btn-postal-search" id="btn-postal-search">
+                <i class="fas fa-search"></i> 検索
+              </button>
+            </div>
+            <div class="patient-field-error hidden" data-patient-error-for="postalCode" aria-live="polite"></div>
+            <select id="prefecture" class="select-prefecture">
+              <option value="">都道府県</option>
+              <option value="北海道">北海道</option>
+              <option value="青森県">青森県</option>
+              <option value="岩手県">岩手県</option>
+              <option value="宮城県">宮城県</option>
+              <option value="秋田県">秋田県</option>
+              <option value="山形県">山形県</option>
+              <option value="福島県">福島県</option>
+              <option value="茨城県">茨城県</option>
+              <option value="栃木県">栃木県</option>
+              <option value="群馬県">群馬県</option>
+              <option value="埼玉県">埼玉県</option>
+              <option value="千葉県">千葉県</option>
+              <option value="東京都">東京都</option>
+              <option value="神奈川県">神奈川県</option>
+              <option value="新潟県">新潟県</option>
+              <option value="富山県">富山県</option>
+              <option value="石川県">石川県</option>
+              <option value="福井県">福井県</option>
+              <option value="山梨県">山梨県</option>
+              <option value="長野県">長野県</option>
+              <option value="岐阜県">岐阜県</option>
+              <option value="静岡県">静岡県</option>
+              <option value="愛知県">愛知県</option>
+              <option value="三重県">三重県</option>
+              <option value="滋賀県">滋賀県</option>
+              <option value="京都府">京都府</option>
+              <option value="大阪府">大阪府</option>
+              <option value="兵庫県">兵庫県</option>
+              <option value="奈良県">奈良県</option>
+              <option value="和歌山県">和歌山県</option>
+              <option value="鳥取県">鳥取県</option>
+              <option value="島根県">島根県</option>
+              <option value="岡山県">岡山県</option>
+              <option value="広島県">広島県</option>
+              <option value="山口県">山口県</option>
+              <option value="徳島県">徳島県</option>
+              <option value="香川県">香川県</option>
+              <option value="愛媛県">愛媛県</option>
+              <option value="高知県">高知県</option>
+              <option value="福岡県">福岡県</option>
+              <option value="佐賀県">佐賀県</option>
+              <option value="長崎県">長崎県</option>
+              <option value="熊本県">熊本県</option>
+              <option value="大分県">大分県</option>
+              <option value="宮崎県">宮崎県</option>
+              <option value="鹿児島県">鹿児島県</option>
+              <option value="沖縄県">沖縄県</option>
+            </select>
+            <input type="text" id="city" class="input-address" placeholder="市区町村">
+            <input type="text" id="address1" class="input-address" placeholder="番地">
+            <input type="text" id="address2" class="input-address" placeholder="建物名その他">
+          </div>
+        </div>
+
+        <!-- 電話番号1 -->
+        <div class="form-row-patient">
+          <label class="form-label-patient">電話番号1</label>
+          <div class="form-input-area">
+            <input type="tel" id="phone1" class="input-wide">
+            <div class="patient-field-error hidden" data-patient-error-for="phone1" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <!-- 電話番号2 -->
+        <div class="form-row-patient">
+          <label class="form-label-patient">電話番号2</label>
+          <div class="form-input-area">
+            <input type="tel" id="phone2" class="input-wide">
+            <div class="patient-field-error hidden" data-patient-error-for="phone2" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <!-- 施設 -->
+        <div class="form-row-patient">
+          <label class="form-label-patient">施設</label>
+          <div class="form-input-area">
+            <select id="facility" class="select-facility">
+              <option value="">未選択</option>
+            </select>
+          </div>
+        </div>
+      </form>
+      <div class="modal-footer-patient">
+        <button type="button" class="btn btn-cancel-patient" id="btn-cancel">キャンセル</button>
+        <button type="button" class="btn btn-register" id="btn-register">登録</button>
+        <button type="button" class="btn btn-register-checkin" id="btn-register-checkin">登録して受付</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 医療保険追加モーダル -->
+  <div id="insurance-modal" class="modal hidden">
+    <div class="modal-content modal-insurance">
+      <div class="modal-header">
+        <h3>医療保険追加</h3>
+        <div class="modal-header-actions">
+          <button type="button" class="modal-help-btn" title="ヘルプ"><i class="fas fa-question-circle"></i></button>
+          <button class="modal-close" id="insurance-modal-close">&times;</button>
+        </div>
+      </div>
+      <div class="insurance-modal-patient">
+        <div id="insurance-modal-patient">患者を選択してください</div>
+        <div class="insurance-modal-actions">
+          <button type="button" class="insurance-top-action" id="btn-insurance-online-check">オンライン資格確認</button>
+          <button type="button" class="insurance-top-action" id="btn-insurance-digisuma">デジスマ連携</button>
+        </div>
+      </div>
+      <form id="insurance-form" class="modal-body-insurance">
+        <div class="insurance-form-row">
+          <label>保険種別</label>
+          <div class="insurance-field">
+        <select id="insurance-type">
+          <option value="social">社会保険</option>
+          <option value="national">国民健康保険</option>
+          <option value="elderly">後期高齢者医療</option>
+          <option value="union">組合健保</option>
+          <option value="mutual">共済組合</option>
+          <option value="labor">労災保険</option>
+          <option value="auto">自賠責保険</option>
+          <option value="self_pay">自費</option>
+        </select>
+          </div>
+        </div>
+        <section id="workers-comp-fields" class="workers-comp-fields hidden" aria-labelledby="workers-comp-fields-title">
+          <h4 id="workers-comp-fields-title">労災レセプト情報</h4>
+          <div class="workers-comp-grid">
+            <label class="workers-required workers-comp-wide">請求区分
+              <select id="workers-claim-type">
+                <option value="medical" selected>労災診療費</option>
+                <option value="aftercare">アフターケア委託費</option>
+              </select>
+            </label>
+            <label class="workers-required workers-standard-only">災害区分
+              <select id="workers-accident-type">
+                <option value="1">業務災害</option>
+                <option value="3">通勤災害</option>
+              </select>
+            </label>
+            <label class="workers-required workers-standard-only">帳票種別
+              <select id="workers-form-type">
+                <option value="2">診療費請求内訳書（入院用）</option>
+                <option value="3" selected>診療費請求内訳書（入院外用）</option>
+                <option value="4">診療費請求内訳書（入院用傷）</option>
+                <option value="5">診療費請求内訳書（入院外用傷）</option>
+              </select>
+            </label>
+            <label class="workers-required workers-standard-only">新規・継続
+              <select id="workers-new-continuing-code">
+                <option value="1">新規</option>
+                <option value="3">転医始診</option>
+                <option value="5">継続</option>
+                <option value="7">再発</option>
+              </select>
+            </label>
+            <label class="workers-required workers-standard-only">転帰
+              <select id="workers-outcome-code">
+                <option value="3">継続</option>
+                <option value="1">治ゆ</option>
+                <option value="5">転医</option>
+                <option value="7">中止</option>
+                <option value="9">死亡</option>
+              </select>
+            </label>
+            <label class="workers-standard-only">労働保険番号（14桁）
+              <input type="text" id="workers-labor-insurance-number" maxlength="14" inputmode="numeric" autocomplete="off">
+            </label>
+            <label class="workers-standard-only">年金証書番号（該当時・9桁以内）
+              <input type="text" id="workers-pension-certificate-number" maxlength="9" inputmode="numeric" autocomplete="off">
+            </label>
+            <label class="workers-required workers-standard-only">負傷年月日
+              <input type="text" id="workers-injury-date" placeholder="yyyy/mm/dd">
+            </label>
+            <label class="workers-standard-only">同一傷病回数
+              <input type="text" id="workers-same-injury-count" maxlength="2" inputmode="numeric" autocomplete="off">
+            </label>
+            <label class="workers-standard-only">労働局コード（2桁）
+              <input type="text" id="workers-labor-bureau-code" maxlength="2" inputmode="numeric" autocomplete="off">
+            </label>
+            <label class="workers-standard-only">労基署コード（2桁）
+              <input type="text" id="workers-inspection-office-code" maxlength="2" inputmode="numeric" autocomplete="off">
+            </label>
+            <label class="workers-comp-wide workers-standard-only">事業場名称
+              <input type="text" id="workers-business-name" maxlength="100" autocomplete="off">
+            </label>
+            <label class="workers-comp-wide workers-standard-only">事業場所在地
+              <input type="text" id="workers-business-address" maxlength="200" autocomplete="off">
+            </label>
+            <label class="workers-required workers-aftercare-only hidden">対象傷病コード（2桁）
+              <input type="text" id="workers-aftercare-disease-code" maxlength="2" inputmode="numeric" autocomplete="off" list="workers-aftercare-disease-options">
+              <datalist id="workers-aftercare-disease-options">
+                <option value="00" label="炭鉱災害による一酸化炭素中毒症"></option>
+                <option value="01" label="せき髄損傷"></option>
+                <option value="05" label="白内障等の眼疾患"></option>
+                <option value="06" label="振動障害"></option>
+                <option value="07" label="大腿骨頸部骨折及び股関節脱臼・脱臼骨折"></option>
+                <option value="08" label="人工関節・人工骨頭置換"></option>
+                <option value="09" label="慢性化膿性骨髄炎"></option>
+                <option value="11" label="尿路系腫瘍"></option>
+                <option value="14" label="外傷による末梢神経損傷"></option>
+                <option value="15" label="熱傷"></option>
+                <option value="16" label="サリン中毒"></option>
+                <option value="17" label="精神障害"></option>
+                <option value="19" label="呼吸機能障害"></option>
+                <option value="20" label="消化器障害"></option>
+                <option value="21" label="頭頸部外傷症候群等（頭頸部外傷症候群）"></option>
+                <option value="22" label="頭頸部外傷症候群等（頸肩腕障害）"></option>
+                <option value="23" label="頭頸部外傷症候群等（腰痛）"></option>
+                <option value="24" label="尿路系障害（尿道狭さく及び尿路変向術後）"></option>
+                <option value="25" label="尿路系障害（代用膀胱造設後）"></option>
+                <option value="26" label="慢性肝炎（HBe抗原陽性及びC型肝炎ウイルス感染）"></option>
+                <option value="27" label="慢性肝炎（HBe抗原陰性）"></option>
+                <option value="28" label="虚血性心疾患等（虚血性心疾患）"></option>
+                <option value="29" label="虚血性心疾患等（ペースメーカ及び除細動器）"></option>
+                <option value="30" label="脳の器質性障害（一酸化炭素中毒）"></option>
+                <option value="31" label="脳の器質性障害（外傷による脳の器質的損傷）"></option>
+                <option value="32" label="脳の器質性障害（減圧症）"></option>
+                <option value="33" label="脳の器質性障害（脳血管疾患）"></option>
+                <option value="34" label="脳の器質性障害（有機溶剤中毒等）"></option>
+                <option value="35" label="循環器障害（弁損傷及び心膜病変）"></option>
+                <option value="36" label="循環器障害（人工弁置換後）"></option>
+                <option value="37" label="循環器障害（人工血管置換後）"></option>
+              </datalist>
+            </label>
+            <label class="workers-required workers-aftercare-only hidden">アフターケア手帳番号（13桁）
+              <input type="text" id="workers-aftercare-handbook-number" maxlength="13" inputmode="numeric" autocomplete="off">
+            </label>
+            <label class="workers-aftercare-only hidden">前回の検査年月日
+              <input type="text" id="workers-aftercare-previous-examination-date" placeholder="yyyy/mm/dd">
+            </label>
+            <label class="workers-comp-wide workers-required">被災労働者カナ
+              <input type="text" id="workers-worker-kana" maxlength="50" autocomplete="off">
+            </label>
+            <label class="workers-comp-wide workers-required">傷病の経過
+              <textarea id="workers-injury-course" rows="2" maxlength="200"></textarea>
+            </label>
+          </div>
+          <p class="workers-comp-note workers-standard-only">新規・転医始診・再発は、労働局コード、労基署コード、事業場名称、事業場所在地も入力してください。</p>
+          <p class="workers-comp-note workers-aftercare-only hidden">診察年月日・検査年月日は、当日の算定明細から自動設定してARECへ記録します。</p>
+        </section>
+        <div class="insurance-form-row">
+          <label>保険者番号</label>
+          <div class="insurance-field insurance-field-split">
+            <span class="required-badge">必須</span>
+            <div class="insurance-input-stack">
+              <input type="text" id="insurance-insurer-number" maxlength="8" autocomplete="off" aria-describedby="insurance-insurer-number-error">
+              <div id="insurance-insurer-number-error" class="insurance-field-error hidden" aria-live="polite"></div>
+            </div>
+            <label class="insurance-inline-label">資格不明理由</label>
+            <select id="insurance-qualification-unknown-reason" class="insurance-small-select">
+              <option value=""></option>
+              <option value="card_not_available">保険証未提示</option>
+              <option value="online_unavailable">オン資不可</option>
+              <option value="other">その他</option>
+            </select>
+            <select id="insurance-qualification-unknown-detail" class="insurance-mini-select">
+              <option value=""></option>
+              <option value="pending">確認中</option>
+              <option value="unknown">不明</option>
+            </select>
+          </div>
+        </div>
+        <div class="insurance-form-row">
+          <label>本人 / 家族</label>
+          <div class="insurance-field insurance-radio-field">
+            <span class="required-badge">必須</span>
+            <label><input type="radio" name="insurance-relationship" value="main" checked> 本人</label>
+            <label><input type="radio" name="insurance-relationship" value="family"> 家族</label>
+          </div>
+        </div>
+        <div class="insurance-form-row">
+          <label>記号</label>
+          <div class="insurance-field">
+            <input type="text" id="insurance-symbol" autocomplete="off">
+          </div>
+        </div>
+        <div class="insurance-form-row">
+          <label>番号</label>
+          <div class="insurance-field">
+            <span class="required-badge">必須</span>
+            <input type="text" id="insurance-number" autocomplete="off">
+            <label class="insurance-branch-label">枝番</label>
+            <input type="text" id="insurance-branch-number" maxlength="2" autocomplete="off">
+          </div>
+        </div>
+        <div class="insurance-form-row">
+          <label>有効期間 <span class="insurance-note">（開始日のみ必須）</span></label>
+          <div class="insurance-field insurance-date-range">
+            <span class="required-badge">必須</span>
+            <input type="text" id="insurance-valid-from" placeholder="yyyy/mm/dd">
+            <span>～</span>
+            <input type="text" id="insurance-valid-until" placeholder="yyyy/mm/dd">
+          </div>
+        </div>
+        <div class="insurance-form-row">
+          <label>適用(所得)区分</label>
+          <div class="insurance-field">
+            <select id="insurance-limit-category">
+              <option value="">なし</option>
+              <option value="ア">ア</option>
+              <option value="イ">イ</option>
+              <option value="ウ">ウ</option>
+              <option value="エ">エ</option>
+              <option value="オ">オ</option>
+              <option value="低所得Ⅰ">低所得Ⅰ</option>
+              <option value="低所得Ⅱ">低所得Ⅱ</option>
+            </select>
+          </div>
+        </div>
+        <div class="insurance-form-row">
+          <label>患者負担割合</label>
+          <div class="insurance-field">
+            <select id="insurance-burden-ratio">
+              <option value="0">0%</option>
+              <option value="10">10%</option>
+              <option value="20">20%</option>
+              <option value="30">30%</option>
+              <option value="100">100%</option>
+            </select>
+            <div id="insurance-auto-hint" class="insurance-auto-hint"></div>
+          </div>
+        </div>
+        <div class="insurance-form-row">
+          <label>資格取得日</label>
+          <div class="insurance-field">
+            <input type="text" id="insurance-qualification-acquired-date" placeholder="yyyy/mm/dd">
+            <label class="insurance-holder-label">被保険者名</label>
+            <input type="text" id="insurance-holder-name" autocomplete="off">
+          </div>
+        </div>
+        <div class="insurance-form-row">
+          <label>減免区分</label>
+          <div class="insurance-field">
+            <select id="insurance-reduction-type">
+              <option value="">なし</option>
+              <option value="reduction">減額</option>
+              <option value="exemption">免除</option>
+              <option value="other">その他</option>
+            </select>
+            <label class="insurance-inline-label">減額割合</label>
+            <input type="text" id="insurance-reduction-ratio" disabled>
+          </div>
+        </div>
+        <div class="insurance-form-row">
+          <label></label>
+          <div class="insurance-field">
+            <select id="insurance-facility-status">
+              <option value=""></option>
+              <option value="entered">施設入所あり</option>
+              <option value="none">施設入所なし</option>
+            </select>
+          </div>
+        </div>
+        <div class="insurance-form-row">
+          <label>施設入所</label>
+          <div class="insurance-field insurance-date-range">
+            <input type="text" id="insurance-facility-valid-from" placeholder="yyyy/mm/dd">
+            <span>～</span>
+            <input type="text" id="insurance-facility-valid-until" placeholder="yyyy/mm/dd">
+          </div>
+        </div>
+      </form>
+      <div class="modal-footer-insurance">
+        <button type="button" class="btn btn-danger-soft insurance-record-delete-btn hidden" id="btn-insurance-delete">削除</button>
+        <button type="button" class="btn btn-register" id="btn-insurance-save">登録</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 労災保険追加モーダル -->
+  <div id="workers-insurance-modal" class="modal hidden">
+    <div class="modal-content modal-insurance modal-workers-insurance">
+      <div class="modal-header">
+        <h3>労災保険追加</h3>
+        <div class="modal-header-actions">
+          <button type="button" class="modal-help-btn" title="ヘルプ"><i class="fas fa-question-circle"></i></button>
+          <button type="button" class="modal-close" id="workers-insurance-modal-close">&times;</button>
+        </div>
+      </div>
+      <div class="workers-insurance-patient" id="workers-insurance-modal-patient">患者を選択してください</div>
+      <form id="workers-insurance-form" class="modal-body-insurance workers-insurance-form">
+        <div class="workers-insurance-form-row">
+          <label><span>労災種別</span><b class="workers-form-required">必須</b></label>
+          <div class="workers-insurance-field">
+            <select id="workers-policy-benefit-type">
+              <option value="short_term">短期給付</option>
+              <option value="injury_pension">傷病年金</option>
+            </select>
+          </div>
+        </div>
+        <div class="workers-insurance-form-row">
+          <label><span>労保番号・年金番号</span><b class="workers-form-required">必須</b></label>
+          <div class="workers-insurance-field workers-policy-number-field">
+            <input type="text" id="workers-policy-number" inputmode="numeric" autocomplete="off">
+            <label class="workers-confirm-later"><input type="checkbox" id="workers-policy-confirm-later"> 後から確認</label>
+          </div>
+        </div>
+        <div class="workers-insurance-form-row">
+          <label><span>災害区分</span><b class="workers-form-required">必須</b></label>
+          <div class="workers-insurance-field">
+            <select id="workers-policy-accident-type">
+              <option value="1">業務中の災害</option>
+              <option value="3">通勤途上の災害</option>
+            </select>
+          </div>
+        </div>
+        <div class="workers-insurance-form-row">
+          <label><span>傷病年月日</span><small>短期給付の場合必須</small></label>
+          <div class="workers-insurance-field workers-single-date-field">
+            <input type="text" id="workers-policy-injury-date" placeholder="yyyy/mm/dd" autocomplete="off">
+          </div>
+        </div>
+        <div class="workers-insurance-form-row">
+          <label><span>療養期間</span><small>開始日のみ必須</small></label>
+          <div class="workers-insurance-field workers-date-range-field">
+            <input type="text" id="workers-policy-treatment-start" placeholder="yyyy/mm/dd" autocomplete="off">
+            <span>～</span>
+            <input type="text" id="workers-policy-treatment-end" placeholder="yyyy/mm/dd" autocomplete="off">
+          </div>
+        </div>
+        <div class="workers-insurance-form-row">
+          <label><span>新継再別</span><b class="workers-form-required">必須</b></label>
+          <div class="workers-insurance-field">
+            <select id="workers-policy-new-continuing">
+              <option value="1">初診</option>
+              <option value="3">転医</option>
+              <option value="7">再発</option>
+              <option value="5">継続</option>
+            </select>
+          </div>
+        </div>
+        <div class="workers-insurance-form-row">
+          <label><span>転帰事由</span><b class="workers-form-required">必須</b></label>
+          <div class="workers-insurance-field">
+            <select id="workers-policy-outcome">
+              <option value="3">継続</option>
+              <option value="1">治癒</option>
+              <option value="5">転医</option>
+              <option value="7">中止</option>
+              <option value="9">死亡</option>
+            </select>
+          </div>
+        </div>
+        <div class="workers-insurance-form-row">
+          <label><span>四肢加算区分</span></label>
+          <div class="workers-insurance-field">
+            <select id="workers-policy-limb-addition">
+              <option value="none">なし</option>
+              <option value="limb">四肢</option>
+              <option value="finger">手指</option>
+            </select>
+          </div>
+        </div>
+        <div class="workers-insurance-form-row">
+          <label><span>事業の名称</span></label>
+          <div class="workers-insurance-field"><input type="text" id="workers-policy-business-name" autocomplete="off"></div>
+        </div>
+        <div class="workers-insurance-form-row workers-address-row">
+          <label><span>事業場の所在地</span></label>
+          <div class="workers-insurance-field workers-address-field">
+            <span class="workers-prefecture-caption">都道府県</span>
+            <select id="workers-policy-business-prefecture"><option value=""></option></select>
+            <input type="text" id="workers-policy-business-address" autocomplete="off">
+          </div>
+        </div>
+        <div class="workers-insurance-form-row workers-office-row">
+          <label><span>労働基準監督署</span></label>
+          <div class="workers-insurance-field workers-office-field">
+            <span class="workers-prefecture-caption">都道府県</span>
+            <select id="workers-policy-bureau-prefecture"><option value=""></option></select>
+            <select id="workers-policy-office"><option value=""></option></select>
+          </div>
+        </div>
+        <div class="workers-insurance-form-row">
+          <label><span>初回診療年月</span><b class="workers-form-required">必須</b></label>
+          <div class="workers-insurance-field workers-initial-month-field">
+            <input type="text" id="workers-policy-initial-month" placeholder="yyyy/mm" inputmode="numeric" autocomplete="off">
+          </div>
+        </div>
+      </form>
+      <div class="modal-footer-insurance">
+        <button type="button" class="btn btn-register" id="btn-workers-insurance-save">登録</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 自賠責保険追加モーダル -->
+  <div id="auto-insurance-modal" class="modal hidden">
+    <div class="modal-content modal-insurance modal-auto-insurance">
+      <div class="modal-header">
+        <h3>自賠責保険追加</h3>
+        <div class="modal-header-actions">
+          <button type="button" class="modal-help-btn" title="ヘルプ"><i class="fas fa-question-circle"></i></button>
+          <button type="button" class="modal-close" id="auto-insurance-modal-close">&times;</button>
+        </div>
+      </div>
+      <div class="workers-insurance-patient" id="auto-insurance-modal-patient">患者を選択してください</div>
+      <form id="auto-insurance-form" class="modal-body-insurance workers-insurance-form auto-insurance-form">
+        <div class="workers-insurance-form-row">
+          <label><span>患者請求</span><b class="workers-form-required">必須</b></label>
+          <div class="workers-insurance-field">
+            <select id="auto-policy-patient-claim">
+              <option value="no_claim">患者請求しない</option>
+              <option value="claim">患者請求する</option>
+            </select>
+          </div>
+        </div>
+        <div class="workers-insurance-form-row">
+          <label><span>傷病年月日</span></label>
+          <div class="workers-insurance-field workers-single-date-field">
+            <input type="text" id="auto-policy-injury-date" placeholder="yyyy/mm/dd" autocomplete="off">
+          </div>
+        </div>
+        <div class="workers-insurance-form-row">
+          <label><span>療養期間</span><small>開始日のみ必須</small></label>
+          <div class="workers-insurance-field workers-date-range-field">
+            <input type="text" id="auto-policy-treatment-start" placeholder="yyyy/mm/dd" autocomplete="off">
+            <span>～</span>
+            <input type="text" id="auto-policy-treatment-end" placeholder="yyyy/mm/dd" autocomplete="off">
+          </div>
+        </div>
+        <div class="workers-insurance-form-row">
+          <label><span>転帰事由</span><b class="workers-form-required">必須</b></label>
+          <div class="workers-insurance-field">
+            <select id="auto-policy-outcome">
+              <option value="3">継続</option>
+              <option value="1">治癒</option>
+              <option value="5">転医</option>
+              <option value="7">中止</option>
+              <option value="9">死亡</option>
+            </select>
+          </div>
+        </div>
+        <div class="workers-insurance-form-row">
+          <label><span>四肢加算区分</span></label>
+          <div class="workers-insurance-field">
+            <select id="auto-policy-limb-addition">
+              <option value="none">なし</option>
+              <option value="limb">四肢</option>
+              <option value="finger">手指</option>
+            </select>
+          </div>
+        </div>
+        <div class="workers-insurance-form-row">
+          <label><span>自賠責保険会社名</span></label>
+          <div class="workers-insurance-field"><input type="text" id="auto-policy-insurer-name" autocomplete="off"></div>
+        </div>
+        <div class="workers-insurance-form-row">
+          <label><span>計算区分</span></label>
+          <div class="workers-insurance-field auto-calculation-options">
+            <label><input type="radio" name="auto-policy-calculation-standard" value="workers" checked> 労災準拠</label>
+            <label><input type="radio" name="auto-policy-calculation-standard" value="health"> 健保準拠</label>
+          </div>
+        </div>
+      </form>
+      <div class="modal-footer-insurance">
+        <button type="button" class="btn btn-register" id="btn-auto-insurance-save">登録</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- レセプト特記事項追加モーダル -->
+  <div id="receipt-special-note-modal" class="modal hidden">
+    <div class="modal-content modal-receipt-special-note">
+      <div class="modal-header">
+        <h3 id="receipt-special-note-modal-title">レセプト特記事項新規追加</h3>
+        <button type="button" class="modal-close" id="receipt-special-note-modal-close">&times;</button>
+      </div>
+      <form id="receipt-special-note-form" class="receipt-special-note-form">
+        <div class="receipt-special-note-form-row">
+          <label for="receipt-special-note-code">特記事項</label>
+          <select id="receipt-special-note-code" required>
+            <option value="01">公</option>
+          </select>
+        </div>
+        <div class="receipt-special-note-form-row">
+          <label for="receipt-special-note-valid-from">記載開始日（必須）</label>
+          <input type="text" id="receipt-special-note-valid-from" placeholder="yyyy/mm/dd" autocomplete="off" required>
+        </div>
+        <div class="receipt-special-note-form-row">
+          <label for="receipt-special-note-valid-until">記載終了日</label>
+          <input type="text" id="receipt-special-note-valid-until" placeholder="yyyy/mm/dd" autocomplete="off">
+        </div>
+      </form>
+      <div class="receipt-special-note-footer">
+        <button type="button" class="btn btn-register" id="btn-receipt-special-note-save">登録</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 症状詳記・傷病の経過追加モーダル -->
+  <div id="receipt-symptom-detail-modal" class="modal hidden">
+    <div class="modal-content modal-receipt-symptom-detail">
+      <div class="modal-header">
+        <h3 id="receipt-symptom-detail-modal-title">症状詳記・傷病の経過 新規登録</h3>
+        <button type="button" class="modal-close" id="receipt-symptom-detail-modal-close">&times;</button>
+      </div>
+      <form id="receipt-symptom-detail-form" class="receipt-symptom-detail-form">
+        <div class="receipt-symptom-detail-kind-row">
+          <label class="receipt-symptom-detail-row-label">記載区分</label>
+          <div class="receipt-symptom-detail-kind-controls">
+            <label><input type="radio" name="receipt-symptom-detail-kind" value="symptom_detail" checked> 症状詳記</label>
+            <select id="receipt-symptom-detail-category" required>
+              <option value="01">01 患者の主たる疾患の臨床症状</option>
+              <option value="02">02 患者の主たる疾患の診療・検査所見</option>
+              <option value="03">03 主な治療行為の必要性</option>
+              <option value="04">04 主な治療行為の経過</option>
+              <option value="05">05 100万点以上の薬剤に係る症状等</option>
+              <option value="06">06 100万点以上の処置に係る症状等</option>
+              <option value="07">07 その他</option>
+              <option value="50">50 治験に係る治療概要</option>
+              <option value="51">51 疾患別リハビリテーションに係る治療継続の理由等</option>
+              <option value="52">52 廃用症候群に係る評価</option>
+              <option value="90">90 上記以外の症状詳記</option>
+            </select>
+            <label><input type="radio" name="receipt-symptom-detail-kind" value="injury_course"> 傷病の経過</label>
+          </div>
+        </div>
+        <div class="receipt-symptom-detail-content-row">
+          <label class="receipt-symptom-detail-row-label" for="receipt-symptom-detail-content">記載内容</label>
+          <textarea id="receipt-symptom-detail-content" required></textarea>
+        </div>
+        <div class="receipt-symptom-detail-period-row">
+          <label class="receipt-symptom-detail-row-label" for="receipt-symptom-detail-valid-from">記載期間 <small>開始日のみ必須</small></label>
+          <div class="receipt-symptom-detail-period-controls">
+            <input type="text" id="receipt-symptom-detail-valid-from" placeholder="yyyy/mm/dd" autocomplete="off" required>
+            <span>〜</span>
+            <input type="text" id="receipt-symptom-detail-valid-until" placeholder="yyyy/mm/dd" autocomplete="off">
+          </div>
+        </div>
+        <div class="receipt-symptom-detail-insurance-row">
+          <label class="receipt-symptom-detail-row-label" for="receipt-symptom-detail-insurance">対象保険</label>
+          <select id="receipt-symptom-detail-insurance" required>
+            <option value="medical">社保・国保</option>
+          </select>
+        </div>
+      </form>
+      <div class="receipt-symptom-detail-footer">
+        <button type="button" class="btn btn-register" id="btn-receipt-symptom-detail-save">登録</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- レセプト摘要欄コメント追加モーダル -->
+  <div id="receipt-summary-comment-modal" class="modal hidden">
+    <div class="modal-content modal-receipt-summary-comment">
+      <div class="modal-header">
+        <h3 id="receipt-summary-comment-modal-title">レセプト摘要欄コメント新規登録</h3>
+        <button type="button" class="modal-close" id="receipt-summary-comment-modal-close">&times;</button>
+      </div>
+      <form id="receipt-summary-comment-form" class="receipt-summary-comment-form">
+        <div class="receipt-summary-comment-position-row">
+          <label class="receipt-summary-comment-row-label" for="receipt-summary-comment-position">出力区分</label>
+          <select id="receipt-summary-comment-position" required>
+            <option value="upper">摘要欄上部</option>
+            <option value="lower">摘要欄下部</option>
+          </select>
+        </div>
+        <div class="receipt-summary-comment-content-row">
+          <label class="receipt-summary-comment-row-label" for="receipt-summary-comment-content">摘要欄コメント</label>
+          <textarea id="receipt-summary-comment-content" required></textarea>
+        </div>
+        <div class="receipt-summary-comment-period-row">
+          <label class="receipt-summary-comment-row-label" for="receipt-summary-comment-valid-from">記載期間 <small>開始日のみ必須</small></label>
+          <div class="receipt-summary-comment-period-controls">
+            <input type="text" id="receipt-summary-comment-valid-from" placeholder="yyyy/mm/dd" autocomplete="off" required>
+            <span>〜</span>
+            <input type="text" id="receipt-summary-comment-valid-until" placeholder="yyyy/mm/dd" autocomplete="off">
+          </div>
+        </div>
+        <div class="receipt-summary-comment-insurance-row">
+          <label class="receipt-summary-comment-row-label" for="receipt-summary-comment-insurance">対象保険</label>
+          <select id="receipt-summary-comment-insurance" required>
+            <option value="medical">社保・国保</option>
+          </select>
+        </div>
+      </form>
+      <div class="receipt-summary-comment-footer">
+        <button type="button" class="btn btn-register" id="btn-receipt-summary-comment-save">登録</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 福祉請求書備考欄コメント追加モーダル -->
+  <div id="welfare-invoice-comment-modal" class="modal hidden">
+    <div class="modal-content modal-welfare-invoice-comment">
+      <div class="modal-header">
+        <h3 id="welfare-invoice-comment-modal-title">福祉請求書備考欄コメント新規登録</h3>
+        <button type="button" class="modal-close" id="welfare-invoice-comment-modal-close">&times;</button>
+      </div>
+      <form id="welfare-invoice-comment-form" class="welfare-invoice-comment-form">
+        <div class="welfare-invoice-comment-content-row">
+          <label class="welfare-invoice-comment-row-label" for="welfare-invoice-comment-content">福祉請求書備考欄コメント</label>
+          <span class="required-badge">必須</span>
+          <textarea id="welfare-invoice-comment-content" required></textarea>
+        </div>
+        <div class="welfare-invoice-comment-period-row">
+          <label class="welfare-invoice-comment-row-label" for="welfare-invoice-comment-valid-from">記載期間 <small>開始日のみ必須</small></label>
+          <span class="required-badge">必須</span>
+          <div class="welfare-invoice-comment-period-controls">
+            <input type="text" id="welfare-invoice-comment-valid-from" placeholder="yyyy/mm/dd" autocomplete="off" required>
+            <span>〜</span>
+            <input type="text" id="welfare-invoice-comment-valid-until" placeholder="yyyy/mm/dd" autocomplete="off">
+          </div>
+        </div>
+        <p class="welfare-invoice-comment-note">※福祉医療費請求書の備考欄に記載されるコメントです。福祉医療費請求書が作成されない都道府県や備考欄がない場合は入力しても反映されません。</p>
+      </form>
+      <div class="welfare-invoice-comment-footer">
+        <button type="button" class="btn btn-register" id="btn-welfare-invoice-comment-save">登録</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- レセプト一部負担金額欄追加モーダル -->
+  <div id="receipt-copayment-modal" class="modal hidden">
+    <div class="modal-content modal-receipt-copayment">
+      <div class="modal-header">
+        <h3 id="receipt-copayment-modal-title">レセプト一部負担金額欄 追加</h3>
+        <button type="button" class="modal-close" id="receipt-copayment-modal-close">&times;</button>
+      </div>
+      <form id="receipt-copayment-form" class="receipt-copayment-form">
+        <div class="receipt-copayment-period-row">
+          <label for="receipt-copayment-valid-from">記載期間</label>
+          <span class="required-badge">必須</span>
+          <div class="receipt-copayment-period-controls">
+            <input type="text" id="receipt-copayment-valid-from" placeholder="yyyy/mm/dd" autocomplete="off" required>
+            <span>〜</span>
+            <input type="text" id="receipt-copayment-valid-until" placeholder="yyyy/mm/dd" autocomplete="off" required>
+          </div>
+        </div>
+        <input type="hidden" id="receipt-copayment-category" value="00">
+        <div class="receipt-copayment-table" role="group" aria-label="一部負担金額">
+          <div class="receipt-copayment-table-header">
+            <span></span>
+            <span>一部負担金額</span>
+          </div>
+          <div class="receipt-copayment-insurance-block">
+            <div class="receipt-copayment-payer-label">保険</div>
+            <div class="receipt-copayment-insurance-values">
+              <label>①（<input type="number" id="receipt-copayment-covered-1" class="receipt-copayment-amount" inputmode="numeric" min="1" max="999999" step="1" maxlength="6" aria-label="公費1給付対象一部負担金">）</label>
+              <label>②（<input type="number" id="receipt-copayment-covered-2" class="receipt-copayment-amount" inputmode="numeric" min="1" max="999999" step="1" maxlength="6" aria-label="公費2給付対象一部負担金">）</label>
+              <label>③（<input type="number" id="receipt-copayment-covered-3" class="receipt-copayment-amount" inputmode="numeric" min="1" max="999999" step="1" maxlength="6" aria-label="公費3給付対象一部負担金">）</label>
+              <label>④（<input type="number" id="receipt-copayment-covered-4" class="receipt-copayment-amount" inputmode="numeric" min="1" max="999999" step="1" maxlength="6" aria-label="公費4給付対象一部負担金">）</label>
+              <div class="receipt-copayment-insurance-entry">
+                <input type="number" id="receipt-copayment-insurance-amount" class="receipt-copayment-amount" inputmode="numeric" min="0" max="999999999" step="1" maxlength="9" aria-label="保険一部負担金額">
+                <span id="receipt-copayment-difference">差額：0円</span>
+              </div>
+            </div>
+          </div>
+          <label class="receipt-copayment-public-row"><span>公費①</span><input type="number" id="receipt-copayment-public-1" class="receipt-copayment-amount" inputmode="numeric" min="0" max="99999999" step="1" maxlength="8"></label>
+          <label class="receipt-copayment-public-row"><span>公費②</span><input type="number" id="receipt-copayment-public-2" class="receipt-copayment-amount" inputmode="numeric" min="0" max="99999999" step="1" maxlength="8"></label>
+          <label class="receipt-copayment-public-row"><span>公費③</span><input type="number" id="receipt-copayment-public-3" class="receipt-copayment-amount" inputmode="numeric" min="0" max="99999999" step="1" maxlength="8"></label>
+          <label class="receipt-copayment-public-row"><span>公費④</span><input type="number" id="receipt-copayment-public-4" class="receipt-copayment-amount" inputmode="numeric" min="0" max="99999999" step="1" maxlength="8"></label>
+        </div>
+      </form>
+      <div class="receipt-copayment-footer">
+        <button type="button" class="btn btn-register" id="btn-receipt-copayment-save">登録</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 公費追加モーダル -->
+  <div id="public-expense-modal" class="modal hidden">
+    <div class="modal-content modal-insurance modal-public-expense">
+      <div class="modal-header">
+        <h3>公費追加</h3>
+        <div class="modal-header-actions">
+          <button type="button" class="modal-help-btn" title="ヘルプ"><i class="fas fa-question-circle"></i></button>
+          <button class="modal-close" id="public-expense-modal-close">&times;</button>
+        </div>
+      </div>
+      <div class="insurance-modal-patient">
+        <div id="public-expense-modal-patient">患者を選択してください</div>
+        <div class="insurance-modal-actions">
+          <button type="button" class="insurance-top-action" id="btn-public-expense-online-check">オンライン資格確認</button>
+          <button type="button" class="insurance-top-action" id="btn-public-expense-digisuma">デジスマ連携</button>
+        </div>
+      </div>
+      <form id="public-expense-form" class="modal-body-insurance">
+        <div class="insurance-form-row">
+          <label>負担者番号</label>
+          <div class="insurance-field insurance-field-split">
+            <span class="required-badge">必須</span>
+            <input type="text" id="public-expense-payer-number" maxlength="8" inputmode="numeric" autocomplete="off">
+            <label class="insurance-inline-label"><input type="checkbox" id="public-expense-no-payer-number"> 負担者番号なし</label>
+          </div>
+        </div>
+        <div class="insurance-form-row">
+          <label>公費の種類</label>
+          <div class="insurance-field">
+            <span class="required-badge">必須</span>
+            <select id="public-expense-type">
+              <option value="">選択してください</option>
+            </select>
+          </div>
+        </div>
+        <div class="insurance-form-row public-expense-municipality-row">
+          <label>市町村</label>
+          <div class="insurance-field">
+            <select id="public-expense-municipality">
+              <option value="">市町村差分なし</option>
+            </select>
+            <div class="insurance-help-text" id="public-expense-rule-note"></div>
+          </div>
+        </div>
+        <div class="insurance-form-row">
+          <label>受給者番号</label>
+          <div class="insurance-field insurance-field-split">
+            <span class="required-badge">必須</span>
+            <input type="text" id="public-expense-recipient-number" maxlength="7" inputmode="numeric" autocomplete="off">
+            <label class="insurance-inline-label"><input type="checkbox" id="public-expense-confirm-later"> 後から確認</label>
+          </div>
+        </div>
+        <div class="insurance-form-row">
+          <label>有効期間 <span class="insurance-note">開始日のみ必須</span></label>
+          <div class="insurance-field insurance-date-range">
+            <span class="required-badge">必須</span>
+            <input type="text" id="public-expense-valid-from" placeholder="yyyy/mm/dd">
+            <span>～</span>
+            <input type="text" id="public-expense-valid-until" placeholder="yyyy/mm/dd">
+          </div>
+        </div>
+        <div class="insurance-form-row public-expense-burden-row">
+          <label>患者自己負担</label>
+          <div class="insurance-field insurance-radio-field">
+            <label><input type="radio" name="public-expense-burden-mode" value="none" checked> 負担なし</label>
+            <label><input type="radio" name="public-expense-burden-mode" value="has"> 負担あり</label>
+          </div>
+        </div>
+        <div class="public-expense-limit-wrap">
+          <table class="public-expense-limit-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>割合</th>
+                <th>金額</th>
+                <th>回数</th>
+                <th>日数</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th>1回あたり</th>
+                <td><span>上限</span><input type="text" id="public-expense-ratio-per-visit" inputmode="numeric"><span>%</span></td>
+                <td><span>上限</span><input type="text" id="public-expense-amount-per-visit" inputmode="numeric"><span>円</span></td>
+                <td></td>
+                <td><span>補助上限額</span><input type="text" id="public-expense-subsidy-limit" inputmode="numeric"><span>円</span></td>
+              </tr>
+              <tr>
+                <th>1日あたり</th>
+                <td></td>
+                <td><span>上限</span><input type="text" id="public-expense-amount-per-day" inputmode="numeric"><span>円</span></td>
+                <td><span>上限</span><input type="text" id="public-expense-count-per-day" inputmode="numeric"><span>回</span></td>
+                <td></td>
+              </tr>
+              <tr>
+                <th>1月あたり</th>
+                <td></td>
+                <td><span>上限</span><input type="text" id="public-expense-amount-per-month" inputmode="numeric"><span>円</span></td>
+                <td><span>上限</span><input type="text" id="public-expense-count-per-month" inputmode="numeric"><span>回</span></td>
+                <td><span>上限</span><input type="text" id="public-expense-days-per-month" inputmode="numeric"><span>日</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="insurance-form-row public-expense-claim-row">
+          <label>請求対象</label>
+          <div class="insurance-field insurance-field-split">
+            <select id="public-expense-claim-target">
+              <option value="medical">医療費</option>
+              <option value="none">請求対象外</option>
+              <option value="manual">手動確認</option>
+            </select>
+            <span>処方</span>
+            <select id="public-expense-prescription-claim-target">
+              <option value="same_as_medical">医療費と同じ</option>
+              <option value="medical">請求対象</option>
+              <option value="none">対象外</option>
+              <option value="manual">手動確認</option>
+            </select>
+          </div>
+        </div>
+        <div class="insurance-form-row public-expense-note-row">
+          <label>運用メモ</label>
+          <div class="insurance-field">
+            <textarea id="public-expense-manual-note" rows="2" placeholder="市町村資料で確認した上限や対象範囲をメモ"></textarea>
+          </div>
+        </div>
+      </form>
+      <div class="modal-footer-insurance">
+        <button type="button" class="btn btn-danger-soft insurance-record-delete-btn hidden" id="btn-public-expense-delete">削除</button>
+        <button type="button" class="btn btn-register" id="btn-public-expense-save">登録</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 処方入力モーダル -->
+  <div id="prescription-modal" class="modal hidden">
+    <div class="modal-content modal-prescription">
+      <div class="modal-header">
+        <h3>処方入力</h3>
+        <button class="modal-close" id="prescription-modal-close">&times;</button>
+      </div>
+      <div class="modal-body-prescription">
+        <!-- 薬剤検索 -->
+        <div class="prescription-search-section">
+          <div class="prescription-search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="drug-search-input" placeholder="薬剤名・YJコード・HOTコードで検索..." autocomplete="off">
+          </div>
+          <div class="drug-search-results" id="drug-search-results">
+            <!-- 検索結果がここに表示される -->
+          </div>
+        </div>
+
+        <!-- 処方履歴（Do処方用） -->
+        <div class="prescription-history-section">
+          <div class="section-header">
+            <span class="section-title"><i class="fas fa-history"></i> 過去の処方（Do処方）</span>
+            <button class="btn-toggle" id="toggle-rx-history"><i class="fas fa-chevron-down"></i></button>
+          </div>
+          <div class="prescription-history-list" id="prescription-history-list">
+            <!-- 過去の処方がここに表示される -->
+          </div>
+        </div>
+
+        <!-- 現在の処方リスト -->
+        <div class="current-prescription-section">
+          <div class="section-header">
+            <span class="section-title"><i class="fas fa-prescription"></i> 今回の処方</span>
+            <span class="rp-count" id="rp-count">0件</span>
+          </div>
+          <div class="current-prescription-list" id="current-prescription-list">
+            <!-- 入力中の処方がここに表示される -->
+            <div class="no-prescription-message">
+              <i class="fas fa-pills"></i>
+              <p>薬剤を検索して追加してください</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="prescription-remarks-section">
+          <div class="section-header prescription-remarks-header">
+            <span class="section-title"><i class="fas fa-comment-medical"></i> 処方箋備考</span>
+            <button type="button" class="btn btn-outline btn-prescription-remark-template" id="btn-rx-add-one-package-remark">
+              一包化
+            </button>
+          </div>
+          <textarea id="prescription-remarks-input" class="prescription-remarks-input" rows="3" placeholder="例：（一包化投与）"></textarea>
+        </div>
+      </div>
+
+      <!-- 薬剤詳細入力（選択した薬剤の用量・用法を入力） -->
+      <div class="drug-detail-panel hidden" id="drug-detail-panel">
+        <div class="drug-detail-header">
+          <span class="drug-name" id="selected-drug-name">-</span>
+          <span class="drug-unit" id="selected-drug-unit">-</span>
+        </div>
+        <div class="drug-detail-form">
+          <div class="form-row">
+            <label>用量</label>
+            <div class="input-group">
+              <input type="text" id="drug-dosage" inputmode="decimal" data-numeric-pad="decimal" data-min="0" value="1" autocomplete="off">
+              <select id="drug-dosage-unit">
+                <option value="錠">錠</option>
+                <option value="カプセル">カプセル</option>
+                <option value="包">包</option>
+                <option value="g">g</option>
+                <option value="mg">mg</option>
+                <option value="mL">mL</option>
+                <option value="本">本</option>
+                <option value="枚">枚</option>
+                <option value="個">個</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>用法</label>
+            <select id="drug-frequency">
+              <option value="1日1回朝食後">1日1回朝食後</option>
+              <option value="1日1回昼食後">1日1回昼食後</option>
+              <option value="1日1回夕食後">1日1回夕食後</option>
+              <option value="1日1回寝る前">1日1回寝る前</option>
+              <option value="1日2回朝夕食後">1日2回朝夕食後</option>
+              <option value="1日3回毎食後" selected>1日3回毎食後</option>
+              <option value="1日3回毎食前">1日3回毎食前</option>
+              <option value="1日4回毎食後・寝る前">1日4回毎食後・寝る前</option>
+              <option value="頓服">頓服</option>
+              <option value="医師の指示通り">医師の指示通り</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>日数</label>
+            <div class="input-group">
+              <input type="text" id="drug-days" inputmode="numeric" data-numeric-pad="integer" data-min="1" data-max="90" value="7" autocomplete="off">
+              <span class="unit-label" id="drug-days-unit-label">日分</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>総量</label>
+            <span class="calculated-total" id="drug-total-qty">21錠</span>
+          </div>
+          <div class="form-row">
+            <label class="checkbox-label">
+              <input type="checkbox" id="drug-generic">
+              ジェネリック医薬品への変更可
+            </label>
+          </div>
+          <div class="form-row">
+            <label>備考</label>
+            <input type="text" id="drug-note" placeholder="備考があれば入力">
+          </div>
+        </div>
+        <div class="drug-detail-actions">
+          <button class="btn btn-cancel" id="btn-cancel-drug">キャンセル</button>
+          <button class="btn btn-primary" id="btn-add-drug">処方に追加</button>
+        </div>
+      </div>
+
+      <div class="modal-footer-prescription">
+        <div class="footer-left">
+          <label class="checkbox-label">
+            <input type="checkbox" id="rx-generic-all">
+            すべてジェネリック変更可
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="rx-one-package">
+            一包化
+          </label>
+        </div>
+        <div class="footer-right">
+          <button class="btn btn-outline" id="btn-rx-cancel">キャンセル</button>
+          <button class="btn btn-primary" id="btn-rx-save">処方を保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 会計モーダル -->
+  <div id="billing-modal" class="modal hidden">
+    <div class="modal-content modal-billing">
+      <div class="modal-header">
+        <h3>会計</h3>
+        <button class="modal-close" id="billing-modal-close">&times;</button>
+      </div>
+      <div class="modal-body-billing">
+        <!-- 患者情報 -->
+        <div class="billing-patient-info">
+          <div class="billing-patient-name" id="billing-patient-name">-</div>
+          <div class="billing-patient-id" id="billing-patient-id">ID: -</div>
+          <div class="billing-insurance-info" id="billing-insurance-info">保険: -</div>
+        </div>
+
+        <!-- 明細一覧 -->
+        <div class="billing-details-section">
+          <div class="section-header">
+            <span class="section-title"><i class="fas fa-list-alt"></i> 診療明細</span>
+          </div>
+          <div class="billing-details-table-wrapper">
+            <table class="billing-details-table" id="billing-details-table">
+              <thead>
+                <tr>
+                  <th class="col-category">区分</th>
+                  <th class="col-name">項目名</th>
+                  <th class="col-points">点数</th>
+                  <th class="col-qty">数量</th>
+                  <th class="col-subtotal">小計</th>
+                </tr>
+              </thead>
+              <tbody id="billing-details-body">
+                <!-- 明細行がここに入る -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 計算結果 -->
+        <div class="billing-calculation-section">
+          <div class="calc-row">
+            <span class="calc-label">診療点数合計</span>
+            <span class="calc-value" id="calc-total-points">0点</span>
+          </div>
+          <div class="calc-row">
+            <span class="calc-label">医療費合計（10円/点）</span>
+            <span class="calc-value" id="calc-total-amount">¥0</span>
+          </div>
+          <div class="calc-divider"></div>
+          <div class="calc-row patient-row highlight">
+            <span class="calc-label">患者負担額</span>
+            <span class="calc-value" id="calc-patient-amount">¥0</span>
+          </div>
+        </div>
+
+        <!-- 入金フォーム -->
+        <div class="billing-payment-section">
+          <div class="section-header">
+            <span class="section-title"><i class="fas fa-yen-sign"></i> お支払い</span>
+          </div>
+          <div class="payment-method-tabs">
+            <button class="payment-tab active" data-method="cash">
+              <i class="fas fa-money-bill-wave"></i> 現金
+            </button>
+            <button class="payment-tab" data-method="card">
+              <i class="fas fa-credit-card"></i> カード
+            </button>
+            <button class="payment-tab" data-method="qr">
+              <i class="fas fa-qrcode"></i> QR決済
+            </button>
+            <button class="payment-tab" data-method="ic">
+              <i class="fas fa-wifi"></i> 電子マネー
+            </button>
+          </div>
+          <div class="payment-form" id="payment-form">
+            <!-- 現金入金フォーム -->
+            <div class="payment-cash-form" id="payment-cash-form">
+              <div class="form-row">
+                <label>お預かり金額</label>
+                <div class="input-group">
+                  <span class="input-prefix">¥</span>
+                  <input type="number" id="payment-received" placeholder="0" min="0">
+                </div>
+              </div>
+              <div class="quick-amount-buttons">
+                <button type="button" class="quick-btn" data-amount="1000">¥1,000</button>
+                <button type="button" class="quick-btn" data-amount="5000">¥5,000</button>
+                <button type="button" class="quick-btn" data-amount="10000">¥10,000</button>
+                <button type="button" class="quick-btn" data-amount="exact">ちょうど</button>
+              </div>
+              <div class="form-row change-row">
+                <label>お釣り</label>
+                <span class="change-amount" id="payment-change">¥0</span>
+              </div>
+            </div>
+            <!-- カード入金フォーム -->
+            <div class="payment-card-form hidden" id="payment-card-form">
+              <div class="form-row">
+                <label>カード種類</label>
+                <select id="card-type">
+                  <option value="visa">VISA</option>
+                  <option value="master">MasterCard</option>
+                  <option value="jcb">JCB</option>
+                  <option value="amex">American Express</option>
+                  <option value="diners">Diners Club</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>支払い方法</label>
+                <select id="card-payment-type">
+                  <option value="1">一括払い</option>
+                  <option value="2">2回払い</option>
+                  <option value="3">3回払い</option>
+                  <option value="revolving">リボ払い</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>承認番号</label>
+                <input type="text" id="card-approval-no" placeholder="任意">
+              </div>
+            </div>
+            <!-- QR決済フォーム -->
+            <div class="payment-qr-form hidden" id="payment-qr-form">
+              <div class="form-row">
+                <label>決済サービス</label>
+                <select id="qr-service">
+                  <option value="paypay">PayPay</option>
+                  <option value="linepay">LINE Pay</option>
+                  <option value="merpay">メルペイ</option>
+                  <option value="aupay">au PAY</option>
+                  <option value="dpay">d払い</option>
+                  <option value="rakuten">楽天ペイ</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>取引ID</label>
+                <input type="text" id="qr-transaction-id" placeholder="任意">
+              </div>
+            </div>
+            <!-- 電子マネーフォーム -->
+            <div class="payment-ic-form hidden" id="payment-ic-form">
+              <div class="form-row">
+                <label>電子マネー種類</label>
+                <select id="ic-type">
+                  <option value="suica">Suica/PASMO</option>
+                  <option value="waon">WAON</option>
+                  <option value="nanaco">nanaco</option>
+                  <option value="edy">楽天Edy</option>
+                  <option value="id">iD</option>
+                  <option value="quicpay">QUICPay</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="billing-accounting-toolbar">
+        <button type="button" class="btn btn-outline billing-operation-btn" id="btn-billing-refund">
+          <i class="fas fa-undo-alt"></i> 返金
+        </button>
+        <button type="button" class="btn btn-outline billing-operation-btn" id="btn-billing-split">
+          <i class="fas fa-columns"></i> 領収書分割
+        </button>
+        <button type="button" class="btn btn-outline billing-operation-btn" id="btn-billing-monthly-invoice">
+          <i class="fas fa-file-invoice"></i> 月まとめ
+        </button>
+        <button type="button" class="btn btn-outline billing-operation-btn" id="btn-billing-stats">
+          <i class="fas fa-chart-bar"></i> 日計・月計
+        </button>
+        <button type="button" class="btn btn-outline billing-operation-btn" id="btn-billing-recalculate">
+          <i class="fas fa-sync-alt"></i> 一括再計算
+        </button>
+      </div>
+
+      <div class="modal-footer-billing">
+        <div class="footer-left">
+          <button type="button" class="btn btn-outline" id="btn-preview-receipt-pdf">
+            <i class="fas fa-eye"></i> 領収書表示
+          </button>
+          <button type="button" class="btn btn-outline" id="btn-print-receipt">
+            <i class="fas fa-receipt"></i> 領収書
+          </button>
+          <button type="button" class="btn btn-outline" id="btn-download-receipt-pdf">
+            <i class="fas fa-file-pdf"></i> 領収書PDF
+          </button>
+          <button type="button" class="btn btn-outline" id="btn-preview-statement-pdf">
+            <i class="fas fa-eye"></i> 明細書表示
+          </button>
+          <button type="button" class="btn btn-outline" id="btn-print-statement">
+            <i class="fas fa-file-alt"></i> 明細書
+          </button>
+          <button type="button" class="btn btn-outline" id="btn-download-statement-pdf">
+            <i class="fas fa-file-pdf"></i> 明細書PDF
+          </button>
+        </div>
+        <div class="footer-right">
+          <button type="button" class="btn btn-outline" id="btn-billing-cancel">キャンセル</button>
+          <button type="button" class="btn btn-primary" id="btn-billing-complete">
+            <i class="fas fa-check"></i> 会計完了
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="billing-operation-modal" class="modal hidden">
+    <div class="modal-content billing-operation-dialog">
+      <div class="modal-header">
+        <h3 id="billing-operation-title">会計管理</h3>
+        <button type="button" class="modal-close" id="billing-operation-close">&times;</button>
+      </div>
+      <div class="billing-operation-body" id="billing-operation-body"></div>
+      <div class="billing-operation-result" id="billing-operation-result"></div>
+    </div>
+  </div>
+
+  <!-- レセプト作成モーダル -->
+  <div id="receipt-claim-modal" class="modal hidden">
+    <div class="modal-content modal-receipt-claim">
+      <div class="modal-header">
+        <h3>レセプト作成</h3>
+        <button class="modal-close" id="receipt-claim-modal-close">&times;</button>
+      </div>
+      <div class="receipt-claim-tabs" role="tablist" aria-label="レセプト種別">
+        <button type="button" class="receipt-claim-tab active" data-receipt-claim-category="medical" role="tab" aria-selected="true">医療保険</button>
+        <button type="button" class="receipt-claim-tab" data-receipt-claim-category="workers" role="tab" aria-selected="false">労災</button>
+        <button type="button" class="receipt-claim-tab" data-receipt-claim-category="auto_liability" role="tab" aria-selected="false">自賠責</button>
+      </div>
+      <div class="modal-body receipt-claim-body">
+        <div class="receipt-claim-top">
+          <div class="receipt-claim-controls">
+            <select id="receipt-claim-scope" class="receipt-claim-scope-select" aria-label="レセプト作成範囲">
+              <option value="monthly">月次レセプト作成</option>
+              <option value="daily">日次レセプト作成</option>
+            </select>
+            <div class="receipt-claim-field-row">
+              <label class="receipt-claim-field">
+                <span>診療月</span>
+                <input type="text" id="receipt-claim-month" inputmode="numeric" placeholder="yyyy/mm">
+              </label>
+              <label class="receipt-claim-field">
+                <span>請求年月日</span>
+                <input type="text" id="receipt-claim-bill-date" inputmode="numeric" placeholder="yyyy/mm/dd">
+              </label>
+              <label class="receipt-claim-check receipt-claim-medical-only">
+                <input type="checkbox" id="receipt-claim-include-shaho" checked>
+                <span>社保</span>
+              </label>
+              <label class="receipt-claim-check receipt-claim-medical-only">
+                <input type="checkbox" id="receipt-claim-include-kokuho" checked>
+                <span>国保</span>
+              </label>
+            </div>
+            <div class="receipt-claim-field-row">
+              <span class="receipt-claim-check-label">適応症チェックの出力</span>
+              <label class="receipt-claim-check">
+                <input type="checkbox" id="receipt-claim-output-drug-check" checked>
+                <span>医薬品</span>
+              </label>
+              <label class="receipt-claim-check">
+                <input type="checkbox" id="receipt-claim-output-procedure-check" checked>
+                <span>診療行為</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div id="receipt-claim-result-card" class="receipt-claim-result-card">
+          <div class="receipt-claim-result-empty">作成結果はありません。</div>
+        </div>
+
+        <div id="receipt-claim-review-summary" class="receipt-claim-section receipt-claim-section-open receipt-claim-review-section" hidden>
+          <button type="button" class="receipt-claim-section-header" data-receipt-claim-toggle="review">
+            <i class="fas fa-chevron-down"></i>
+            <span id="receipt-claim-review-title">要確認：修正・再点検 0項目／内容確認 0項目</span>
+          </button>
+          <div class="receipt-claim-section-body receipt-claim-review-body">
+            <p id="receipt-claim-review-message"></p>
+            <button type="button" class="btn btn-secondary" id="receipt-claim-review-list-btn">要確認一覧を開く</button>
+          </div>
+        </div>
+
+        <div class="receipt-claim-section receipt-claim-section-open" data-receipt-claim-section="returns">
+          <button type="button" class="receipt-claim-section-header" data-receipt-claim-toggle="returns">
+            <i class="fas fa-chevron-down"></i>
+            <span id="receipt-return-resubmit-title">返戻再請求（0件）</span>
+          </button>
+          <div class="receipt-claim-section-body">
+            <div class="receipt-claim-section-actions receipt-claim-medical-only">
+              <button type="button" class="btn btn-outline btn-sm" id="receipt-return-viewer-btn">返戻レセプトビューアー</button>
+              <button type="button" class="btn btn-outline btn-sm" id="receipt-return-import-btn">返戻レセプト取込</button>
+              <input type="file" id="receipt-return-file" accept=".sah,.SAH,.hen,.HEN,.csv,.txt,.uke,.dat" hidden>
+            </div>
+            <div class="receipt-claim-table-wrap">
+              <table class="receipt-claim-table">
+                <thead>
+                  <tr>
+                    <th>患者番号</th>
+                    <th>氏名</th>
+                    <th>診療日</th>
+                    <th>保険種類</th>
+                    <th>請求方法</th>
+                    <th>レセプト請求</th>
+                    <th>最後に含めた日時</th>
+                    <th class="receipt-claim-row-actions" aria-label="操作"></th>
+                  </tr>
+                </thead>
+                <tbody id="receipt-return-resubmit-body">
+                  <tr>
+                    <td colspan="8" class="receipt-claim-empty">返戻再請求の対象はありません。</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="receipt-claim-section receipt-claim-section-open" data-receipt-claim-section="month-delay">
+          <button type="button" class="receipt-claim-section-header" data-receipt-claim-toggle="month-delay">
+            <i class="fas fa-chevron-down"></i>
+            <span id="receipt-month-delay-title">月遅れ（0件）</span>
+          </button>
+          <div class="receipt-claim-section-body">
+            <div class="receipt-claim-table-wrap">
+              <table class="receipt-claim-table">
+                <thead>
+                  <tr>
+                    <th>患者番号</th>
+                    <th>氏名</th>
+                    <th>診療日</th>
+                    <th>保険種類</th>
+                    <th>レセプト請求</th>
+                    <th>最後に含めた日時</th>
+                    <th class="receipt-claim-row-actions"><i class="fas fa-trash-alt"></i></th>
+                  </tr>
+                </thead>
+                <tbody id="receipt-month-delay-body">
+                  <tr>
+                    <td colspan="7" class="receipt-claim-empty">月遅れ候補はありません。</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div class="footer-right">
+          <button type="button" class="btn btn-outline" id="receipt-claim-cancel-btn">キャンセル</button>
+          <button type="button" class="btn btn-primary" id="receipt-claim-create-inspection-btn">点検用を作成</button>
+          <button type="button" class="btn btn-primary" id="receipt-claim-create-submission-btn">提出用を作成</button>
+        </div>
+      </div>
+      <div id="receipt-claim-loading" class="receipt-claim-loading" role="status" aria-live="polite" aria-atomic="true" hidden>
+        <div class="receipt-claim-loading-box">
+          <span class="receipt-claim-loading-spinner" aria-hidden="true"></span>
+          <strong id="receipt-claim-loading-message">レセプト情報を読み込んでいます…</strong>
+          <span class="receipt-claim-loading-note">処理が完了するまで、そのままお待ちください。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- パスワード変更モーダル -->
+  <div id="password-modal" class="modal hidden">
+    <div class="modal-content modal-small">
+      <div class="modal-header">
+        <h3>パスワード変更</h3>
+        <button class="modal-close" id="password-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="current-password">現在のパスワード</label>
+          <input type="password" id="current-password" class="form-input" placeholder="現在のパスワードを入力">
+        </div>
+        <div class="form-group">
+          <label for="new-password">新しいパスワード</label>
+          <input type="password" id="new-password" class="form-input" placeholder="新しいパスワードを入力">
+        </div>
+        <div class="form-group">
+          <label for="confirm-password">新しいパスワード（確認）</label>
+          <input type="password" id="confirm-password" class="form-input" placeholder="もう一度入力">
+        </div>
+        <div class="password-requirements">
+          <p><i class="fas fa-info-circle"></i> パスワードは8文字以上で設定してください</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" id="btn-password-cancel">キャンセル</button>
+        <button class="btn btn-primary" id="btn-password-save">変更する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 端末証明書新規登録モーダル -->
+  <div id="certificate-register-modal" class="facility-register-modal hidden">
+    <div class="facility-register-dialog facility-certificate-register-dialog">
+      <div class="facility-register-header">
+        <h3>証明書新規登録</h3>
+        <button type="button" id="certificate-register-close" class="facility-register-close" aria-label="閉じる">&times;</button>
+      </div>
+      <div class="facility-register-body facility-certificate-register-body">
+        <p>このパソコン端末用の証明書発行依頼を登録します。証明書は1端末につき1枚、有効期間は発行日から1年間です。</p>
+        <label class="facility-register-row">
+          <span>端末名</span>
+          <em>必須</em>
+          <input type="text" id="certificate-terminal-name" maxlength="200" placeholder="例：受付PC-01">
+        </label>
+        <p class="facility-certificate-register-note">登録後にダウンロードされる発行依頼ファイルを、安全な証明書発行端末で処理します。</p>
+      </div>
+      <div class="facility-register-footer facility-certificate-register-footer">
+        <button type="button" class="btn btn-outline" id="certificate-register-cancel">キャンセル</button>
+        <button type="button" class="facility-save-btn" id="certificate-register-save">登録</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 利用者新規登録モーダル -->
+  <div id="user-register-modal" class="facility-register-modal hidden">
+    <div class="facility-register-dialog">
+      <div class="facility-register-header">
+        <h3>利用者新規登録</h3>
+        <button type="button" id="user-register-close" class="facility-register-close">&times;</button>
+      </div>
+      <div class="facility-register-body">
+        <label class="facility-register-row">
+          <span>ログインID</span>
+          <em>必須</em>
+          <input type="text" id="register-login-id">
+        </label>
+        <label class="facility-register-row">
+          <span>利用者名</span>
+          <em>必須</em>
+          <input type="text" id="register-user-name">
+        </label>
+        <label class="facility-register-row">
+          <span>初期パスワード</span>
+          <em>必須</em>
+          <input type="password" id="register-password" minlength="8" autocomplete="new-password">
+        </label>
+        <div class="facility-register-row">
+          <span>役割</span>
+          <em></em>
+          <div class="facility-radio-group">
+            <label><input type="radio" name="register-role" value="医師" checked> 医師</label>
+            <label><input type="radio" name="register-role" value="医師以外の医療従事者"> 医師以外の医療従事者</label>
+            <label><input type="radio" name="register-role" value="受付"> 受付</label>
+          </div>
+        </div>
+        <div class="facility-register-row">
+          <span>施設管理権限</span>
+          <em></em>
+          <div class="facility-radio-group">
+            <label><input type="radio" name="register-admin" value="あり"> あり</label>
+            <label><input type="radio" name="register-admin" value="なし" checked> なし</label>
+          </div>
+        </div>
+        <label class="facility-register-row">
+          <span>メールアドレス</span>
+          <em></em>
+          <input type="email" id="register-email">
+        </label>
+      </div>
+      <div class="facility-register-footer">
+        <button type="button" class="facility-save-btn" id="user-register-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 利用者編集モーダル -->
+  <div id="user-edit-modal" class="facility-register-modal hidden">
+    <div class="facility-register-dialog facility-user-edit-dialog">
+      <div class="facility-register-header facility-user-dialog-header">
+        <h3>利用者編集</h3>
+        <button type="button" id="user-edit-close" class="facility-register-close" aria-label="閉じる">&times;</button>
+      </div>
+      <div class="facility-register-body facility-user-edit-body">
+        <div class="facility-register-row">
+          <span>ログインID</span>
+          <em>必須</em>
+          <span id="edit-login-id" class="facility-user-static-value"></span>
+        </div>
+        <div class="facility-register-row">
+          <span>パスワード</span>
+          <em></em>
+          <div class="facility-user-password-row">
+            <span aria-hidden="true">••••••••</span>
+            <button type="button" class="facility-user-password-reset" id="user-edit-password-reset">パスワードリセット</button>
+          </div>
+        </div>
+        <label class="facility-register-row">
+          <span>利用者名</span>
+          <em>必須</em>
+          <input type="text" id="edit-user-name">
+        </label>
+        <div class="facility-register-row">
+          <span>役割</span>
+          <em></em>
+          <div class="facility-radio-group">
+            <label><input type="radio" name="edit-role" value="医師"> 医師</label>
+            <label><input type="radio" name="edit-role" value="医師以外の医療従事者"> 医師以外の医療従事者</label>
+            <label><input type="radio" name="edit-role" value="受付"> 受付</label>
+          </div>
+        </div>
+        <div class="facility-register-row">
+          <span>施設管理権限</span>
+          <em></em>
+          <div class="facility-radio-group">
+            <label><input type="radio" name="edit-admin" value="あり"> あり</label>
+            <label><input type="radio" name="edit-admin" value="なし"> なし</label>
+          </div>
+        </div>
+        <label class="facility-register-row">
+          <span>メールアドレス</span>
+          <em></em>
+          <input type="email" id="edit-user-email">
+        </label>
+        <div class="facility-register-row">
+          <span>状態</span>
+          <em></em>
+          <div class="facility-user-status-row">
+            <span id="edit-user-status"></span>
+            <button type="button" id="user-edit-status-toggle" class="facility-user-status-toggle"></button>
+          </div>
+        </div>
+      </div>
+      <div class="facility-register-footer">
+        <button type="button" class="facility-save-btn" id="user-edit-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ログイン・パスワード更新履歴モーダル -->
+  <div id="user-history-modal" class="facility-register-modal hidden">
+    <div class="facility-register-dialog facility-user-history-dialog">
+      <div class="facility-register-header facility-user-dialog-header">
+        <h3>ログイン・パスワード更新履歴</h3>
+        <button type="button" id="user-history-close" class="facility-register-close" aria-label="閉じる">&times;</button>
+      </div>
+      <div class="facility-user-history-body">
+        <h4>ログインID更新履歴</h4>
+        <table class="facility-user-history-table">
+          <thead>
+            <tr><th>日時</th><th>操作</th><th>ログインID</th></tr>
+          </thead>
+          <tbody id="user-login-history-body"></tbody>
+        </table>
+        <h4>パスワード更新履歴</h4>
+        <table class="facility-user-history-table facility-password-history-table">
+          <thead>
+            <tr><th>日時</th><th>操作</th></tr>
+          </thead>
+          <tbody id="user-password-history-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 施設マスタ登録モーダル -->
+  <div id="facility-master-register-modal" class="facility-register-modal hidden">
+      <div class="facility-register-dialog facility-master-register-dialog">
+        <div class="facility-register-header">
+        <h3 id="facility-master-register-title">施設マスタ登録</h3>
+        <button type="button" id="facility-master-register-close" class="facility-register-close">&times;</button>
+      </div>
+      <div class="facility-register-body">
+        <label class="facility-register-row facility-master-register-row" id="facility-master-name-row">
+          <span id="facility-master-name-label">施設名</span>
+          <em>必須</em>
+          <input type="text" id="facility-master-name">
+        </label>
+        <label class="facility-register-row facility-master-register-row hidden" id="facility-master-detail-row">
+          <span id="facility-master-detail-label">補足</span>
+          <em></em>
+          <input type="text" id="facility-master-detail">
+        </label>
+        <div id="facility-master-extra-fields" class="facility-master-extra-fields hidden"></div>
+        <label class="facility-register-row facility-master-register-row hidden" id="facility-master-price-row">
+          <span>金額</span>
+          <em>必須</em>
+          <input type="number" id="facility-master-price" min="0" step="1">
+        </label>
+        <label class="facility-register-row facility-master-register-row hidden" id="facility-master-category-row">
+          <span>カテゴリ</span>
+          <em></em>
+          <input type="text" id="facility-master-category">
+        </label>
+      </div>
+      <div class="facility-register-footer">
+        <button type="button" class="facility-save-btn" id="facility-master-register-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- マスタ一覧モーダル -->
+  <div id="facility-master-list-modal" class="facility-register-modal facility-master-list-modal hidden">
+    <div class="facility-master-list-dialog">
+      <div class="facility-register-header facility-master-list-header">
+        <h3 id="facility-master-list-title">マスター一覧</h3>
+        <button type="button" id="facility-master-list-close" class="facility-register-close">&times;</button>
+      </div>
+      <div class="facility-master-list-toolbar">
+        <button type="button" class="facility-master-modal-new" id="facility-master-list-new">
+          <i class="fas fa-plus"></i> 新規登録
+        </button>
+      </div>
+      <div class="facility-master-list-table-wrap">
+        <table class="facility-master-list-table">
+          <thead id="facility-master-list-head"></thead>
+          <tbody id="facility-master-list-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 労災・自賠責設定モーダル -->
+  <div id="accident-edit-modal" class="facility-register-modal hidden">
+    <div class="facility-register-dialog facility-accident-dialog">
+      <div class="facility-register-header">
+        <h3>労災・自賠責設定</h3>
+        <button type="button" id="accident-edit-close" class="facility-register-close">&times;</button>
+      </div>
+      <div class="facility-register-body">
+        <label class="facility-register-row facility-accident-edit-row">
+          <span>労災指定医療機関コード</span>
+          <em></em>
+          <input type="text" id="accident-code-input">
+        </label>
+        <div class="facility-register-row facility-accident-edit-row">
+          <span>自賠責計算区分</span>
+          <em></em>
+          <div class="facility-accident-edit-options">
+            <label><input type="radio" name="accident-method-edit" value="workers_comp"> 労災準拠　点数単価 12円　加算率 120%</label>
+            <label><input type="radio" name="accident-method-edit" value="health_fee"> 健保準拠　技術点単価 10円　医薬品等点単価 10円</label>
+          </div>
+        </div>
+      </div>
+      <div class="facility-register-footer">
+        <button type="button" class="facility-save-btn" id="accident-edit-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 共通パスワード設定モーダル -->
+  <div id="shared-password-modal" class="facility-register-modal hidden">
+    <div class="facility-register-dialog facility-shared-password-dialog">
+      <div class="facility-register-header">
+        <h3>共通パスワード設定</h3>
+        <button type="button" id="shared-password-close" class="facility-register-close" aria-label="閉じる">&times;</button>
+      </div>
+      <div class="facility-register-body facility-shared-password-modal-body">
+        <label class="facility-register-row facility-shared-password-edit-row">
+          <span>パスワード</span>
+          <em>必須</em>
+          <input type="password" id="shared-password-input" maxlength="128" autocomplete="new-password">
+        </label>
+        <p>設定したパスワードは画面上で再表示されません。</p>
+      </div>
+      <div class="facility-register-footer">
+        <button type="button" class="facility-save-btn" id="shared-password-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 外来データ提出加算設定編集モーダル -->
+  <div id="data-submit-edit-modal" class="facility-register-modal hidden">
+    <div class="facility-register-dialog facility-data-submit-dialog">
+      <div class="facility-register-header">
+        <h3>外来データ提出加算設定編集</h3>
+        <button type="button" id="data-submit-edit-close" class="facility-register-close" aria-label="閉じる">&times;</button>
+      </div>
+      <div class="facility-register-body facility-data-submit-modal-body">
+        <div class="facility-data-submit-code-edit-row">
+          <label for="data-submit-code-input">医療機関コード（9桁）</label>
+          <input type="text" id="data-submit-code-input" inputmode="numeric" maxlength="9" autocomplete="off">
+          <span>※申請時のコード</span>
+        </div>
+        <h4>診療科設定</h4>
+        <table class="facility-data-submit-edit-table">
+          <thead>
+            <tr>
+              <th>診療科コード</th>
+              <th>レセプト診療科コード</th>
+              <th>診療科区分</th>
+            </tr>
+          </thead>
+          <tbody id="facility-data-submit-edit-body"></tbody>
+        </table>
+      </div>
+      <div class="facility-register-footer">
+        <button type="button" class="facility-save-btn" id="data-submit-edit-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 施設管理モーダル -->
+  <div id="facility-modal" class="modal hidden">
+    <div class="modal-content modal-medium">
+      <div class="modal-header">
+        <h3>施設管理</h3>
+        <button class="modal-close" id="facility-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="facility-tabs">
+          <button class="facility-tab active" data-tab="basic">基本情報</button>
+          <button class="facility-tab" data-tab="department">診療科</button>
+          <button class="facility-tab" data-tab="staff">スタッフ</button>
+        </div>
+
+        <!-- 基本情報タブ -->
+        <div class="facility-tab-content" id="facility-tab-basic">
+          <div class="form-group">
+            <label for="facility-name">施設名</label>
+            <input type="text" id="facility-name" class="form-input" value="">
+          </div>
+          <div class="form-group">
+            <label for="facility-founder-name">開設者氏名</label>
+            <input type="text" id="facility-founder-name" class="form-input" maxlength="200" value="">
+          </div>
+          <div class="form-group">
+            <label for="facility-code">医療機関コード</label>
+            <input type="text" id="facility-code" class="form-input" value="">
+          </div>
+          <div class="form-group">
+            <label for="facility-postal-code">郵便番号</label>
+            <input type="text" id="facility-postal-code" class="form-input" value="">
+          </div>
+          <div class="form-group">
+            <label for="facility-address">住所</label>
+            <input type="text" id="facility-address" class="form-input" value="">
+          </div>
+          <div class="form-group">
+            <label for="facility-tel">電話番号</label>
+            <input type="tel" id="facility-tel" class="form-input" value="">
+          </div>
+          <div class="form-group">
+            <label for="facility-fax">FAX番号</label>
+            <input type="tel" id="facility-fax" class="form-input" value="">
+          </div>
+          <div class="form-group">
+            <label for="facility-email">メールアドレス</label>
+            <input type="email" id="facility-email" class="form-input" value="">
+          </div>
+          <div class="form-group">
+            <label for="facility-outpatient-type">院内・院外</label>
+            <select id="facility-outpatient-type" class="form-input">
+              <option value="">未設定</option>
+              <option value="院内">院内</option>
+              <option value="院外">院外</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="facility-registration-number">適格事業者番号</label>
+            <input type="text" id="facility-registration-number" class="form-input" value="">
+          </div>
+        </div>
+
+        <!-- 診療科タブ -->
+        <div class="facility-tab-content hidden" id="facility-tab-department">
+          <div class="department-list">
+            <div class="department-item">
+              <span class="department-name">内科</span>
+              <button class="btn-icon-sm"><i class="fas fa-pen"></i></button>
+              <button class="btn-icon-sm"><i class="fas fa-trash"></i></button>
+            </div>
+            <div class="department-item">
+              <span class="department-name">小児科</span>
+              <button class="btn-icon-sm"><i class="fas fa-pen"></i></button>
+              <button class="btn-icon-sm"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+          <button class="btn btn-outline btn-add-department">
+            <i class="fas fa-plus"></i> 診療科を追加
+          </button>
+        </div>
+
+        <!-- スタッフタブ -->
+        <div class="facility-tab-content hidden" id="facility-tab-staff">
+          <div class="staff-list">
+            <div class="staff-item">
+              <div class="staff-avatar"><i class="fas fa-user-md"></i></div>
+              <div class="staff-info">
+                <span class="staff-name">管理者</span>
+                <span class="staff-role">管理者</span>
+              </div>
+              <button class="btn-icon-sm"><i class="fas fa-pen"></i></button>
+            </div>
+          </div>
+          <button class="btn btn-outline btn-add-staff">
+            <i class="fas fa-plus"></i> スタッフを追加
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" id="btn-facility-cancel">閉じる</button>
+        <button class="btn btn-primary" id="btn-facility-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 自動算定提案モーダル -->
+  <div id="auto-calc-modal" class="modal hidden">
+    <div class="modal-content modal-auto-calc">
+      <div class="modal-header">
+        <h3>自動算定確認</h3>
+        <div class="auto-calc-header-tools">
+          <div class="auto-calc-badges" id="auto-calc-badges">
+            <!-- 動的に追加 -->
+          </div>
+          <button type="button" class="auto-calc-help" id="auto-calc-help" title="自動算定ヘルプ">
+            <i class="far fa-question-circle"></i>
+          </button>
+          <button type="button" class="modal-close" id="auto-calc-close">&times;</button>
+        </div>
+      </div>
+      <div class="modal-body auto-calc-body" id="auto-calc-body">
+        <!-- 動的に追加 -->
+      </div>
+      <div class="modal-footer auto-calc-footer">
+        <div class="auto-calc-summary">
+          <span id="auto-calc-total">選択中: <strong>0</strong>件 / 合計 <strong>0</strong>点</span>
+        </div>
+        <div class="auto-calc-actions">
+          <button type="button" class="btn btn-primary" id="btn-auto-calc-add">追加</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="api.js?v=password-only-login-20260916-3"></script>
+  <script src="diagnosis-master-lite.js"></script>
+  <script src="receipt-comment-requirements.js?v=receipt-comments-20260828-1"></script>
+  <script src="oral-usage-options.js?v=oral-usage-20260804-4"></script>
+  <script src="external-usage-options.js?v=external-usage-20260804-1"></script>
+  <script src="renderer.js?v=password-only-login-20260916-3"></script>
+</body>
+</html>
+

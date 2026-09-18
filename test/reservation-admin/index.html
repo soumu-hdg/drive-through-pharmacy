@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>予約管理 - DigiMaster</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css?v=google-review-link-20260805-1">
+</head>
+<body>
+    <div class="app">
+        <header class="app-header">
+            <a href="#" class="header-brand" id="backToKarte" title="カルテに戻る" aria-label="カルテに戻る">
+                <span class="header-logo" aria-hidden="true">
+                    <svg class="header-leaf" viewBox="0 0 32 32" focusable="false">
+                        <path d="M3.5 22.5C13.9 22.3 20.7 16.4 23.7 6C29.1 12.1 29.3 21.5 22.7 26C16.5 30.2 8.7 27.3 3.5 22.5Z"></path>
+                        <path d="M4.4 23.1C9 18.1 15 14.8 22.8 13.2"></path>
+                    </svg>
+                </span>
+                <span class="header-title">施設管理画面 <span id="headerClinicName">西春内科・在宅クリニック</span></span>
+            </a>
+            <div class="header-actions" aria-label="管理メニュー">
+                <button type="button" class="header-icon-btn" title="メッセージ">
+                    <svg class="header-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M4.5 5.5h15v10h-8.2l-4.4 3.3v-3.3H4.5v-10Z"></path>
+                        <circle cx="9" cy="10.5" r="1.1"></circle>
+                        <circle cx="12" cy="10.5" r="1.1"></circle>
+                        <circle cx="15" cy="10.5" r="1.1"></circle>
+                    </svg>
+                </button>
+                <label class="header-search" title="Q&Aを検索する">
+                    <svg class="header-svg small" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <path d="M9.8 9.4a2.4 2.4 0 0 1 4.6 1c0 1.9-2.2 2-2.2 3.6"></path>
+                        <circle cx="12" cy="17" r=".9"></circle>
+                    </svg>
+                    <input type="search" placeholder="Q&Aを検索する" aria-label="Q&Aを検索する">
+                </label>
+                <button type="button" class="header-admin-btn" title="管理者メニュー">
+                    管理者 <span class="admin-caret" aria-hidden="true"></span>
+                </button>
+            </div>
+        </header>
+
+        <div class="app-shell">
+        <!-- サイドバー -->
+        <aside class="sidebar">
+            <div class="clinic-selector-container">
+                <select id="clinicSelector" class="clinic-selector">
+                    <!-- 動的に追加 -->
+                </select>
+                <button type="button" class="clinic-settings-btn" id="clinicSettingsBtn" title="クリニック管理">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item" data-page="facility-info">
+                    施設情報
+                </a>
+                <a href="#" class="nav-item active" data-page="dashboard">
+                    予約設定
+                </a>
+                <a href="#" class="nav-item" data-page="reservations">
+                    予約一覧
+                </a>
+                <a href="#" class="nav-item" data-page="checkin-message">
+                    チェックインメッセージ
+                </a>
+                <a href="#" class="nav-item" data-page="questionnaires">
+                    デジスマ問診
+                </a>
+                <a href="#" class="nav-item" data-page="schedules">
+                    予約・問診時診療科
+                </a>
+                <a href="#" class="nav-item" data-page="notifications">
+                    通知設定
+                </a>
+                <div class="nav-section-label">高度な予約</div>
+                <a href="#" class="nav-item" data-page="treatment-staff">スタッフ</a>
+                <a href="#" class="nav-item" data-page="treatment-rooms">部屋</a>
+                <a href="#" class="nav-item" data-page="treatment-equipment">機器</a>
+                <a href="#" class="nav-item" data-page="treatment-menus">美容施術</a>
+                <a href="#" class="nav-item" data-page="treatment-menu-items">メニュー</a>
+                <a href="#" class="nav-item" data-page="treatment-steps">ステップ</a>
+            </nav>
+        </aside>
+
+        <!-- メインコンテンツ -->
+        <main class="main">
+            <section class="page" id="page-facility-info">
+                <div class="calendar-list-header">
+                    <h2>施設情報</h2>
+                </div>
+                <div class="section-card">
+                    <h3>Google口コミリンク</h3>
+                    <p class="section-desc">患者予約画面に表示するGoogle口コミ投稿ページのリンクを設定します。</p>
+                    <form class="form facility-review-form" id="facilityReviewForm">
+                        <div class="form-group">
+                            <label for="googleReviewUrl">Google口コミURL</label>
+                            <input
+                                type="url"
+                                class="input"
+                                id="googleReviewUrl"
+                                placeholder="https://g.page/r/..."
+                                autocomplete="off"
+                            >
+                            <p class="facility-review-hint">未入力の場合、患者画面には口コミボタンを表示しません。</p>
+                        </div>
+                        <div class="facility-review-actions">
+                            <button type="submit" class="btn btn-primary" id="saveFacilityReviewSettings">保存</button>
+                            <a href="#" class="btn btn-outline hidden" id="openGoogleReviewLink" target="_blank" rel="noopener">リンクを開く</a>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- ダッシュボード -->
+            <section class="page active" id="page-dashboard">
+                <div class="calendar-list-header">
+                    <h2>予約設定</h2>
+                    <div class="header-buttons">
+                        <button class="btn btn-primary" id="addCalendar">追加</button>
+                    </div>
+                </div>
+
+                <div class="department-table-container">
+                    <table class="department-table" id="calendarTable">
+                        <thead>
+                            <tr>
+                                <th class="col-name">カレンダー名</th>
+                                <th>営業日</th>
+                                <th>臨時休診設定</th>
+                                <th class="col-actions"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="calendarListBody">
+                            <!-- 動的に追加 -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="page" id="page-checkin-message">
+                <div class="calendar-list-header">
+                    <h2>チェックインメッセージ</h2>
+                </div>
+                <div class="section-card">
+                    <p class="section-desc">受付・チェックイン時に表示する案内文を管理します。</p>
+                </div>
+            </section>
+
+            <!-- 予約カレンダー追加・編集（ドロワー） -->
+            <div class="drawer-overlay hidden" id="calendarDrawerOverlay"></div>
+            <aside class="calendar-drawer hidden" id="calendarDrawer">
+                <!-- ドロワーヘッダー -->
+                <div class="drawer-header">
+                    <h2 id="calendarEditorTitle">予約カレンダー編集</h2>
+                </div>
+
+                <form id="calendarForm" class="drawer-body">
+                    <input type="hidden" id="calendarId">
+
+                    <!-- 基本情報 -->
+                    <section class="calendar-form-section">
+                        <h3 class="section-title">基本情報</h3>
+                        <div class="calendar-field-row">
+                            <label for="calendarName">カレンダー名<span class="required">*</span></label>
+                            <input type="text" id="calendarName" class="calendar-text-input" required>
+                        </div>
+                    </section>
+
+                    <!-- 診療科リンク -->
+                    <section class="calendar-form-section">
+                        <h3 class="section-title">診療科（リンク）</h3>
+                        <p class="section-desc">このカレンダーで予約可能な診療科を選択してください</p>
+                        <div class="link-check-grid" id="calendarDepartmentGrid"></div>
+                    </section>
+
+                    <!-- スタッフリンク -->
+                    <section class="calendar-form-section">
+                        <h3 class="section-title">スタッフ（リンク）</h3>
+                        <p class="section-desc">このカレンダーに紐づけるスタッフを選択してください</p>
+                        <div class="link-check-grid" id="calendarStaffGrid"></div>
+                    </section>
+
+                    <!-- 予約枠オプション -->
+                    <section class="calendar-form-section">
+                        <h3 class="section-title">予約枠オプション</h3>
+
+                        <div class="calendar-field-row compact-field-row">
+                            <label for="calendarCloseOffset">予約受付終了<span class="required">*</span></label>
+                            <span>各枠終了時間</span>
+                            <input type="number" id="calendarCloseOffset" class="calendar-number-input" value="0" min="0">
+                            <span>分前</span>
+                        </div>
+
+                        <div class="calendar-field-row radio-field-row">
+                            <div class="field-label">第１設定<span class="required">*</span></div>
+                            <label class="radio-label"><input type="radio" name="calendarWeekRule" value="date" checked> 1〜7日を第1とする</label>
+                            <label class="radio-label"><input type="radio" name="calendarWeekRule" value="sunday"> 第1週を第1とする（日曜始）</label>
+                        </div>
+
+                        <div class="calendar-field-row radio-field-row">
+                            <div class="field-label">初再診時間<span class="required">*</span></div>
+                            <label class="radio-label"><input type="radio" name="calendarVisitTimeMode" value="time" checked> 診療時間ごとに設定</label>
+                            <label class="radio-label"><input type="radio" name="calendarVisitTimeMode" value="department"> 診療科ごとに設定</label>
+                        </div>
+
+                        <div class="calendar-field-row radio-field-row start-rule-row">
+                            <div class="field-label">予約開始日<span class="required">*</span></div>
+                            <div class="start-rule-controls">
+                                <label class="radio-label"><input type="radio" name="calendarStartRule" value="calendar" checked> カレンダーで設定</label>
+                                <div class="inline-selects">
+                                    <select id="calendarStartMonthOffset" class="calendar-select">
+                                        <option value="1">1ヶ月前</option>
+                                        <option value="2">2ヶ月前</option>
+                                        <option value="3">3ヶ月前</option>
+                                        <option value="6" selected>6ヶ月前</option>
+                                        <option value="12">12ヶ月前</option>
+                                    </select>
+                                    <select id="calendarStartHour" class="calendar-select"></select>
+                                    <span>時</span>
+                                    <select id="calendarStartMinute" class="calendar-select"></select>
+                                    <span>分 から</span>
+                                </div>
+                                <label class="radio-label"><input type="radio" name="calendarStartRule" value="department"> 診療科ごとに設定</label>
+                            </div>
+                        </div>
+
+                        <div class="calendar-field-row radio-field-row">
+                            <div class="field-label">患者への予約時間表示<span class="required">*</span></div>
+                            <label class="radio-label"><input type="radio" name="calendarTimeDisplay" value="range" checked> 「開始時間〜終了時間」と表示</label>
+                            <label class="radio-label"><input type="radio" name="calendarTimeDisplay" value="start"> 「開始時間」のみ表示</label>
+                        </div>
+                    </section>
+
+                    <!-- 基本設定 -->
+                    <section class="calendar-form-section">
+                        <h3 class="section-title">基本設定</h3>
+                        <div id="calendarPeriods"></div>
+
+                        <button type="button" class="outline-action-btn" id="addCalendarTimeRow">
+                            <span class="plus-symbol">+</span> 診療時間を追加
+                        </button>
+
+                        <div class="section-divider"></div>
+
+                        <button type="button" class="outline-action-btn" id="addCalendarPeriod">
+                            <span class="plus-symbol">+</span> 対象期間を追加
+                        </button>
+
+                        <div class="calendar-field-row holiday-priority-row">
+                            <div class="field-label">祝日優先</div>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="holidayPriority">
+                                休診日と祝日が重なった場合、休診日より祝日の設定を優先
+                            </label>
+                        </div>
+                    </section>
+
+                    <!-- 臨時設定 -->
+                    <section class="calendar-form-section">
+                        <h3 class="section-title">臨時設定（基本設定より優先）</h3>
+                        <div id="temporarySettings"></div>
+                        <button type="button" class="outline-action-btn" id="addTemporarySetting">
+                            <span class="plus-symbol">+</span> 臨時設定を追加
+                        </button>
+                    </section>
+
+                </form>
+
+                <!-- ドロワーフッター -->
+                <div class="drawer-footer">
+                    <button type="button" class="btn drawer-close-btn" id="cancelCalendarForm">閉じる</button>
+                    <button type="button" class="btn btn-primary drawer-save-btn" id="saveCalendarDrawer">保存</button>
+                </div>
+            </aside>
+
+            <!-- 予約一覧 -->
+            <section class="page" id="page-reservations">
+                <div class="page-header">
+                    <h2>予約一覧</h2>
+                    <div class="filters">
+                        <input type="date" id="filterDateFrom" class="input">
+                        <span>〜</span>
+                        <input type="date" id="filterDateTo" class="input">
+                        <select id="filterStatus" class="input">
+                            <option value="">全て</option>
+                            <option value="confirmed">確定</option>
+                            <option value="checked_in">来院済み</option>
+                            <option value="completed">完了</option>
+                            <option value="cancelled">キャンセル</option>
+                        </select>
+                        <button class="btn" id="applyFilter">検索</button>
+                    </div>
+                </div>
+
+                <div class="reservation-view-toolbar">
+                    <div class="reservation-switch-group" aria-label="表示形式">
+                        <button type="button" class="reservation-switch active" data-reservation-view="timeline">タイムライン</button>
+                        <button type="button" class="reservation-switch" data-reservation-view="calendar">カレンダー</button>
+                        <button type="button" class="reservation-switch" data-reservation-view="resource">リソース表</button>
+                    </div>
+                    <div class="reservation-switch-group" aria-label="表示期間">
+                        <button type="button" class="reservation-switch" data-reservation-range="day">日</button>
+                        <button type="button" class="reservation-switch active" data-reservation-range="week">週</button>
+                        <button type="button" class="reservation-switch" data-reservation-range="month">月</button>
+                    </div>
+                    <div class="reservation-switch-group reservation-resource-axis-group hidden" id="reservationResourceAxisGroup" aria-label="リソース表示">
+                        <button type="button" class="reservation-switch active" data-reservation-resource-axis="staff">スタッフ</button>
+                        <button type="button" class="reservation-switch" data-reservation-resource-axis="room">ルーム</button>
+                        <button type="button" class="reservation-switch" data-reservation-resource-axis="equipment">機器</button>
+                    </div>
+                    <div class="reservation-range-caption" id="reservationRangeCaption"></div>
+                </div>
+
+                <div class="reservation-views">
+                    <div class="reservation-view" id="reservationTimelineView"></div>
+                    <div class="reservation-view hidden" id="reservationCalendarView"></div>
+                    <div class="reservation-view hidden" id="reservationResourceView"></div>
+                </div>
+
+                <div class="section-card reservation-table-card hidden">
+                    <table class="table" id="reservationList">
+                        <thead>
+                            <tr>
+                                <th>日時</th>
+                                <th>診療科</th>
+                                <th>メニュー</th>
+                                <th>患者名</th>
+                                <th>電話番号</th>
+                                <th>連携</th>
+                                <th>ステータス</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- 動的に追加 -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 問診票一覧 -->
+            <section class="page" id="page-questionnaires">
+                <div class="calendar-list-header">
+                    <h2>問診票</h2>
+                    <div class="header-buttons">
+                        <button class="btn btn-primary" id="addQuestionnaire">追加</button>
+                    </div>
+                </div>
+
+                <div class="department-table-container">
+                    <table class="department-table" id="questionnaireTable">
+                        <thead>
+                            <tr>
+                                <th class="col-name">問診票名</th>
+                                <th>診療科</th>
+                                <th>項目数</th>
+                                <th class="col-actions"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="questionnaireListBody">
+                            <!-- 動的に追加 -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 問診票編集ドロワー -->
+            <div class="drawer-overlay hidden" id="questionnaireDrawerOverlay"></div>
+            <aside class="calendar-drawer hidden" id="questionnaireDrawer">
+                <div class="drawer-header">
+                    <div class="questionnaire-tabs">
+                        <button class="questionnaire-tab active" data-tab="monshin">問診</button>
+                        <button class="questionnaire-tab" data-tab="settings">問診設定</button>
+                    </div>
+                </div>
+
+                <div class="drawer-body questionnaire-drawer-body">
+                    <!-- 問診タブ -->
+                    <div class="questionnaire-tab-content active" id="questionnaire-tab-monshin">
+                        <div class="questionnaire-editor">
+                            <div class="questionnaire-main">
+                                <div class="questionnaire-title-bar">
+                                    <input type="text" id="questionnaireName" class="questionnaire-title-input" placeholder="問診票名を入力">
+                                </div>
+
+                                <div class="questionnaire-items" id="questionnaireItems">
+                                    <!-- 問診項目が動的に追加される -->
+                                </div>
+
+                                <button type="button" class="outline-action-btn" id="addQuestionItem">
+                                    <span class="plus-symbol">+</span> 質問を追加
+                                </button>
+                            </div>
+
+                            <div class="questionnaire-sidebar">
+                                <div class="questionnaire-sidebar-search">
+                                    <input type="text" placeholder="問診検索" class="questionnaire-search-input">
+                                </div>
+                                <div class="questionnaire-sidebar-items">
+                                    <div class="sidebar-section-title">基本情報</div>
+                                    <a href="#" class="sidebar-item" data-item="name">名前</a>
+                                    <a href="#" class="sidebar-item" data-item="address">住所</a>
+                                    <a href="#" class="sidebar-item" data-item="phone">電話番号</a>
+                                    <a href="#" class="sidebar-item" data-item="gender">性別</a>
+                                    <a href="#" class="sidebar-item" data-item="birthdate">生年月日</a>
+                                    <a href="#" class="sidebar-item" data-item="weight">体重</a>
+                                    <a href="#" class="sidebar-item" data-item="height">身長</a>
+
+                                    <div class="sidebar-section-title">病歴・状態</div>
+                                    <a href="#" class="sidebar-item" data-item="allergy">アレルギー</a>
+                                    <a href="#" class="sidebar-item" data-item="history">大きな病気</a>
+                                    <a href="#" class="sidebar-item" data-item="medication">服用中の薬</a>
+                                    <a href="#" class="sidebar-item" data-item="surgery">手術</a>
+                                    <a href="#" class="sidebar-item" data-item="alcohol">お酒</a>
+                                    <a href="#" class="sidebar-item" data-item="smoking">タバコ</a>
+                                    <a href="#" class="sidebar-item" data-item="pregnancy">妊娠</a>
+                                    <a href="#" class="sidebar-item" data-item="breastfeeding">授乳</a>
+
+                                    <div class="sidebar-section-title">症状</div>
+                                    <a href="#" class="sidebar-item" data-item="symptom_internal">症状（内科・小児科）</a>
+                                    <a href="#" class="sidebar-item" data-item="symptom_surgical">症状（外科・整形科）</a>
+                                    <a href="#" class="sidebar-item" data-item="symptom_ent">症状（耳鼻科）</a>
+                                    <a href="#" class="sidebar-item" data-item="symptom_derma">症状（皮膚科）</a>
+                                    <a href="#" class="sidebar-item" data-item="symptom_mental">症状（心療内科・精神科）</a>
+                                    <a href="#" class="sidebar-item" data-item="symptom_urology">症状（泌尿器科）</a>
+                                    <a href="#" class="sidebar-item" data-item="body_part">部位</a>
+
+                                    <div class="sidebar-section-title">その他</div>
+                                    <a href="#" class="sidebar-item" data-item="delivery_address">配送先住所</a>
+
+                                    <div class="sidebar-section-title">カスタム</div>
+                                    <a href="#" class="sidebar-item sidebar-item-custom" data-item="custom_text">カスタム（テキスト）</a>
+                                    <a href="#" class="sidebar-item sidebar-item-custom" data-item="custom_single">カスタム（単一選択）</a>
+                                    <a href="#" class="sidebar-item sidebar-item-custom" data-item="custom_multi">カスタム（複数選択）</a>
+                                    <a href="#" class="sidebar-item sidebar-item-custom" data-item="custom_image">カスタム（画像）</a>
+                                    <a href="#" class="sidebar-item sidebar-item-custom" data-item="custom_date">カスタム（日付）</a>
+                                    <a href="#" class="sidebar-item sidebar-item-custom" data-item="custom_description">カスタム（説明のみ）</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 問診設定タブ -->
+                    <div class="questionnaire-tab-content" id="questionnaire-tab-settings">
+                        <div class="questionnaire-settings">
+                            <section class="calendar-form-section">
+                                <h3 class="section-title">基本設定</h3>
+                                <div class="calendar-field-row">
+                                    <label>診療科リンク</label>
+                                    <p class="section-desc">この問診票を使用する診療科を選択してください</p>
+                                    <div class="link-check-grid" id="questionnaireDepartmentGrid"></div>
+                                </div>
+                            </section>
+
+                            <section class="calendar-form-section">
+                                <h3 class="section-title">表示設定</h3>
+                                <div class="calendar-field-row">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="questionnaireShowProgress" checked>
+                                        進捗バーを表示する
+                                    </label>
+                                </div>
+                                <div class="calendar-field-row">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="questionnaireAllowBack" checked>
+                                        前の質問に戻ることを許可する
+                                    </label>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="drawer-footer">
+                    <button type="button" class="btn drawer-close-btn" id="cancelQuestionnaireForm">閉じる</button>
+                    <button type="button" class="btn btn-primary drawer-save-btn" id="saveQuestionnaireDrawer">保存</button>
+                </div>
+            </aside>
+
+            <!-- 予約・問診時診療科 -->
+            <section class="page" id="page-schedules">
+                <div class="calendar-list-header">
+                    <h2>予約・問診時診療科</h2>
+                    <div class="header-buttons">
+                        <button class="btn btn-secondary" id="addDepartmentGroup">診療科グループ追加</button>
+                        <button class="btn btn-primary" id="addDepartment">追加</button>
+                    </div>
+                </div>
+
+                <div class="department-table-container">
+                    <table class="department-table" id="departmentList">
+                        <thead>
+                            <tr>
+                                <th class="col-name">診療科</th>
+                                <th class="col-first">初診用</th>
+                                <th class="col-revisit">再診用</th>
+                                <th class="col-calendar">カレンダー名</th>
+                                <th class="col-url">問診URL</th>
+                                <th class="col-url">予約URL</th>
+                                <th class="col-url">予約HTML</th>
+                                <th class="col-actions"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="departmentListBody">
+                            <!-- 動的に追加 -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="page" id="page-notifications">
+                <div class="calendar-list-header">
+                    <h2>通知設定</h2>
+                </div>
+                <div class="section-card">
+                    <p class="section-desc">予約通知・リマインド通知の設定を管理します。</p>
+                </div>
+            </section>
+
+            <!-- 高度な予約: スタッフ -->
+            <section class="page" id="page-treatment-staff">
+                <div class="calendar-list-header">
+                    <h2>スタッフ</h2>
+                </div>
+
+                <div class="treatment-resource-bar">
+                    <div class="treatment-resource-head">
+                        <div>
+                            <div class="treatment-resource-title">スタッフ管理</div>
+                            <div class="treatment-resource-counts" id="treatmentStaffCounts">医師0名 / 看護師0名 / 事務員0名</div>
+                        </div>
+                        <div class="treatment-resource-actions">
+                            <button class="btn btn-sm" id="addTreatmentStaff" type="button">スタッフ追加</button>
+                            <button class="btn btn-sm" id="saveResourceCapacities" type="button">スタッフを保存</button>
+                        </div>
+                    </div>
+                    <div class="treatment-staff-list" id="treatmentStaffList"></div>
+                </div>
+            </section>
+
+            <!-- 高度な予約: 部屋 -->
+            <section class="page" id="page-treatment-rooms">
+                <div class="calendar-list-header">
+                    <h2>部屋</h2>
+                </div>
+
+                <div class="treatment-resource-bar">
+                    <div class="treatment-resource-head">
+                        <div>
+                            <div class="treatment-resource-title">部屋管理</div>
+                            <div class="treatment-resource-counts">施術メニューで使用する部屋を管理</div>
+                        </div>
+                        <div class="treatment-resource-actions">
+                            <button class="btn btn-sm" id="addTreatmentRoom" type="button">部屋追加</button>
+                            <button class="btn btn-sm" id="saveTreatmentRooms" type="button">部屋を保存</button>
+                        </div>
+                    </div>
+                    <div class="treatment-staff-list treatment-master-list" id="treatmentRoomList"></div>
+                </div>
+            </section>
+
+            <!-- 高度な予約: 機器 -->
+            <section class="page" id="page-treatment-equipment">
+                <div class="calendar-list-header">
+                    <h2>機器</h2>
+                </div>
+
+                <div class="treatment-resource-bar">
+                    <div class="treatment-resource-head">
+                        <div>
+                            <div class="treatment-resource-title">機器管理</div>
+                            <div class="treatment-resource-counts">機器ごとの台数とリンク中のメニューを管理</div>
+                        </div>
+                        <div class="treatment-resource-actions">
+                            <button class="btn btn-sm" id="addTreatmentEquipment" type="button">機器追加</button>
+                            <button class="btn btn-sm" id="saveTreatmentEquipment" type="button">機器を保存</button>
+                        </div>
+                    </div>
+                    <div class="treatment-staff-list treatment-master-list" id="treatmentEquipmentList"></div>
+                </div>
+            </section>
+
+            <!-- 高度な予約: 美容施術 -->
+            <section class="page" id="page-treatment-menus">
+                <div class="calendar-list-header">
+                    <h2>美容施術</h2>
+                </div>
+
+                <div class="treatment-resource-bar advanced-master-card">
+                    <div class="treatment-resource-head">
+                        <div>
+                            <div class="treatment-resource-title">美容施術カテゴリー</div>
+                            <div class="treatment-resource-counts">ララドクター、エレクトロポレーションなど、メニューを束ねるカテゴリーを管理</div>
+                        </div>
+                        <div class="treatment-resource-actions">
+                            <button class="btn btn-sm" id="addBeautyCategory" type="button">美容施術を追加</button>
+                            <button class="btn btn-sm" id="saveBeautyCategories" type="button">美容施術を保存</button>
+                        </div>
+                    </div>
+                    <div class="department-table-container advanced-master-table">
+                        <table class="department-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-name">カテゴリー名</th>
+                                    <th>メニュー数</th>
+                                    <th>表示</th>
+                                    <th class="col-actions"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="beautyCategoryBody">
+                                <tr>
+                                    <td colspan="4" style="text-align:center; color: var(--gray-500);">読み込み中...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 高度な予約: メニュー -->
+            <section class="page" id="page-treatment-menu-items">
+                <div class="calendar-list-header">
+                    <h2>メニュー</h2>
+                </div>
+
+                <div class="department-table-container">
+                    <table class="department-table treatment-menu-table treatment-menu-list-table" id="treatmentMenuTable">
+                        <thead>
+                            <tr>
+                                <th>美容施術</th>
+                                <th class="col-name">メニュー名</th>
+                                <th>ステップ</th>
+                                <th>価格（税込）</th>
+                                <th>表示</th>
+                                <th class="col-actions"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="treatmentMenuBody">
+                            <tr>
+                                <td colspan="6" style="text-align:center; color: var(--gray-500);">読み込み中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 高度な予約: ステップ -->
+            <section class="page" id="page-treatment-steps">
+                <div class="calendar-list-header">
+                    <h2>ステップ</h2>
+                </div>
+
+                <div class="treatment-step-toolbar">
+                    <button type="button" class="treatment-step-link-btn" id="multiMenuStepReservationSettings">複数メニュー予約時の予約順設定</button>
+                    <button type="button" class="treatment-step-link-btn" id="multiMenuNoConcurrentSettings">複数メニュー予約時の同時予約不可設定</button>
+                    <button type="button" class="treatment-step-link-btn" id="treatmentStepIntervalSettings">施術間隔</button>
+                    <button type="button" class="dept-group-modal-btn secondary treatment-step-bulk-btn" id="bulkUpdateStepAssignments">ステップアサイン一括更新</button>
+                </div>
+
+                <div class="treatment-resource-bar advanced-master-card">
+                    <div class="treatment-resource-head">
+                        <div>
+                            <div class="treatment-resource-title">ステップ一覧</div>
+                            <div class="treatment-resource-counts">診察、カウンセリング、施術ごとの予約ステップを管理</div>
+                        </div>
+                        <div class="treatment-resource-actions">
+                            <button class="btn btn-sm" id="addTreatmentStep" type="button">ステップを追加</button>
+                        </div>
+                    </div>
+                    <div class="department-table-container advanced-master-table">
+                        <table class="department-table treatment-step-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th class="col-name">ステップ名</th>
+                                    <th>ステップ種別</th>
+                                    <th class="col-actions">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="treatmentStepBody">
+                                <tr>
+                                    <td colspan="4" style="text-align:center; color: var(--gray-500);">読み込み中...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+        </div>
+    </div>
+
+    <!-- 診療科編集ドロワー -->
+    <div class="drawer-overlay hidden" id="departmentDrawerOverlay"></div>
+    <aside class="department-drawer hidden" id="departmentDrawer">
+        <div class="drawer-header">
+            <h2 id="departmentDrawerTitle">診療科新規作成</h2>
+        </div>
+
+        <div class="drawer-body department-drawer-body">
+            <form id="departmentForm">
+                <input type="hidden" id="deptId">
+
+                <!-- 基本情報 -->
+                <div class="dept-form-group">
+                    <label class="dept-form-label">診療科名</label>
+                    <input type="text" id="deptName" class="dept-form-input" placeholder="例：内科" required>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">診療科グループ設定</label>
+                    <select id="deptGroup" class="dept-form-select">
+                        <option value="">選択してください</option>
+                    </select>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">デジタル診察券/診療科名</label>
+                    <input type="text" id="deptDigitalName" class="dept-form-input" placeholder="デジタル診察券/問診用/外来表示名">
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">初診/診療</label>
+                    <select id="deptFirstVisitType" class="dept-form-select">
+                        <option value="">選択</option>
+                        <option value="first">初診</option>
+                        <option value="revisit">再診</option>
+                        <option value="both">初診・再診</option>
+                    </select>
+                </div>
+
+                <div class="dept-form-row">
+                    <div class="dept-form-group">
+                        <label class="dept-form-label">初診の診察室</label>
+                        <select id="deptFirstRoom" class="dept-form-select">
+                            <option value="">SL</option>
+                        </select>
+                    </div>
+                    <div class="dept-form-group">
+                        <label class="dept-form-label">再診の診察室</label>
+                        <select id="deptRevisitRoom" class="dept-form-select">
+                            <option value="">SL</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">初診用問診票</label>
+                    <select id="deptFirstQuestionnaire" class="dept-form-select">
+                        <option value="">選択してください</option>
+                    </select>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">再診用問診票</label>
+                    <select id="deptRevisitQuestionnaire" class="dept-form-select">
+                        <option value="">選択してください</option>
+                    </select>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">支払方法</label>
+                    <div class="dept-radio-group">
+                        <label class="dept-radio-label">
+                            <input type="radio" name="deptPayment" value="both" checked>
+                            <span>現金またはデジタル払い</span>
+                        </label>
+                        <label class="dept-radio-label">
+                            <input type="radio" name="deptPayment" value="digital">
+                            <span>デジタル払いのみ</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">処方箋FAXリクエスト</label>
+                    <div class="dept-radio-group">
+                        <label class="dept-radio-label">
+                            <input type="radio" name="deptFax" value="accept" checked>
+                            <span>受け付ける</span>
+                        </label>
+                        <label class="dept-radio-label">
+                            <input type="radio" name="deptFax" value="reject">
+                            <span>受け付けない</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">予約時連絡事項の表示</label>
+                    <div class="dept-radio-group">
+                        <label class="dept-radio-label">
+                            <input type="radio" name="deptContactDisplay" value="show" checked>
+                            <span>表示する</span>
+                        </label>
+                        <label class="dept-radio-label">
+                            <input type="radio" name="deptContactDisplay" value="hide">
+                            <span>表示しない</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">同一患者の予約制限</label>
+                    <select id="deptBookingLimit" class="dept-form-select dept-form-select-small">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3" selected>3</option>
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="0">制限なし</option>
+                    </select>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">予約前メッセージ</label>
+                    <textarea id="deptPreBookingMsg" class="dept-form-textarea" rows="3" placeholder="予約前に表示するメッセージ"></textarea>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">予約完了時メッセージ</label>
+                    <textarea id="deptBookingCompleteMsg" class="dept-form-textarea" rows="3" placeholder="予約完了時に表示するメッセージ"></textarea>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">予約5分前連絡メッセージ</label>
+                    <textarea id="dept5minBeforeMsg" class="dept-form-textarea" rows="3" placeholder="予約5分前に送信するメッセージ"></textarea>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">予約時間直前連絡メッセージ</label>
+                    <textarea id="deptJustBeforeMsg" class="dept-form-textarea" rows="3" placeholder="予約時間直前に送信するメッセージ"></textarea>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">決済完了時連絡メッセージ</label>
+                    <textarea id="deptPaymentCompleteMsg" class="dept-form-textarea" rows="3" placeholder="決済完了時に送信するメッセージ"></textarea>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">予約当日のチェックイン</label>
+                    <label class="dept-checkbox-label">
+                        <input type="checkbox" id="deptShowCheckinBtn">
+                        <span>アプリにボタンを表示</span>
+                    </label>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">患者への表示</label>
+                    <p class="dept-form-hint">※患者の予約画面とGoogle マップに表示されます。<a href="#">Google マップへの掲載について</a></p>
+                    <div class="dept-radio-group">
+                        <label class="dept-radio-label">
+                            <input type="radio" name="deptPatientDisplay" value="show" checked>
+                            <span>表示する</span>
+                        </label>
+                        <label class="dept-radio-label">
+                            <input type="radio" name="deptPatientDisplay" value="hide">
+                            <span>表示しない</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">患者の予約取消期限</label>
+                    <div class="dept-radio-group">
+                        <label class="dept-radio-label">
+                            <input type="radio" name="deptCancelLimit" value="none" checked>
+                            <span>制限しない</span>
+                        </label>
+                        <label class="dept-radio-label">
+                            <input type="radio" name="deptCancelLimit" value="limit">
+                            <span>制限する</span>
+                        </label>
+                    </div>
+                    <div class="dept-limit-config" id="deptCancelLimitConfig">
+                        <span>予約日</span>
+                        <select id="deptCancelDays" class="dept-form-select-inline">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="7">7</option>
+                        </select>
+                        <span>日前 まで</span>
+                    </div>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">患者の予約変更期限</label>
+                    <div class="dept-radio-group">
+                        <label class="dept-radio-label">
+                            <input type="radio" name="deptChangeLimit" value="none" checked>
+                            <span>制限しない</span>
+                        </label>
+                        <label class="dept-radio-label">
+                            <input type="radio" name="deptChangeLimit" value="limit">
+                            <span>制限する</span>
+                        </label>
+                    </div>
+                    <div class="dept-limit-config" id="deptChangeLimitConfig">
+                        <span>予約日</span>
+                        <select id="deptChangeDays" class="dept-form-select-inline">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="7">7</option>
+                        </select>
+                        <span>日前 まで</span>
+                    </div>
+                </div>
+
+                <div class="dept-form-group">
+                    <label class="dept-form-label">診療形式</label>
+                    <div class="dept-radio-group">
+                        <label class="dept-radio-label">
+                            <input type="radio" name="deptVisitType" value="inperson" checked>
+                            <span>対面診療</span>
+                        </label>
+                        <label class="dept-radio-label">
+                            <input type="radio" name="deptVisitType" value="online">
+                            <span>オンライン診療</span>
+                            <i class="fas fa-info-circle dept-info-icon" title="オンライン診療の詳細設定"></i>
+                        </label>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="drawer-footer">
+            <button type="button" class="btn drawer-close-btn" id="cancelDepartmentDrawer">閉じる</button>
+            <button type="button" class="btn btn-primary drawer-save-btn" id="saveDepartmentDrawer">保存</button>
+        </div>
+    </aside>
+
+    <!-- 診療科グループ追加モーダル -->
+    <div class="modal hidden" id="departmentGroupModal">
+        <div class="modal-content dept-group-modal-content">
+            <div class="dept-group-modal-header">
+                <h3 id="departmentGroupModalTitle">診療科グループ追加</h3>
+            </div>
+            <form id="departmentGroupForm">
+                <input type="hidden" id="departmentGroupId">
+                <div class="dept-group-modal-body">
+                    <label for="departmentGroupName" class="dept-group-modal-label">
+                        診療科グループ名 <span class="required">*</span>
+                    </label>
+                    <input type="text" id="departmentGroupName" class="dept-group-modal-input" required autocomplete="off">
+                </div>
+                <div class="dept-group-modal-footer">
+                    <button type="button" class="dept-group-modal-btn secondary" id="cancelDepartmentGroupModal">キャンセル</button>
+                    <button type="submit" class="dept-group-modal-btn primary" id="saveDepartmentGroupModal">作成</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 施術メニュー編集モーダル -->
+    <div class="modal hidden" id="treatmentMenuModal">
+        <div class="modal-content dept-group-modal-content treatment-menu-modal-content">
+            <div class="dept-group-modal-header">
+                <h3 id="treatmentMenuModalTitle">施術メニュー追加</h3>
+            </div>
+            <form id="treatmentMenuForm">
+                <input type="hidden" id="treatmentMenuId">
+                <div class="dept-group-modal-body treatment-menu-editor">
+                    <section class="treatment-menu-editor-section treatment-menu-editor-section-emphasis">
+                        <div class="treatment-menu-section-title">予約枠・リソース</div>
+                        <div class="treatment-menu-section-grid treatment-menu-section-grid-reservation">
+                            <div class="form-group">
+                                <label for="treatmentMenuDuration" class="dept-group-modal-label">表示用の所要時間</label>
+                                <input type="text" id="treatmentMenuDuration" class="dept-group-modal-input" placeholder="約30分">
+                            </div>
+                            <div class="form-group">
+                                <label for="treatmentMenuDurationMinutes" class="dept-group-modal-label">単体予約の施術時間（分）</label>
+                                <input type="number" id="treatmentMenuDurationMinutes" class="dept-group-modal-input" min="1" max="480" step="5" placeholder="40">
+                            </div>
+                            <div class="form-group">
+                                <label for="treatmentMenuSetDurationMinutes" class="dept-group-modal-label">セット予約時の施術時間（分）</label>
+                                <input type="number" id="treatmentMenuSetDurationMinutes" class="dept-group-modal-input" min="1" max="480" step="5" placeholder="60">
+                            </div>
+                            <div class="form-group treatment-menu-field-full">
+                                <label class="dept-group-modal-label">施術者</label>
+                                <div id="treatmentMenuResource" class="treatment-resource-checkboxes treatment-staff-checkboxes"></div>
+                            </div>
+                            <div class="form-group treatment-menu-field-full">
+                                <label class="dept-group-modal-label">部屋</label>
+                                <div id="treatmentMenuRooms" class="treatment-resource-checkboxes treatment-room-checkboxes"></div>
+                            </div>
+                            <div class="form-group treatment-menu-field-full">
+                                <div class="treatment-menu-subsection-head">
+                                    <label class="dept-group-modal-label">機器</label>
+                                    <button type="button" class="btn btn-sm" id="addTreatmentMenuEquipmentRequirement">機器を追加</button>
+                                </div>
+                                <div id="treatmentMenuEquipmentRequirements" class="treatment-equipment-requirement-list"></div>
+                            </div>
+                            <input type="hidden" id="treatmentMenuEquipmentLabel">
+                            <input type="hidden" id="treatmentMenuEquipmentCode">
+                        </div>
+                    </section>
+
+                    <section class="treatment-menu-editor-section">
+                        <div class="treatment-menu-section-title">基本設定</div>
+                        <div class="treatment-menu-section-grid treatment-menu-section-grid-basic">
+                            <div class="form-group treatment-menu-field-wide">
+                                <label for="treatmentMenuLabel" class="dept-group-modal-label">
+                                    メニュー名 <span class="required">*</span>
+                                </label>
+                                <input type="text" id="treatmentMenuLabel" class="dept-group-modal-input" required autocomplete="off">
+                            </div>
+                            <div class="form-group">
+                                <label for="treatmentMenuCategory" class="dept-group-modal-label">美容施術</label>
+                                <select id="treatmentMenuCategory" class="dept-form-select"></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="treatmentMenuDepartment" class="dept-group-modal-label">予約枠（診療科）</label>
+                                <select id="treatmentMenuDepartment" class="dept-form-select"></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="treatmentMenuCapacity" class="dept-group-modal-label">同時予約数</label>
+                                <input type="number" id="treatmentMenuCapacity" class="dept-group-modal-input" min="0" value="1">
+                            </div>
+                            <div class="form-group treatment-menu-field-full">
+                                <label class="dept-group-modal-label">ステップ</label>
+                                <div id="treatmentMenuSteps" class="treatment-resource-checkboxes treatment-step-checkboxes"></div>
+                            </div>
+                            <div class="form-group treatment-menu-check-field">
+                                <label class="dept-checkbox-label">
+                                    <input type="checkbox" id="treatmentMenuActive" checked>
+                                    <span>患者予約画面に表示</span>
+                                </label>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="treatment-menu-editor-section">
+                        <div class="treatment-menu-section-title">料金</div>
+                        <div class="treatment-menu-section-grid treatment-menu-section-grid-reservation">
+                            <div class="form-group">
+                                <label for="treatmentMenuPrice" class="dept-group-modal-label">料金表示</label>
+                                <input type="text" id="treatmentMenuPrice" class="dept-group-modal-input" placeholder="初回 ¥9,900">
+                            </div>
+                            <div class="form-group">
+                                <label for="treatmentMenuPriceSub" class="dept-group-modal-label">料金補足</label>
+                                <input type="text" id="treatmentMenuPriceSub" class="dept-group-modal-input" placeholder="通常 ¥12,100〜">
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="treatment-menu-editor-section">
+                        <div class="treatment-menu-section-title">細かい料金メニュー</div>
+                        <div class="treatment-detail-menu-list" id="treatmentDetailMenuList"></div>
+                        <button type="button" class="treatment-detail-menu-add treatment-detail-menu-add-bottom hidden" id="addTreatmentDetailMenu">メニューを追加</button>
+                    </section>
+
+                    <section class="treatment-menu-editor-section">
+                        <div class="treatment-menu-section-title">患者予約画面の文言</div>
+                        <div class="treatment-menu-section-grid treatment-menu-section-grid-copy">
+                            <div class="form-group treatment-menu-field-wide">
+                                <label for="treatmentMenuLead" class="dept-group-modal-label">説明文</label>
+                                <input type="text" id="treatmentMenuLead" class="dept-group-modal-input" placeholder="肌を育てるピーリング。毎週水曜日はララドクターの日">
+                            </div>
+                            <div class="form-group treatment-menu-field-wide">
+                                <label for="treatmentMenuTags" class="dept-group-modal-label">肌悩みタグ</label>
+                                <input type="text" id="treatmentMenuTags" class="dept-group-modal-input" placeholder="毛穴、くすみ、ニキビ、ハリ不足">
+                            </div>
+                            <div class="form-group treatment-menu-field-wide">
+                                <label for="treatmentMenuDowntime" class="dept-group-modal-label">補足文言</label>
+                                <input type="text" id="treatmentMenuDowntime" class="dept-group-modal-input" placeholder="施術前後の補足や患者様向けの一言">
+                            </div>
+                            <div class="form-group">
+                                <label for="treatmentMenuBadges" class="dept-group-modal-label">バッジ</label>
+                                <input type="text" id="treatmentMenuBadges" class="dept-group-modal-input" placeholder="人気、水曜日限定">
+                            </div>
+                            <div class="form-group">
+                                <label for="treatmentMenuStaffLabel" class="dept-group-modal-label">施術担当表示</label>
+                                <input type="text" id="treatmentMenuStaffLabel" class="dept-group-modal-input" placeholder="看護師（医師診察あり）">
+                            </div>
+                            <div class="form-group treatment-menu-field-full">
+                                <label for="treatmentMenuConfirmationNotes" class="dept-group-modal-label">予約前の確認事項</label>
+                                <textarea id="treatmentMenuConfirmationNotes" class="dept-form-textarea" rows="5" placeholder="1行ずつ入力してください。患者予約画面の予約確定前に表示されます。"></textarea>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="treatment-menu-editor-section">
+                        <div class="treatment-menu-section-title">同時施術におすすめ</div>
+                        <div class="treatment-recommendation-grid" id="treatmentMenuRecommendations"></div>
+                    </section>
+
+                    <section class="treatment-menu-editor-section">
+                        <div class="treatment-menu-image-label-row">
+                            <label for="treatmentMenuImageFile" class="dept-group-modal-label">画像</label>
+                            <span class="treatment-menu-image-size">推奨 1200 × 630px</span>
+                        </div>
+                        <div class="treatment-menu-image-dropzone" id="treatmentMenuImageDropzone" role="button" tabindex="0">
+                            <input type="file" id="treatmentMenuImageFile" class="treatment-menu-file-input" accept="image/*">
+                            <div class="treatment-menu-image-preview" id="treatmentMenuImagePreview">
+                                <span class="treatment-menu-image-placeholder">画像をここにドラッグ＆ドロップ</span>
+                                <span class="treatment-menu-image-subtext">または</span>
+                                <span class="treatment-menu-file-button">ファイルを選択</span>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+                <div class="dept-group-modal-footer">
+                    <button type="button" class="dept-group-modal-btn secondary" id="cancelTreatmentMenuModal">キャンセル</button>
+                    <button type="submit" class="dept-group-modal-btn primary" id="saveTreatmentMenuModal">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 高度な予約リソース編集モーダル -->
+    <div class="modal hidden" id="treatmentResourceModal">
+        <div class="modal-content dept-group-modal-content treatment-resource-edit-modal">
+            <div class="dept-group-modal-header">
+                <h3 id="treatmentResourceModalTitle">編集</h3>
+                <button type="button" class="modal-close treatment-resource-modal-close" id="closeTreatmentResourceModal">&times;</button>
+            </div>
+            <form id="treatmentResourceForm">
+                <input type="hidden" id="treatmentResourceKind">
+                <input type="hidden" id="treatmentResourceId">
+                <input type="hidden" id="treatmentResourceCode">
+                <div class="dept-group-modal-body treatment-resource-edit-body">
+                    <div class="form-group">
+                        <label for="treatmentResourceName" class="dept-group-modal-label" id="treatmentResourceNameLabel">名前</label>
+                        <input type="text" id="treatmentResourceName" class="dept-group-modal-input" required autocomplete="off">
+                    </div>
+                    <div class="treatment-linked-menu-section hidden" id="treatmentResourceLinkedMenuSection">
+                        <div class="treatment-linked-menu-head">
+                            <span>リンク中のメニュー</span>
+                            <span id="treatmentResourceLinkedMenuCount">0件</span>
+                        </div>
+                        <div class="treatment-linked-menu-list" id="treatmentResourceLinkedMenuList"></div>
+                    </div>
+                    <div class="form-group" id="treatmentResourceRoleField">
+                        <label for="treatmentResourceRole" class="dept-group-modal-label">区分</label>
+                        <select id="treatmentResourceRole" class="dept-form-select"></select>
+                    </div>
+                    <div class="form-row" id="treatmentResourceUsageFields">
+                        <div class="form-group" id="treatmentResourceDurationField">
+                            <label for="treatmentResourceDuration" class="dept-group-modal-label">標準使用時間（分）</label>
+                            <input type="number" id="treatmentResourceDuration" class="dept-group-modal-input" min="1" max="480" step="5">
+                        </div>
+                        <div class="form-group">
+                            <label for="treatmentResourceCapacity" class="dept-group-modal-label" id="treatmentResourceCapacityLabel">台数</label>
+                            <input type="number" id="treatmentResourceCapacity" class="dept-group-modal-input" min="0" step="1">
+                        </div>
+                    </div>
+                </div>
+                <div class="dept-group-modal-footer">
+                    <button type="button" class="dept-group-modal-btn secondary" id="cancelTreatmentResourceModal">キャンセル</button>
+                    <button type="submit" class="dept-group-modal-btn primary" id="saveTreatmentResourceModal">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 細かい施術メニュー編集モーダル -->
+    <div class="modal hidden" id="treatmentDetailItemModal">
+        <div class="modal-content dept-group-modal-content treatment-detail-item-modal">
+            <div class="dept-group-modal-header">
+                <h3 id="treatmentDetailItemModalTitle">メニュー編集</h3>
+                <button type="button" class="modal-close" id="closeTreatmentDetailItemModal">&times;</button>
+            </div>
+            <form id="treatmentDetailItemForm">
+                <input type="hidden" id="treatmentDetailParentMenuKey">
+                <input type="hidden" id="treatmentDetailOriginalId">
+                <div class="dept-group-modal-body treatment-detail-item-body">
+                    <input type="hidden" id="treatmentDetailItemDuration">
+                    <input type="hidden" id="treatmentDetailItemDurationMinutes">
+                    <input type="hidden" id="treatmentDetailItemSetDuration">
+                    <input type="hidden" id="treatmentDetailItemEquipmentLabel">
+                    <input type="hidden" id="treatmentDetailItemEquipmentCode">
+
+                    <div class="treatment-detail-form-row readonly">
+                        <label class="treatment-detail-form-label">医院</label>
+                        <div class="treatment-detail-static-value">-</div>
+                    </div>
+
+                    <div class="treatment-detail-form-row">
+                        <label for="treatmentDetailCategory" class="treatment-detail-form-label">カテゴリー <span class="required">*</span></label>
+                        <select id="treatmentDetailCategory" class="treatment-detail-line-control" required></select>
+                    </div>
+
+                    <div class="treatment-detail-form-row">
+                        <label for="treatmentDetailItemLabel" class="treatment-detail-form-label">メニュー名 <span class="required">*</span></label>
+                        <input type="text" id="treatmentDetailItemLabel" class="treatment-detail-line-control" required autocomplete="off">
+                    </div>
+
+                    <div class="treatment-detail-form-row">
+                        <label for="treatmentDetailItemPrice" class="treatment-detail-form-label">価格（税込） <span class="required">*</span></label>
+                        <div class="treatment-detail-inline-controls">
+                            <input type="text" id="treatmentDetailItemPrice" class="treatment-detail-line-control treatment-detail-price-input" inputmode="numeric" placeholder="1100">
+                            <label class="dept-checkbox-label treatment-detail-inline-check">
+                                <input type="checkbox" id="treatmentDetailLowestPrice">
+                                <span>最低価格(チェックをつけると「円（税込）〜」という表示になります)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="treatment-detail-form-row">
+                        <label for="treatmentDetailTaxCategory" class="treatment-detail-form-label">請求登録で初期選択にする消費税区分 <span class="required">*</span></label>
+                        <select id="treatmentDetailTaxCategory" class="treatment-detail-line-control">
+                            <option value="standard_10">10%</option>
+                            <option value="reduced_8">8%(軽減税率)</option>
+                            <option value="tax_exempt">非課税</option>
+                        </select>
+                    </div>
+
+                    <div class="treatment-detail-form-row">
+                        <label for="treatmentDetailItemDescription" class="treatment-detail-form-label">説明文</label>
+                        <textarea id="treatmentDetailItemDescription" class="treatment-detail-textarea" rows="4"></textarea>
+                    </div>
+
+                    <div class="treatment-detail-separator"></div>
+
+                    <div class="treatment-detail-form-row">
+                        <label for="treatmentDetailCaution" class="treatment-detail-form-label">注意事項</label>
+                        <textarea id="treatmentDetailCaution" class="treatment-detail-textarea caution" rows="6"></textarea>
+                    </div>
+
+                    <div class="treatment-detail-form-row compact">
+                        <label class="treatment-detail-form-label">お客様メニュー表示</label>
+                        <label class="dept-checkbox-label treatment-detail-inline-check">
+                            <input type="checkbox" id="treatmentDetailCustomerVisible" checked>
+                            <span>表示する</span>
+                        </label>
+                        <div class="treatment-detail-help">※ チェックボックスを外した場合でも、メニューを選択した予約日時選択画面の直リンクURLで予約することが可能です</div>
+                    </div>
+
+                    <div class="treatment-detail-form-row">
+                        <label class="treatment-detail-form-label">予約可能期間</label>
+                        <div class="treatment-detail-date-range">
+                            <input type="date" id="treatmentDetailAvailableFrom" class="treatment-detail-date-input">
+                            <span>〜</span>
+                            <input type="date" id="treatmentDetailAvailableTo" class="treatment-detail-date-input">
+                        </div>
+                    </div>
+
+                    <div class="treatment-detail-form-row compact">
+                        <label class="treatment-detail-form-label">予約開始時刻の限定</label>
+                        <label class="dept-checkbox-label treatment-detail-inline-check">
+                            <input type="checkbox" id="treatmentDetailStartTimeLimited">
+                            <span>限定する</span>
+                        </label>
+                        <div class="treatment-detail-help">
+                            ※ 設定した開始時刻からのみ予約を許可します（お客様画面からのみ制御。クリニック画面は制御なし）<br>
+                            ※ 限定した場合、複数メニュー予約がお客様画面からできなくなります
+                        </div>
+                    </div>
+
+                    <div class="treatment-detail-form-row compact">
+                        <label class="treatment-detail-form-label">営業終了前の予約不可時間（分）</label>
+                        <div class="treatment-detail-inline-controls">
+                            <label class="dept-checkbox-label treatment-detail-inline-check">
+                                <input type="checkbox" id="treatmentDetailCloseBufferEnabled">
+                                <span>制限する</span>
+                            </label>
+                            <input type="number" id="treatmentDetailCloseBufferMinutes" class="treatment-detail-small-input" min="0" max="480" step="5" placeholder="分">
+                        </div>
+                        <div class="treatment-detail-help">
+                            ※ 営業終了間際に予約が入らないように制御します（お客様画面からのみ制御。クリニック画面は制御なし）<br>
+                            ※ 複数メニュー予約の場合はその中で最も大きい値で制御します
+                        </div>
+                    </div>
+
+                    <div class="treatment-detail-form-row compact">
+                        <label class="treatment-detail-form-label">お客様による予約の1日の受入上限</label>
+                        <div class="treatment-detail-inline-controls">
+                            <label class="dept-checkbox-label treatment-detail-inline-check">
+                                <input type="checkbox" id="treatmentDetailDailyLimitEnabled">
+                                <span>制限する</span>
+                            </label>
+                            <input type="number" id="treatmentDetailDailyLimit" class="treatment-detail-small-input" min="1" max="99" step="1" placeholder="件">
+                        </div>
+                        <div class="treatment-detail-help">
+                            ※ 複数メニュー予約のうち1つでも上限に達している場合は、その日の予約を受け付けません<br>
+                            ※ クリニックからの予約の場合は、この制限を受けません
+                        </div>
+                    </div>
+
+                    <div class="treatment-detail-form-row compact">
+                        <label class="treatment-detail-form-label">お客様による変更・キャンセル</label>
+                        <label class="dept-checkbox-label treatment-detail-inline-check">
+                            <input type="checkbox" id="treatmentDetailChangeCancelAllowed" checked>
+                            <span>可能</span>
+                        </label>
+                    </div>
+
+                    <div class="treatment-detail-form-row compact">
+                        <label class="treatment-detail-form-label">過去に同じ施術を受けている場合に診察・カウンセリングをスキップ</label>
+                        <label class="dept-checkbox-label treatment-detail-inline-check">
+                            <input type="checkbox" id="treatmentDetailSkipDuplicate" checked>
+                            <span>スキップする</span>
+                        </label>
+                    </div>
+
+                    <div class="treatment-detail-form-row">
+                        <label class="treatment-detail-form-label">ステップ <span class="required">*</span></label>
+                        <div class="treatment-detail-step-list" id="treatmentDetailStepRows"></div>
+                    </div>
+                </div>
+                <div class="dept-group-modal-footer">
+                    <button type="button" class="dept-group-modal-btn danger hidden" id="deleteTreatmentDetailItemModal">削除する</button>
+                    <button type="button" class="dept-group-modal-btn secondary" id="cancelTreatmentDetailItemModal">キャンセル</button>
+                    <button type="submit" class="dept-group-modal-btn primary" id="saveTreatmentDetailItemModal">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ステップ編集モーダル -->
+    <div class="modal hidden" id="treatmentStepModal">
+        <div class="modal-content dept-group-modal-content treatment-step-modal">
+            <div class="dept-group-modal-header">
+                <h3 id="treatmentStepModalTitle">ステップ詳細</h3>
+                <button type="button" class="modal-close" id="closeTreatmentStepModal">&times;</button>
+            </div>
+            <form id="treatmentStepForm">
+                <input type="hidden" id="treatmentStepId">
+                <input type="hidden" id="treatmentStepCode">
+                <div class="dept-group-modal-body treatment-step-modal-body">
+                    <div class="form-row treatment-step-basic-fields">
+                        <div class="form-group">
+                            <label for="treatmentStepName" class="dept-group-modal-label">ステップ名</label>
+                            <input type="text" id="treatmentStepName" class="dept-group-modal-input" required autocomplete="off">
+                        </div>
+                    </div>
+
+                    <section class="treatment-step-editor-section">
+                        <div class="treatment-menu-section-title">ステップ種別</div>
+                        <div class="treatment-step-type-grid" id="treatmentStepTypeOptions"></div>
+                    </section>
+
+                    <section class="treatment-step-editor-section">
+                        <div class="treatment-menu-section-title">スタッフアサイン</div>
+                        <div class="treatment-step-assignment-grid" id="treatmentStepStaffAssignments"></div>
+                    </section>
+
+                    <section class="treatment-step-editor-section">
+                        <div class="treatment-menu-section-title">ルーム・機材アサイン</div>
+                        <div class="treatment-step-assignment-grid" id="treatmentStepRoomEquipmentAssignments"></div>
+                    </section>
+
+                    <div class="form-group">
+                        <label for="treatmentStepDescription" class="dept-group-modal-label">補足</label>
+                        <textarea id="treatmentStepDescription" class="dept-form-textarea" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="dept-group-modal-footer treatment-step-modal-footer">
+                    <button type="button" class="dept-group-modal-btn secondary" id="deleteTreatmentStepFromModal">削除する</button>
+                    <div class="treatment-step-modal-actions">
+                        <button type="button" class="dept-group-modal-btn secondary" id="cancelTreatmentStepModal">キャンセル</button>
+                        <button type="submit" class="dept-group-modal-btn primary" id="saveTreatmentStepModal">保存する</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- テンプレート編集モーダル -->
+    <div class="modal hidden" id="templateModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="templateModalTitle">テンプレートを追加</h3>
+                <button class="modal-close" id="closeTemplateModal">&times;</button>
+            </div>
+            <form id="templateForm">
+                <input type="hidden" id="tmplId">
+                <div class="form-group">
+                    <label>診療科 <span class="required">*</span></label>
+                    <select id="tmplDepartment" class="input" required></select>
+                </div>
+                <div class="form-group">
+                    <label>曜日 <span class="required">*</span></label>
+                    <select id="tmplDayOfWeek" class="input" required>
+                        <option value="0">日曜日</option>
+                        <option value="1">月曜日</option>
+                        <option value="2">火曜日</option>
+                        <option value="3">水曜日</option>
+                        <option value="4">木曜日</option>
+                        <option value="5">金曜日</option>
+                        <option value="6">土曜日</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>開始時刻</label>
+                        <input type="time" id="tmplStartTime" class="input" value="09:00" required>
+                    </div>
+                    <div class="form-group">
+                        <label>終了時刻</label>
+                        <input type="time" id="tmplEndTime" class="input" value="12:00" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>枠の長さ（分）</label>
+                        <input type="number" id="tmplDuration" class="input" value="15" min="5" max="60">
+                    </div>
+                    <div class="form-group">
+                        <label>同時予約数</label>
+                        <input type="number" id="tmplMaxBookings" class="input" value="1" min="1" max="10">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn" id="cancelTemplate">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- カスタム項目編集モーダル -->
+    <div class="modal-overlay hidden" id="customItemModal">
+        <div class="custom-item-dialog">
+            <form id="customItemForm" class="custom-item-form">
+                <div class="custom-item-modal-header">
+                    <h3 id="customItemModalTitle">カスタム項目の設定</h3>
+                </div>
+                <div class="custom-item-modal-body">
+                    <input type="hidden" id="customItemType">
+                    <div class="custom-edit-row">
+                        <label for="customItemTitle">タイトル<span class="required-mark">*</span></label>
+                        <input type="text" id="customItemTitle" class="custom-edit-input" placeholder="タイトルを入力してください">
+                    </div>
+                    <div class="custom-edit-row">
+                        <label for="customItemDescription">説明</label>
+                        <textarea id="customItemDescription" class="custom-edit-textarea" placeholder="説明を入力してください"></textarea>
+                    </div>
+
+                    <div class="custom-edit-row custom-type-panel" id="customTextSettings">
+                        <div></div>
+                        <label class="custom-checkbox-line">
+                            <input type="checkbox" id="customTextMultiline">
+                            複数行
+                        </label>
+                    </div>
+
+                    <div class="custom-edit-row custom-type-panel" id="customOptionsContainer">
+                        <label>項目</label>
+                        <div class="custom-choice-editor">
+                            <div id="customOptionsList"></div>
+                            <div class="custom-choice-actions">
+                                <button type="button" class="custom-outline-btn" id="addCustomOption">
+                                    <span class="plus-symbol">+</span> 項目を追加
+                                </button>
+                                <button type="button" class="custom-outline-btn" id="addCustomOtherOption">
+                                    <span class="plus-symbol">+</span> その他を追加
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="custom-edit-row custom-type-panel" id="customImageSettings">
+                        <div></div>
+                        <div class="custom-stacked-checks">
+                            <label class="custom-checkbox-line">
+                                <input type="checkbox" id="customImageMultiple">
+                                複数画像のアップロードを許可する（最大10枚）
+                            </label>
+                            <label class="custom-checkbox-line">
+                                <input type="checkbox" id="customImageSaveAttachment">
+                                デジカル連携時に添付ファイルとして保存する
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="custom-type-panel" id="customDateSettings">
+                        <div class="custom-edit-row">
+                            <label>入力可能曜日</label>
+                            <div class="custom-weekday-grid">
+                                <label><span>月</span><input type="checkbox" class="custom-date-weekday" value="1" checked></label>
+                                <label><span>火</span><input type="checkbox" class="custom-date-weekday" value="2" checked></label>
+                                <label><span>水</span><input type="checkbox" class="custom-date-weekday" value="3" checked></label>
+                                <label><span>木</span><input type="checkbox" class="custom-date-weekday" value="4" checked></label>
+                                <label><span>金</span><input type="checkbox" class="custom-date-weekday" value="5" checked></label>
+                                <label><span>土</span><input type="checkbox" class="custom-date-weekday" value="6" checked></label>
+                                <label class="sun"><span>日</span><input type="checkbox" class="custom-date-weekday" value="0" checked></label>
+                                <label class="holiday"><span>祝</span><input type="checkbox" class="custom-date-weekday" value="holiday" checked></label>
+                            </div>
+                        </div>
+                        <div class="custom-edit-row">
+                            <label>入力可能日</label>
+                            <div class="custom-radio-line">
+                                <label><input type="radio" name="customDateLimit" value="none" checked> 制限しない</label>
+                                <label><input type="radio" name="customDateLimit" value="after"> 制限する</label>
+                                <span>回答日の</span>
+                                <select id="customDateAfterType" class="custom-select" disabled>
+                                    <option value="same">当日</option>
+                                    <option value="next">翌日</option>
+                                    <option value="week">1週間後</option>
+                                    <option value="month">1ヶ月後</option>
+                                </select>
+                                <span>以降</span>
+                            </div>
+                        </div>
+                        <div class="custom-edit-row">
+                            <label>入力可能期間</label>
+                            <div class="custom-date-range">
+                                <input type="date" id="customDateFrom" class="custom-date-input">
+                                <span>から</span>
+                                <input type="date" id="customDateTo" class="custom-date-input">
+                                <span>まで</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="custom-edit-row custom-required-row">
+                        <div></div>
+                        <label class="custom-checkbox-line">
+                            <input type="checkbox" id="customItemRequired">
+                            必須項目にする
+                        </label>
+                    </div>
+                </div>
+                <div class="custom-item-modal-actions">
+                    <button type="button" class="custom-modal-close-btn" id="cancelCustomItem">閉じる</button>
+                    <button type="submit" class="custom-modal-save-btn">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- クリニック管理モーダル -->
+    <div class="modal hidden" id="clinicManageModal">
+        <div class="modal-content clinic-modal-content">
+            <div class="clinic-modal-header">
+                <h3>クリニック管理</h3>
+                <button class="modal-close" id="closeClinicModal">&times;</button>
+            </div>
+            <div class="clinic-modal-body">
+                <div class="clinic-list" id="clinicList">
+                    <!-- 動的に追加 -->
+                </div>
+                <div class="clinic-add-form">
+                    <input type="text" id="newClinicName" class="clinic-name-input" placeholder="新しいクリニック名">
+                    <button type="button" class="btn btn-primary" id="addClinicBtn">追加</button>
+                </div>
+            </div>
+            <div class="clinic-modal-footer">
+                <button type="button" class="btn" id="closeClinicModalBtn">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- カスタムアラートモーダル -->
+    <div class="custom-alert-overlay hidden" id="customAlertOverlay">
+        <div class="custom-alert">
+            <div class="custom-alert-icon" id="customAlertIcon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+            </div>
+            <p class="custom-alert-message" id="customAlertMessage"></p>
+            <button type="button" class="custom-alert-btn" id="customAlertOk">OK</button>
+        </div>
+    </div>
+
+    <script src="admin.js?v=nishiharu-clean-20260916-2"></script>
+</body>
+</html>
+
