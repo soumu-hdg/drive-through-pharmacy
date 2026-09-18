@@ -172,9 +172,16 @@ body {
     <span class="url">reservation_v2/demo.html</span>
   </a>
 
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v21/index.html" target="_blank" style="border:2px solid #22c55e;">
+  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v22/index.html" target="_blank" style="border:2px solid #22c55e;">
     <span class="badge badge-emr">電子カルテ</span>
-    <h3>電子カルテ v21（最新・クリニック別のログイン／旧カルテ同型画面）</h3>
+    <h3>電子カルテ v22（最新・算定の選択式／在庫連動／労災レセ電）</h3>
+    <p>v21 のクリニック別ログインを継承し、<strong>自動算定を担当者がボタンで選べる</strong>ようにしました。算定する加算は<strong>院ごとの選択式</strong>（既定は従来どおり）。処方を確定すると<strong>薬品在庫が在庫管理アプリと同じデータベースで増減</strong>し、取り消せば戻ります（二重計上防止つき）。レセプトは UKE の記録様式を整備し、<strong>労災レセ電（RREC）の作成</strong>を追加。医療証（公費受給者証）の写真読み取りも同居しています。</p>
+    <span class="url">karte_v22/index.html</span>
+  </a>
+
+  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v21/index.html" target="_blank" style="border-left: 4px solid #22c55e;">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>電子カルテ v21（クリニック別のログイン／旧カルテ同型画面）</h3>
     <p>ログイン画面で<strong>接続クリニック（西春・横浜・千葉・中川）を選び</strong>、IDの所属院と合致したときだけ接続します。データベースも院ごとに参照が分かれ、<strong>他院の患者・カルテは読めません</strong>（総務IDは全院、複数院担当は画面から切替）。受付・カルテ画面は旧カルテ（M3）と同じ配置に作り替えた v20 をそのまま継承し、予約システムの来院予定・様式14（オンライン診療の年次報告）・レセプト作成も同居しています。</p>
     <span class="url">karte_v21/index.html</span>
   </a>
@@ -388,7 +395,12 @@ body {
   </tr>
   
   <tr style="background:#dcfce7;">
-    <td><strong>電子カルテ v21（最新・クリニック別のログイン）</strong></td>
+    <td><strong>電子カルテ v22（最新・算定の選択式／在庫連動／労災レセ電）</strong></td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v22/index.html">karte_v22/index.html</a></td>
+  </tr>
+  <tr>
+    <td><strong>電子カルテ v21（クリニック別のログイン）</strong></td>
     <td>アプリ</td>
     <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v21/index.html">karte_v21/index.html</a></td>
   </tr>
@@ -501,7 +513,7 @@ body {
 </div>
 
 <div class="footer">
-  ハンドレッドドクター 佐川制作プログラムポータル | 最終更新: 2026-09-15
+  ハンドレッドドクター 佐川制作プログラムポータル | 最終更新: 2026-09-18
 </div>
 
 </body>
