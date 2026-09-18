@@ -2228,6 +2228,7 @@ function openInsuranceModal() {
   document.getElementById('insurancePhotoModal').classList.add('show');
   updateInsuranceWarn();            // 要望#4
   if (typeof renderPatientPhotos === 'function') renderPatientPhotos();   // 要望#5
+  if (typeof renderRsvDocs === 'function') renderRsvDocs();               // Wave10: 予約から届いた保険証・医療証
   if (p.insurerNumber) { setTimeout(function() { runInsuranceCalc(); }, 100); }
 }
 

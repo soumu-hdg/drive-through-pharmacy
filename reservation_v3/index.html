@@ -683,7 +683,8 @@ function doLookup(){
         <tr><th>お名前</th><td>${esc(r.name)} 様</td></tr>
       </tbody></table>
       ${cancelled?"":`<div class="cta-bar"><button class="danger" onclick="doCancel('${esc(r.code)}','${esc(r.phone)}')">この予約をキャンセルする</button></div>`}
-    </div>`;
+    </div>
+    ${cancelled?"":rsvDocsHtml(r.code)}`;
 }
 async function doCancel(code, phone){
   if(!confirm("この予約をキャンセルします。よろしいですか？")) return;

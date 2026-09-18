@@ -21,6 +21,19 @@
 .clinic-picker .clinic-pick:hover{background:#f4f6f5}
 .clinic-picker .clinic-pick.on{background:#0a4d12;color:#fff;border-color:#0a4d12;font-weight:700}
 </style>
+<style id="rsvDocsStyle">
+.rsvdocs{margin-bottom:10px;padding:8px 10px;border:1px solid var(--border,#ddd);border-left:4px solid #0e7c66;background:#f6fbf9;border-radius:6px;font-size:12px;}
+.rsvdocs-head{font-weight:700;margin-bottom:6px;}
+.rsvdocs-muted{color:var(--text-muted,#777);font-weight:400;font-size:11px;}
+.rsvdoc-list{display:flex;flex-wrap:wrap;gap:8px;}
+.rsvdoc-card{display:flex;gap:8px;background:#fff;border:1px solid var(--border,#ddd);border-radius:6px;padding:6px;min-width:280px;flex:1;}
+.rsvdoc-card.reviewed{opacity:.75;}
+.rsvdoc-thumb{width:96px;height:72px;flex-shrink:0;background:#eee;border-radius:4px;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+.rsvdoc-thumb img{width:100%;height:100%;object-fit:cover;}
+.rsvdoc-meta{flex:1;min-width:0;line-height:1.5;}
+.rsvdoc-btns{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
+.rsvdoc-ok{color:#0e7c66;font-weight:700;} .rsvdoc-new{color:#c9821f;font-weight:700;}
+</style>
 </head>
 <body>
 
@@ -687,6 +700,8 @@
   <div class="modal" style="max-width:560px;">
     <h3>保険証情報 <button class="modal-close" onclick="closeModal('insurancePhotoModal')">&times;</button></h3>
 
+    <!-- 予約サイトから届いた保険証・医療証（Wave10） -->
+    <div id="rsvDocsPanel" class="rsvdocs" style="display:none;"></div>
     <!-- OCR/QR読取セクション（機能10: 既存患者にもOCR/QR追加） -->
     <div class="ocr-section" style="margin-bottom:10px;">
       <div class="ocr-header">
@@ -1289,6 +1304,7 @@
 <script src="inventory_stock.js?v=20260917_v22b"></script>
 <script src="drug_suggest.js?v=20260703_v12f"></script>
 <script src="patient_photos.js?v=20260806_v30"></script>
+<script src="rsv_docs.js?v=20260918_w10"></script>
 <script src="rousai.js?v=20260917_a"></script>
 <script src="santei_rules.js?v=20260916_v33"></script>
 <script src="app.js?v=20260917_v22b"></script>
