@@ -13,6 +13,8 @@
 .doc-status{flex:1 1 100%;font-size:13px;color:#666}
 .doc-status.ok{color:#0e7c66;font-weight:700} .doc-status.ng{color:#b5502f;font-weight:700}
 .doc-preview{width:72px;height:54px;object-fit:cover;border-radius:4px;border:1px solid #ddd}
+.doc-howto{margin:6px 0 10px 18px;padding:0;font-size:12px;line-height:1.6}
+.doc-howto li{margin:2px 0}
 </style>
 </head>
 <body>
@@ -531,6 +533,12 @@ function rsvDocsHtml(code){
   return `<div class="card" id="rsvDocsCard">
       <h2>保険証・医療証の写真（任意）</h2>
       <p class="muted">事前に送っていただくと、当日の受付が早く済みます。写真はクリニックの担当者だけが確認します。文字が読める向きで、明るい場所で撮影してください。</p>
+      <ul class="muted doc-howto">
+        <li>下の「ファイルを選択」を押すと、スマホではカメラが起動します。撮ると数秒で「送信できました」と出ます。</li>
+        <li>あとから送るときは「予約の確認・キャンセル」を開き、予約番号と電話番号で予約を呼び出すと同じ欄が出ます。</li>
+        <li>マイナ保険証の方は「資格情報のお知らせ」または「資格確認書」を、医療証（こども・ひとり親など）をお持ちの方は保険証と医療証の両方をお送りください。</li>
+        <li>写真は送る前にお使いの端末で縮小され、位置情報などは含まれません。受付で内容を確認したうえで登録します（自動では確定しません）。</li>
+      </ul>
       <div class="doc-row">
         <span class="doc-label">保険証（資格確認書・資格情報のお知らせでも可）</span>
         <input type="file" accept="image/*" capture="environment" onchange="uploadRsvDoc('${esc(code)}','insurance',this)">
