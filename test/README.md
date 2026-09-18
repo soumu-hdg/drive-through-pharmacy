@@ -1,5 +1,7 @@
 # DigiMaster 西春 Docker不要版
 
+> **GitHub Pages の公開URLで開いたときはデモモード**になり、ID `admin` / パスワード `admin` でログインして画面の動きを確認できます（サーバーが無いためデータは保存されません）。手元 PC の配布版の動作は変わりません。
+
 この版はDocker、Python、PostgreSQLのインストールなしで使用できます。
 
 1. ZIPを右クリックして「すべて展開」します。
