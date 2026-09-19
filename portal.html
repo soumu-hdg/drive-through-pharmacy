@@ -174,7 +174,7 @@ body {
 
   <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v22/index.html" target="_blank" style="border:2px solid #22c55e;">
     <span class="badge badge-emr">電子カルテ</span>
-    <h3>電子カルテ v22（最新・算定の選択式／在庫連動／労災レセ電）</h3>
+    <h3>電子カルテ v22（統合前の版・算定の選択式／在庫連動／労災レセ電）</h3>
     <p>v21 のクリニック別ログインを継承し、<strong>自動算定を担当者がボタンで選べる</strong>ようにしました。算定する加算は<strong>院ごとの選択式</strong>（既定は従来どおり）。処方を確定すると<strong>薬品在庫が在庫管理アプリと同じデータベースで増減</strong>し、取り消せば戻ります（二重計上防止つき）。レセプトは UKE の記録様式を整備し、<strong>労災レセ電（RREC）の作成</strong>を追加。医療証（公費受給者証）の写真読み取りも同居しています。</p>
     <span class="url">karte_v22/index.html</span>
   </a>
@@ -193,11 +193,18 @@ body {
     <span class="url">karte_v18/index.html</span>
   </a>
 
-  <a class="card" href="https://karte.hdg-holdings.com/" target="_blank" style="border-left: 4px solid #16a34a;">
-    <span class="badge badge-emr" style="background:#16a34a; color:#fff;">本番ドメイン</span>
-    <h3>電子カルテ v20（本番 — karte.hdg-holdings.com）</h3>
-    <p>独自ドメイン版。Vercelホスティング＋SSL。レセプト出力全17種（社保/国保総括表・光ディスク送付書・公費請求書等）・SSKマスター60,315件・処方セット・院外処方・医療証・QR+OCR保険証。</p>
+  <a class="card" href="https://karte.hdg-holdings.com/" target="_blank" style="border:2px solid #16a34a;">
+    <span class="badge badge-emr" style="background:#16a34a; color:#fff;">本番ドメイン・最新</span>
+    <h3>電子カルテ 統合版（本番 — karte.hdg-holdings.com）</h3>
+    <p>2026-09-19 切替。<strong>レイアウトを統合</strong>した新しい受付・カルテ画面に、v22 までの全機能（算定の選択式・在庫連動・労災レセ電・音声カルテ・保険証/医療証 OCR・様式14・予約連携）を載せた版。レセプト電算は<strong>摘要コメント・症状詳記・特定器材（CO/SJ/TO）</strong>と項目別の文字コード点検、<strong>提出用の警告ゲート</strong>を追加し、受付一覧の「レセプト作成」から月次でまとめて作ります。予約サイトから送られた<strong>保険証・医療証の写真</strong>と、スマホ版からの報告は<strong>候補として表示</strong>し、担当者が確認して入れます。</p>
     <span class="url">https://karte.hdg-holdings.com/</span>
+  </a>
+
+  <a class="card" href="https://karte.hdg-holdings.com/mobile.html" target="_blank" style="border:2px solid #16a34a;">
+    <span class="badge badge-emr" style="background:#16a34a; color:#fff;">スマホ版</span>
+    <h3>電子カルテ スマホ版（診察中の医療補助の報告）</h3>
+    <p>PC と同じ職員 ID でログインし、当日の患者を選んで<strong>保険証・医療証の提示、処方した薬、検査結果</strong>を写真（撮る／保存した写真から選ぶ）とメモで送ります。各項目は任意。PC のカルテには受付一覧の📱印と、処方欄・検査欄・保険証タブの<strong>候補</strong>として届き、「＋追加」「患者写真に保存」「済」を押したときだけ本体に入ります。</p>
+    <span class="url">https://karte.hdg-holdings.com/mobile.html</span>
   </a>
 
 
@@ -389,13 +396,18 @@ body {
     <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/reservation_v2/board.html">reservation_v2/board.html</a></td>
   </tr>
     <tr style="background:#dcfce7;">
-    <td><strong>電子カルテ v20（本番ドメイン）</strong></td>
+    <td><strong>電子カルテ 統合版（本番ドメイン・最新）</strong></td>
     <td>本番</td>
     <td><a target="_blank" href="https://karte.hdg-holdings.com/">https://karte.hdg-holdings.com/</a></td>
   </tr>
+  <tr style="background:#dcfce7;">
+    <td><strong>電子カルテ スマホ版（診察中の医療補助の報告）</strong></td>
+    <td>本番</td>
+    <td><a target="_blank" href="https://karte.hdg-holdings.com/mobile.html">https://karte.hdg-holdings.com/mobile.html</a></td>
+  </tr>
   
   <tr style="background:#dcfce7;">
-    <td><strong>電子カルテ v22（最新・算定の選択式／在庫連動／労災レセ電）</strong></td>
+    <td><strong>電子カルテ v22（統合前の版・算定の選択式／在庫連動／労災レセ電）</strong></td>
     <td>アプリ</td>
     <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v22/index.html">karte_v22/index.html</a></td>
   </tr>
@@ -513,7 +525,7 @@ body {
 </div>
 
 <div class="footer">
-  ハンドレッドドクター 佐川制作プログラムポータル | 最終更新: 2026-09-18
+  ハンドレッドドクター 佐川制作プログラムポータル | 最終更新: 2026-09-19
 </div>
 
 </body>
