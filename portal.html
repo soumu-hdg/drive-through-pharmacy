@@ -151,151 +151,112 @@ body {
 <h2 class="section-title">プロジェクト一覧（最新版）</h2>
 <div class="card-grid">
 
-  <a class="card" href="https://hd-analytics-tau.vercel.app/" target="_blank" style="border:2px solid #0e7c66;">
+<a class="card" href="https://hd-analytics-tau.vercel.app/" target="_blank" style="border:2px solid #0e7c66;">
     <span class="badge" style="background:#e9f1ee; color:#0e7c66;">分析（要ログイン）</span>
     <h3>HD Analytics（会議資料の分析を自動更新）</h3>
     <p>全体会議で毎回手作業で作っていた<strong>EC週次レビュー</strong>と<strong>夜間休日クリニックの月次分析</strong>を、開くたびに一次データから計算し直すページです。ECはチャネル別・商品別の売上／粗利／粗利率、楽天レビュー施策とAmazon Vineの分離計上、構成比トップ6を土曜〜金曜の週次で表示（直近12週を切替）。クリニックは売上・患者数、曜日区分別の1日あたり、流入経路、エリア・年齢層、検査／陽性率を表示し、<strong>対象月と比較月を自由に選べます</strong>。粗利の計算は粗利シミュレーターと同一ロジック（全チャネルで数値一致を確認済み）。<strong>売上と患者データを扱うため、電子カルテと同じ職員アカウントでのログインが必要です。</strong></p>
     <span class="url">hd-analytics-tau.vercel.app</span>
   </a>
 
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/reservation_v3/board.html" target="_blank" style="border:2px solid #2563eb;">
-    <span class="badge" style="background:#dbeafe; color:#2563eb;">予約システム</span>
-    <h3>クリニック予約システム v3（最新・受付ボードは職員ログイン制）</h3>
-    <p>受付ボードを<strong>電子カルテと同じ職員IDでログイン</strong>する方式に変更し、<strong>所属クリニックのボードだけ</strong>が表示されます（総務IDは全院）。予約が入ると電子カルテ（v21）の受付一覧に来院予定が自動で並び、受付するとこちらの予約が「来院済」になる双方向連携つき。患者向け予約サイト・同期デモも同じフォルダにあります。</p>
-    <span class="url">reservation_v3/board.html</span>
-  </a>
-
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/reservation_v2/demo.html" target="_blank" style="border:2px solid #2563eb;">
-    <span class="badge" style="background:#dbeafe; color:#2563eb;">予約システム</span>
-    <h3>クリニック予約システム（本番・v2）</h3>
-    <p>複数院（西春・横浜・千葉・中川）を統括する自前の予約システム。患者が予約すると受付ライブボードへ<strong>リアルタイム反映</strong>。<strong>同じ部屋・同じ担当・同じ機材の二重予約はデータベース自体が拒否</strong>します（画面のチェックだけではありません）。受付ボードは<strong>ルーム／スタッフ／機材の3軸タイムライン</strong>、休憩・機材メンテ・院内業務のブロック登録、院ごとの診療時間・臨時休診の設定に対応。各院が受け付ける診療区分は現場のご指定どおり（西春＝外来・在宅・夜間休日／横浜＝外来・在宅／千葉＝外来・在宅・美容／中川＝在宅・夜間休日）。通信できないときは「予約完了」と表示せず受付を止めます。この同期デモの上部メニューから、お客様向け予約サイト・受付ボードにも切り替えられます。</p>
-    <span class="url">reservation_v2/demo.html</span>
-  </a>
-
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v22/index.html" target="_blank" style="border:2px solid #22c55e;">
-    <span class="badge badge-emr">電子カルテ</span>
-    <h3>電子カルテ v22（統合前の版・算定の選択式／在庫連動／労災レセ電）</h3>
-    <p>v21 のクリニック別ログインを継承し、<strong>自動算定を担当者がボタンで選べる</strong>ようにしました。算定する加算は<strong>院ごとの選択式</strong>（既定は従来どおり）。処方を確定すると<strong>薬品在庫が在庫管理アプリと同じデータベースで増減</strong>し、取り消せば戻ります（二重計上防止つき）。レセプトは UKE の記録様式を整備し、<strong>労災レセ電（RREC）の作成</strong>を追加。医療証（公費受給者証）の写真読み取りも同居しています。</p>
-    <span class="url">karte_v22/index.html</span>
-  </a>
-
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v21/index.html" target="_blank" style="border-left: 4px solid #22c55e;">
-    <span class="badge badge-emr">電子カルテ</span>
-    <h3>電子カルテ v21（クリニック別のログイン／旧カルテ同型画面）</h3>
-    <p>ログイン画面で<strong>接続クリニック（西春・横浜・千葉・中川）を選び</strong>、IDの所属院と合致したときだけ接続します。データベースも院ごとに参照が分かれ、<strong>他院の患者・カルテは読めません</strong>（総務IDは全院、複数院担当は画面から切替）。受付・カルテ画面は旧カルテ（M3）と同じ配置に作り替えた v20 をそのまま継承し、予約システムの来院予定・様式14（オンライン診療の年次報告）・レセプト作成も同居しています。</p>
-    <span class="url">karte_v21/index.html</span>
-  </a>
-
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v18/index.html" target="_blank" style="border:2px solid #22c55e;">
-    <span class="badge badge-emr">電子カルテ</span>
-    <h3>電子カルテ v0.18（起動高速化＋Supabase同期）</h3>
-    <p>起動時の患者データ読み込みを高速化。従来は約45秒間、全画面ロードで操作できませんでしたが、起動直後から操作できます。患者一覧は軽量取得（約3.5秒）、薬品・処方は背景読み込み。2回目以降はキャッシュ／Supabaseミラー（認証限定・患者情報保護）で即時表示。v0.17の適応症突合・診察料加算点検を継承。</p>
-    <span class="url">karte_v18/index.html</span>
-  </a>
-
-  <a class="card" href="https://karte.hdg-holdings.com/" target="_blank" style="border:2px solid #16a34a;">
+<a class="card" href="https://karte.hdg-holdings.com/" target="_blank" style="border:2px solid #16a34a;">
     <span class="badge badge-emr" style="background:#16a34a; color:#fff;">本番ドメイン・最新</span>
     <h3>電子カルテ 統合版（本番 — karte.hdg-holdings.com）</h3>
     <p>2026-09-19 切替。<strong>レイアウトを統合</strong>した新しい受付・カルテ画面に、v22 までの全機能（算定の選択式・在庫連動・労災レセ電・音声カルテ・保険証/医療証 OCR・様式14・予約連携）を載せた版。レセプト電算は<strong>摘要コメント・症状詳記・特定器材（CO/SJ/TO）</strong>と項目別の文字コード点検、<strong>提出用の警告ゲート</strong>を追加し、受付一覧の「レセプト作成」から月次でまとめて作ります。予約サイトから送られた<strong>保険証・医療証の写真</strong>と、スマホ版からの報告は<strong>候補として表示</strong>し、担当者が確認して入れます。</p>
     <span class="url">https://karte.hdg-holdings.com/</span>
   </a>
 
-  <a class="card" href="https://karte.hdg-holdings.com/mobile.html" target="_blank" style="border:2px solid #16a34a;">
+<a class="card" href="https://karte.hdg-holdings.com/mobile.html" target="_blank" style="border:2px solid #16a34a;">
     <span class="badge badge-emr" style="background:#16a34a; color:#fff;">スマホ版</span>
     <h3>電子カルテ スマホ版（診察中の医療補助の報告）</h3>
     <p>PC と同じ職員 ID でログインし、当日の患者を選んで<strong>保険証・医療証の提示、処方した薬、検査結果</strong>を写真（撮る／保存した写真から選ぶ）とメモで送ります。各項目は任意。PC のカルテには受付一覧の📱印と、処方欄・検査欄・保険証タブの<strong>候補</strong>として届き、「＋追加」「患者写真に保存」「済」を押したときだけ本体に入ります。</p>
     <span class="url">https://karte.hdg-holdings.com/mobile.html</span>
   </a>
 
-
-
-
-
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v05/analytics.html" target="_blank">
-    <span class="badge badge-emr">電子カルテ</span>
-    <h3>夜間休日診療KPI v0.6</h3>
-    <p>夜間外来DB（GAS）をリアルタイム集計。患者数・受診数・診療報酬（円）・時間帯別・支払い方法・検査陽性率・集患チャネル別平均単価・医師別収益/出勤をグラフ表示。日付範囲フィルタ対応。</p>
-    <span class="url">karte_v05/analytics.html</span>
+<a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/reservation_v3/board.html" target="_blank" style="border:2px solid #2563eb;">
+    <span class="badge" style="background:#dbeafe; color:#2563eb;">予約システム</span>
+    <h3>クリニック予約システム v3（最新・受付ボードは職員ログイン制）</h3>
+    <p>受付ボードを<strong>電子カルテと同じ職員IDでログイン</strong>する方式に変更し、<strong>所属クリニックのボードだけ</strong>が表示されます（総務IDは全院）。予約が入ると電子カルテ（v21）の受付一覧に来院予定が自動で並び、受付するとこちらの予約が「来院済」になる双方向連携つき。患者向け予約サイト・同期デモも同じフォルダにあります。</p>
+    <span class="url">reservation_v3/board.html</span>
   </a>
 
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/v0_8/index.html" target="_blank">
+<a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/reservation_v2/demo.html" target="_blank" style="border:2px solid #2563eb;">
+    <span class="badge" style="background:#dbeafe; color:#2563eb;">予約システム</span>
+    <h3>クリニック予約システム（本番・v2）</h3>
+    <p>複数院（西春・横浜・千葉・中川）を統括する自前の予約システム。患者が予約すると受付ライブボードへ<strong>リアルタイム反映</strong>。<strong>同じ部屋・同じ担当・同じ機材の二重予約はデータベース自体が拒否</strong>します（画面のチェックだけではありません）。受付ボードは<strong>ルーム／スタッフ／機材の3軸タイムライン</strong>、休憩・機材メンテ・院内業務のブロック登録、院ごとの診療時間・臨時休診の設定に対応。各院が受け付ける診療区分は現場のご指定どおり（西春＝外来・在宅・夜間休日／横浜＝外来・在宅／千葉＝外来・在宅・美容／中川＝在宅・夜間休日）。通信できないときは「予約完了」と表示せず受付を止めます。この同期デモの上部メニューから、お客様向け予約サイト・受付ボードにも切り替えられます。</p>
+    <span class="url">reservation_v2/demo.html</span>
+  </a>
+
+<a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/v0_8/index.html" target="_blank">
     <span class="badge badge-pharmacy">薬品在庫</span>
     <h3>薬品在庫管理 v0.8（新版・試用中）</h3>
     <p>UIを一新。夜間20時〜朝6時は自動でダーク画面、日中はライト。棚卸ワークシート・マスタ整備・今日の状態ダッシュボードを新設し、発注書から「受け入れる」で入荷まで繋がる。v0.7と同じデータベースを見ているので在庫は一致します。</p>
     <span class="url">v0_8/index.html</span>
   </a>
 
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/v0_7/index.html" target="_blank">
+<a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/v0_7/index.html" target="_blank">
     <span class="badge badge-pharmacy">薬品在庫</span>
     <h3>薬品在庫管理 v0.7（現行）</h3>
     <p>入荷登録（ロット・使用期限・仕入単価）、在庫評価額と薬価差の表示、消費ペースからの発注リスト・発注書作成、厚労省 医薬品マスタ18,515件からの薬品追加に対応。レセプト電算コードを全採用薬に付与。</p>
     <span class="url">v0_7/index.html</span>
   </a>
 
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/v0_6/index.html" target="_blank">
-    <span class="badge badge-pharmacy">薬品在庫</span>
-    <h3>薬品在庫管理 v0.6（旧版）</h3>
-    <p>v0.5ベース。入庫時の数量入力をinput field形式に変更、履歴チェックボックス削除機能（在庫自動調整＋処方履歴連動削除）、スキャン手動選択モーダルを在庫タブと同じチェック式レイアウトに統一。</p>
-    <span class="url">v0_6/index.html</span>
-  </a>
-
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/docs_pharmacy/v07_report.html" target="_blank">
+<a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/docs_pharmacy/v07_report.html" target="_blank">
     <span class="badge badge-doc">資料</span>
     <h3>薬剤在庫 v0.7 報告（会議用）</h3>
     <p>入荷・原価・使用期限・発注をシステム化した報告。在庫評価額と薬価差が出るようになった経緯、実画面3枚、見つけて直した不具合、次にやることまで9枚。</p>
     <span class="url">docs_pharmacy/v07_report.html</span>
   </a>
 
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/docs_pharmacy/v08_plan.html" target="_blank">
+<a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/docs_pharmacy/v08_plan.html" target="_blank">
     <span class="badge badge-doc">資料</span>
     <h3>薬剤在庫 v0.8 企画書</h3>
     <p>UI一新の要件定義。夜間ダーク／日中ライトの2モード設計、6タブの組み替え、主要7画面のワイヤーフレーム、動きの設計9点。主張はすべて本番DBの実測値で裏取り。</p>
     <span class="url">docs_pharmacy/v08_plan.html</span>
   </a>
 
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/docs_pharmacy/v08_spec.html" target="_blank">
+<a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/docs_pharmacy/v08_spec.html" target="_blank">
     <span class="badge badge-doc">資料</span>
     <h3>薬剤在庫 v0.8 実装仕様書</h3>
     <p>画面別のDOM構成・使用API・受け入れ条件とDB変更SQL。開発用の内部文書。</p>
     <span class="url">docs_pharmacy/v08_spec.html</span>
   </a>
 
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/v0_5/manual_v2/index.html" target="_blank">
+<a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/v0_5/manual_v2/index.html" target="_blank">
     <span class="badge badge-doc">マニュアル</span>
     <h3>薬品在庫 はじめてガイド</h3>
     <p>初心者向けステップ式マニュアル。実画面のスクショ8枚付きで、画面通りに進めば完了。困ったとき集も収録。</p>
     <span class="url">v0_5/manual_v2/index.html</span>
   </a>
 
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/qr_generator.html" target="_blank">
+<a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/qr_generator.html" target="_blank">
     <span class="badge badge-tool">ツール</span>
     <h3>QRコード生成・印刷</h3>
     <p>薬品ラベル用QRコードを一括生成。印刷レイアウト対応。</p>
     <span class="url">qr_generator.html</span>
   </a>
 
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/v0_5/qr_list/index.html" target="_blank">
+<a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/v0_5/qr_list/index.html" target="_blank">
     <span class="badge badge-pharmacy">薬品在庫</span>
     <h3>薬品QRコード一覧</h3>
     <p>全207品目のQRコード付き一覧表。A4印刷対応レイアウト。欠番表示あり。薬品マスタから自動生成。</p>
     <span class="url">v0_5/qr_list/index.html</span>
   </a>
 
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/task_board/index.html" target="_blank">
+<a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/task_board/index.html" target="_blank">
     <span class="badge badge-tool">業務管理</span>
     <h3>タスクボード</h3>
     <p>HUNDRED DOCTOR向けシンプル業務管理ツール。コルクボード風UI、付箋でタスク表示。GAS + スプレッドシート同期。</p>
     <span class="url">task_board/index.html</span>
   </a>
 
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/kpi_dashboard/index.html" target="_blank">
+<a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/kpi_dashboard/index.html" target="_blank">
     <span class="badge badge-tool">ツール</span>
     <h3>EC売上KPIダッシュボード（Supabase版・最新）</h3>
     <p>Supabase DB連携の最新KPIダッシュボード。9タブ構成（売上・チャート・商品・GA4・レポート・利益・KPI・在庫・SNS分析）。SNS3プラットフォーム（IG/TT/LINE）の詳細分析・補間チャート対応。GASで1時間毎に自動同期。</p>
     <span class="url">kpi_dashboard/index.html</span>
   </a>
 
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/rececom_demo/index.html" target="_blank" style="border-left: 4px solid #8b5cf6;">
+<a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/rececom_demo/index.html" target="_blank" style="border-left: 4px solid #8b5cf6;">
     <span class="badge" style="background:#ede9fe; color:#7c3aed;">レセコン連携</span>
     <h3>WebORCA レセコン連携デモ</h3>
     <p>WebORCA（日医標準レセコン）API連携デモ。患者一覧・診療行為・傷病名検索・レセプト概要をAPIパネルから操作可能。ダミー患者5名搭載。ローカルプロキシで実API接続対応。</p>
@@ -304,32 +265,52 @@ body {
 
 </div>
 
-<h2 class="section-title">過去バージョン</h2>
+<h2 class="section-title">過去バージョン（最新版以外）</h2>
 <div class="card-grid">
 
-  
-  
-  
-  
-  
-  
+<a class="card" style="opacity:0.7;" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v22/index.html" target="_blank">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>電子カルテ v22（統合前の版・算定の選択式／在庫連動／労災レセ電）</h3>
+    <p>v21 のクリニック別ログインを継承し、<strong>自動算定を担当者がボタンで選べる</strong>ようにしました。算定する加算は<strong>院ごとの選択式</strong>（既定は従来どおり）。処方を確定すると<strong>薬品在庫が在庫管理アプリと同じデータベースで増減</strong>し、取り消せば戻ります（二重計上防止つき）。レセプトは UKE の記録様式を整備し、<strong>労災レセ電（RREC）の作成</strong>を追加。医療証（公費受給者証）の写真読み取りも同居しています。</p>
+    <span class="url">karte_v22/index.html</span>
+  </a>
 
-  
+<a class="card" style="opacity:0.7;" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v21/index.html" target="_blank">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>電子カルテ v21（クリニック別のログイン／旧カルテ同型画面）</h3>
+    <p>ログイン画面で<strong>接続クリニック（西春・横浜・千葉・中川）を選び</strong>、IDの所属院と合致したときだけ接続します。データベースも院ごとに参照が分かれ、<strong>他院の患者・カルテは読めません</strong>（総務IDは全院、複数院担当は画面から切替）。受付・カルテ画面は旧カルテ（M3）と同じ配置に作り替えた v20 をそのまま継承し、予約システムの来院予定・様式14（オンライン診療の年次報告）・レセプト作成も同居しています。</p>
+    <span class="url">karte_v21/index.html</span>
+  </a>
 
-  
+<a class="card" style="opacity:0.7;" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v18/index.html" target="_blank">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>電子カルテ v0.18（起動高速化＋Supabase同期）</h3>
+    <p>起動時の患者データ読み込みを高速化。従来は約45秒間、全画面ロードで操作できませんでしたが、起動直後から操作できます。患者一覧は軽量取得（約3.5秒）、薬品・処方は背景読み込み。2回目以降はキャッシュ／Supabaseミラー（認証限定・患者情報保護）で即時表示。v0.17の適応症突合・診察料加算点検を継承。</p>
+    <span class="url">karte_v18/index.html</span>
+  </a>
 
-  
+<a class="card" style="opacity:0.7;" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v05/analytics.html" target="_blank">
+    <span class="badge badge-emr">電子カルテ</span>
+    <h3>夜間休日診療KPI v0.6</h3>
+    <p>夜間外来DB（GAS）をリアルタイム集計。患者数・受診数・診療報酬（円）・時間帯別・支払い方法・検査陽性率・集患チャネル別平均単価・医師別収益/出勤をグラフ表示。日付範囲フィルタ対応。</p>
+    <span class="url">karte_v05/analytics.html</span>
+  </a>
 
-  
+<a class="card" style="opacity:0.7;" href="https://soumu-hdg.github.io/drive-through-pharmacy/v0_6/index.html" target="_blank">
+    <span class="badge badge-pharmacy">薬品在庫</span>
+    <h3>薬品在庫管理 v0.6（旧版）</h3>
+    <p>v0.5ベース。入庫時の数量入力をinput field形式に変更、履歴チェックボックス削除機能（在庫自動調整＋処方履歴連動削除）、スキャン手動選択モーダルを在庫タブと同じチェック式レイアウトに統一。</p>
+    <span class="url">v0_6/index.html</span>
+  </a>
 
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/v0_5/index.html" target="_blank" style="opacity:0.7;">
+<a class="card" style="opacity:0.7;" href="https://soumu-hdg.github.io/drive-through-pharmacy/v0_5/index.html" target="_blank">
     <span class="badge badge-pharmacy">薬品在庫</span>
     <h3>薬品在庫管理 v0.5</h3>
     <p>M001〜M183統一コードへ完全リファクタリング。QRスキャン時にハイライトフォーカス、在庫あり＞在庫0＞外用の表示順、複数薬品の連続登録、担当者選択対応。GAS + スプレッドシート連携（183件M-code）。</p>
     <span class="url">v0_5/index.html</span>
   </a>
 
-  <a class="card" href="https://soumu-hdg.github.io/drive-through-pharmacy/ec_dashboard/index.html" target="_blank" style="opacity:0.7;">
+<a class="card" style="opacity:0.7;" href="https://soumu-hdg.github.io/drive-through-pharmacy/ec_dashboard/index.html" target="_blank">
     <span class="badge badge-tool">ツール</span>
     <h3>EC売上ダッシュボード（GAS版）</h3>
     <p>Shopify・Amazon・Qoo10・社割・卸売の5チャネル統合売上ダッシュボード。GA4連携・在庫管理・利益比較・KPIレポート。GAS Web App からリアルタイムデータ取得。</p>
@@ -365,6 +346,16 @@ body {
     <td>アプリ</td>
     <td><a target="_blank" href="https://hd-analytics-tau.vercel.app/clinic-monthly.html">hd-analytics-tau.vercel.app/clinic-monthly.html</a></td>
   </tr>
+  <tr style="background:#dcfce7;">
+    <td><strong>電子カルテ 統合版（本番ドメイン・最新）</strong></td>
+    <td>本番</td>
+    <td><a target="_blank" href="https://karte.hdg-holdings.com/">https://karte.hdg-holdings.com/</a></td>
+  </tr>
+  <tr style="background:#dcfce7;">
+    <td><strong>電子カルテ スマホ版（診察中の医療補助の報告）</strong></td>
+    <td>本番</td>
+    <td><a target="_blank" href="https://karte.hdg-holdings.com/mobile.html">https://karte.hdg-holdings.com/mobile.html</a></td>
+  </tr>
   <tr style="background:#dbeafe;">
     <td><strong>クリニック予約システム v3（最新・受付ボードは職員ログイン制）</strong></td>
     <td>アプリ</td>
@@ -395,50 +386,6 @@ body {
     <td>アプリ</td>
     <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/reservation_v2/board.html">reservation_v2/board.html</a></td>
   </tr>
-    <tr style="background:#dcfce7;">
-    <td><strong>電子カルテ 統合版（本番ドメイン・最新）</strong></td>
-    <td>本番</td>
-    <td><a target="_blank" href="https://karte.hdg-holdings.com/">https://karte.hdg-holdings.com/</a></td>
-  </tr>
-  <tr style="background:#dcfce7;">
-    <td><strong>電子カルテ スマホ版（診察中の医療補助の報告）</strong></td>
-    <td>本番</td>
-    <td><a target="_blank" href="https://karte.hdg-holdings.com/mobile.html">https://karte.hdg-holdings.com/mobile.html</a></td>
-  </tr>
-  
-  <tr style="background:#dcfce7;">
-    <td><strong>電子カルテ v22（統合前の版・算定の選択式／在庫連動／労災レセ電）</strong></td>
-    <td>アプリ</td>
-    <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v22/index.html">karte_v22/index.html</a></td>
-  </tr>
-  <tr>
-    <td><strong>電子カルテ v21（クリニック別のログイン）</strong></td>
-    <td>アプリ</td>
-    <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v21/index.html">karte_v21/index.html</a></td>
-  </tr>
-  <tr>
-    <td><strong>電子カルテ v0.18（起動高速化＋Supabase同期）</strong></td>
-    <td>アプリ</td>
-    <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v18/index.html">karte_v18/index.html</a></td>
-  </tr>
-  <tr>
-    <td>└ レセプト点検ビューア（カルテのヘッダーから起動）</td>
-    <td>アプリ</td>
-    <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v18/receipt.html">karte_v18/receipt.html</a></td>
-  </tr>
-  
-  
-  
-  
-  
-  
-  
-  
-  <tr>
-    <td><strong>夜間休日診療KPI</strong></td>
-    <td>分析</td>
-    <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v05/analytics.html">karte_v05/analytics.html</a></td>
-  </tr>
   <tr>
     <td><strong>薬品在庫管理 v0.8（新版・試用中）</strong></td>
     <td>アプリ</td>
@@ -448,11 +395,6 @@ body {
     <td><strong>薬品在庫管理 v0.7（現行）</strong></td>
     <td>アプリ</td>
     <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/v0_7/index.html">v0_7/index.html</a></td>
-  </tr>
-  <tr>
-    <td><strong>薬品在庫管理 v0.6（旧版）</strong></td>
-    <td>アプリ</td>
-    <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/v0_6/index.html">v0_6/index.html</a></td>
   </tr>
   <tr>
     <td><strong>薬品在庫 はじめてガイド</strong></td>
@@ -499,11 +441,37 @@ body {
     <td>資料</td>
     <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/docs_pharmacy/v08_spec.html">docs_pharmacy/v08_spec.html</a></td>
   </tr>
-  <tr style="background:#f8fafc;"><td colspan="3" style="padding:6px 12px; font-size:12px; color:var(--text-muted); font-weight:600;">過去バージョン</td></tr>
-  
-  
-  
-  
+  <tr style="background:#f8fafc;"><td colspan="3" style="padding:6px 12px; font-size:12px; color:var(--text-muted); font-weight:600;">過去バージョン（最新版以外）</td></tr>
+  <tr>
+    <td style="color:var(--text-muted);">電子カルテ v22（統合前の版・算定の選択式／在庫連動／労災レセ電）</td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v22/index.html">karte_v22/index.html</a></td>
+  </tr>
+  <tr>
+    <td style="color:var(--text-muted);">電子カルテ v21（クリニック別のログイン）</td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v21/index.html">karte_v21/index.html</a></td>
+  </tr>
+  <tr>
+    <td style="color:var(--text-muted);">電子カルテ v0.18（起動高速化＋Supabase同期）</td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v18/index.html">karte_v18/index.html</a></td>
+  </tr>
+  <tr>
+    <td>└ レセプト点検ビューア（カルテのヘッダーから起動）</td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v18/receipt.html">karte_v18/receipt.html</a></td>
+  </tr>
+  <tr>
+    <td style="color:var(--text-muted);">夜間休日診療KPI</td>
+    <td>分析</td>
+    <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/karte_v05/analytics.html">karte_v05/analytics.html</a></td>
+  </tr>
+  <tr>
+    <td style="color:var(--text-muted);">薬品在庫管理 v0.6（旧版）</td>
+    <td>アプリ</td>
+    <td><a target="_blank" href="https://soumu-hdg.github.io/drive-through-pharmacy/v0_6/index.html">v0_6/index.html</a></td>
+  </tr>
   <tr>
     <td style="color:var(--text-muted);">薬品在庫管理 v0.5</td>
     <td>アプリ</td>
