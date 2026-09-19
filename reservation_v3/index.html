@@ -538,7 +538,7 @@ async function submitReservation(){
 function rsvDocsHtml(code){
   return `<div class="card" id="rsvDocsCard">
       <h2>保険証・医療証の写真（任意）</h2>
-      <p class="muted">事前に送っていただくと、当日の受付が早く済みます。写真はクリニックの担当者だけが確認します。文字が読める向きで、明るい場所で撮影してください。</p>
+      <p class="muted">事前に送っていただくと、当日の受付が早く済みます。写真はクリニックの担当者だけが確認します。文字が読める向きで、明るい場所で撮影してください。撮影のほか、端末に保存してある写真も選べます。</p>
       <ul class="muted doc-howto">
         <li>下の「ファイルを選択」を押すと、スマホではカメラが起動します。撮ると数秒で「送信できました」と出ます。</li>
         <li>あとから送るときは「予約の確認・キャンセル」を開き、予約番号と電話番号で予約を呼び出すと同じ欄が出ます。</li>
@@ -547,12 +547,12 @@ function rsvDocsHtml(code){
       </ul>
       <div class="doc-row">
         <span class="doc-label">保険証（資格確認書・資格情報のお知らせでも可）</span>
-        <input type="file" accept="image/*" capture="environment" onchange="uploadRsvDoc('${esc(code)}','insurance',this)">
+        <input type="file" accept="image/*" onchange="uploadRsvDoc('${esc(code)}','insurance',this)">
         <span class="doc-status" id="docStatus_insurance"></span>
       </div>
       <div class="doc-row">
         <span class="doc-label">医療証（お持ちの方のみ）</span>
-        <input type="file" accept="image/*" capture="environment" onchange="uploadRsvDoc('${esc(code)}','iryo',this)">
+        <input type="file" accept="image/*" onchange="uploadRsvDoc('${esc(code)}','iryo',this)">
         <span class="doc-status" id="docStatus_iryo"></span>
       </div>
     </div>`;
@@ -615,15 +615,15 @@ function preDocsHtml(){
     : `<span class="doc-status" id="preDocStatus_${k}"></span>`;
   return `<div class="field pre-docs">
       <div><b>保険証・医療証の写真</b><span class="opt">任意</span></div>
-      <p class="muted" style="margin:4px 0 6px;font-size:12px">いま撮っておくと予約完了と同時に送られ、当日の受付が早く済みます。あとから（予約完了の画面・予約の確認画面）でも送れます。文字が読める向きで、明るい場所で撮影してください。</p>
+      <p class="muted" style="margin:4px 0 6px;font-size:12px">いま撮っておくと予約完了と同時に送られ、当日の受付が早く済みます。あとから（予約完了の画面・予約の確認画面）でも送れます。文字が読める向きで、明るい場所で撮影してください。撮影のほか、端末に保存してある写真も選べます。</p>
       <div class="doc-row">
         <span class="doc-label">保険証（資格確認書・資格情報のお知らせでも可）</span>
-        <input type="file" accept="image/*" capture="environment" onchange="pickPreDoc('insurance',this)">
+        <input type="file" accept="image/*" onchange="pickPreDoc('insurance',this)">
         ${st("insurance")}
       </div>
       <div class="doc-row">
         <span class="doc-label">医療証（お持ちの方のみ）</span>
-        <input type="file" accept="image/*" capture="environment" onchange="pickPreDoc('iryo',this)">
+        <input type="file" accept="image/*" onchange="pickPreDoc('iryo',this)">
         ${st("iryo")}
       </div>
     </div>`;
