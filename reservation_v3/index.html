@@ -15,6 +15,8 @@
 .doc-preview{width:72px;height:54px;object-fit:cover;border-radius:4px;border:1px solid #ddd}
 .doc-howto{margin:6px 0 10px 18px;padding:0;font-size:12px;line-height:1.6}
 .doc-howto li{margin:2px 0}
+.pre-docs{border:1px solid #d8d2c4;border-radius:6px;padding:10px 12px;margin-top:6px}
+.pre-docs .doc-row{margin-top:6px}
 </style>
 </head>
 <body>
@@ -365,6 +367,7 @@ function renderForm(){
           </div>
           ${staffField(clinic)}
           <label class="field">ご相談内容・気になること<span class="opt">任意</span><textarea id="f_note" rows="3">${esc(form.note)}</textarea></label>
+          ${preDocsHtml()}
           <div class="policy-box">
             <strong style="font-size:14px">同意書のご確認<span class="req">必須</span></strong>
             <p style="font-size:13px;margin:6px 0">施術・診療に関する同意書を必ずご確認ください。</p>
@@ -398,6 +401,7 @@ function renderForm(){
           <tr><th>電話番号</th><td>${esc(form.phone)}</td></tr>
           ${form.email?`<tr><th>メール</th><td>${esc(form.email)}</td></tr>`:""}
           <tr><th>初診・再診</th><td>${form.visitType==="FIRST"?"初めて（初診）":"2回目以降（再診）"}</td></tr>
+          <tr><th>保険証・医療証</th><td>${preDocsSummary()}</td></tr>
           ${staffList(clinic).length?`<tr><th>ご指名</th><td>${form.staffId?esc(staffNameOf(clinic, form.staffId)):"指名なし（当院にお任せ）"}</td></tr>`:""}
           <tr><th>同意書</th><td>✓ 確認・同意済み</td></tr>
           ${form.note?`<tr><th>ご相談内容</th><td>${esc(form.note)}</td></tr>`:""}
@@ -522,6 +526,8 @@ async function submitReservation(){
   state.doneCode = res.reservation.code;
   form = null;
   go({ view:"done" });
+  // 入力画面で選んだ写真は、予約番号が決まったこの時点で送る（完了画面の欄に結果を出す）
+  sendPendingDocs(res.reservation.code);
 }
 
 
@@ -568,28 +574,97 @@ function rsvShrinkImage(file, maxSide, quality){
     img.src = url;
   });
 }
+/* 縮小済みの画像1枚を、予約番号の下に置いて予約行に記録する。成功したら true */
+async function rsvUploadBlob(code, kind, blob){
+  const client = Store.getClient && Store.getClient();
+  if(!client) throw new Error("通信の準備ができていません");
+  const path = `rsv/${code}/${kind}_${Date.now()}.jpg`;
+  const up = await client.storage.from("rsv-documents").upload(path, blob, { contentType:"image/jpeg", upsert:false });
+  if(up.error) throw up.error;
+  const row = { docs_uploaded_at: new Date().toISOString() };
+  row[kind==="insurance" ? "insurance_card_path" : "iryo_card_path"] = path;
+  const { error } = await client.from("rsv2_reservations").update(row).eq("code", code);
+  if(error) throw error;
+  return true;
+}
+function setDocStatus(kind, t, cls){
+  const st = document.getElementById("docStatus_"+kind);
+  if(st){ st.textContent = t; st.className = "doc-status" + (cls?" "+cls:""); }
+}
 async function uploadRsvDoc(code, kind, input){
   const file = input.files && input.files[0]; if(!file) return;
-  const st = document.getElementById("docStatus_"+kind);
-  const setSt = (t, cls) => { if(st){ st.textContent = t; st.className = "doc-status" + (cls?" "+cls:""); } };
-  setSt("送信中…", "");
+  setDocStatus(kind, "送信中…", "");
   try{
-    const client = Store.getClient && Store.getClient();
-    if(!client) throw new Error("通信の準備ができていません");
     const blob = await rsvShrinkImage(file, 1600, 0.85);
-    const path = `rsv/${code}/${kind}_${Date.now()}.jpg`;
-    const up = await client.storage.from("rsv-documents").upload(path, blob, { contentType:"image/jpeg", upsert:false });
-    if(up.error) throw up.error;
-    const row = { docs_uploaded_at: new Date().toISOString() };
-    row[kind==="insurance" ? "insurance_card_path" : "iryo_card_path"] = path;
-    const { error } = await client.from("rsv2_reservations").update(row).eq("code", code);
-    if(error) throw error;
-    setSt("✓ 送信しました（" + (kind==="insurance"?"保険証":"医療証") + "）", "ok");
+    await rsvUploadBlob(code, kind, blob);
+    setDocStatus(kind, "✓ 送信しました（" + (kind==="insurance"?"保険証":"医療証") + "）", "ok");
   }catch(e){
     console.warn("[rsv-docs] upload failed", e);
-    setSt("送信できませんでした。当日、受付でご提示ください。", "ng");
+    setDocStatus(kind, "送信できませんでした。当日、受付でご提示ください。", "ng");
   }finally{
     input.value = "";
+  }
+}
+
+/* ---- 予約完了前（入力画面）で選んだ写真。予約番号が決まってから送る ---- */
+let pendingDocs = { insurance: null, iryo: null };
+const DOC_LABEL = { insurance: "保険証", iryo: "医療証" };
+function preDocsHtml(){
+  const st = k => pendingDocs[k]
+    ? `<span class="doc-status ok" id="preDocStatus_${k}">✓ 選択済み（予約完了と同時に送ります）<a class="back" style="margin-left:8px" onclick="clearPreDoc('${k}')">取り消す</a></span>`
+    : `<span class="doc-status" id="preDocStatus_${k}"></span>`;
+  return `<div class="field pre-docs">
+      <div><b>保険証・医療証の写真</b><span class="opt">任意</span></div>
+      <p class="muted" style="margin:4px 0 6px;font-size:12px">いま撮っておくと予約完了と同時に送られ、当日の受付が早く済みます。あとから（予約完了の画面・予約の確認画面）でも送れます。文字が読める向きで、明るい場所で撮影してください。</p>
+      <div class="doc-row">
+        <span class="doc-label">保険証（資格確認書・資格情報のお知らせでも可）</span>
+        <input type="file" accept="image/*" capture="environment" onchange="pickPreDoc('insurance',this)">
+        ${st("insurance")}
+      </div>
+      <div class="doc-row">
+        <span class="doc-label">医療証（お持ちの方のみ）</span>
+        <input type="file" accept="image/*" capture="environment" onchange="pickPreDoc('iryo',this)">
+        ${st("iryo")}
+      </div>
+    </div>`;
+}
+function preDocsSummary(){
+  const have = ["insurance","iryo"].filter(k => pendingDocs[k]).map(k => DOC_LABEL[k] + " 選択済み");
+  return have.length ? esc(have.join("／")) + '<div class="muted">予約完了と同時に送ります</div>' : 'なし<div class="muted">予約完了の画面からも送れます</div>';
+}
+async function pickPreDoc(kind, input){
+  const file = input.files && input.files[0]; if(!file) return;
+  const st = document.getElementById("preDocStatus_"+kind);
+  if(st){ st.textContent = "読み込み中…"; st.className = "doc-status"; }
+  try{
+    pendingDocs[kind] = await rsvShrinkImage(file, 1600, 0.85);
+    if(st){ st.className = "doc-status ok"; st.innerHTML = `✓ 選択済み（予約完了と同時に送ります）<a class="back" style="margin-left:8px" onclick="clearPreDoc('${kind}')">取り消す</a>`; }
+  }catch(e){
+    console.warn("[rsv-docs] pick failed", e);
+    pendingDocs[kind] = null;
+    if(st){ st.textContent = "この画像は使えませんでした。別の写真をお選びください。"; st.className = "doc-status ng"; }
+  }finally{
+    input.value = "";
+  }
+}
+function clearPreDoc(kind){
+  pendingDocs[kind] = null;
+  const st = document.getElementById("preDocStatus_"+kind);
+  if(st){ st.textContent = ""; st.className = "doc-status"; }
+}
+/* 予約が確定した直後に呼ぶ。完了画面の欄に結果を出す（失敗しても「送信しました」とは出さない） */
+async function sendPendingDocs(code){
+  for(const kind of ["insurance","iryo"]){
+    const blob = pendingDocs[kind]; if(!blob) continue;
+    pendingDocs[kind] = null;
+    setDocStatus(kind, "送信中…", "");
+    try{
+      await rsvUploadBlob(code, kind, blob);
+      setDocStatus(kind, "✓ 送信しました（" + DOC_LABEL[kind] + "）", "ok");
+    }catch(e){
+      console.warn("[rsv-docs] pending upload failed", e);
+      setDocStatus(kind, "送信できませんでした。下の欄からもう一度お送りください。", "ng");
+    }
   }
 }
 
