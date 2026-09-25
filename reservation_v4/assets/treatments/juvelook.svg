@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffd8e6"/><stop offset=".55" stop-color="#f39bb9"/><stop offset="1" stop-color="#9d4a72"/></linearGradient></defs>
+  <rect width="1200" height="630" fill="url(#g)"/>
+  <circle cx="940" cy="170" r="220" fill="#fff" opacity=".22"/>
+  <circle cx="800" cy="350" r="92" fill="#fff" opacity=".48"/>
+  <circle cx="965" cy="405" r="58" fill="#fff" opacity=".3"/>
+  <circle cx="650" cy="445" r="42" fill="#fff" opacity=".28"/>
+  <path d="M195 518c173-168 336-226 488-173 113 40 218 24 315-49v334H195z" fill="#fff" opacity=".16"/>
+</svg>

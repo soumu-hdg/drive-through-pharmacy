@@ -1,0 +1,209 @@
+/* 予約サイト v4 ── 統合版で足した部品の見た目（手で書いたファイル）
+   基準版の styles.css の配色・書体（紺 --clinic-navy・金 --clinic-gold・生成り）に合わせ、足りない部品だけを足す。
+   基準版の部品そのものの見た目は変えない */
+
+.rsv4-conn,
+.rsv4-error:not(:empty) {
+    margin: 0 0 14px;
+    padding: 11px 14px;
+    border: 1px solid #e3c4c4;
+    border-left: 4px solid #9f4545;
+    border-radius: 6px;
+    background: #fbf1f1;
+    color: #7a2e2e;
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1.7;
+}
+.rsv4-conn { max-width: 1080px; margin: 12px auto; }
+.rsv4-error:empty { display: none; }
+.rsv4-err-link { margin-top: 6px; }
+
+.rsv4-lead,
+.rsv4-help {
+    margin: 4px 0 10px;
+    color: #697189;
+    font-size: 0.84rem;
+    line-height: 1.7;
+}
+.rsv4-help { display: block; margin: 6px 0 0; font-size: 0.78rem; }
+.rsv4-note { margin-top: 12px; color: #697189; font-size: 0.86rem; text-align: center; }
+.rsv4-opt {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border: 1px solid #d8d5cc;
+    border-radius: 3px;
+    color: #8a8f9c;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+.rsv4-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--clinic-navy, #24345f);
+    font: inherit;
+    font-size: 0.84rem;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+/* 院の選択: 住所・区分・準備中 */
+.rsv4-clinic-sub,
+.rsv4-clinic-svcs {
+    display: block;
+    margin-top: 4px;
+    color: #697189;
+    font-size: 0.78rem;
+    line-height: 1.5;
+}
+.rsv4-clinic-svcs { color: #8c7640; font-weight: 700; }
+.rsv4-badge {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 8px;
+    border: 1px solid var(--clinic-gold, #b8a36a);
+    border-radius: 3px;
+    color: #8c7640;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.clinic-card.rsv4-preparing { opacity: 0.78; }
+.department-card.rsv4-preparing,
+.department-card[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+/* 最短日時・凡例・休診 */
+.rsv4-earliest {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    margin: 0 0 14px;
+    padding: 12px 16px;
+    border: 1px solid #e4dcc6;
+    border-left: 4px solid var(--clinic-gold, #b8a36a);
+    border-radius: 6px;
+    background: #fbf8f0;
+    color: var(--clinic-navy, #24345f);
+}
+.rsv4-earliest.hidden { display: none; }
+.rsv4-earliest-label { color: #697189; font-size: 0.8rem; }
+.rsv4-earliest strong { font-size: 1.05rem; }
+.rsv4-earliest .rsv4-earliest-btn { flex: 0 0 auto !important; width: auto !important; min-width: 180px; min-height: 38px; margin: 0 0 0 auto; padding: 6px 18px; font-size: 0.86rem; }
+.rsv4-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin: 10px 0 0;
+    color: #697189;
+    font-size: 0.76rem;
+}
+.rsv4-legend b { margin-right: 4px; color: var(--clinic-navy, #24345f); }
+.rsv4-legend.hidden { display: none; }
+.availability-mark.m-few,
+.rsv4-legend .m-few { color: #b87832 !important; }
+.availability-mark.m-full,
+.rsv4-legend .m-full { color: #9f4545 !important; }
+.rsv4-legend .m-closed,
+.rsv4-closed { color: #9f4545; }
+.rsv4-closed {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.68rem;
+    font-weight: 800;
+}
+
+/* 受診者情報 */
+.rsv4-selection {
+    margin-bottom: 12px;
+    color: var(--clinic-navy, #24345f);
+    font-size: 0.92rem;
+    line-height: 1.8;
+}
+.rsv4-selection .rsv4-link { margin-left: 8px; }
+.patient-select-heading { margin: 4px 0 12px; }
+.patient-select-heading h3 { color: var(--clinic-navy, #24345f); font-size: 1.1rem; }
+.rsv4-radio-row { display: flex; flex-wrap: wrap; gap: 8px 18px; padding-top: 4px; }
+.rsv4-radio-row label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.rsv4-radio-row input { width: auto !important; min-height: 0 !important; }
+.rsv4-docs,
+.rsv4-consent {
+    padding: 14px 16px;
+    border: 1px solid #e4dcc6;
+    border-radius: 6px;
+    background: #fdfcf8;
+}
+.rsv4-doc-row { padding: 10px 0; border-top: 1px dashed #e0d9c9; }
+.rsv4-doc-row:first-of-type { border-top: 0; }
+.rsv4-doc-label { display: block; margin-bottom: 8px; color: var(--clinic-navy, #24345f); font-size: 0.86rem; font-weight: 700; }
+.rsv4-doc-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.rsv4-doc-buttons .rsv4-doc-btn {
+    display: inline-flex;
+    flex: 1 1 150px;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: auto;
+    min-height: 44px;
+    margin: 0;
+    font-size: 0.84rem;
+}
+.rsv4-doc-status,
+.rsv4-doc-msg { display: block; margin-top: 6px; font-size: 0.8rem; color: #697189; }
+.rsv4-doc-status:empty,
+.rsv4-doc-msg:empty { display: none; }
+.rsv4-doc-status.ok,
+.rsv4-doc-msg.ok { color: #47795e; font-weight: 700; }
+.rsv4-doc-status.ng,
+.rsv4-doc-msg.ng { color: #9f4545; font-weight: 700; }
+.post-task-status.rsv4-ok { color: #47795e; border-color: #b9d3c1; background: #e7f0e9; }
+.post-task-status.rsv4-ng { color: #9f4545; }
+.rsv4-consent-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.rsv4-consent-row .btn-back { width: auto; margin: 0; }
+.rsv4-consent-body h4 { margin: 14px 0 4px; color: var(--clinic-navy, #24345f); font-size: 0.92rem; }
+.rsv4-consent-body p { margin: 0 0 6px; font-size: 0.86rem; line-height: 1.75; }
+
+/* 完了・予約の確認 */
+.rsv4-code-row .reservation-summary-value { font-size: 1.35rem; letter-spacing: 0.12em; }
+.rsv4-code { font-weight: 800; color: var(--clinic-navy, #24345f); }
+.rsv4-doc-card .rsv4-doc-buttons { margin-top: 10px; }
+.rsv4-doc-foot { margin: 4px 2px 14px; text-align: left; }
+.rsv4-done-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.rsv4-done-links .btn-back { display: inline-flex; flex: 1 1 180px; align-items: center; justify-content: center; gap: 6px; width: auto; margin: 0; text-decoration: none; }
+.rsv4-visit-card .post-task-body p { margin-top: 4px; color: #4a5568; font-size: 0.84rem; line-height: 1.7; text-align: left; }
+.rsv4-line-btn { text-decoration: none; }
+.rsv4-danger { color: #9f4545 !important; border-color: #d9b3b3 !important; }
+.rsv4-look-docs { margin-top: 14px; }
+.rsv4-success p { color: #47795e; font-weight: 700; }
+#lookupForm { margin-top: 6px; }
+.reservation-status.cancelled { color: #9f4545; }
+.settings-connection-status.rsv4-prep { color: #8a8f9c; }
+.settings-menu-row[disabled] { opacity: 0.6; cursor: default; }
+
+/* 予約の確認の結果（基準版のマイページの予約カードに、行の並びを足す） */
+#lookResult .reservation-card-header { margin-bottom: 8px; }
+#lookResult .reservation-status {
+    display: inline-block;
+    padding: 2px 10px;
+    border: 1px solid #b9d3c1;
+    border-radius: 3px;
+    background: #e7f0e9;
+    color: #47795e;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+#lookResult .reservation-status.cancelled { border-color: #e3c4c4; background: #fbf1f1; color: #9f4545; }
+#lookResult .reservation-info-row {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 8px 0;
+    border-bottom: 1px dashed #e6e2d8;
+}
+#lookResult .reservation-label { flex: 0 0 5.5em; }
+#lookResult .reservation-value { color: var(--clinic-navy, #24345f); font-weight: 700; }
+#lookResult .reservation-card-actions { margin-top: 12px; }
+.complete-details .reservation-summary-label { white-space: nowrap; }

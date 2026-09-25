@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>クリニックのWeb予約</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="rsv_v4.css">
+</head>
+<body>
+    <div class="app">
+        <section class="auth-gate" id="authGate" aria-label="Web予約">
+            <div class="auth-shell">
+                <div class="auth-card" id="authMenuPanel">
+                    <div class="auth-card-heading">
+                        <p class="auth-step-label">WEB RESERVATION</p>
+                        <h2>Web予約</h2>
+                        <p>会員登録なしで、そのままご予約いただけます。</p>
+                    </div>
+                    <div class="auth-actions">
+                        <button type="button" class="auth-action auth-action-primary" id="guestReserveBtn">ログインせずに予約する</button>
+                        <button type="button" class="auth-action auth-action-secondary" id="guestLookupBtn">予約の確認・キャンセル</button>
+                        <button type="button" class="auth-action auth-action-line" id="authLineLogin">
+                            <span class="auth-line-mark" aria-hidden="true">LINE</span>
+                            <span id="authLineLabel">LINEと連携して予約する</span>
+                        </button>
+                    </div>
+                    <p class="auth-message" id="authMenuMessage" role="status">会員登録・ログインは準備中です。ご予約・確認・キャンセルはログインなしでご利用いただけます。</p>
+                    <p class="auth-message hidden rsv4-conn" id="connBar" role="alert"></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- メインコンテンツ -->
+        <main class="main hidden" id="appMain">
+            <!-- ========== マイページ ========== -->
+            <div class="page active" id="page-mypage">
+                <section class="section" id="mypageLookupSection">
+                    <h2 class="section-title">予約の確認・キャンセル</h2>
+                    <p class="rsv4-lead">ご予約時の予約番号と電話番号を入力してください。</p>
+                    <form class="form" id="lookupForm" autocomplete="off">
+                        <div class="rsv4-error" id="lookErr" role="alert"></div>
+                        <div class="form-group">
+                            <label for="l_code">予約番号 <span class="required">必須</span></label>
+                            <input type="text" id="l_code" placeholder="例）ABCD2345" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase">
+                        </div>
+                        <div class="form-group">
+                            <label for="l_phone">電話番号 <span class="required">必須</span></label>
+                            <input type="tel" id="l_phone" inputmode="tel" autocomplete="tel" placeholder="予約時の電話番号">
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary" id="lookupSubmit">予約を照会する</button>
+                        </div>
+                    </form>
+                    <div class="mypage-reservations" id="lookResult"></div>
+                </section>
+
+                <section class="section" id="mypageCourseSection">
+                    <h2 class="section-title">コース残数</h2>
+                    <div class="mypage-courses">
+                        <div class="reservation-empty"><p>準備中です（会員登録・ログインの開始後にご利用いただけます）</p></div>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <h2 class="section-title">診療履歴</h2>
+                    <div class="history-list">
+                        <div class="history-empty"><p>準備中です（会員登録・ログインの開始後にご利用いただけます）</p></div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- ========== 予約ページ ========== -->
+            <div class="page hidden" id="page-reservation">
+                <!-- ステップインジケーター -->
+                <div class="steps" id="reservationSteps">
+                    <div class="step active" data-step="1">
+                        <span class="step-number">1</span>
+                        <span class="step-label">診療科</span>
+                    </div>
+                    <div class="step" data-step="2">
+                        <span class="step-number">2</span>
+                        <span class="step-label">施術・日時</span>
+                    </div>
+                    <div class="step" data-step="3">
+                        <span class="step-number">3</span>
+                        <span class="step-label">患者情報</span>
+                    </div>
+                    <div class="step" data-step="4">
+                        <span class="step-number">4</span>
+                        <span class="step-label">確認</span>
+                    </div>
+                </div>
+
+                <!-- Step 0: クリニック選択 -->
+                <section class="section" id="step0">
+                    <div class="clinic-selection">
+                        <div class="section-heading">
+                            <h2 class="section-title">クリニックを選択してください</h2>
+                        </div>
+
+                        <div class="clinic-list" id="clinicList">
+                            <!-- 動的に追加 -->
+                        </div>
+
+                        <div class="clinic-empty hidden" id="clinicEmpty">
+                            <p>クリニックが登録されていません。</p>
+                            <p class="clinic-empty-sub">管理画面でクリニックを追加してください。</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 1: 診療科選択 -->
+                <section class="section hidden" id="step1">
+                    <!-- 選択中のクリニック名 -->
+                    <div class="selected-clinic-badge" id="selectedClinicBadge">
+                        <span class="clinic-badge-icon"><i class="fas fa-hospital"></i></span>
+                        <span class="clinic-badge-name" id="clinicName">クリニック名</span>
+                        <button type="button" class="clinic-badge-change" id="changeClinicBtn">変更</button>
+                    </div>
+
+                    <!-- 予約済み表示 -->
+                    <div class="upcoming-reservations hidden" id="upcomingReservations">
+                        <!-- 動的に追加 -->
+                    </div>
+
+                    <div class="department-selection">
+                        <div class="section-heading">
+                            <p class="section-kicker">実施する診療科やメニュー</p>
+                            <h2 class="section-title">診療科を選択してください</h2>
+                        </div>
+
+                        <div class="department-list" id="departmentList">
+                            <!-- 動的に追加 -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 2: 日時選択 -->
+                <section class="section hidden" id="step2">
+                    <section class="booking-calendar-panel" aria-label="予約日時選択">
+                        <div class="selected-department hidden" id="selectedDepartment" aria-hidden="true">診療科を選択してください</div>
+
+                        <div class="treatment-menu-panel">
+                            <div class="section-heading compact-heading">
+                                <h2 class="section-title">メニューを選択してください</h2>
+                            </div>
+                            <div class="treatment-concern-tabs" id="treatmentConcernTabs" aria-label="肌悩みで絞り込み"></div>
+                            <div class="treatment-menu-list" id="treatmentMenuList"></div>
+                        </div>
+
+                        <div class="treatment-detail-panel hidden" id="treatmentDetailPanel">
+                            <div class="treatment-detail-panel-head">
+                                <div>
+                                    <p class="section-kicker">細かい施術メニュー</p>
+                                    <h2 class="section-title">メニューを選択してください</h2>
+                                </div>
+                                <button type="button" class="treatment-detail-reset" id="changeTreatmentMenu">施術を選び直す</button>
+                            </div>
+                            <div class="treatment-detail-list" id="treatmentDetailList"></div>
+                        </div>
+
+                        <div class="calendar-nav">
+                            <button class="btn-nav" id="prevWeek">&lt; 前週</button>
+                            <span class="current-week" id="currentWeek"></span>
+                            <button class="btn-nav" id="nextWeek">次週 &gt;</button>
+                        </div>
+
+                        <div class="calendar-table-wrap">
+                            <div class="calendar" id="calendar">
+                                <p class="select-date-msg">診療科を選択してください</p>
+                            </div>
+                        </div>
+
+                        <div class="time-slots" id="timeSlots">
+                            <p class="select-date-msg">○の日時を選択すると確認画面へ進みます</p>
+                        </div>
+
+                        <div class="form-actions compact-actions">
+                            <button type="button" class="btn-back" id="backToStep1">診療科を選び直す</button>
+                        </div>
+                    </section>
+                </section>
+
+                <!-- Step 3: 患者情報選択 -->
+                <section class="section hidden" id="step3">
+                    <h2 class="section-title">患者様を選択</h2>
+                    <div class="reservation-patient-list" id="reservationPatientList">
+                        <!-- 動的に追加 -->
+                    </div>
+
+                    <div class="form-actions compact-actions">
+                        <button type="button" class="btn-back" id="backToStep2">日時を選び直す</button>
+                    </div>
+                    <div class="reservation-same-day-addons" id="reservationSameDayAddOns"></div>
+                </section>
+
+                <!-- Step 4: 確認 -->
+                <section class="section hidden" id="step4">
+                    <h2 class="section-title">予約内容の確認</h2>
+
+                    <div class="reservation-summary hidden" id="reservationSummary"></div>
+
+                    <div class="confirm-card" id="confirmCard">
+                        <!-- 動的に追加 -->
+                    </div>
+
+                    <div class="form-actions confirmation-actions">
+                        <button type="button" class="btn-back" id="backToStep3">戻る</button>
+                        <button type="button" class="btn-primary" id="submitReservation">予約を確定する</button>
+                    </div>
+                </section>
+
+                <!-- 完了画面 -->
+                <section class="section hidden" id="stepComplete">
+                    <div class="complete-card">
+                        <div class="complete-icon">&#10003;</div>
+                        <h2>予約が完了しました</h2>
+                        <p class="complete-message">
+                            ご予約ありがとうございます。
+                        </p>
+                        <div class="complete-details" id="completeDetails"></div>
+
+                        <div class="after-reservation-actions" id="afterReservationActions">
+                            <div class="post-task-card" id="questionnaireTaskCard">
+                                <div class="post-task-status" id="questionnaireTaskStatus">未回答</div>
+                                <div class="post-task-body">
+                                    <h3>続けてWeb問診に回答してください</h3>
+                                </div>
+                                <button class="btn-primary post-task-button" id="openQuestionnaire">問診記入</button>
+                            </div>
+
+                            <div class="questionnaire-panel hidden" id="questionnairePanel">
+                                <div class="questionnaire-panel-header">
+                                    <h3 id="questionnaireTitle">問診票</h3>
+                                    <button class="btn-link" id="closeQuestionnairePanel">閉じる</button>
+                                </div>
+                                <form class="form" id="questionnaireForm"></form>
+                            </div>
+
+                            <div class="post-task-card hidden" id="consentTaskCard">
+                                <div class="post-task-status" id="consentTaskStatus">確認中</div>
+                                <div class="post-task-body">
+                                    <h3>施術の同意書を事前に提出できます</h3>
+                                    <p id="consentTaskDescription">来院前に内容をご確認ください。</p>
+                                </div>
+                                <button class="btn-primary post-task-button" id="openConsentForm" type="button">同意書を確認</button>
+                            </div>
+
+                            <div class="post-task-card hidden" id="previsitTaskCard">
+                                <div class="post-task-status">事前案内</div>
+                                <div class="post-task-body">
+                                    <h3 id="previsitTaskTitle">ご来院前のご案内</h3>
+                                    <p>注意事項・持ち物・所要時間をご確認ください。</p>
+                                </div>
+                                <button class="btn-primary post-task-button" id="openPrevisitGuidance" type="button">案内を確認</button>
+                            </div>
+
+                            <div class="post-task-card" id="insuranceTaskCard">
+                                <div class="post-task-status" id="insuranceTaskStatus">未登録</div>
+                                <div class="post-task-body">
+                                    <h3>保険証を登録できます</h3>
+                                </div>
+                                <label class="btn-back post-task-upload">
+                                    画像を選択
+                                    <input type="file" id="insuranceCardInput" accept="image/*">
+                                </label>
+                            </div>
+
+                            <div class="insurance-preview hidden" id="insurancePreview">
+                                <img id="insurancePreviewImage" alt="保険証プレビュー">
+                                <button class="btn-primary" id="uploadInsuranceCard">保険証を登録</button>
+                            </div>
+
+                            <div class="post-task-card hidden" id="googleReviewTaskCard">
+                                <div class="post-task-status">任意</div>
+                                <div class="post-task-body">
+                                    <h3>Googleで感想を書く</h3>
+                                </div>
+                                <a class="btn-primary post-task-button google-review-button" id="googleReviewButton" href="#" target="_blank" rel="noopener">感想を書く</a>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary" id="backToMypage">マイページへ戻る</button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- ========== 設定ページ ========== -->
+            <div class="page hidden" id="page-settings">
+                <section class="section settings-screen">
+                    <div id="settingsMenuView">
+                        <h2 class="settings-page-title">設定</h2>
+                        <div class="settings-menu-list" aria-label="設定メニュー">
+                            <button type="button" class="settings-menu-row" data-settings-panel="account">
+                                <span class="settings-menu-icon"><i class="fa-solid fa-user" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">本人設定</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="patients">
+                                <span class="settings-menu-icon"><i class="fa-solid fa-people-roof" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">家族設定</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="email">
+                                <span class="settings-menu-icon"><i class="fa-regular fa-envelope" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">メールアドレス設定</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row settings-menu-row-connection" data-settings-panel="connections">
+                                <span class="settings-menu-icon settings-line-icon"><i class="fa-brands fa-line" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">LINE連携</span>
+                                <span class="settings-connection-status is-disconnected" id="settingsLineConnectionStatus">未設定</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row settings-menu-row-connection" data-settings-panel="connections">
+                                <span class="settings-menu-icon settings-google-icon"><i class="fa-brands fa-google" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">Googleアカウント連携</span>
+                                <span class="settings-connection-status is-disconnected" id="settingsGoogleConnectionStatus">未設定</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="payment">
+                                <span class="settings-menu-icon"><i class="fa-regular fa-credit-card" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">支払い方法設定</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="reservations">
+                                <span class="settings-menu-icon"><i class="fa-regular fa-calendar-check" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">予約一覧</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="notifications">
+                                <span class="settings-menu-icon"><i class="fa-regular fa-bell" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">通知設定</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row settings-menu-row-danger" data-settings-panel="data">
+                                <span class="settings-menu-icon"><i class="fa-solid fa-database" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">データ管理</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                        </div>
+
+                        <div class="settings-menu-list settings-menu-list-secondary" aria-label="サービス情報">
+                            <button type="button" class="settings-menu-row" data-settings-panel="terms">
+                                <span class="settings-menu-icon"><i class="fa-regular fa-circle-check" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">利用規約</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="privacy">
+                                <span class="settings-menu-icon"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">プライバシーポリシー</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="data-sources">
+                                <span class="settings-menu-icon"><i class="fa-regular fa-file-lines" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">データの提供元</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="licenses">
+                                <span class="settings-menu-icon"><i class="fa-regular fa-circle-check" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">ライセンス</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="contact">
+                                <span class="settings-menu-icon"><i class="fa-regular fa-circle-question" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">お問い合わせ</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <div class="settings-menu-row settings-version-row">
+                                <span class="settings-menu-icon"><i class="fa-solid fa-gears" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">バージョン</span>
+                                <span class="settings-menu-meta">1.0.0</span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </section>
+            </div>
+            <div class="page hidden" id="page-chat">
+                <div class="portal-chat-page">
+                    <header class="portal-chat-page-header">
+                        <div><span>クリニックとの連絡</span><h2>チャット</h2></div>
+                    </header>
+                    <p class="portal-chat-status" id="portalChatStatus">チャットは準備中です。お問い合わせはお電話でお願いいたします。</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- 下部ナビゲーション -->
+        <nav class="bottom-nav hidden" id="bottomNav">
+            <button class="bottom-nav-item active" data-page="mypage">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 10.5 12 3l9 7.5"></path>
+                    <path d="M5 9.5V21h14V9.5"></path>
+                    <path d="M9 21v-7h6v7"></path>
+                </svg>
+                <span>マイページ</span>
+            </button>
+            <button class="bottom-nav-item" data-page="reservation">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <span>予約</span>
+            </button>
+            <button class="bottom-nav-item" data-page="chat">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M4 5h16v11H9l-5 4V5Z"></path><path d="M8 9h8M8 12h5"></path>
+                </svg>
+                <span>チャット</span>
+            </button>
+            <button class="bottom-nav-item" data-page="settings">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.09a2 2 0 0 1 1 1.74v.5a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span>設定</span>
+            </button>
+        </nav>
+
+
+
+
+
+        <!-- 施術同意書モーダル -->
+        <div class="edit-modal hidden" id="consentModal">
+            <div class="edit-modal-overlay" id="consentModalOverlay"></div>
+            <div class="edit-modal-content consent-modal-content" role="dialog" aria-modal="true" aria-labelledby="consentModalTitle">
+                <div class="edit-modal-header">
+                    <h3 id="consentModalTitle">施術・診療に関する同意書</h3>
+                    <button type="button" class="edit-modal-close" id="consentModalClose" aria-label="同意書を閉じる">&times;</button>
+                </div>
+                <div class="consent-modal-body" id="consentModalBody"></div>
+            </div>
+        </div>
+
+
+
+    </div>
+
+    <!-- 統合版: DB 接続（prototype3 と同じ store.js・予約は rsv2_* 表へ）と、基準版の部品を使って統合版の予約の流れを動かす画面処理 -->
+    <script>window.__RSV_SUPABASE__ = true;</script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.js" integrity="sha384-3wY11tldQ5+yWqAvmTN4XtQvnjoTva0cV15O/O/O5NTtp0ivVopSzLOzsVXWZse9" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="store.js"></script>
+    <script src="rsv_v4.js"></script>
+</body>
+</html>
