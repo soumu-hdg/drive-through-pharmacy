@@ -1,0 +1,584 @@
+:root {
+    --navy: #172650;
+    --navy-deep: #101c3e;
+    --gold: #b79a50;
+    --gold-deep: #987a31;
+    --gold-pale: #f7f1e2;
+    --ivory: #f8f6f0;
+    --paper: #ffffff;
+    --ink: #202a43;
+    --muted: #657086;
+    --line: #ded8ca;
+    --warning: #9a6d18;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    color: var(--ink);
+    background:
+        radial-gradient(circle at 10% 4%, rgba(183, 154, 80, 0.11), transparent 24rem),
+        var(--ivory);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+button,
+a {
+    -webkit-tap-highlight-color: transparent;
+}
+
+.help-main {
+    width: min(100%, 860px);
+    margin: 0 auto;
+    padding: 30px 20px 72px;
+}
+
+.help-hero {
+    padding: 30px;
+    color: #fff;
+    background: var(--navy);
+    border-left: 5px solid var(--gold);
+    border-radius: 12px;
+    box-shadow: 0 10px 28px rgba(20, 31, 67, 0.12);
+}
+
+.help-hero h1 {
+    margin: 0;
+    font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+    font-size: clamp(27px, 6.8vw, 38px);
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0.05em;
+}
+
+.help-hero > p:last-child {
+    max-width: 620px;
+    margin: 14px 0 0;
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 14px;
+    line-height: 1.9;
+}
+
+.mobile-break {
+    display: none;
+}
+
+.help-important {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin: 20px 0 28px;
+    padding: 19px;
+    background: var(--gold-pale);
+    border: 1px solid rgba(183, 154, 80, 0.45);
+    border-radius: 14px;
+}
+
+.help-important-icon {
+    display: grid;
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    color: #fff;
+    background: var(--gold-deep);
+    border-radius: 50%;
+    font-weight: 900;
+}
+
+.help-important strong {
+    display: block;
+    color: var(--warning);
+    font-size: 16px;
+    line-height: 1.55;
+}
+
+.help-important p {
+    margin: 6px 0 0;
+    font-size: 13px;
+    line-height: 1.75;
+}
+
+.help-steps {
+    display: grid;
+    gap: 22px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.help-step {
+    padding: 28px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: 0 12px 36px rgba(26, 39, 75, 0.06);
+}
+
+.help-step-heading {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.help-step-number {
+    display: grid;
+    flex: 0 0 auto;
+    width: 54px;
+    height: 54px;
+    place-items: center;
+    color: #fff;
+    background: var(--navy);
+    border: 2px solid var(--gold);
+    border-radius: 50%;
+    font-family: Georgia, serif;
+    font-size: 17px;
+}
+
+.help-step-heading p {
+    margin: 0 0 3px;
+    color: var(--gold-deep);
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+}
+
+.help-step-heading h2 {
+    margin: 0;
+    color: var(--navy);
+    font-size: clamp(20px, 4.8vw, 27px);
+    line-height: 1.45;
+}
+
+.help-step-lead {
+    margin: 20px 0;
+    color: #3c465d;
+    font-size: 15px;
+    line-height: 1.9;
+}
+
+.help-video {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: var(--navy-deep);
+    border: 1px solid #d8cfb7;
+    border-radius: 14px;
+    box-shadow: 0 10px 28px rgba(16, 28, 62, 0.15);
+}
+
+.help-video iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.help-text-link {
+    display: inline-flex;
+    gap: 7px;
+    margin-top: 14px;
+    color: var(--navy);
+    font-size: 13px;
+    font-weight: 800;
+    text-underline-offset: 3px;
+}
+
+.phone-pair,
+.capture-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
+    max-width: 620px;
+    margin: 24px auto 0;
+}
+
+.phone-guide,
+.capture-card {
+    margin: 0;
+    text-align: center;
+}
+
+.phone-frame,
+.capture-phone {
+    position: relative;
+    overflow: hidden;
+    max-width: 250px;
+    min-height: 330px;
+    margin: 0 auto;
+    padding: 30px 16px 22px;
+    text-align: left;
+    background: #fbfbfc;
+    border: 8px solid #eef0f3;
+    border-radius: 30px;
+    box-shadow: 0 12px 26px rgba(26, 39, 75, 0.1);
+}
+
+.phone-status {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    width: 42px;
+    height: 5px;
+    background: #c5c9d2;
+    border-radius: 99px;
+    transform: translateX(-50%);
+}
+
+.phone-brand {
+    padding-bottom: 9px;
+    color: var(--navy);
+    border-bottom: 1px solid #e2e4e9;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.phone-user {
+    margin: 18px 0 40px;
+    padding: 15px;
+    color: var(--navy);
+    background: #eef2f8;
+    border-radius: 10px;
+    font-weight: 800;
+}
+
+.phone-card {
+    position: relative;
+    display: grid;
+    gap: 5px;
+    padding: 17px 32px 17px 15px;
+    color: var(--navy);
+    background: #fff;
+    border: 2px solid var(--gold);
+    border-radius: 10px;
+}
+
+.phone-card small {
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.phone-card span {
+    position: absolute;
+    top: 50%;
+    right: 13px;
+    font-size: 24px;
+    transform: translateY(-50%);
+}
+
+.phone-frame h3 {
+    margin: 24px 0 50px;
+    color: var(--navy);
+    font-size: 23px;
+}
+
+.phone-info-line {
+    width: 58%;
+    height: 13px;
+    margin-top: 20px;
+    background: #d7dbe3;
+    border-radius: 3px;
+}
+
+.phone-info-line.wide { width: 100%; }
+.phone-info-line.medium { width: 76%; }
+
+.phone-guide figcaption,
+.capture-card figcaption {
+    margin-top: 11px;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.help-alert {
+    margin: 22px 0;
+    padding: 16px 18px;
+    background: #fcf8ed;
+    border-left: 4px solid var(--gold);
+    border-radius: 0 10px 10px 0;
+}
+
+.help-alert strong {
+    color: #845f15;
+    font-size: 14px;
+    line-height: 1.65;
+}
+
+.help-alert p {
+    margin: 5px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.65;
+}
+
+.capture-phone {
+    min-height: 385px;
+    padding: 35px 12px 20px;
+    border-color: #eceef2;
+    border-radius: 24px;
+}
+
+.capture-phone::after {
+    position: absolute;
+    inset: 24px 5px 5px;
+    border: 2px solid var(--gold);
+    border-radius: 12px;
+    content: "";
+    pointer-events: none;
+}
+
+.capture-label {
+    position: relative;
+    z-index: 1;
+    display: block;
+    margin: 2px 8px 10px;
+    color: var(--gold-deep);
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+}
+
+.capture-phone dl {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+}
+
+.capture-phone dl div {
+    min-height: 61px;
+    padding: 9px 10px;
+    border-top: 1px solid #e2e4e9;
+}
+
+.capture-phone dt {
+    margin-bottom: 8px;
+    color: var(--muted);
+    font-size: 9px;
+}
+
+.capture-phone dd {
+    width: 74%;
+    height: 9px;
+    margin: 0;
+    background: #d6dae2;
+    border-radius: 2px;
+}
+
+.capture-card figcaption span {
+    display: inline-block;
+    margin-right: 4px;
+    padding: 2px 7px;
+    color: #fff;
+    background: var(--navy);
+    border-radius: 99px;
+    font-size: 10px;
+}
+
+.upload-guide {
+    display: grid;
+    gap: 12px;
+}
+
+.upload-guide-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    min-height: 118px;
+    padding: 18px;
+    color: var(--navy);
+    background: #fff;
+    border: 2px dashed var(--gold);
+    border-radius: 12px;
+}
+
+.camera-icon {
+    position: relative;
+    width: 30px;
+    height: 22px;
+    background: var(--gold);
+    border-radius: 4px;
+}
+
+.camera-icon::before {
+    position: absolute;
+    top: -5px;
+    left: 6px;
+    width: 11px;
+    height: 7px;
+    background: var(--gold);
+    border-radius: 3px 3px 0 0;
+    content: "";
+}
+
+.camera-icon::after {
+    position: absolute;
+    top: 5px;
+    left: 10px;
+    width: 8px;
+    height: 8px;
+    background: #fff;
+    border-radius: 50%;
+    content: "";
+}
+
+.upload-guide-card div {
+    display: grid;
+    gap: 5px;
+}
+
+.upload-guide-card strong {
+    font-size: 16px;
+}
+
+.upload-guide-card small {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.help-privacy {
+    margin: 18px 0 0;
+    padding: 14px 16px;
+    color: #4f596f;
+    background: #f2f4f8;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 1.75;
+}
+
+.help-footer-action {
+    margin-top: 28px;
+}
+
+.help-footer-action button {
+    width: 100%;
+    min-height: 56px;
+    color: #fff;
+    background: var(--navy);
+    border: 2px solid var(--gold);
+    border-radius: 12px;
+    box-shadow: 0 8px 22px rgba(23, 38, 80, 0.16);
+    font: inherit;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.help-source {
+    margin: 18px 0 0;
+    color: #7c8495;
+    font-size: 10px;
+    text-align: center;
+}
+
+@media (max-width: 560px) {
+    .help-main {
+        padding: 18px 14px 54px;
+    }
+
+    .help-hero {
+        padding: 24px 20px;
+        border-radius: 10px;
+    }
+
+    .mobile-break {
+        display: initial;
+    }
+
+    .help-important {
+        margin-bottom: 18px;
+        padding: 16px;
+    }
+
+    .help-important strong {
+        font-size: 14px;
+    }
+
+    .help-step {
+        padding: 22px 17px;
+        border-radius: 15px;
+    }
+
+    .help-step-heading {
+        gap: 12px;
+    }
+
+    .help-step-number {
+        width: 47px;
+        height: 47px;
+        font-size: 15px;
+    }
+
+    .help-step-lead {
+        margin: 17px 0;
+        font-size: 14px;
+    }
+
+    .phone-pair,
+    .capture-pair {
+        gap: 10px;
+    }
+
+    .phone-frame,
+    .capture-phone {
+        min-height: 274px;
+        padding-right: 9px;
+        padding-left: 9px;
+        border-width: 5px;
+        border-radius: 20px;
+    }
+
+    .phone-user {
+        margin-bottom: 28px;
+        padding: 11px;
+        font-size: 12px;
+    }
+
+    .phone-card {
+        padding: 13px 25px 13px 10px;
+        font-size: 11px;
+    }
+
+    .phone-frame h3 {
+        margin: 20px 0 38px;
+        font-size: 17px;
+    }
+
+    .capture-phone {
+        min-height: 326px;
+        padding-top: 32px;
+    }
+
+    .capture-phone dl div {
+        min-height: 50px;
+        padding: 7px 8px;
+    }
+
+    .phone-guide figcaption,
+    .capture-card figcaption {
+        font-size: 11px;
+    }
+
+    .upload-guide-card {
+        justify-content: flex-start;
+        min-height: 105px;
+        padding: 16px 18px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+}

@@ -1,861 +1,452 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>クリニックご予約サイト</title>
-<link rel="stylesheet" href="style.css">
-<style id="rsvDocsStyle">
-.doc-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 0;border-top:1px dashed #ddd}
-.doc-row:first-of-type{border-top:none}
-.doc-label{flex:1 1 220px;font-weight:700}
-.doc-row input[type=file]{max-width:100%}
-.doc-status{flex:1 1 100%;font-size:13px;color:#666}
-.doc-status.ok{color:#0e7c66;font-weight:700} .doc-status.ng{color:#b5502f;font-weight:700}
-.doc-preview{width:72px;height:54px;object-fit:cover;border-radius:4px;border:1px solid #ddd}
-.doc-howto{margin:6px 0 10px 18px;padding:0;font-size:12px;line-height:1.6}
-.doc-howto li{margin:2px 0}
-.pre-docs{border:1px solid #d8d2c4;border-radius:6px;padding:10px 12px;margin-top:6px}
-.pre-docs .doc-row{margin-top:6px}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DigiLeave｜Web予約</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="rsv_v4.css">
 </head>
 <body>
-<header class="site">
-  <span class="brand">クリニックご予約サイト</span>
-  <!-- 接続状態バッジ: 正常時は非表示（患者に技術用語を見せない）。
-       予約DBに接続できないときだけ warn クラスが付いて警告を出す。 -->
-  <span class="sync-badge"><span class="sync-dot"></span></span>
-  <nav>
-    <a data-nav="home">予約する</a>
-    <a data-nav="lookup">予約の確認・キャンセル</a>
-  </nav>
-</header>
-<!-- 予約データベースへ接続できないときの警告（黙ってローカル保存せず、必ず知らせる） -->
-<div id="connBar" style="display:none;margin:10px auto 0;max-width:900px;padding:11px 16px;border:1px solid #fca5a5;border-left:5px solid #dc2626;background:#fef2f2;color:#7f1d1d;font-size:14px;font-weight:700;border-radius:6px"></div>
-<div id="lineBar" class="line-bar" style="display:none"></div>
-<main id="app"></main>
-
-<!-- Supabase接続（利用可能なら実DB＋Realtime同期。不達時はローカル同期に自動フォールバック） -->
-<script>window.__RSV_SUPABASE__ = true;</script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- LINE LIFF SDK（LINEログインで予約者のuserIdを取得し、予約確定をLINE通知） -->
-<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="store.js?v=20260914w9"></script>
-<script>
-/* =========================================================
-   患者向けSPA
-   クリニック選択→施術/枠→2ステップ入力→完了。
-   store.js の同期ストアに接続し、予約は即座に受付ボードへ反映される。
-   ========================================================= */
-const app = document.getElementById("app");
-
-// 画面状態
-let state = { view: "home", csId: null, menuId: null, concern: null, date: null, slotId: null, time: null };
-
-const SVG = {
-  外来: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M12 8v6M9 11h6"/></svg>',
-  在宅: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
-  美容: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M18 16l.9 2.1L21 19l-2.1.9L18 22l-.9-2.1L15 19l2.1-.9z"/></svg>',
-  夜間休日: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13.5A8.5 8.5 0 0 1 10.5 4 7 7 0 1 0 20 13.5z"/></svg>',
-};
-const AREA_COLOR = { "愛知":"#b45309", "神奈川":"#0369a1", "千葉":"#be185d" };
-// 施術写真がまだ無いときのプレースホルダ（頭文字1字は「未完成」に見えるためアイコン＋注記にする）
-const NOIMG = `<div class="hp-noimg">${SVG["美容"]}<span>施術イメージ</span></div>`;
-const NOIMG_SM = `<div class="hp-noimg hp-noimg-sm">${SVG["美容"]}</div>`;
-function esc(s){ return String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
-function tint(hex){ return hex+"22"; }
-
-// 入力保持（確認→戻るで消えないように）
-let form = null;
-
-/* ---------------- ルーター ---------------- */
-function go(patch){ state = Object.assign({}, state, patch); render(); window.scrollTo(0,0); }
-document.querySelectorAll("[data-nav]").forEach(a=>{
-  a.onclick = ()=> go({ view: a.dataset.nav, csId:null, menuId:null, date:null, slotId:null });
-});
-
-function render(){
-  switch(state.view){
-    case "home":    return renderHome();
-    case "service": return renderServicePick();   // 施術一覧 or 枠一覧
-    case "form":    return renderForm();
-    case "done":    return renderDone();
-    case "lookup":  return renderLookup();
-  }
-}
-
-/* ---------------- 1. トップ：クリニック選択 ---------------- */
-function renderHome(){
-  const cards = Store.CLINICS.map(c=>{
-    const area = c.area || "その他";
-    const col = AREA_COLOR[area] || "#475569";
-    const names = c.services.map(s=>s.name);
-    const primary = names.includes("美容") ? "美容" : names.includes("外来") ? "外来" : names.includes("在宅") ? "在宅" : names[0];
-    const btns = [...c.services]
-      .sort((a,b)=> Number(b.name===primary) - Number(a.name===primary))
-      .map(s=>{
-        const isPrimary = s.name===primary;
-        const label = s.name==="美容" ? "美容施術を探す" : `${s.name}を予約する`;
-        // 開業前は「〜を予約する」を外し、区分名＋準備中の短い表記にする（ボタン内で折り返さないため）
-        if(c.openingNote) return `<button class="svc-btn disabled">${SVG[s.name]||""}${s.name}（準備中）</button>`;
-        return `<button class="svc-btn ${isPrimary?"":"secondary"}" onclick="go({view:'service',csId:${s.id},menuId:null,concern:null,date:null})">${SVG[s.name]||""}${label}</button>`;
-      }).join("");
-    return `<section class="clinic-card">
-      <div class="clinic-card-head">
-        <span class="area-label" style="background:${tint(col)};color:${col}">${esc(area)}</span>
-        ${c.openingNote?`<span class="badge-opening">${esc(c.openingNote)}</span>`:""}
-      </div>
-      <div class="clinic-card-name">${esc(c.name)}クリニック</div>
-      <div class="clinic-card-addr">${esc(c.address)}</div>
-      <div class="clinic-card-svcline">${esc(names.join("・"))}</div>
-      <div class="clinic-card-btns">${btns}</div>
-    </section>`;
-  }).join("");
-
-  app.innerHTML = `
-    <h1>ご予約はこちら</h1>
-    <p class="muted">診療を希望するクリニックをお選びください。予約内容によって各予約ページへ移動します。</p>
-    <div class="clinic-cards">${cards}</div>
-    <p class="muted" style="margin-top:20px">ご予約済みの方は <a class="back" onclick="go({view:'lookup'})">予約の確認・キャンセル</a> へ。お電話でのご予約も承っています。</p>`;
-}
-
-/* ---------------- 2. 施術一覧 / 枠選択 ---------------- */
-function renderServicePick(){
-  const svc = Store.serviceOfCs(state.csId);
-  const clinic = Store.clinicOfCs(state.csId);
-  const menus = Store.menusOfCs(state.csId);
-
-  // 美容でメニュー未選択 → 施術一覧
-  if(menus.length && !state.menuId){
-    return renderMenuList(clinic, menus);
-  }
-  // 美容でメニュー選択済 → 週間ストリップ
-  if(state.menuId){
-    return renderWeekPicker(clinic, svc, Store.menuById(state.menuId));
-  }
-  // 外来/在宅/夜間休日 → 同じ週間ストリップ（メニュー無し版）
-  // 以前は「10日 × 12個の時刻チップ」を縦に積んでおり、空きの疎密が読めず
-  // 美容フローともUIが分裂していた。週ストリップ＋選択日の時間、に統一する。
-  return renderWeekPicker(clinic, svc, null);
-}
-
-function renderMenuList(clinic, menus){
-  const filters = [
-    {label:"すべて", kw:null},
-    {label:"毛穴・ニキビ跡", kw:["毛穴","ニキビ"]},
-    {label:"シミ・そばかす", kw:["シミ","そばかす","赤み"]},
-    {label:"たるみ", kw:["たるみ","フェイスライン"]},
-    {label:"小じわ・ハリ", kw:["小じわ","ハリ"]},
-  ].filter(f=> !f.kw || menus.some(m=>f.kw.some(k=>(m.concerns||"").includes(k))));
-  const active = state.concern || "すべて";
-  const shown = active==="すべて" ? menus
-    : menus.filter(m=> (filters.find(f=>f.label===active)?.kw||[]).some(k=>(m.concerns||"").includes(k)));
-  const sorted = [...shown].sort((a,b)=> Number(b.popular)-Number(a.popular));
-
-  const chips = filters.map(f=>`<span class="chip ${active===f.label?"active":""}" onclick="go({concern:'${f.label}'})">${f.label}</span>`).join("");
-  const cards = sorted.map(m=>{
-    const priceHtml = m.firstVisitPrice!=null
-      ? `<span class="hp-price-label">初回</span><span class="hp-price-num">¥${m.firstVisitPrice.toLocaleString()}</span><span class="hp-price-tax">(税込)</span>${m.price?`<div class="hp-price-note">通常 ¥${m.price.toLocaleString()}〜</div>`:""}`
-      : m.price==null ? `<span class="hp-price-ask">要問合せ</span>`
-      : `<span class="hp-price-num">¥${m.price.toLocaleString()}〜</span><span class="hp-price-tax">(税込)</span>`;
-    const tags = (m.concerns||"").split(/[・、,]/).filter(Boolean).map(t=>`<span class="hp-tag">${esc(t)}</span>`).join("");
-    return `<div class="hp-card">
-      <div class="hp-img">
-        ${NOIMG}
-        <div class="hp-badges">${m.popular?'<span class="hp-badge pop">人気</span>':""}${m.firstVisitPrice!=null?'<span class="hp-badge first">初回価格</span>':""}</div>
-      </div>
-      <div class="hp-body">
-        <div class="hp-name" onclick="go({menuId:${m.id}})">${esc(m.name)}</div>
-        <div class="hp-catch">${esc(m.catch||"")}</div>
-        <div class="hp-tags">${tags}</div>
-        ${m.downtime?`<div class="hp-meta">ダウンタイム: ${esc(m.downtime)}</div>`:""}
-        ${m.staffType?`<div class="hp-meta">施術担当: ${esc(m.staffType)}</div>`:""}
-      </div>
-      <div class="hp-side">
-        <div>${priceHtml}</div>
-        <div class="hp-dur">所要 約${m.durationMin}分</div>
-        <button class="btn" style="margin-top:auto" onclick="go({menuId:${m.id}})">空き状況を確認する</button>
-      </div>
-    </div>`;
-  }).join("");
-
-  app.innerHTML = `
-    <a class="back" onclick="go({view:'home',csId:null})">← クリニック選択に戻る</a>
-    <h1>${esc(clinic.name)} 美容皮膚科 — 施術を探す</h1>
-    <p class="muted">お悩みに合わせて施術をお選びください。</p>
-    <div class="chips">${chips}</div>
-    <div class="hp-list">${cards || '<div class="card">該当する施術がありません。</div>'}</div>`;
-}
-
-let weekOffset = 0;
-
-/* 現在時刻（当日の終わった枠は選ばせない） */
-function nowHHMM(){ const n = new Date(); return `${String(n.getHours()).padStart(2,"0")}:${String(n.getMinutes()).padStart(2,"0")}`; }
-function isPastSlot(date, time){ return date===Store.todayStr() && time<=nowHHMM(); }
-/* その枠が実際に選べるか（開いている・満席でない・過去でない） */
-function slotSelectable(date, s){ return s.open && s.remaining>0 && !isPastSlot(date, s.time); }
-
-/* 3ステップの進行表示（いまどこにいるか） */
-function stepsHtml(cur){
-  const labels = ["日時を選ぶ","ご予約情報の入力","内容の確認"];
-  return `<div class="steps">` + labels.map((l,i)=>{
-    const n = i+1;
-    return `<span class="st ${n===cur?"on":n<cur?"done":""}">${n}. ${l}</span>`;
-  }).join("") + `</div>`;
-}
-
-/* 時刻チップ1個 */
-function timeChipHtml(date, s){
-  const past = isPastSlot(date, s.time);
-  const disabled = !s.open || s.remaining===0 || past;
-  // 「空」は既定なので出さない。残りわずか・満・休・終了だけ注記する。
-  const note = !s.open ? "休" : past ? "終了" : s.remaining===0 ? "満" : s.remaining<=1 ? "残1" : "";
-  const on = state.slotId===s.id && state.date===date;
-  return `<button class="time-chip ${on?"selected":""}" ${disabled?"disabled":`onclick="go({slotId:'${s.id}',time:'${s.time}',date:'${date}'})"`}>
-    <span>${s.time}</span>${note?`<span class="rem ${note==="残1"?"few":""}">${note}</span>`:""}</button>`;
-}
-
-/* 日時選択（美容＝メニュー付き／外来・在宅・夜間＝メニュー無し で共通） */
-function renderWeekPicker(clinic, svc, menu){
-  const days = Store.getDays(state.csId, 28);
-  const perWeek = 7;
-  const totalWeeks = Math.ceil(days.length/perWeek);
-  weekOffset = Math.max(0, Math.min(weekOffset, totalWeeks-1));
-  const week = days.slice(weekOffset*perWeek, weekOffset*perWeek+perWeek);
-
-  // 選択日（未選択なら表示中の週で最初に空きがある日）
-  let selDate = state.date;
-  if(!selDate || !week.find(d=>d.date===selDate)){
-    const firstOpen = week.find(d=>d.slots.some(s=>slotSelectable(d.date,s)));
-    selDate = (firstOpen||week[0]).date;
-  }
-  const selDay = days.find(d=>d.date===selDate);
-
-  // 最短で予約できる日時（4週間ぶんから探す）
-  let earliest = null;
-  for(let i=0;i<days.length;i++){
-    const d = days[i];
-    const s = d.slots.find(x=>slotSelectable(d.date,x));
-    if(s){ earliest = { date:d.date, time:s.time, id:s.id, wk:Math.floor(i/perWeek) }; break; }
-  }
-
-  const cells = week.map(d=>{
-    const rem = d.slots.filter(s=>slotSelectable(d.date,s)).reduce((a,s)=>a+s.remaining,0);
-    let mark = "×", cls="mark-full";
-    if(d.slots.length===0){ mark="休"; cls="mark-closed"; }
-    else if(rem===0){ mark="×"; cls="mark-full"; }
-    else if(rem<=2){ mark="△"; cls="mark-few"; }
-    else { mark="○"; cls="mark-ok"; }
-    const wd = Store.weekday(d.date);
-    const disabled = d.slots.length===0 || rem===0;
-    return `<div class="day-cell ${selDate===d.date?"selected":""} ${disabled?"disabled":""}" ${disabled?"":`onclick="go({date:'${d.date}',slotId:null})"`}>
-      <span class="day-wd ${wd===6?"sat":wd===0?"sun":""}">${d.label.match(/\((.)\)/)[1]}</span>
-      <span class="day-date">${d.label.replace(/\(.*/,"")}</span>
-      <span class="day-mark ${cls}">${mark}</span>
-    </div>`;
-  }).join("");
-
-  // 選択日の時間帯（午前／午後／夜間で区切り、同型チップの壁にしない）
-  const bands = [{label:"午前",from:"00:00",to:"12:00"},{label:"午後",from:"12:00",to:"18:00"},{label:"夜間",from:"18:00",to:"24:00"}];
-  const slots = selDay ? selDay.slots : [];
-  const used = bands.filter(b=> slots.some(s=> s.time>=b.from && s.time<b.to));
-  const timesHtml = slots.length
-    ? used.map(b=>{
-        const chips = slots.filter(s=> s.time>=b.from && s.time<b.to).map(s=>timeChipHtml(selDate,s)).join("");
-        return `<div class="time-band">${used.length>1?`<span class="band-label">${b.label}</span>`:""}<div class="time-grid">${chips}</div></div>`;
-      }).join("")
-    : '<p class="muted">この日は診療日ではありません。上のカレンダーから別の日をお選びください。</p>';
-
-  const back = menu
-    ? `<a class="back" onclick="go({menuId:null,date:null,slotId:null})">← 施術一覧に戻る</a>`
-    : `<a class="back" onclick="go({view:'home',csId:null,date:null,slotId:null})">← クリニック選択に戻る</a>`;
-  const title = menu
-    ? `${esc(clinic.name)} 美容皮膚科 — 日時を選択`
-    : `${esc(clinic.name)} ${esc(svc.name)} — 日時を選択`;
-  const menuCard = menu ? `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-      ${NOIMG_SM}
-      <div><strong>${esc(menu.name)}</strong><div class="muted">所要 約${menu.durationMin}分 ・ ${menu.firstVisitPrice!=null?`初回 ¥${menu.firstVisitPrice.toLocaleString()}`:menu.price?`¥${menu.price.toLocaleString()}〜`:"要問合せ"}</div></div>
-    </div>` : "";
-
-  const canNext = !!state.slotId;
-  app.innerHTML = `
-    ${back}
-    <h1>${title}</h1>
-    ${stepsHtml(1)}
-    ${menuCard}
-    ${earliest?`<div class="earliest-line"><span class="muted">最短で予約できる日時</span><strong>${Store.fmtJa(earliest.date)} ${earliest.time}</strong><button class="btn" style="padding:6px 14px" onclick="pickEarliest('${earliest.date}','${earliest.id}','${earliest.time}',${earliest.wk})">この日時を選択</button></div>`:""}
-    <div class="week-nav">
-      <button class="secondary" ${weekOffset===0?"disabled":""} onclick="weekPrev()">‹ 前の週</button>
-      <span class="muted">${week[0].label.replace(/\(.*/,"")} 〜 ${week[week.length-1].label.replace(/\(.*/,"")}</span>
-      <button class="secondary" ${weekOffset>=totalWeeks-1?"disabled":""} onclick="weekNext()">次の週 ›</button>
-    </div>
-    <div class="week-strip">${cells}</div>
-    <div class="mark-legend"><span><b class="mark-ok">○</b>空きあり</span><span><b class="mark-few">△</b>残りわずか</span><span><b class="mark-full">×</b>満席</span><span><b class="mark-closed">休</b>休診</span></div>
-    <h2>${selDay?selDay.label:""} の時間</h2>
-    ${timesHtml}
-    <div class="cta-bar">
-      <button ${canNext?"":"disabled"} onclick="startForm()">この日時で予約へ進む</button>
-    </div>`;
-}
-/* 「最短で予約できる日時」から一気に入力へ（その日を含む週に切り替えてから進む） */
-function pickEarliest(date, slotId, time, wk){
-  weekOffset = wk;
-  state = Object.assign({}, state, { date, slotId, time });
-  startForm();
-}
-
-/* ---------------- 3. 予約フォーム（入力→確認） ---------------- */
-function startForm(){
-  form = form || { name:"", kana:"", birthDate:"", phone:"", email:"", visitType:"", note:"", agree:false, consent:false, staffId:"" };
-  go({ view:"form" }); formStep="input"; renderForm();
-}
-let formStep = "input";
-let consentOpen = false;
-/* 同意文面のバージョン。文面を変えたら必ず上げる（いつ何に同意したかを後から辿れるようにするため）。 */
-const CONSENT_VERSION = "2026-08-13";
-let consentAt = null;                       // 同意した日時（ISO文字列）
-
-/* 担当スタッフのご指名（Wave2 / 仕様書v2 §3.2-C・欠陥D-5）
-   Web予約は担当が未設定（NULL）で入るため、DBの部分一意インデックス（担当×枠）の
-   対象外になり、担当の重複がDBで止まらなかった。ここで指名できるようにすると、
-   指名された予約は登録した瞬間からDBの重複拒否の対象になる。
-   「指名なし」のままでも受付ボードの「未割当」列から後で割り当てられる。 */
-function staffList(clinic){ return clinic ? Store.resourcesOf(clinic.id, "staff") : []; }
-function staffField(clinic){
-  const list = staffList(clinic);
-  if(!list.length) return "";                       // スタッフ未登録の院では出さない
-  const opts = `<option value="">指名なし（当院にお任せ）</option>`
-    + list.map(s=>`<option value="${s.id}" ${String(form.staffId)===String(s.id)?"selected":""}>${esc(s.name)}</option>`).join("");
-  return `<label class="field">ご指名（担当スタッフ）<select id="f_staff">${opts}</select>
-    <span class="muted">ご指名の担当がその時間に埋まっている場合は、確定時にお知らせします。</span></label>`;
-}
-function staffNameOf(clinic, id){ const s = staffList(clinic).find(x=>String(x.id)===String(id)); return s ? s.name : ""; }
-
-function renderForm(){
-  const clinic = Store.clinicOfCs(state.csId);
-  const svc = Store.serviceOfCs(state.csId);
-  const menu = state.menuId ? Store.menuById(state.menuId) : null;
-  const dateLabel = `${Store.fmtJa(state.date)} ${state.time}`;
-
-  // 選んだ院・診療区分・日時をいつでも確認できるようにする（確認画面まで待たせない）
-  const selSummary = `<div class="sel-summary">
-      <b>${esc(clinic.name)} ${esc(svc.name)}${menu?`／${esc(menu.name)}`:""}</b>
-      <span class="sel-dt">${dateLabel}〜</span>
-      <a class="sel-change" onclick="backToSlot()">変更</a>
-    </div>`;
-
-  if(formStep==="input"){
-    app.innerHTML = `
-      <a class="back" onclick="go({view:'service'})">← 日時の選択に戻る</a>
-      ${stepsHtml(2)}
-      <div class="card">
-        <h2>ご予約情報の入力</h2>
-        ${selSummary}
-        <div id="formErr"></div>
-        <p class="form-note">「必須」の付いていない項目は任意です。</p>
-        <div class="stack">
-          <label class="field">お名前<span class="req">必須</span><input id="f_name" value="${esc(form.name)}" placeholder="例）山田 花子" autocomplete="name" autocapitalize="off"></label>
-          <label class="field">フリガナ<span class="req">必須</span><input id="f_kana" value="${esc(form.kana)}" placeholder="例）ヤマダ ハナコ" autocomplete="off" autocapitalize="off"></label>
-          <label class="field">生年月日<span class="opt">任意</span><input id="f_birth" type="date" value="${esc(form.birthDate)}" autocomplete="bday"></label>
-          <label class="field">電話番号<span class="req">必須</span><input id="f_phone" type="tel" inputmode="tel" autocomplete="tel" value="${esc(form.phone)}" placeholder="例）090-1234-5678"><span class="muted">予約の確認・キャンセル時に使用します</span></label>
-          <label class="field">メールアドレス<span class="opt">任意</span><input id="f_email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" value="${esc(form.email)}" placeholder="例）hanako@example.com"></label>
-          <div class="field">当院のご利用<span class="req">必須</span>
-            <div class="radio-row">
-              <label><input type="radio" name="vt" value="FIRST" ${form.visitType==="FIRST"?"checked":""}>初めて（初診）</label>
-              <label><input type="radio" name="vt" value="REVISIT" ${form.visitType==="REVISIT"?"checked":""}>2回目以降（再診）</label>
+    <div class="app">
+        <section class="auth-gate" id="authGate" aria-label="DigiLeave">
+            <div class="auth-shell">
+                <div class="auth-card" id="authMenuPanel">
+                    <div class="auth-card-heading">
+                        <p class="auth-step-label">WEB RESERVATION</p>
+                        <h2>DigiLeave</h2>
+                        <p>会員登録なしで、そのままご予約いただけます。</p>
+                    </div>
+                    <div class="auth-actions">
+                        <button type="button" class="auth-action auth-action-primary" id="guestReserveBtn">ログインせずに予約する</button>
+                        <button type="button" class="auth-action auth-action-secondary" id="guestLookupBtn">予約の確認・キャンセル</button>
+                        <button type="button" class="auth-action auth-action-line" id="authLineLogin">
+                            <span class="auth-line-mark" aria-hidden="true">LINE</span>
+                            <span id="authLineLabel">LINEと連携して予約する</span>
+                        </button>
+                    </div>
+                    <p class="auth-message" id="authMenuMessage" role="status">会員登録・ログインは準備中です。ご予約・確認・キャンセルはログインなしでご利用いただけます。</p>
+                    <p class="auth-message hidden rsv4-conn" id="connBar" role="alert"></p>
+                </div>
             </div>
-          </div>
-          ${staffField(clinic)}
-          <label class="field">ご相談内容・気になること<span class="opt">任意</span><textarea id="f_note" rows="3">${esc(form.note)}</textarea></label>
-          ${preDocsHtml()}
-          <div class="policy-box">
-            <strong style="font-size:14px">同意書のご確認<span class="req">必須</span></strong>
-            <p style="font-size:13px;margin:6px 0">施術・診療に関する同意書を必ずご確認ください。</p>
-            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-              <button type="button" class="secondary" onclick="openConsent()">同意書を確認する</button>
-              ${form.consent?'<span class="rel-added">✓ 同意済み</span>':""}
+        </section>
+
+        <!-- メインコンテンツ -->
+        <main class="main hidden" id="appMain">
+            <!-- ========== マイページ ========== -->
+            <div class="page active" id="page-mypage">
+                <section class="section" id="mypageLookupSection">
+                    <h2 class="section-title">予約の確認・キャンセル</h2>
+                    <p class="rsv4-lead">ご予約時の予約番号と電話番号を入力してください。</p>
+                    <form class="form" id="lookupForm" autocomplete="off">
+                        <div class="rsv4-error" id="lookErr" role="alert"></div>
+                        <div class="form-group">
+                            <label for="l_code">予約番号 <span class="required">必須</span></label>
+                            <input type="text" id="l_code" placeholder="例）ABCD2345" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase">
+                        </div>
+                        <div class="form-group">
+                            <label for="l_phone">電話番号 <span class="required">必須</span></label>
+                            <input type="tel" id="l_phone" inputmode="tel" autocomplete="tel" placeholder="予約時の電話番号">
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary" id="lookupSubmit">予約を照会する</button>
+                        </div>
+                    </form>
+                    <div class="mypage-reservations" id="lookResult"></div>
+                </section>
+
+                <section class="section" id="mypageCourseSection">
+                    <h2 class="section-title">コース残数</h2>
+                    <div class="mypage-courses">
+                        <div class="reservation-empty"><p>準備中です（会員登録・ログインの開始後にご利用いただけます）</p></div>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <h2 class="section-title">診療履歴</h2>
+                    <div class="history-list">
+                        <div class="history-empty"><p>準備中です（会員登録・ログインの開始後にご利用いただけます）</p></div>
+                    </div>
+                </section>
             </div>
-          </div>
-          <div class="policy-box">
-            <strong style="font-size:14px">ご予約にあたっての注意事項</strong>
-            <p style="font-size:13px;margin:6px 0">ご予約の変更・キャンセルは前日までにお願いいたします。当日・無断キャンセルが続いた場合、以降のご予約をお受けできないことがあります。</p>
-            <label style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600"><input type="checkbox" id="f_agree" ${form.agree?"checked":""}>注意事項に同意します</label>
-          </div>
+
+            <!-- ========== 予約ページ ========== -->
+            <div class="page hidden" id="page-reservation">
+                <!-- ステップインジケーター -->
+                <div class="steps" id="reservationSteps">
+                    <div class="step active" data-step="1">
+                        <span class="step-number">1</span>
+                        <span class="step-label">診療科</span>
+                    </div>
+                    <div class="step" data-step="2">
+                        <span class="step-number">2</span>
+                        <span class="step-label">施術・日時</span>
+                    </div>
+                    <div class="step" data-step="3">
+                        <span class="step-number">3</span>
+                        <span class="step-label">患者情報</span>
+                    </div>
+                    <div class="step" data-step="4">
+                        <span class="step-number">4</span>
+                        <span class="step-label">確認</span>
+                    </div>
+                </div>
+
+                <!-- Step 0: クリニック選択 -->
+                <section class="section" id="step0">
+                    <div class="clinic-selection">
+                        <div class="section-heading">
+                            <h2 class="section-title">クリニックを選択してください</h2>
+                        </div>
+
+                        <div class="clinic-list" id="clinicList">
+                            <!-- 動的に追加 -->
+                        </div>
+
+                        <div class="clinic-empty hidden" id="clinicEmpty">
+                            <p>クリニックが登録されていません。</p>
+                            <p class="clinic-empty-sub">管理画面でクリニックを追加してください。</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 1: 診療科選択 -->
+                <section class="section hidden" id="step1">
+                    <!-- 選択中のクリニック名 -->
+                    <div class="selected-clinic-badge" id="selectedClinicBadge">
+                        <span class="clinic-badge-icon"><i class="fas fa-hospital"></i></span>
+                        <span class="clinic-badge-name" id="clinicName">クリニック名</span>
+                        <button type="button" class="clinic-badge-change" id="changeClinicBtn">変更</button>
+                    </div>
+
+                    <!-- 予約済み表示 -->
+                    <div class="upcoming-reservations hidden" id="upcomingReservations">
+                        <!-- 動的に追加 -->
+                    </div>
+
+                    <div class="department-selection">
+                        <div class="section-heading">
+                            <p class="section-kicker">実施する診療科やメニュー</p>
+                            <h2 class="section-title">診療科を選択してください</h2>
+                        </div>
+
+                        <div class="department-list" id="departmentList">
+                            <!-- 動的に追加 -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 2: 日時選択 -->
+                <section class="section hidden" id="step2">
+                    <section class="booking-calendar-panel" aria-label="予約日時選択">
+                        <div class="selected-department hidden" id="selectedDepartment" aria-hidden="true">診療科を選択してください</div>
+
+                        <div class="treatment-menu-panel">
+                            <div class="section-heading compact-heading">
+                                <h2 class="section-title">メニューを選択してください</h2>
+                            </div>
+                            <div class="treatment-concern-tabs" id="treatmentConcernTabs" aria-label="肌悩みで絞り込み"></div>
+                            <div class="treatment-menu-list" id="treatmentMenuList"></div>
+                        </div>
+
+                        <div class="treatment-detail-panel hidden" id="treatmentDetailPanel">
+                            <div class="treatment-detail-panel-head">
+                                <div>
+                                    <p class="section-kicker">細かい施術メニュー</p>
+                                    <h2 class="section-title">メニューを選択してください</h2>
+                                </div>
+                                <button type="button" class="treatment-detail-reset" id="changeTreatmentMenu">施術を選び直す</button>
+                            </div>
+                            <div class="treatment-detail-list" id="treatmentDetailList"></div>
+                        </div>
+
+                        <div class="calendar-nav">
+                            <button class="btn-nav" id="prevWeek">&lt; 前週</button>
+                            <span class="current-week" id="currentWeek"></span>
+                            <button class="btn-nav" id="nextWeek">次週 &gt;</button>
+                        </div>
+
+                        <div class="calendar-table-wrap">
+                            <div class="calendar" id="calendar">
+                                <p class="select-date-msg">診療科を選択してください</p>
+                            </div>
+                        </div>
+
+                        <div class="time-slots" id="timeSlots">
+                            <p class="select-date-msg">○の日時を選択すると確認画面へ進みます</p>
+                        </div>
+
+                        <div class="form-actions compact-actions">
+                            <button type="button" class="btn-back" id="backToStep1">診療科を選び直す</button>
+                        </div>
+                    </section>
+                </section>
+
+                <!-- Step 3: 患者情報選択 -->
+                <section class="section hidden" id="step3">
+                    <h2 class="section-title">患者様を選択</h2>
+                    <div class="reservation-patient-list" id="reservationPatientList">
+                        <!-- 動的に追加 -->
+                    </div>
+
+                    <div class="form-actions compact-actions">
+                        <button type="button" class="btn-back" id="backToStep2">日時を選び直す</button>
+                    </div>
+                    <div class="reservation-same-day-addons" id="reservationSameDayAddOns"></div>
+                </section>
+
+                <!-- Step 4: 確認 -->
+                <section class="section hidden" id="step4">
+                    <h2 class="section-title">予約内容の確認</h2>
+
+                    <div class="reservation-summary hidden" id="reservationSummary"></div>
+
+                    <div class="confirm-card" id="confirmCard">
+                        <!-- 動的に追加 -->
+                    </div>
+
+                    <div class="form-actions confirmation-actions">
+                        <button type="button" class="btn-back" id="backToStep3">戻る</button>
+                        <button type="button" class="btn-primary" id="submitReservation">予約を確定する</button>
+                    </div>
+                </section>
+
+                <!-- 完了画面 -->
+                <section class="section hidden" id="stepComplete">
+                    <div class="complete-card">
+                        <div class="complete-icon">&#10003;</div>
+                        <h2>予約が完了しました</h2>
+                        <p class="complete-message">
+                            ご予約ありがとうございます。
+                        </p>
+                        <div class="complete-details" id="completeDetails"></div>
+
+                        <div class="after-reservation-actions" id="afterReservationActions">
+                            <div class="post-task-card" id="questionnaireTaskCard">
+                                <div class="post-task-status" id="questionnaireTaskStatus">未回答</div>
+                                <div class="post-task-body">
+                                    <h3>続けてWeb問診に回答してください</h3>
+                                </div>
+                                <button class="btn-primary post-task-button" id="openQuestionnaire">問診記入</button>
+                            </div>
+
+                            <div class="questionnaire-panel hidden" id="questionnairePanel">
+                                <div class="questionnaire-panel-header">
+                                    <h3 id="questionnaireTitle">問診票</h3>
+                                    <button class="btn-link" id="closeQuestionnairePanel">閉じる</button>
+                                </div>
+                                <form class="form" id="questionnaireForm"></form>
+                            </div>
+
+                            <div class="post-task-card hidden" id="consentTaskCard">
+                                <div class="post-task-status" id="consentTaskStatus">確認中</div>
+                                <div class="post-task-body">
+                                    <h3>施術の同意書を事前に提出できます</h3>
+                                    <p id="consentTaskDescription">来院前に内容をご確認ください。</p>
+                                </div>
+                                <button class="btn-primary post-task-button" id="openConsentForm" type="button">同意書を確認</button>
+                            </div>
+
+                            <div class="post-task-card hidden" id="previsitTaskCard">
+                                <div class="post-task-status">事前案内</div>
+                                <div class="post-task-body">
+                                    <h3 id="previsitTaskTitle">ご来院前のご案内</h3>
+                                    <p>注意事項・持ち物・所要時間をご確認ください。</p>
+                                </div>
+                                <button class="btn-primary post-task-button" id="openPrevisitGuidance" type="button">案内を確認</button>
+                            </div>
+
+                            <div class="post-task-card" id="insuranceTaskCard">
+                                <div class="post-task-status" id="insuranceTaskStatus">未登録</div>
+                                <div class="post-task-body">
+                                    <h3>保険証を登録できます</h3>
+                                </div>
+                                <label class="btn-back post-task-upload">
+                                    画像を選択
+                                    <input type="file" id="insuranceCardInput" accept="image/*">
+                                </label>
+                            </div>
+
+                            <div class="insurance-preview hidden" id="insurancePreview">
+                                <img id="insurancePreviewImage" alt="保険証プレビュー">
+                                <button class="btn-primary" id="uploadInsuranceCard">保険証を登録</button>
+                            </div>
+
+                            <div class="post-task-card hidden" id="googleReviewTaskCard">
+                                <div class="post-task-status">任意</div>
+                                <div class="post-task-body">
+                                    <h3>Googleで感想を書く</h3>
+                                </div>
+                                <a class="btn-primary post-task-button google-review-button" id="googleReviewButton" href="#" target="_blank" rel="noopener">感想を書く</a>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary" id="backToMypage">マイページへ戻る</button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- ========== 設定ページ ========== -->
+            <div class="page hidden" id="page-settings">
+                <section class="section settings-screen">
+                    <div id="settingsMenuView">
+                        <h2 class="settings-page-title">設定</h2>
+                        <div class="settings-menu-list" aria-label="設定メニュー">
+                            <button type="button" class="settings-menu-row" data-settings-panel="account">
+                                <span class="settings-menu-icon"><i class="fa-solid fa-user" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">本人設定</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="patients">
+                                <span class="settings-menu-icon"><i class="fa-solid fa-people-roof" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">家族設定</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="email">
+                                <span class="settings-menu-icon"><i class="fa-regular fa-envelope" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">メールアドレス設定</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row settings-menu-row-connection" data-settings-panel="connections">
+                                <span class="settings-menu-icon settings-line-icon"><i class="fa-brands fa-line" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">LINE連携</span>
+                                <span class="settings-connection-status is-disconnected" id="settingsLineConnectionStatus">未設定</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row settings-menu-row-connection" data-settings-panel="connections">
+                                <span class="settings-menu-icon settings-google-icon"><i class="fa-brands fa-google" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">Googleアカウント連携</span>
+                                <span class="settings-connection-status is-disconnected" id="settingsGoogleConnectionStatus">未設定</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="payment">
+                                <span class="settings-menu-icon"><i class="fa-regular fa-credit-card" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">支払い方法設定</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="reservations">
+                                <span class="settings-menu-icon"><i class="fa-regular fa-calendar-check" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">予約一覧</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="notifications">
+                                <span class="settings-menu-icon"><i class="fa-regular fa-bell" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">通知設定</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row settings-menu-row-danger" data-settings-panel="data">
+                                <span class="settings-menu-icon"><i class="fa-solid fa-database" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">データ管理</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                        </div>
+
+                        <div class="settings-menu-list settings-menu-list-secondary" aria-label="サービス情報">
+                            <button type="button" class="settings-menu-row" data-settings-panel="terms">
+                                <span class="settings-menu-icon"><i class="fa-regular fa-circle-check" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">利用規約</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="privacy">
+                                <span class="settings-menu-icon"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">プライバシーポリシー</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="data-sources">
+                                <span class="settings-menu-icon"><i class="fa-regular fa-file-lines" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">データの提供元</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="licenses">
+                                <span class="settings-menu-icon"><i class="fa-regular fa-circle-check" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">ライセンス</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="settings-menu-row" data-settings-panel="contact">
+                                <span class="settings-menu-icon"><i class="fa-regular fa-circle-question" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">お問い合わせ</span>
+                                <i class="fa-solid fa-chevron-right settings-menu-chevron" aria-hidden="true"></i>
+                            </button>
+                            <div class="settings-menu-row settings-version-row">
+                                <span class="settings-menu-icon"><i class="fa-solid fa-gears" aria-hidden="true"></i></span>
+                                <span class="settings-menu-label">バージョン</span>
+                                <span class="settings-menu-meta">1.0.0</span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </section>
+            </div>
+            <div class="page hidden" id="page-chat">
+                <div class="portal-chat-page">
+                    <header class="portal-chat-page-header">
+                        <div><span>クリニックとの連絡</span><h2>チャット</h2></div>
+                    </header>
+                    <p class="portal-chat-status" id="portalChatStatus">チャットは準備中です。お問い合わせはお電話でお願いいたします。</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- 下部ナビゲーション -->
+        <nav class="bottom-nav hidden" id="bottomNav">
+            <button class="bottom-nav-item active" data-page="mypage">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 10.5 12 3l9 7.5"></path>
+                    <path d="M5 9.5V21h14V9.5"></path>
+                    <path d="M9 21v-7h6v7"></path>
+                </svg>
+                <span>マイページ</span>
+            </button>
+            <button class="bottom-nav-item" data-page="reservation">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <span>予約</span>
+            </button>
+            <button class="bottom-nav-item" data-page="chat">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M4 5h16v11H9l-5 4V5Z"></path><path d="M8 9h8M8 12h5"></path>
+                </svg>
+                <span>チャット</span>
+            </button>
+            <button class="bottom-nav-item" data-page="settings">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.09a2 2 0 0 1 1 1.74v.5a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span>設定</span>
+            </button>
+        </nav>
+
+
+
+
+
+        <!-- 施術同意書モーダル -->
+        <div class="edit-modal hidden" id="consentModal">
+            <div class="edit-modal-overlay" id="consentModalOverlay"></div>
+            <div class="edit-modal-content consent-modal-content" role="dialog" aria-modal="true" aria-labelledby="consentModalTitle">
+                <div class="edit-modal-header">
+                    <h3 id="consentModalTitle">施術・診療に関する同意書</h3>
+                    <button type="button" class="edit-modal-close" id="consentModalClose" aria-label="同意書を閉じる">&times;</button>
+                </div>
+                <div class="consent-modal-body" id="consentModalBody"></div>
+            </div>
         </div>
-        <div class="cta-bar"><button onclick="goConfirm()">入力内容を確認する</button></div>
-      </div>
-      ${consentOpen?consentModal():""}`;
-  } else {
-    app.innerHTML = `
-      ${stepsHtml(3)}
-      <div class="card">
-        <h2>ご予約内容の確認</h2>
-        ${selSummary}
-        <div id="formErr"></div>
-        <table class="confirm"><tbody>
-          <tr><th>クリニック</th><td>${esc(clinic.name)}（${esc(svc.name)}）</td></tr>
-          ${menu?`<tr><th>メニュー</th><td>${esc(menu.name)}<div class="muted">${menu.firstVisitPrice!=null?`初回 ¥${menu.firstVisitPrice.toLocaleString()}`:menu.price?`¥${menu.price.toLocaleString()}〜`:"要問合せ"}</div></td></tr>`:""}
-          <tr><th>日時</th><td>${dateLabel}</td></tr>
-          <tr><th>お名前</th><td>${esc(form.name)}（${esc(form.kana)}）</td></tr>
-          ${form.birthDate?`<tr><th>生年月日</th><td>${esc(form.birthDate)}</td></tr>`:""}
-          <tr><th>電話番号</th><td>${esc(form.phone)}</td></tr>
-          ${form.email?`<tr><th>メール</th><td>${esc(form.email)}</td></tr>`:""}
-          <tr><th>初診・再診</th><td>${form.visitType==="FIRST"?"初めて（初診）":"2回目以降（再診）"}</td></tr>
-          <tr><th>保険証・医療証</th><td>${preDocsSummary()}</td></tr>
-          ${staffList(clinic).length?`<tr><th>ご指名</th><td>${form.staffId?esc(staffNameOf(clinic, form.staffId)):"指名なし（当院にお任せ）"}</td></tr>`:""}
-          <tr><th>同意書</th><td>✓ 確認・同意済み</td></tr>
-          ${form.note?`<tr><th>ご相談内容</th><td>${esc(form.note)}</td></tr>`:""}
-        </tbody></table>
-        <div class="cta-bar">
-          <button onclick="submitReservation()">この内容で予約を確定する</button>
-          <button class="secondary" onclick="editInput()">入力内容を修正する</button>
-        </div>
-      </div>`;
-  }
-}
-
-function consentModal(){
-  return `<div class="modal-overlay" onclick="if(event.target===this)closeConsent()">
-    <div class="modal-box">
-      <h2 style="margin-top:0">施術・診療に関する同意書</h2>
-      <div class="modal-body">
-        <h4>1. 診療・施術について</h4><p>当院の診療・施術は医師の診察に基づき実施されます。効果には個人差があります。</p>
-        <h4>2. リスク・副作用について</h4><p>赤み・腫れ・内出血・乾燥などが生じる場合があります。気になる症状が続く場合は速やかにご連絡ください。</p>
-        <h4>3. 施術をお受けいただけない場合</h4><p>妊娠中・授乳中の方、特定の疾患・服薬状況のある方は施術をお受けいただけない場合があります。</p>
-        <h4>4. 個人情報の取り扱い</h4><p>ご入力いただいた個人情報は診療・予約管理・ご連絡の目的にのみ使用します。</p>
-        <h4>5. ご予約の変更・キャンセルについて</h4>
-        <p>ご都合が悪くなった場合は、<b>できるだけ早めに</b>予約サイトの「予約の確認・キャンセル」またはお電話でご連絡ください。
-           ご連絡のないキャンセル（無断キャンセル）や当日キャンセルが重なった場合、以降のご予約をお受けできないことがあります。</p>
-        <p><b>キャンセル料が発生する施術については、ご予約時に個別にご案内します。</b>
-           ご案内がない場合、キャンセル料はいただきません。</p>
-        <h4>6. お支払いについて</h4>
-        <p>お支払いは<b>ご来院時</b>にお願いしております。現金・カード等のお取り扱いは院により異なりますので、
-           ご不明な場合は事前にお問い合わせください。</p>
-      </div>
-      <p class="muted" style="font-size:11.5px;margin:10px 0 0">同意された日時を記録させていただきます（規約 ${esc(CONSENT_VERSION)}）。</p>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
-        <button onclick="confirmConsent()">内容を確認し、同意します</button>
-        <button class="secondary" onclick="closeConsent()">閉じる</button>
-      </div>
-    </div></div>`;
-}
-
-function readForm(){
-  form.name = (document.getElementById("f_name")||{}).value ?? form.name;
-  form.kana = (document.getElementById("f_kana")||{}).value ?? form.kana;
-  form.birthDate = (document.getElementById("f_birth")||{}).value ?? form.birthDate;
-  form.phone = (document.getElementById("f_phone")||{}).value ?? form.phone;
-  form.email = (document.getElementById("f_email")||{}).value ?? form.email;
-  form.note = (document.getElementById("f_note")||{}).value ?? form.note;
-  form.staffId = (document.getElementById("f_staff")||{}).value ?? form.staffId;   // 指名（空＝指名なし）
-  // ラジオ（初診/再診）・チェック（注意事項同意）はDOMから読む（インラインで変数へ代入しない）
-  const vt = document.querySelector('input[name="vt"]:checked');
-  if (vt) form.visitType = vt.value;
-  const ag = document.getElementById("f_agree");
-  if (ag) form.agree = ag.checked;
-}
-// 同意書モーダル・週送りの状態操作（インラインハンドラから変数へ直接代入すると
-// input要素の form プロパティ等に化けて壊れるため、必ずグローバル関数経由にする）
-function openConsent(){ readForm(); consentOpen = true; renderForm(); }
-function closeConsent(){ consentOpen = false; renderForm(); }
-function confirmConsent(){ form.consent = true; consentAt = new Date().toISOString(); consentOpen = false; renderForm(); }
-function weekPrev(){ if(weekOffset>0){ weekOffset--; render(); } }
-function weekNext(){ weekOffset++; render(); }
-function editInput(){ formStep = "input"; renderForm(); }
-// 選択サマリーの「変更」: 入力途中の内容を保持したまま日時選択へ戻る
-function backToSlot(){ if(formStep==="input") readForm(); go({ view:"service" }); }
-function err(msg, extraHtml){ document.getElementById("formErr").innerHTML = `<div class="alert">${esc(msg)}${extraHtml||""}</div>`; }
-
-/* ---------------- 保存失敗の伝え方（患者向けの平易な文言） ----------------
-   store.js は失敗の種類を reason で返す（DUPLICATE=DBが二重予約を拒否／
-   OFFLINE=予約DBに接続できない／NETWORK=通信不達／DB=その他DBエラー）。
-   患者向けサイトでは、どの失敗でも「完了」と表示せず、入力内容を残したまま再試行できる状態に戻す。 */
-const PATIENT_MSG = {
-  DUPLICATE: "申し訳ありません。ちょうど今、別の方が同じ時間帯を予約されました。お手数ですが別の時間をお選びください。",
-  FAILED:    "ただ今、予約を受け付けできませんでした。お手数ですが、しばらく経ってからもう一度お試しいただくか、お電話でご連絡ください。",
-  CANCEL:    "ただ今、キャンセルの手続きができませんでした。お手数ですが、しばらく経ってからもう一度お試しいただくか、お電話でご連絡ください。",
-};
-function patientMsg(res, fallbackKey){
-  if(res && res.reason === "DUPLICATE") return PATIENT_MSG.DUPLICATE;
-  if(res && ["OFFLINE","NETWORK","DB","COL_MISSING"].includes(res.reason)) return PATIENT_MSG[fallbackKey||"FAILED"];
-  return (res && res.error) || PATIENT_MSG[fallbackKey||"FAILED"];   // 画面側の事前チェック（満員 等）はその文言のまま
-}
-// 接続できていないときの警告バー（予約を受け付けられないことを最初から知らせる）
-function renderConnBar(){
-  const bar = document.getElementById("connBar"); if(!bar) return;
-  if(Store.isOffline()){
-    bar.innerHTML = "⚠ ただ今、予約システムに接続できておりません。恐れ入りますが、しばらく経ってからもう一度お試しいただくか、お電話でご連絡ください。";
-    bar.style.display = "block";
-  } else {
-    bar.style.display = "none";
-  }
-}
-
-function goConfirm(){
-  readForm();
-  if(!form.name.trim()||!form.kana.trim()||!form.phone.trim()) return err("お名前・フリガナ・電話番号は必須です。");
-  if(!form.visitType) return err("初診・再診を選択してください。");
-  if(!form.consent) return err("同意書をご確認のうえ、「内容を確認し、同意します」を押してください。");
-  if(!form.agree) return err("注意事項に同意してください。");
-  formStep="confirm"; renderForm(); window.scrollTo(0,0);
-}
-
-async function submitReservation(){
-  const btn = document.querySelector('.cta-bar button');
-  if(btn){ btn.disabled = true; btn.textContent = "予約処理中…"; }
-  const res = await Store.createReservation({
-    csId: state.csId, date: state.date, time: state.time,
-    name: form.name.trim(), kana: form.kana.trim(), birthDate: form.birthDate,
-    phone: form.phone.trim(), email: form.email.trim(), visitType: form.visitType,
-    menuId: state.menuId, note: form.note.trim(), channel: "WEB",
-    staffId: form.staffId ? Number(form.staffId) : null,   // ご指名（未指名はnull＝受付が後で割当）
-    lineUserId: (window.__lineUser && window.__lineUser.id) || null,
-    // 同意した事実と日時を残す（キャンセル規定の明示・将来の決済導入の前提工事）
-    consentAt: consentAt, consentVersion: CONSENT_VERSION,
-  });
-  // ★保存に失敗したら「完了」にしない。入力内容（form）は消さず、確認画面のまま再試行できる状態に戻す。
-  if(!res.ok){
-    formStep="confirm"; renderForm();
-    const link = (res.reason === "DUPLICATE")
-      ? `<div style="margin-top:8px"><a class="back" onclick="go({view:'service',slotId:null})">別の日時を選び直す →</a></div>` : "";
-    err(patientMsg(res, "FAILED"), link);
-    window.scrollTo(0,0);
-    return;
-  }
-  // ここまで来たら保存成功。予約番号はこの時点で確定・表示する。
-  state.doneCode = res.reservation.code;
-  form = null;
-  go({ view:"done" });
-  // 入力画面で選んだ写真は、予約番号が決まったこの時点で送る（完了画面の欄に結果を出す）
-  sendPendingDocs(res.reservation.code);
-}
 
 
-/* ---------------- 保険証・医療証の写真（Wave10・任意） ----------------
-   完了画面で撮影して送る。画像は Storage の非公開バケット rsv-documents に置き、
-   予約行に「どの予約のどの証か」を記録する（受付のカルテに自動で引き継がれる）。
-   失敗したときは「送信しました」と出さない。 */
-function rsvDocsHtml(code){
-  return `<div class="card" id="rsvDocsCard">
-      <h2>保険証・医療証の写真（任意）</h2>
-      <p class="muted">事前に送っていただくと、当日の受付が早く済みます。写真はクリニックの担当者だけが確認します。文字が読める向きで、明るい場所で撮影してください。撮影のほか、端末に保存してある写真も選べます。</p>
-      <ul class="muted doc-howto">
-        <li>下の「ファイルを選択」を押すと、スマホではカメラが起動します。撮ると数秒で「送信できました」と出ます。</li>
-        <li>あとから送るときは「予約の確認・キャンセル」を開き、予約番号と電話番号で予約を呼び出すと同じ欄が出ます。</li>
-        <li>マイナ保険証の方は「資格情報のお知らせ」または「資格確認書」を、医療証（こども・ひとり親など）をお持ちの方は保険証と医療証の両方をお送りください。</li>
-        <li>写真は送る前にお使いの端末で縮小され、位置情報などは含まれません。受付で内容を確認したうえで登録します（自動では確定しません）。</li>
-      </ul>
-      <div class="doc-row">
-        <span class="doc-label">保険証（資格確認書・資格情報のお知らせでも可）</span>
-        <input type="file" accept="image/*" onchange="uploadRsvDoc('${esc(code)}','insurance',this)">
-        <span class="doc-status" id="docStatus_insurance"></span>
-      </div>
-      <div class="doc-row">
-        <span class="doc-label">医療証（お持ちの方のみ）</span>
-        <input type="file" accept="image/*" onchange="uploadRsvDoc('${esc(code)}','iryo',this)">
-        <span class="doc-status" id="docStatus_iryo"></span>
-      </div>
-    </div>`;
-}
-/* 端末側で縮小（長辺1600px・JPEG）。位置情報などの付加情報はこの時点で落ちる */
-function rsvShrinkImage(file, maxSide, quality){
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      const scale = Math.min(1, (maxSide||1600) / Math.max(img.width, img.height));
-      const w = Math.round(img.width*scale), h = Math.round(img.height*scale);
-      const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
-      cv.getContext("2d").drawImage(img, 0, 0, w, h);
-      URL.revokeObjectURL(url);
-      cv.toBlob(b => b ? resolve(b) : reject(new Error("画像を変換できませんでした")), "image/jpeg", quality||0.85);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("画像を読み込めませんでした")); };
-    img.src = url;
-  });
-}
-/* 縮小済みの画像1枚を、予約番号の下に置いて予約行に記録する。成功したら true */
-async function rsvUploadBlob(code, kind, blob){
-  const client = Store.getClient && Store.getClient();
-  if(!client) throw new Error("通信の準備ができていません");
-  const path = `rsv/${code}/${kind}_${Date.now()}.jpg`;
-  const up = await client.storage.from("rsv-documents").upload(path, blob, { contentType:"image/jpeg", upsert:false });
-  if(up.error) throw up.error;
-  const row = { docs_uploaded_at: new Date().toISOString() };
-  row[kind==="insurance" ? "insurance_card_path" : "iryo_card_path"] = path;
-  const { error } = await client.from("rsv2_reservations").update(row).eq("code", code);
-  if(error) throw error;
-  return true;
-}
-function setDocStatus(kind, t, cls){
-  const st = document.getElementById("docStatus_"+kind);
-  if(st){ st.textContent = t; st.className = "doc-status" + (cls?" "+cls:""); }
-}
-async function uploadRsvDoc(code, kind, input){
-  const file = input.files && input.files[0]; if(!file) return;
-  setDocStatus(kind, "送信中…", "");
-  try{
-    const blob = await rsvShrinkImage(file, 1600, 0.85);
-    await rsvUploadBlob(code, kind, blob);
-    setDocStatus(kind, "✓ 送信しました（" + (kind==="insurance"?"保険証":"医療証") + "）", "ok");
-  }catch(e){
-    console.warn("[rsv-docs] upload failed", e);
-    setDocStatus(kind, "送信できませんでした。当日、受付でご提示ください。", "ng");
-  }finally{
-    input.value = "";
-  }
-}
 
-/* ---- 予約完了前（入力画面）で選んだ写真。予約番号が決まってから送る ---- */
-let pendingDocs = { insurance: null, iryo: null };
-const DOC_LABEL = { insurance: "保険証", iryo: "医療証" };
-function preDocsHtml(){
-  const st = k => pendingDocs[k]
-    ? `<span class="doc-status ok" id="preDocStatus_${k}">✓ 選択済み（予約完了と同時に送ります）<a class="back" style="margin-left:8px" onclick="clearPreDoc('${k}')">取り消す</a></span>`
-    : `<span class="doc-status" id="preDocStatus_${k}"></span>`;
-  return `<div class="field pre-docs">
-      <div><b>保険証・医療証の写真</b><span class="opt">任意</span></div>
-      <p class="muted" style="margin:4px 0 6px;font-size:12px">いま撮っておくと予約完了と同時に送られ、当日の受付が早く済みます。あとから（予約完了の画面・予約の確認画面）でも送れます。文字が読める向きで、明るい場所で撮影してください。撮影のほか、端末に保存してある写真も選べます。</p>
-      <div class="doc-row">
-        <span class="doc-label">保険証（資格確認書・資格情報のお知らせでも可）</span>
-        <input type="file" accept="image/*" onchange="pickPreDoc('insurance',this)">
-        ${st("insurance")}
-      </div>
-      <div class="doc-row">
-        <span class="doc-label">医療証（お持ちの方のみ）</span>
-        <input type="file" accept="image/*" onchange="pickPreDoc('iryo',this)">
-        ${st("iryo")}
-      </div>
-    </div>`;
-}
-function preDocsSummary(){
-  const have = ["insurance","iryo"].filter(k => pendingDocs[k]).map(k => DOC_LABEL[k] + " 選択済み");
-  return have.length ? esc(have.join("／")) + '<div class="muted">予約完了と同時に送ります</div>' : 'なし<div class="muted">予約完了の画面からも送れます</div>';
-}
-async function pickPreDoc(kind, input){
-  const file = input.files && input.files[0]; if(!file) return;
-  const st = document.getElementById("preDocStatus_"+kind);
-  if(st){ st.textContent = "読み込み中…"; st.className = "doc-status"; }
-  try{
-    pendingDocs[kind] = await rsvShrinkImage(file, 1600, 0.85);
-    if(st){ st.className = "doc-status ok"; st.innerHTML = `✓ 選択済み（予約完了と同時に送ります）<a class="back" style="margin-left:8px" onclick="clearPreDoc('${kind}')">取り消す</a>`; }
-  }catch(e){
-    console.warn("[rsv-docs] pick failed", e);
-    pendingDocs[kind] = null;
-    if(st){ st.textContent = "この画像は使えませんでした。別の写真をお選びください。"; st.className = "doc-status ng"; }
-  }finally{
-    input.value = "";
-  }
-}
-function clearPreDoc(kind){
-  pendingDocs[kind] = null;
-  const st = document.getElementById("preDocStatus_"+kind);
-  if(st){ st.textContent = ""; st.className = "doc-status"; }
-}
-/* 予約が確定した直後に呼ぶ。完了画面の欄に結果を出す（失敗しても「送信しました」とは出さない） */
-async function sendPendingDocs(code){
-  for(const kind of ["insurance","iryo"]){
-    const blob = pendingDocs[kind]; if(!blob) continue;
-    pendingDocs[kind] = null;
-    setDocStatus(kind, "送信中…", "");
-    try{
-      await rsvUploadBlob(code, kind, blob);
-      setDocStatus(kind, "✓ 送信しました（" + DOC_LABEL[kind] + "）", "ok");
-    }catch(e){
-      console.warn("[rsv-docs] pending upload failed", e);
-      setDocStatus(kind, "送信できませんでした。下の欄からもう一度お送りください。", "ng");
-    }
-  }
-}
-
-/* ---------------- 4. 完了 ---------------- */
-/* LINEの案内は「通知を受け取りたい」動機が最大になるこの画面に置く
-   （ヘッダーの常時バーは1行の案内まで縮めた）。 */
-function lineInviteHtml(){
-  const url = window.__lineAddUrl;
-  if(!url) return "";
-  return `<div class="line-invite">
-      <span class="li-icon">💬</span>
-      <span class="li-text"><b>ご予約のリマインドをLINEで受け取れます</b>
-        <small>前日のお知らせ・変更のご連絡をLINEでお送りします（任意）。</small></span>
-      <a class="li-btn" href="${url}" target="_blank" rel="noopener">LINEで受け取る</a>
-    </div>`;
-}
-/* Googleカレンダー追加リンク（外部ライブラリ不要・URLを組み立てるだけ） */
-function gcalUrl(rr, clinic, svc){
-  const menu = rr.menuId ? Store.menuById(rr.menuId) : null;
-  const dur = (menu && menu.durationMin) || 30;
-  const st = new Date(`${rr.date}T${rr.time}:00`);
-  const en = new Date(st.getTime() + dur*60000);
-  const z = d => d.toISOString().replace(/[-:]/g,"").replace(/\.\d{3}/,"");
-  const title = `${clinic.name}クリニック ${svc.name} のご予約`;
-  return "https://calendar.google.com/calendar/render?action=TEMPLATE"
-    + `&text=${encodeURIComponent(title)}&dates=${z(st)}/${z(en)}`
-    + `&location=${encodeURIComponent(clinic.address)}&details=${encodeURIComponent("予約番号: "+rr.code)}`;
-}
-function renderDone(){
-  const r = Store.findReservation(state.doneCode, Store.loadReservations().find(x=>x.code===state.doneCode)?.phone||"");
-  const list = Store.loadReservations();
-  const rr = list.find(x=>x.code===state.doneCode);
-  const clinic = Store.clinicOfCs(rr.csId);
-  const svc = Store.serviceOfCs(rr.csId);
-  const menu = rr.menuId ? Store.menuById(rr.menuId) : null;
-  app.innerHTML = `
-    <h1>ご予約が完了しました</h1>
-    <div class="card">
-      <p>予約番号（確認・キャンセルの際に必要です）:</p>
-      <div class="code-display">${esc(rr.code)}</div>
-      <table><tbody>
-        <tr><th>クリニック</th><td>${esc(clinic.name)}（${esc(svc.name)}）</td></tr>
-        ${menu?`<tr><th>メニュー</th><td>${esc(menu.name)}</td></tr>`:""}
-        <tr><th>日時</th><td>${Store.fmtJa(rr.date)} ${rr.time}</td></tr>
-        ${Store.roomName(rr)?`<tr><th>診察室</th><td>${esc(Store.roomName(rr))}</td></tr>`:""}
-        ${rr.staffId&&staffNameOf(clinic, rr.staffId)?`<tr><th>ご指名</th><td>${esc(staffNameOf(clinic, rr.staffId))}</td></tr>`:""}
-        <tr><th>お名前</th><td>${esc(rr.name)} 様</td></tr>
-        <tr><th>初診・再診</th><td>${rr.visitType==="FIRST"?"初めて（初診）":"2回目以降（再診）"}</td></tr>
-      </tbody></table>
-      <p class="muted" style="margin-top:12px">※確認メール（第2弾でLINE通知）をお送りします。予約番号は大切に保管してください。</p>
-      <p class="success" style="margin-top:12px">✓ このご予約は<strong>クリニックの受付にその場で届いています</strong>（お電話での確認は不要です）。</p>
     </div>
-    ${rsvDocsHtml(rr.code)}
-    ${lineInviteHtml()}
-    <div class="card">
-      <h2>ご来院について</h2>
-      <table><tbody>
-        <tr><th>住所</th><td>${esc(clinic.address)}</td></tr>
-        <tr><th>電話</th><td>${esc(clinic.phone)}</td></tr>
-      </tbody></table>
-      <p class="muted" style="margin-top:10px">ご予約時間の5〜10分前を目安にお越しください。保険証（初診の方）・お薬手帳をご持参ください。</p>
-      <div class="done-links">
-        <a href="https://maps.google.com/?q=${encodeURIComponent(clinic.address)}" target="_blank" rel="noopener">地図で場所を見る</a>
-        <a href="${gcalUrl(rr, clinic, svc)}" target="_blank" rel="noopener">カレンダーに追加する</a>
-      </div>
-    </div>
-    <button class="secondary" onclick="go({view:'home',csId:null,menuId:null,date:null,slotId:null})">トップに戻る</button>`;
-}
 
-/* ---------------- 5. 予約の確認・キャンセル ---------------- */
-function renderLookup(){
-  app.innerHTML = `
-    <h1>予約の確認・キャンセル</h1>
-    <div class="card">
-      <div id="lookErr"></div>
-      <div class="stack">
-        <label class="field">予約番号<span class="req">必須</span><input id="l_code" placeholder="例）ABCD2345" style="text-transform:uppercase" autocapitalize="characters" autocomplete="off" spellcheck="false"></label>
-        <label class="field">電話番号<span class="req">必須</span><input id="l_phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="予約時の電話番号"></label>
-      </div>
-      <div class="cta-bar"><button onclick="doLookup()">予約を照会する</button></div>
-    </div>
-    <div id="lookResult"></div>`;
-}
-function doLookup(){
-  const code = document.getElementById("l_code").value;
-  const phone = document.getElementById("l_phone").value;
-  const r = Store.findReservation(code, phone);
-  if(!r){ document.getElementById("lookErr").innerHTML = `<div class="alert">予約が見つかりません。予約番号と電話番号をご確認ください。</div>`; document.getElementById("lookResult").innerHTML=""; return; }
-  document.getElementById("lookErr").innerHTML = "";
-  const clinic = Store.clinicOfCs(r.csId), svc = Store.serviceOfCs(r.csId);
-  const cancelled = r.status==="CANCELLED";
-  document.getElementById("lookResult").innerHTML = `
-    <div class="card">
-      <h2>ご予約内容 ${cancelled?'<span class="badge cancelled">キャンセル済み</span>':'<span class="badge confirmed">予約確定</span>'}</h2>
-      <table><tbody>
-        <tr><th>予約番号</th><td>${esc(r.code)}</td></tr>
-        <tr><th>クリニック</th><td>${esc(clinic.name)}（${esc(svc.name)}）</td></tr>
-        <tr><th>日時</th><td>${Store.fmtJa(r.date)} ${r.time}</td></tr>
-        <tr><th>お名前</th><td>${esc(r.name)} 様</td></tr>
-      </tbody></table>
-      ${cancelled?"":`<div class="cta-bar"><button class="danger" onclick="doCancel('${esc(r.code)}','${esc(r.phone)}')">この予約をキャンセルする</button></div>`}
-    </div>
-    ${cancelled?"":rsvDocsHtml(r.code)}`;
-}
-async function doCancel(code, phone){
-  if(!confirm("この予約をキャンセルします。よろしいですか？")) return;
-  const res = await Store.cancelReservation(code, phone);
-  if(res.ok){ document.getElementById("lookResult").innerHTML = `<div class="success">予約をキャンセルしました。受付ボードにも即時反映されます。</div>`; return; }
-  // 失敗は必ず画面に出す（キャンセルできたように見せない）
-  document.getElementById("lookErr").innerHTML = `<div class="alert">${esc(patientMsg(res, "CANCEL"))}</div>`;
-  window.scrollTo(0,0);
-}
-
-/* ---------------- 他タブ（受付側）からの変更を受信して再描画 ---------------- */
-Store.onSync(()=>{ if(["service","home"].includes(state.view)) render(); });
-
-// バックエンド確定後にバッジ更新＋初期描画（Supabaseの既存予約を反映してから描く）
-render();
-Store.ready.then(()=>{
-  const b = Store.getBackend();
-  const badge = document.querySelector(".sync-badge");
-  // 正常時（supabase / ローカル同期）はバッジを出さない。
-  // 接続できていないときだけ、患者に分かる言葉で警告する（安全側の表示は必ず残す）。
-  if(badge){
-    if(b==="offline"){
-      badge.className = "sync-badge warn";
-      badge.innerHTML = `<span class="sync-dot"></span>ただ今ご予約を受け付けできません`;
-    } else {
-      badge.className = "sync-badge";
-      badge.innerHTML = `<span class="sync-dot"></span>`;
-    }
-  }
-  renderConnBar();
-  render();
-});
-</script>
-
-<!-- ================= LINE連携（LIFFログイン→userId取得→予約確定通知） ================= -->
-<script>
-(function(){
-  const LIFF_ID = "2008141336-KokioNBq";                       // 公開情報（クライアント埋め込み用）
-  const OA_ADD_URL = "https://line.me/R/ti/p/@584zdybj";       // 予約通知を送るLINE公式アカウントの友だち追加
-  window.__lineUser = null;
-  window.__lineAddUrl = OA_ADD_URL;                            // 完了画面のLINE案内から参照する
-
-  function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
-
-  function renderLineBar(){
-    const bar = document.getElementById("lineBar");
-    if(!bar) return;
-    if(window.__lineUser){
-      bar.innerHTML =
-        '<span class="lb-icon">✓</span>'
-        + '<span class="lb-text"><b>LINE連携済み：'+esc(window.__lineUser.name)+' さん</b>'
-        + '<small>ご予約が確定すると、この LINE に確認メッセージをお送りします。</small></span>'
-        + '<a class="lb-add" href="'+OA_ADD_URL+'" target="_blank" rel="noopener">通知を受け取るには友だち追加</a>';
-      bar.classList.add("connected");
-    }else{
-      bar.innerHTML =
-        '<span class="lb-icon">💬</span>'
-        + '<span class="lb-text"><b>LINEで予約通知を受け取る</b>'
-        + '<small>LINEと連携すると、予約確定やお知らせを LINE で受け取れます（任意）。</small></span>'
-        + '<button class="lb-btn" onclick="__lineLogin()">LINEで連携する</button>';
-      bar.classList.remove("connected");
-    }
-    bar.style.display = "flex";
-  }
-
-  window.__lineLogin = function(){
-    try{ if(window.liff && liff.login) liff.login({ redirectUri: location.href }); }
-    catch(e){ alert("LINE連携を開始できませんでした。時間をおいてお試しください。"); }
-  };
-
-  function boot(){
-    if(!window.liff){ return; }   // SDK未読込時は何も出さない
-    liff.init({ liffId: LIFF_ID }).then(function(){
-      if(liff.isLoggedIn()){
-        return liff.getProfile().then(function(p){
-          window.__lineUser = { id: p.userId, name: p.displayName };
-          renderLineBar();
-        });
-      }
-      renderLineBar();
-    }).catch(function(e){
-      // LIFF初期化失敗（ドメイン未登録・ネットワーク等）→ バーは出さない
-      console.warn("LIFF init failed:", e && e.message);
-    });
-  }
-  if(document.readyState==="complete" || document.readyState==="interactive") boot();
-  else window.addEventListener("DOMContentLoaded", boot);
-})();
-</script>
+    <!-- 統合版: DB 接続（prototype3 と同じ store.js・予約は rsv2_* 表へ）と、基準版の部品を使って統合版の予約の流れを動かす画面処理 -->
+    <script>window.__RSV_SUPABASE__ = true;</script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.js" integrity="sha384-3wY11tldQ5+yWqAvmTN4XtQvnjoTva0cV15O/O/O5NTtp0ivVopSzLOzsVXWZse9" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="store.js"></script>
+    <script src="rsv_v4.js"></script>
 </body>
 </html>
