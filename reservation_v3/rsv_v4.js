@@ -705,7 +705,7 @@
   }
 
   /* =============================================================
-     LINE 連携（任意）: 押したとき（または LINE から戻ったとき）だけ SDK を読む
+     LINE 連携（任意）: 開いた時点で状態を確かめ、押したときに連携（LINE ログイン）する
      ============================================================= */
   function loadLiff() {
     return new Promise((resolve, reject) => {
@@ -762,8 +762,9 @@
   ensureStep2Parts();
   showStep(0);
   renderClinics();
-  // LINE から戻ってきたときだけ連携を確かめる（ふだんは SDK を読まない）
-  if (params.has("liff.state") || (params.has("code") && params.has("state"))) lineConnect(false);
+  // LINE 連携の状態を開いた時点で確かめる（旧予約サイトと同じ）。以前に連携した方は自動で「連携済み」になり、
+  // 予約に LINE の ID が付いて確定通知が届く。まだ連携していない方にログインは求めない（interactive=false）
+  lineConnect(false);
 
   /* 受付側の変更（他の方の予約・取消・ブロック）をすぐ反映（Realtime） */
   Store.onSync(() => {
