@@ -1,0 +1,416 @@
+/* 保険等タブ（2026-09-24）
+   基準版の「保険等」タブと各小窓の見た目をそのまま移したもの。自動生成（remotion-starter/_cmp/uke/build_hoken_css.mjs）。手で直さない。
+   #hokenTab（タブ）と #hokenModals（小窓・日付選択・削除確認）の中だけに効く。状態（:hover 等）の規則を含む。 */
+#hokenTab, #hokenModals { --primary: #2E7D32; --primary-light: #388E3C; --primary-dark: #1B5E20; --primary-gradient: linear-gradient(180deg, #2E7D32 0%, #1B5E20 100%); --accent: #3C8DBC; --accent-light: #5DADE2; --gray-900: #1a1a1a; --gray-800: #2d2d2d; --gray-700: #404040; --gray-600: #525252; --gray-500: #737373; --gray-400: #a3a3a3; --gray-300: #d4d4d4; --gray-200: #e5e5e5; --gray-100: #f5f5f5; --gray-50: #fafafa; --white: #ffffff; --danger: #b91c1c; --warning: #d97706; --success: #15803d; --info: #0369a1; --shadow-sm: 0 1px 2px rgba(0,0,0,0.05); --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05); --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05); --shadow-xl: 0 20px 25px rgba(0,0,0,0.1), 0 10px 10px rgba(0,0,0,0.04); }
+#hokenTab { font-family: "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 12px; color: rgb(17, 24, 39); line-height: 1.35; letter-spacing: normal; }
+#hokenModals { font-family: "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; color: rgb(45, 45, 45); line-height: 1.6; letter-spacing: normal; }
+#hokenTab *:not([data-extra] *),
+#hokenModals *:not([data-extra] *) { margin: 0px; padding: 0px; box-sizing: border-box; }
+#hokenTab .hidden:not([data-extra] *),
+#hokenModals .hidden:not([data-extra] *) { display: none !important; }
+#hokenModals .btn:not([data-extra] *) { padding: 10px 18px; border-width: medium; border-style: none; border-color: currentcolor; border-image: none; border-radius: 3px; cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit; transition: 0.2s; letter-spacing: 0.3px; }
+#hokenModals .btn-outline:not([data-extra] *) { background: var(--white); border: 1px solid var(--gray-300); color: var(--gray-700); }
+#hokenModals .btn-outline:hover:not([data-extra] *) { background: var(--gray-50); border-color: var(--gray-400); }
+#hokenModals .modal:not([data-extra] *) { position: fixed; top: 0px; left: 0px; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(2px); }
+#hokenModals .modal-content:not([data-extra] *) { background: var(--white); border-radius: 4px; box-shadow: var(--shadow-xl); max-height: 90vh; display: flex; flex-direction: column; }
+#hokenModals .modal-header:not([data-extra] *) { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: var(--primary-gradient); color: var(--white); border-radius: 4px 4px 0px 0px; }
+#hokenModals .modal-header h3:not([data-extra] *) { font-size: 14px; font-weight: 600; letter-spacing: 0.5px; }
+#hokenModals .modal-close:not([data-extra] *) { background: none; border-width: medium; border-style: none; border-color: currentcolor; border-image: none; color: var(--white); font-size: 24px; cursor: pointer; line-height: 1; opacity: 0.8; transition: opacity 0.2s; }
+#hokenModals .modal-close:hover:not([data-extra] *) { opacity: 1; }
+#hokenModals .required-badge:not([data-extra] *) { display: inline-block; padding: 2px 6px; background: rgb(220, 38, 38); color: white; font-size: 10px; font-weight: 600; border-radius: 2px; flex-shrink: 0; }
+#hokenModals .btn-register:not([data-extra] *) { padding: 6px 20px; background: var(--primary); border-width: medium; border-style: none; border-color: currentcolor; border-image: none; color: var(--white); font-size: 12px; }
+#hokenModals .btn-register:hover:not([data-extra] *) { background: var(--primary-dark); }
+#hokenTab :not([data-extra] *)::-webkit-scrollbar,
+#hokenModals :not([data-extra] *)::-webkit-scrollbar { width: 8px; height: 8px; }
+#hokenTab :not([data-extra] *)::-webkit-scrollbar-track,
+#hokenModals :not([data-extra] *)::-webkit-scrollbar-track { background: var(--gray-100); }
+#hokenTab :not([data-extra] *)::-webkit-scrollbar-thumb,
+#hokenModals :not([data-extra] *)::-webkit-scrollbar-thumb { background: var(--gray-400); border-radius: 4px; }
+#hokenTab :not([data-extra] *)::-webkit-scrollbar-thumb:hover,
+#hokenModals :not([data-extra] *)::-webkit-scrollbar-thumb:hover { background: var(--gray-500); }
+#hokenTab .m3-icon-btn-sm:not([data-extra] *) { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; background: rgb(255, 255, 255); border: 1px solid rgb(222, 226, 230); border-radius: 3px; cursor: pointer; color: rgb(108, 117, 125); font-size: 11px; }
+#hokenTab .m3-icon-btn-sm:hover:not([data-extra] *) { background: rgb(248, 249, 250); color: var(--primary); }
+#hokenTab .m3-tab-content:not([data-extra] *) { display: flex; flex-direction: column; height: 100%; overflow-y: auto; }
+#hokenTab .m3-patient-section:not([data-extra] *) { background: rgb(255, 255, 255); border-bottom: 1px solid rgb(224, 224, 224); }
+#hokenTab .m3-section-header:not([data-extra] *) { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid rgb(224, 224, 224); }
+#hokenTab .m3-section-title:not([data-extra] *) { font-size: 13px; font-weight: 600; color: var(--primary); }
+#hokenTab .m3-section-actions:not([data-extra] *) { display: flex; gap: 8px; }
+#hokenTab .loading:not([data-extra] *),
+#hokenModals .loading:not([data-extra] *) { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 20px; color: var(--gray-500); }
+#hokenModals .btn-danger-soft:not([data-extra] *) { border: 1px solid rgb(243, 193, 193); background: rgb(255, 245, 245); color: rgb(220, 38, 38); }
+#hokenModals .btn-danger-soft:hover:not([data-extra] *) { background: rgb(254, 226, 226); }
+#hokenModals input[type="number"]:not([data-extra] *)::-webkit-outer-spin-button,
+#hokenModals input[type="number"]:not([data-extra] *)::-webkit-inner-spin-button { margin: 0px; appearance: none; }
+#hokenModals input[type="number"]:not([data-extra] *) { appearance: textfield; }
+#hokenTab .m3-icon-btn-sm:not([data-extra] *) { border-width: medium; border-style: none; border-color: currentcolor; border-image: none; border-radius: 0px; background: transparent; color: rgb(11, 90, 42); }
+#hokenTab .m3-icon-btn-sm:hover:not([data-extra] *) { background: rgb(232, 242, 236); }
+#hokenTab #insurance-content:not([data-extra] *) { background: rgb(243, 246, 245); overflow-y: auto; }
+#hokenTab .insurance-check-bar:not([data-extra] *) { display: flex; align-items: center; gap: 12px; min-height: 37px; padding: 0px 12px; background: rgb(243, 246, 245); border-bottom: 1px solid rgb(203, 217, 213); font-size: 15px; }
+#hokenTab .insurance-check-label:not([data-extra] *) { padding: 3px 6px; background: rgb(0, 107, 46); border-radius: 2px; color: rgb(255, 255, 255); font-size: 13px; font-weight: 600; line-height: 1.35; }
+#hokenTab .insurance-last-confirmed:not([data-extra] *) { display: inline-flex; align-items: center; color: rgb(17, 24, 39); font-size: 15px; line-height: 1.35; white-space: nowrap; }
+#hokenTab .insurance-section:not([data-extra] *) { margin: 0px; background: rgb(243, 246, 245); border-bottom: 1px solid rgb(203, 217, 213); }
+#hokenTab .insurance-section-header:not([data-extra] *) { height: 36px; padding: 0px 12px; background: rgb(243, 246, 245); border-bottom: 1px solid rgb(203, 217, 213); }
+#hokenTab #insurance-content .m3-section-title:not([data-extra] *) { color: rgb(17, 24, 39); font-size: 14px; font-weight: 400; }
+#hokenTab .insurance-actions:not([data-extra] *) { align-items: center; gap: 10px; }
+#hokenTab .insurance-current-toggle:not([data-extra] *) { display: inline-flex; align-items: center; gap: 4px; color: rgb(17, 24, 39); font-size: 13px; white-space: nowrap; }
+#hokenTab .insurance-add-btn i:not([data-extra] *),
+#hokenTab .insurance-section-header .fa-plus:not([data-extra] *) { font-size: 18px; }
+#hokenTab .m3-insurance-list:not([data-extra] *) { background: rgb(255, 255, 255); }
+#hokenTab .insurance-empty:not([data-extra] *) { min-height: 31px; padding: 7px 6px; background: rgb(255, 255, 255); border-bottom: 1px solid rgb(203, 217, 213); font-size: 13px; color: rgb(17, 24, 39); }
+#hokenTab .insurance-table:not([data-extra] *) { width: 100%; border-collapse: collapse; table-layout: fixed; background: rgb(255, 255, 255); font-size: 13px; }
+#hokenTab .insurance-table th:not([data-extra] *),
+#hokenTab .insurance-table td:not([data-extra] *) { height: 35px; padding: 5px 11px; border-right: 1px solid rgb(203, 217, 213); border-bottom: 1px solid rgb(203, 217, 213); text-align: left; font-weight: 400; vertical-align: middle; }
+#hokenTab .insurance-table th:not([data-extra] *) { background: rgb(243, 246, 245); color: rgb(17, 24, 39); }
+#hokenTab .insurance-table th:last-child:not([data-extra] *),
+#hokenTab .insurance-table td:last-child:not([data-extra] *) { border-right-width: medium; border-right-style: none; border-right-color: currentcolor; }
+#hokenTab .insurance-row-actions:not([data-extra] *) { width: 72px; white-space: nowrap; text-align: center; line-height: 1; padding: 2px 4px !important; }
+#hokenTab .insurance-row-actions .m3-icon-btn-sm:not([data-extra] *) { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin: 0px 2px; border: 1px solid rgb(215, 223, 220); border-radius: 3px; background: rgb(255, 255, 255); color: rgb(11, 90, 42); width: 30px !important; height: 30px !important; }
+#hokenTab .insurance-row-actions .m3-icon-btn-sm:hover:not([data-extra] *) { background: rgb(232, 242, 236); border-color: rgb(183, 201, 193); }
+#hokenTab .medical-insurance-table th:nth-child(1):not([data-extra] *) { width: 20%; }
+#hokenTab .medical-insurance-table th:nth-child(2):not([data-extra] *) { width: 11%; min-width: 54px; white-space: nowrap; }
+#hokenTab .medical-insurance-table th:nth-child(3):not([data-extra] *) { width: 19%; }
+#hokenTab .medical-insurance-table th:nth-child(4):not([data-extra] *) { width: 18%; }
+#hokenTab .medical-insurance-table th:nth-child(5):not([data-extra] *) { width: 21%; }
+#hokenTab .medical-insurance-table th:nth-child(6):not([data-extra] *) { width: 72px; }
+#hokenTab .medical-insurance-table th:nth-child(2):not([data-extra] *),
+#hokenTab .medical-insurance-table td:nth-child(2):not([data-extra] *) { white-space: nowrap; }
+#hokenModals .modal-insurance:not([data-extra] *) { width: min(1200px, 96vw); height: min(650px, 92vh); max-height: 92vh; border-radius: 0px; display: flex; flex-direction: column; }
+#hokenModals .modal-insurance .modal-header:not([data-extra] *) { height: 42px; padding: 0px 16px; background: rgb(0, 107, 46); border-bottom-width: medium; border-bottom-style: none; border-bottom-color: currentcolor; color: rgb(255, 255, 255); }
+#hokenModals .modal-insurance .modal-header h3:not([data-extra] *) { color: rgb(255, 255, 255); font-size: 17px; font-weight: 600; }
+#hokenModals .modal-header-actions:not([data-extra] *) { display: flex; align-items: center; gap: 14px; }
+#hokenModals .modal-help-btn:not([data-extra] *),
+#hokenModals .modal-insurance .modal-close:not([data-extra] *) { width: 28px; height: 28px; border-width: medium; border-style: none; border-color: currentcolor; border-image: none; background: transparent; color: rgb(255, 255, 255); cursor: pointer; font-size: 20px; }
+#hokenModals .insurance-modal-patient:not([data-extra] *) { min-height: 49px; padding: 13px 14px; background: rgb(255, 255, 255); border-bottom: 1px solid rgb(212, 222, 219); font-size: 16px; }
+#hokenModals .modal-body-insurance:not([data-extra] *) { flex: 1 1 0%; overflow-y: auto; background: rgb(243, 246, 245); }
+#hokenModals .insurance-form-row:not([data-extra] *) { display: grid; grid-template-columns: 195px 1fr; min-height: 43px; border-bottom: 1px solid rgb(212, 222, 219); }
+#hokenModals .insurance-form-row > label:not([data-extra] *) { padding: 11px 14px; color: rgb(17, 24, 39); font-size: 14px; }
+#hokenModals .insurance-field:not([data-extra] *) { display: flex; align-items: center; gap: 8px; padding: 5px 12px; min-width: 0px; }
+#hokenModals .insurance-field input:not([data-extra] *),
+#hokenModals .insurance-field select:not([data-extra] *) { height: 30px; padding: 3px 8px; border: 1px solid rgb(203, 217, 213); border-radius: 3px; background: rgb(255, 255, 255); font-size: 14px; font-family: inherit; }
+#hokenModals .insurance-field input:focus:not([data-extra] *),
+#hokenModals .insurance-field select:focus:not([data-extra] *) { outline: rgb(56, 189, 248) solid 2px; border-color: rgb(2, 132, 199); }
+#hokenModals .insurance-input-stack:not([data-extra] *) { display: flex; flex-direction: column; gap: 3px; min-width: 0px; }
+#hokenModals .insurance-field-error:not([data-extra] *) { color: rgb(220, 38, 38); font-size: 12px; line-height: 1.3; }
+#hokenModals .insurance-field input.field-invalid:not([data-extra] *) { border-color: rgb(220, 38, 38); }
+#hokenModals .insurance-field input.field-invalid:focus:not([data-extra] *) { border-color: rgb(220, 38, 38); outline-color: rgba(220, 38, 38, 0.22); }
+#hokenModals #insurance-insurer-number:not([data-extra] *),
+#hokenModals #insurance-type:not([data-extra] *),
+#hokenModals #insurance-symbol:not([data-extra] *),
+#hokenModals #insurance-number:not([data-extra] *),
+#hokenModals #insurance-burden-ratio:not([data-extra] *),
+#hokenModals #insurance-limit-category:not([data-extra] *) { width: 400px; max-width: 55vw; }
+#hokenModals #insurance-branch-number:not([data-extra] *) { width: 100px; }
+#hokenModals #insurance-holder-name:not([data-extra] *) { width: 205px; }
+#hokenModals .insurance-branch-label:not([data-extra] *),
+#hokenModals .insurance-holder-label:not([data-extra] *) { margin-left: 12px; color: rgb(17, 24, 39); white-space: nowrap; }
+#hokenModals .insurance-date-range input:not([data-extra] *) { width: 220px; }
+#hokenModals .insurance-radio-field label:not([data-extra] *) { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; }
+#hokenModals .insurance-auto-hint:not([data-extra] *) { color: rgb(75, 85, 99); font-size: 12px; }
+#hokenModals .modal-footer-insurance:not([data-extra] *) { display: flex; justify-content: flex-end; gap: 10px; padding: 7px 10px; background: rgb(248, 250, 249); border-top: 1px solid rgb(203, 217, 213); }
+#hokenModals .insurance-record-delete-btn:not([data-extra] *) { min-width: 55px; height: 32px; margin-right: auto; padding: 0px 12px; border-radius: 2px; font-size: 14px; }
+#hokenModals .insurance-delete-confirm-modal:not([data-extra] *) { z-index: 12000; }
+#hokenModals .insurance-delete-confirm-box:not([data-extra] *) { width: min(600px, -32px + 100vw); min-height: 95px; padding: 10px 16px 14px; box-sizing: border-box; border-radius: 0px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); box-shadow: rgba(0, 0, 0, 0.13) 0px 2px 9px; }
+#hokenModals .insurance-delete-confirm-message:not([data-extra] *) { margin: 0px 0px 10px; font-size: 16px; line-height: 1.6; text-align: center; }
+#hokenModals .insurance-delete-confirm-actions:not([data-extra] *) { display: flex; align-items: center; justify-content: center; gap: 4px; }
+#hokenModals .insurance-delete-confirm-actions .btn:not([data-extra] *) { min-width: 92px; height: 39px; padding: 0px 12px; border-radius: 3px; font-size: 15px; }
+#hokenModals .modal-insurance:not([data-extra] *) { width: min(1200px, -24px + 100vw); height: min(594px, -24px + 100vh); max-height: calc(-24px + 100vh); border-radius: 0px; background: rgb(255, 255, 255); }
+#hokenModals .modal-insurance .modal-header:not([data-extra] *) { height: 42px; padding: 0px 15px; background: rgb(7, 91, 23); color: rgb(255, 255, 255); }
+#hokenModals .modal-insurance .modal-header h3:not([data-extra] *) { color: rgb(255, 255, 255); font-size: 18px; font-weight: 500; }
+#hokenModals .modal-insurance .modal-close:not([data-extra] *),
+#hokenModals .modal-insurance .modal-help-btn:not([data-extra] *) { color: rgb(255, 255, 255); }
+#hokenModals .insurance-modal-patient:not([data-extra] *) { min-height: 49px; padding: 0px 12px; display: flex; align-items: center; justify-content: space-between; background: rgb(255, 255, 255); border-bottom: 1px solid rgb(214, 222, 219); font-size: 16px; }
+#hokenModals .insurance-modal-actions:not([data-extra] *) { display: flex; align-items: center; }
+#hokenModals .insurance-top-action:not([data-extra] *) { height: 32px; padding: 0px 10px; border-width: 1px medium 1px 1px; border-style: solid none solid solid; border-color: rgb(214, 222, 219) currentcolor rgb(214, 222, 219) rgb(214, 222, 219); border-image: none; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font-size: 13px; cursor: pointer; }
+#hokenModals .insurance-top-action:last-child:not([data-extra] *) { border-right: 1px solid rgb(214, 222, 219); }
+#hokenModals .modal-body-insurance:not([data-extra] *) { background: rgb(244, 244, 244); }
+#hokenModals .workers-comp-fields:not([data-extra] *) { padding: 10px 14px 12px; border-bottom: 1px solid rgb(183, 201, 194); background: rgb(237, 246, 238); }
+#hokenModals .workers-comp-fields h4:not([data-extra] *) { margin: 0px 0px 9px; color: rgb(7, 91, 23); font-size: 15px; font-weight: 600; }
+#hokenModals .workers-comp-grid:not([data-extra] *) { display: grid; grid-template-columns: repeat(2, minmax(0px, 1fr)); gap: 8px 12px; }
+#hokenModals .workers-comp-grid label:not([data-extra] *) { display: grid; grid-template-columns: 180px minmax(0px, 1fr); align-items: center; gap: 7px; color: rgb(17, 24, 39); font-size: 13px; }
+#hokenModals .workers-comp-grid input:not([data-extra] *),
+#hokenModals .workers-comp-grid select:not([data-extra] *),
+#hokenModals .workers-comp-grid textarea:not([data-extra] *) { min-width: 0px; width: 100%; padding: 4px 7px; border: 1px solid rgb(199, 211, 207); border-radius: 3px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font: inherit; }
+#hokenModals .workers-comp-grid input:not([data-extra] *),
+#hokenModals .workers-comp-grid select:not([data-extra] *) { height: 30px; }
+#hokenModals .workers-comp-grid textarea:not([data-extra] *) { resize: vertical; }
+#hokenModals .workers-comp-wide:not([data-extra] *) { grid-column: 1 / -1; }
+#hokenTab .workers-initial-required:not([data-extra] *)::after,
+#hokenModals .workers-initial-required:not([data-extra] *)::after { content: "初回必須"; justify-self: start; grid-column: 2; margin-top: -5px; color: rgb(180, 35, 24); font-size: 11px; }
+#hokenModals .workers-comp-note:not([data-extra] *) { margin: 8px 0px 0px; color: rgb(82, 99, 92); font-size: 12px; }
+@media (max-width: 900px) { #hokenModals .workers-comp-grid:not([data-extra] *) { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { #hokenModals .workers-comp-wide:not([data-extra] *) { grid-column: auto; } }
+#hokenModals .insurance-form-row:not([data-extra] *) { grid-template-columns: 165px 1fr; min-height: 43px; background: rgb(244, 244, 244); }
+#hokenModals .insurance-form-row > label:not([data-extra] *) { padding: 11px 14px; font-size: 14px; }
+#hokenModals .insurance-note:not([data-extra] *) { font-size: 12px; }
+#hokenModals .insurance-field:not([data-extra] *) { padding: 5px 4px; gap: 8px; }
+#hokenModals .insurance-field input:not([data-extra] *),
+#hokenModals .insurance-field select:not([data-extra] *) { height: 30px; border-color: rgb(205, 216, 213); border-radius: 3px; font-size: 14px; }
+#hokenModals .insurance-field input:disabled:not([data-extra] *) { background: rgb(223, 232, 229); }
+#hokenModals #insurance-insurer-number:not([data-extra] *),
+#hokenModals #insurance-symbol:not([data-extra] *),
+#hokenModals #insurance-number:not([data-extra] *),
+#hokenModals #insurance-limit-category:not([data-extra] *),
+#hokenModals #insurance-burden-ratio:not([data-extra] *),
+#hokenModals #insurance-reduction-type:not([data-extra] *),
+#hokenModals #insurance-facility-status:not([data-extra] *) { width: 400px; max-width: 42vw; }
+#hokenModals #insurance-holder-name:not([data-extra] *),
+#hokenModals #insurance-reduction-ratio:not([data-extra] *) { width: 205px; }
+#hokenModals #insurance-valid-from:not([data-extra] *),
+#hokenModals #insurance-valid-until:not([data-extra] *),
+#hokenModals #insurance-qualification-acquired-date:not([data-extra] *),
+#hokenModals #insurance-facility-valid-from:not([data-extra] *),
+#hokenModals #insurance-facility-valid-until:not([data-extra] *) { width: 220px; }
+#hokenModals #insurance-qualification-unknown-reason:not([data-extra] *) { width: 110px; }
+#hokenModals #insurance-qualification-unknown-detail:not([data-extra] *) { width: 54px; }
+#hokenModals .insurance-inline-label:not([data-extra] *),
+#hokenModals .insurance-branch-label:not([data-extra] *),
+#hokenModals .insurance-holder-label:not([data-extra] *) { margin-left: 10px; color: rgb(17, 24, 39); white-space: nowrap; }
+#hokenModals .modal-footer-insurance:not([data-extra] *) { height: 44px; padding: 7px 10px; background: rgb(248, 250, 249); }
+#hokenModals .modal-footer-insurance .btn-register:not([data-extra] *) { min-width: 55px; height: 30px; padding: 0px 14px; border-radius: 2px; background: rgb(7, 91, 23); font-size: 14px; }
+#hokenModals .modal-public-expense:not([data-extra] *) { height: min(760px, -24px + 100vh); }
+#hokenModals #public-expense-type:not([data-extra] *),
+#hokenModals #public-expense-municipality:not([data-extra] *) { width: min(920px, 72vw); }
+#hokenModals #public-expense-rule-note:not([data-extra] *) { margin-top: 4px; color: rgb(93, 111, 104); font-size: 12px; line-height: 1.4; }
+#hokenModals .public-expense-claim-row select:not([data-extra] *) { min-width: 160px; }
+#hokenModals .public-expense-note-row textarea:not([data-extra] *) { width: min(920px, 72vw); min-height: 52px; padding: 6px 8px; border: 1px solid rgb(205, 216, 213); border-radius: 3px; resize: vertical; font-family: inherit; font-size: 14px; line-height: 1.5; }
+#hokenModals #public-expense-payer-number:not([data-extra] *),
+#hokenModals #public-expense-recipient-number:not([data-extra] *) { width: 250px; }
+#hokenModals .public-expense-burden-row:not([data-extra] *) { border-bottom-width: medium; border-bottom-style: none; border-bottom-color: currentcolor; }
+#hokenModals .public-expense-limit-wrap:not([data-extra] *) { padding: 12px 16px 14px; background: rgb(244, 244, 244); }
+#hokenModals .public-expense-limit-table:not([data-extra] *) { width: 100%; border-collapse: collapse; background: rgb(255, 255, 255); font-size: 14px; }
+#hokenModals .public-expense-limit-table th:not([data-extra] *),
+#hokenModals .public-expense-limit-table td:not([data-extra] *) { height: 36px; padding: 5px 8px; border: 1px solid rgb(205, 216, 213); font-weight: 400; }
+#hokenModals .public-expense-limit-table thead th:not([data-extra] *) { background: rgb(233, 236, 235); text-align: center; }
+#hokenModals .public-expense-limit-table tbody th:not([data-extra] *) { width: 170px; background: rgb(248, 250, 249); text-align: center; }
+#hokenModals .public-expense-limit-table td:not([data-extra] *) { text-align: center; white-space: nowrap; }
+#hokenModals .public-expense-limit-table input:not([data-extra] *) { width: 84px; height: 28px; margin: 0px 6px; padding: 3px 7px; border: 1px solid rgb(205, 216, 213); border-radius: 3px; background: rgb(255, 255, 255); text-align: right; font-family: inherit; }
+#hokenModals .public-expense-limit-table input:disabled:not([data-extra] *) { background: rgb(223, 232, 229); color: rgb(107, 114, 128); }
+#hokenTab .public-expense-table:not([data-extra] *) { min-width: 600px; }
+#hokenTab #public-expense-list:not([data-extra] *) { overflow-x: auto; }
+#hokenTab .public-expense-table th:not([data-extra] *),
+#hokenTab .public-expense-table td:not([data-extra] *) { padding: 2px 3px; white-space: nowrap; }
+#hokenTab .public-expense-table th:not([data-extra] *) { height: 30px; }
+#hokenTab .public-expense-table td:not([data-extra] *) { height: 37px; }
+#hokenTab .public-expense-table th:nth-child(1):not([data-extra] *) { width: 24%; }
+#hokenTab .public-expense-table th:nth-child(2):not([data-extra] *) { width: 26%; }
+#hokenTab .public-expense-table th:nth-child(3):not([data-extra] *) { width: 24%; }
+#hokenTab .public-expense-table th:nth-child(5):not([data-extra] *) { width: 78px; }
+#hokenTab .public-expense-table .insurance-row-actions .m3-icon-btn-sm:not([data-extra] *) { color: rgb(91, 98, 95); }
+#hokenModals .insurance-date-picker:not([data-extra] *) { position: fixed; width: 278px; padding: 10px 12px 12px; background: rgb(255, 255, 255); border: 1px solid rgb(203, 213, 209); border-radius: 2px; box-shadow: rgba(0, 0, 0, 0.22) 0px 8px 24px; z-index: 3600; }
+#hokenModals .insurance-date-picker.hidden:not([data-extra] *) { display: none; }
+#hokenModals .insurance-date-picker-header:not([data-extra] *) { display: grid; grid-template-columns: 30px 1fr 30px; align-items: center; gap: 5px; margin-bottom: 7px; }
+#hokenModals .insurance-date-nav:not([data-extra] *),
+#hokenModals .insurance-date-picker-footer button:not([data-extra] *) { height: 30px; border: 1px solid rgb(214, 222, 219); border-radius: 3px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); cursor: pointer; font-family: inherit; }
+#hokenModals .insurance-date-nav:not([data-extra] *) { font-size: 18px; font-weight: 700; line-height: 1; }
+#hokenModals .insurance-date-nav:hover:not([data-extra] *),
+#hokenModals .insurance-date-picker-footer button:hover:not([data-extra] *) { background: rgb(238, 246, 240); }
+#hokenModals .insurance-date-picker-title:not([data-extra] *) { height: 30px; display: flex; align-items: center; justify-content: center; border: 1px solid rgb(214, 222, 219); border-radius: 3px; font-size: 14px; font-weight: 600; }
+#hokenModals .insurance-date-weekdays:not([data-extra] *),
+#hokenModals .insurance-date-picker-days:not([data-extra] *) { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; }
+#hokenModals .insurance-date-weekdays:not([data-extra] *) { margin-bottom: 5px; color: rgb(102, 102, 102); font-size: 14px; font-weight: 600; }
+#hokenModals .insurance-date-weekdays span:not([data-extra] *) { height: 22px; line-height: 22px; }
+#hokenModals .insurance-date-weekdays .sunday:not([data-extra] *),
+#hokenModals .insurance-date-day.sunday:not([data-extra] *) { color: rgb(239, 68, 68); }
+#hokenModals .insurance-date-weekdays .saturday:not([data-extra] *),
+#hokenModals .insurance-date-day.saturday:not([data-extra] *) { color: rgb(37, 99, 235); }
+#hokenModals .insurance-date-day:not([data-extra] *) { width: 34px; height: 34px; margin: 0px auto 2px; border-width: medium; border-style: none; border-color: currentcolor; border-image: none; border-radius: 50%; background: transparent; color: rgb(47, 51, 55); cursor: pointer; font-family: inherit; font-size: 16px; }
+#hokenModals .insurance-date-day:hover:not([data-extra] *) { background: rgb(231, 241, 233); }
+#hokenModals .insurance-date-day.outside:not([data-extra] *) { color: rgb(180, 185, 189); }
+#hokenModals .insurance-date-day.selected:not([data-extra] *) { background: rgb(23, 105, 40); color: rgb(255, 255, 255); font-weight: 700; }
+#hokenModals .insurance-date-day.today:not(.selected):not([data-extra] *) { border: 1px solid rgb(23, 105, 40); }
+#hokenModals .insurance-date-picker-footer:not([data-extra] *) { display: flex; justify-content: space-between; margin-top: 8px; }
+#hokenModals .insurance-date-picker-footer button:not([data-extra] *) { min-width: 56px; padding: 0px 12px; font-size: 13px; }
+#hokenModals .modal:not([data-extra] *) { z-index: 3000; background: rgba(0, 0, 0, 0.58); backdrop-filter: none; }
+#hokenTab .m3-tab-content:is(#main-screen .m3-panel-left, *):not([data-extra] *) { height: 100%; min-height: 0px; background: rgb(255, 255, 255); }
+#hokenTab .m3-tab-content:is(#main-screen .m3-panel-left, *):not([data-extra] *) { flex: 1 1 auto; overflow: hidden; }
+#hokenTab .m3-tab-content:is(#main-screen .m3-panel-left, *):not([data-extra] *) { scrollbar-gutter: stable; }
+#hokenTab .labor-auto-add-control:not([data-extra] *) { position: relative; display: inline-flex; }
+#hokenTab .labor-auto-add-menu:not([data-extra] *) { position: absolute; z-index: 1200; top: 30px; right: -116px; width: 160px; padding: 8px 0px; border: 1px solid rgb(213, 219, 216); border-radius: 3px; background: rgb(255, 255, 255); box-shadow: rgba(0, 0, 0, 0.2) 0px 3px 12px; }
+#hokenTab .labor-auto-add-menu button:not([data-extra] *) { display: block; width: 100%; height: 38px; padding: 0px 16px; border: 0px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); text-align: left; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit; font-optical-sizing: inherit; font-size-adjust: inherit; font-kerning: inherit; font-feature-settings: inherit; font-variation-settings: inherit; font-language-override: inherit; font-size: 14px; cursor: pointer; }
+#hokenTab .labor-auto-add-menu button:hover:not([data-extra] *),
+#hokenTab .labor-auto-add-menu button:focus-visible:not([data-extra] *) { background: rgb(238, 245, 240); outline: none; }
+#hokenModals .modal-workers-insurance:not([data-extra] *) { width: min(1024px, -32px + 100vw); height: min(840px, -52px + 100vh); max-height: calc(-52px + 100vh); background: rgb(255, 255, 255); }
+#hokenModals #workers-insurance-modal:not([data-extra] *) { align-items: flex-start; padding-top: 44px; box-sizing: border-box; }
+#hokenModals .workers-insurance-patient:not([data-extra] *) { min-height: 58px; padding: 18px 18px 12px; border-bottom: 1px solid rgb(213, 220, 218); background: rgb(255, 255, 255); color: rgb(17, 24, 39); font-size: 18px; }
+#hokenModals .workers-insurance-form:not([data-extra] *) { overflow-y: auto; padding: 0px 18px; background: rgb(247, 248, 248); }
+#hokenModals .workers-insurance-form-row:not([data-extra] *) { display: grid; grid-template-columns: 245px minmax(0px, 1fr); min-height: 52px; border-bottom: 1px solid rgb(213, 220, 218); background: rgb(247, 248, 248); }
+#hokenModals .workers-insurance-form-row > label:not([data-extra] *) { display: grid; grid-template-columns: minmax(0px, 1fr) auto; align-items: center; column-gap: 8px; padding: 8px 0px; color: rgb(17, 24, 39); font-size: 14px; font-weight: 400; }
+#hokenModals .workers-insurance-form-row > label small:not([data-extra] *) { grid-column: 1 / -1; margin-top: -5px; color: rgb(55, 65, 81); font-size: 9px; line-height: 1.2; }
+#hokenModals .workers-form-required:not([data-extra] *) { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 19px; padding: 0px 4px; border-radius: 1px; background: rgb(239, 117, 101); color: rgb(255, 255, 255); font-size: 11px; font-weight: 600; }
+#hokenModals .workers-insurance-field:not([data-extra] *) { display: flex; align-items: center; gap: 8px; min-width: 0px; padding: 7px 0px 7px 10px; }
+#hokenModals .workers-insurance-field input:not([data-extra] *),
+#hokenModals .workers-insurance-field select:not([data-extra] *) { width: 100%; height: 31px; min-width: 0px; padding: 3px 8px; border: 1px solid rgb(204, 213, 210); border-radius: 3px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit; font-optical-sizing: inherit; font-size-adjust: inherit; font-kerning: inherit; font-feature-settings: inherit; font-variation-settings: inherit; font-language-override: inherit; font-size: 14px; }
+#hokenModals .workers-insurance-field input:focus:not([data-extra] *),
+#hokenModals .workers-insurance-field select:focus:not([data-extra] *) { border-color: rgb(21, 155, 212); outline: rgba(21, 155, 212, 0.28) solid 2px; }
+#hokenModals .workers-policy-number-field input:not([data-extra] *) { flex: 1 1 0%; }
+#hokenModals .workers-confirm-later:not([data-extra] *) { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 5px; white-space: nowrap; font-size: 13px; }
+#hokenModals .workers-confirm-later input:not([data-extra] *) { width: 16px; height: 16px; margin: 0px; }
+#hokenModals .workers-single-date-field input:not([data-extra] *) { max-width: 360px; }
+#hokenModals .workers-date-range-field input:not([data-extra] *) { flex: 1 1 0px; width: auto; }
+#hokenModals .workers-address-row:not([data-extra] *),
+#hokenModals .workers-office-row:not([data-extra] *) { min-height: 78px; }
+#hokenModals .workers-address-field:not([data-extra] *),
+#hokenModals .workers-office-field:not([data-extra] *) { position: relative; padding-top: 29px; }
+#hokenModals .workers-prefecture-caption:not([data-extra] *) { position: absolute; top: 6px; left: 10px; color: rgb(17, 24, 39); font-size: 12px; }
+#hokenModals .workers-address-field select:not([data-extra] *),
+#hokenModals .workers-office-field select:first-of-type:not([data-extra] *) { flex: 0 0 120px; width: 120px; }
+#hokenModals .workers-address-field input:not([data-extra] *),
+#hokenModals .workers-office-field select:last-of-type:not([data-extra] *) { flex: 1 1 auto; }
+#hokenModals .workers-initial-month-field input:not([data-extra] *) { width: 120px; }
+#hokenModals .modal-workers-insurance .modal-footer-insurance:not([data-extra] *) { min-height: 50px; padding: 6px 10px; background: rgb(247, 248, 248); }
+#hokenModals .modal-workers-insurance .modal-footer-insurance .btn-register:not([data-extra] *) { min-width: 55px; height: 31px; padding: 0px 13px; }
+#hokenModals #auto-insurance-modal:not([data-extra] *) { align-items: flex-start; padding-top: 44px; box-sizing: border-box; }
+#hokenModals .modal-auto-insurance:not([data-extra] *) { width: min(1024px, -32px + 100vw); height: auto; max-height: calc(-52px + 100vh); background: rgb(255, 255, 255); }
+#hokenModals .auto-insurance-form:not([data-extra] *) { flex: 0 1 auto; overflow-y: auto; }
+#hokenModals .auto-insurance-form .workers-insurance-form-row:not([data-extra] *) { min-height: 42px; }
+#hokenModals .auto-insurance-form .workers-single-date-field input:not([data-extra] *) { max-width: none; }
+#hokenModals .auto-calculation-options:not([data-extra] *) { gap: 15px; }
+#hokenModals .auto-calculation-options label:not([data-extra] *) { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; color: rgb(17, 24, 39); font-size: 14px; }
+#hokenModals .auto-calculation-options input[type="radio"]:not([data-extra] *) { width: 16px; height: 16px; margin: 0px; padding: 0px; accent-color: rgb(53, 120, 229); }
+#hokenModals .modal-auto-insurance .modal-footer-insurance:not([data-extra] *) { min-height: 44px; padding: 6px 10px; background: rgb(247, 248, 248); }
+#hokenModals .modal-auto-insurance .modal-footer-insurance .btn-register:not([data-extra] *) { min-width: 55px; height: 31px; padding: 0px 13px; }
+#hokenTab .receipt-special-note-table th:nth-child(1):not([data-extra] *) { width: 38%; }
+#hokenTab .receipt-special-note-table th:nth-child(2):not([data-extra] *) { width: 25%; }
+#hokenTab .receipt-special-note-table th:nth-child(3):not([data-extra] *) { width: 25%; }
+#hokenTab .receipt-special-note-table th:nth-child(4):not([data-extra] *) { width: 42px; }
+#hokenTab .receipt-special-note-table .insurance-row-actions:not([data-extra] *) { width: 42px; }
+#hokenModals #receipt-special-note-modal:not([data-extra] *) { align-items: flex-start; padding-top: min(24vh, 160px); box-sizing: border-box; }
+#hokenModals .modal-receipt-special-note:not([data-extra] *) { width: min(600px, -30px + 100vw); height: min(460px, -42px + 100vh); border-radius: 0px; background: rgb(255, 255, 255); }
+#hokenModals .modal-receipt-special-note .modal-header:not([data-extra] *) { height: 42px; min-height: 42px; padding: 0px 14px; border-radius: 0px; background: rgb(11, 87, 23); }
+#hokenModals .modal-receipt-special-note .modal-header h3:not([data-extra] *) { color: rgb(255, 255, 255); font-size: 17px; font-weight: 600; letter-spacing: 0px; }
+#hokenModals .modal-receipt-special-note .modal-close:not([data-extra] *) { font-size: 27px; font-weight: 700; opacity: 1; }
+#hokenModals .receipt-special-note-form:not([data-extra] *) { flex: 1 1 auto; padding: 7px 6px 0px; background: rgb(255, 255, 255); }
+#hokenModals .receipt-special-note-form-row:not([data-extra] *) { display: grid; grid-template-columns: 126px 215px; align-items: center; min-height: 32px; color: rgb(17, 24, 39); font-size: 14px; }
+#hokenModals .receipt-special-note-form-row label:not([data-extra] *) { white-space: nowrap; }
+#hokenModals .receipt-special-note-form-row select:not([data-extra] *),
+#hokenModals .receipt-special-note-form-row input:not([data-extra] *) { width: 215px; height: 29px; padding: 2px 9px; box-sizing: border-box; border: 1px solid rgb(203, 213, 209); border-radius: 2px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font: inherit; }
+#hokenModals .receipt-special-note-form-row input:not([data-extra] *)::placeholder { color: rgb(148, 163, 168); }
+#hokenModals .receipt-special-note-footer:not([data-extra] *) { display: flex; flex: 0 0 49px; align-items: center; justify-content: flex-end; padding: 6px 11px; box-sizing: border-box; border-top: 1px solid rgb(212, 221, 218); background: rgb(247, 248, 248); }
+#hokenModals .receipt-special-note-footer .btn-register:not([data-extra] *) { width: 90px; height: 36px; padding: 0px 12px; border-radius: 2px; background: rgb(11, 87, 23); font-size: 14px; }
+#hokenModals #receipt-symptom-detail-modal:not([data-extra] *) { align-items: center; box-sizing: border-box; }
+#hokenModals .modal-receipt-symptom-detail:not([data-extra] *) { display: flex; width: min(1024px, -32px + 100vw); height: min(708px, -30px + 100vh); max-height: calc(-30px + 100vh); flex-direction: column; overflow: hidden; border-radius: 0px; background: rgb(255, 255, 255); }
+#hokenModals .modal-receipt-symptom-detail .modal-header:not([data-extra] *) { height: 42px; min-height: 42px; padding: 0px 14px; border-radius: 0px; background: rgb(11, 87, 23); }
+#hokenModals .modal-receipt-symptom-detail .modal-header h3:not([data-extra] *) { color: rgb(255, 255, 255); font-size: 17px; font-weight: 600; letter-spacing: 0px; }
+#hokenModals .modal-receipt-symptom-detail .modal-close:not([data-extra] *) { font-size: 27px; font-weight: 700; opacity: 1; }
+#hokenModals .receipt-symptom-detail-form:not([data-extra] *) { display: flex; min-height: 0px; flex: 1 1 auto; flex-direction: column; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font-size: 14px; }
+#hokenModals .receipt-symptom-detail-row-label:not([data-extra] *) { box-sizing: border-box; padding-left: 10px; white-space: nowrap; }
+#hokenModals .receipt-symptom-detail-kind-row:not([data-extra] *) { display: grid; min-height: 76px; grid-template-columns: 270px minmax(0px, 1fr); align-items: start; border-bottom: 1px solid rgb(215, 223, 220); }
+#hokenModals .receipt-symptom-detail-kind-row > .receipt-symptom-detail-row-label:not([data-extra] *) { padding-top: 13px; }
+#hokenModals .receipt-symptom-detail-kind-controls:not([data-extra] *) { display: grid; grid-template-columns: 134px minmax(0px, 1fr); grid-template-rows: 38px 38px; align-items: center; padding-right: 9px; }
+#hokenModals .receipt-symptom-detail-kind-controls label:not([data-extra] *) { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+#hokenModals .receipt-symptom-detail-kind-controls select:not([data-extra] *) { width: 100%; height: 29px; padding: 2px 9px; border: 1px solid rgb(203, 213, 209); border-radius: 2px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font: inherit; }
+#hokenModals .receipt-symptom-detail-kind-controls select:disabled:not([data-extra] *) { border-color: rgb(215, 220, 218); background: rgb(238, 241, 240); color: rgb(115, 123, 120); cursor: not-allowed; opacity: 1; }
+#hokenModals .receipt-symptom-detail-content-row:not([data-extra] *) { display: grid; min-height: 0px; flex: 1 1 auto; grid-template-columns: 270px minmax(0px, 1fr); border-bottom: 1px solid rgb(215, 223, 220); }
+#hokenModals .receipt-symptom-detail-content-row > .receipt-symptom-detail-row-label:not([data-extra] *) { padding-top: 10px; }
+#hokenModals .receipt-symptom-detail-content-row textarea:not([data-extra] *) { min-height: 180px; margin: 10px 9px 16px 0px; padding: 8px; resize: none; border: 1px solid rgb(203, 213, 209); border-radius: 0px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; font-size: inherit; font-family: inherit; font-optical-sizing: inherit; font-size-adjust: inherit; font-kerning: inherit; font-feature-settings: inherit; font-variation-settings: inherit; font-language-override: inherit; line-height: 1.5; }
+#hokenModals .receipt-symptom-detail-period-row:not([data-extra] *),
+#hokenModals .receipt-symptom-detail-insurance-row:not([data-extra] *) { display: grid; grid-template-columns: 270px minmax(0px, 1fr); align-items: center; border-bottom: 1px solid rgb(215, 223, 220); }
+#hokenModals .receipt-symptom-detail-period-row:not([data-extra] *) { min-height: 50px; }
+#hokenModals .receipt-symptom-detail-insurance-row:not([data-extra] *) { min-height: 49px; }
+#hokenModals .receipt-symptom-detail-row-label small:not([data-extra] *) { margin-left: 4px; font-size: 10px; font-weight: 400; }
+#hokenModals .receipt-symptom-detail-period-controls:not([data-extra] *) { display: flex; align-items: center; gap: 10px; }
+#hokenModals .receipt-symptom-detail-period-controls input:not([data-extra] *) { width: 215px; height: 29px; padding: 2px 9px; box-sizing: border-box; border: 1px solid rgb(203, 213, 209); border-radius: 2px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font: inherit; }
+#hokenModals .receipt-symptom-detail-period-controls input:not([data-extra] *)::placeholder { color: rgb(148, 163, 168); }
+#hokenModals .receipt-symptom-detail-insurance-row select:not([data-extra] *) { width: calc(100% - 9px); height: 29px; padding: 2px 9px; border: 1px solid rgb(203, 213, 209); border-radius: 2px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font: inherit; }
+#hokenModals .receipt-symptom-detail-footer:not([data-extra] *) { display: flex; min-height: 43px; align-items: center; justify-content: flex-end; padding: 5px 11px; box-sizing: border-box; background: rgb(247, 248, 248); }
+#hokenModals .receipt-symptom-detail-footer .btn-register:not([data-extra] *) { width: 55px; height: 32px; padding: 0px 10px; border-radius: 2px; background: rgb(11, 87, 23); font-size: 14px; }
+#hokenModals #receipt-summary-comment-modal:not([data-extra] *) { align-items: center; box-sizing: border-box; }
+#hokenModals .modal-receipt-summary-comment:not([data-extra] *) { display: flex; width: min(600px, -32px + 100vw); height: min(698px, -30px + 100vh); max-height: calc(-30px + 100vh); flex-direction: column; overflow: hidden; border-radius: 0px; background: rgb(255, 255, 255); }
+#hokenModals .modal-receipt-summary-comment .modal-header:not([data-extra] *) { height: 42px; min-height: 42px; padding: 0px 14px; border-radius: 0px; background: rgb(11, 87, 23); }
+#hokenModals .modal-receipt-summary-comment .modal-header h3:not([data-extra] *) { color: rgb(255, 255, 255); font-size: 17px; font-weight: 600; letter-spacing: 0px; }
+#hokenModals .modal-receipt-summary-comment .modal-close:not([data-extra] *) { font-size: 27px; font-weight: 700; opacity: 1; }
+#hokenModals .receipt-summary-comment-form:not([data-extra] *) { display: flex; min-height: 0px; flex: 1 1 auto; flex-direction: column; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font-size: 14px; }
+#hokenModals .receipt-summary-comment-row-label:not([data-extra] *) { box-sizing: border-box; padding-left: 10px; white-space: nowrap; }
+#hokenModals .receipt-summary-comment-position-row:not([data-extra] *),
+#hokenModals .receipt-summary-comment-content-row:not([data-extra] *),
+#hokenModals .receipt-summary-comment-period-row:not([data-extra] *),
+#hokenModals .receipt-summary-comment-insurance-row:not([data-extra] *) { display: grid; grid-template-columns: 168px minmax(0px, 1fr); border-bottom: 1px solid rgb(215, 223, 220); }
+#hokenModals .receipt-summary-comment-position-row:not([data-extra] *) { min-height: 50px; align-items: center; }
+#hokenModals .receipt-summary-comment-position-row select:not([data-extra] *),
+#hokenModals .receipt-summary-comment-insurance-row select:not([data-extra] *) { width: calc(100% - 10px); height: 29px; padding: 2px 9px; border: 1px solid rgb(203, 213, 209); border-radius: 2px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font: inherit; }
+#hokenModals .receipt-summary-comment-content-row:not([data-extra] *) { min-height: 0px; flex: 1 1 auto; }
+#hokenModals .receipt-summary-comment-content-row > .receipt-summary-comment-row-label:not([data-extra] *) { padding-top: 10px; }
+#hokenModals .receipt-summary-comment-content-row textarea:not([data-extra] *) { min-height: 180px; margin: 48px 10px 18px 0px; padding: 8px; resize: none; border: 1px solid rgb(203, 213, 209); border-radius: 0px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; font-size: inherit; font-family: inherit; font-optical-sizing: inherit; font-size-adjust: inherit; font-kerning: inherit; font-feature-settings: inherit; font-variation-settings: inherit; font-language-override: inherit; line-height: 1.5; }
+#hokenModals .receipt-summary-comment-period-row:not([data-extra] *) { min-height: 67px; align-items: center; }
+#hokenModals .receipt-summary-comment-insurance-row:not([data-extra] *) { min-height: 49px; align-items: center; }
+#hokenModals .receipt-summary-comment-row-label small:not([data-extra] *) { display: block; margin-top: 4px; font-size: 10px; font-weight: 400; }
+#hokenModals .receipt-summary-comment-period-controls:not([data-extra] *) { display: flex; align-items: center; gap: 10px; }
+#hokenModals .receipt-summary-comment-period-controls input:not([data-extra] *) { width: 193px; height: 29px; padding: 2px 9px; box-sizing: border-box; border: 1px solid rgb(203, 213, 209); border-radius: 2px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font: inherit; }
+#hokenModals .receipt-summary-comment-period-controls input:not([data-extra] *)::placeholder { color: rgb(148, 163, 168); }
+#hokenModals .receipt-summary-comment-footer:not([data-extra] *) { display: flex; min-height: 43px; align-items: center; justify-content: flex-end; padding: 5px 11px; box-sizing: border-box; background: rgb(247, 248, 248); }
+#hokenModals .receipt-summary-comment-footer .btn-register:not([data-extra] *) { width: 55px; height: 32px; padding: 0px 10px; border-radius: 2px; background: rgb(11, 87, 23); font-size: 14px; }
+#hokenModals #welfare-invoice-comment-modal:not([data-extra] *) { align-items: center; box-sizing: border-box; }
+#hokenModals .modal-welfare-invoice-comment:not([data-extra] *) { display: flex; width: min(1022px, -32px + 100vw); height: min(297px, -30px + 100vh); max-height: calc(-30px + 100vh); flex-direction: column; overflow: hidden; border-radius: 0px; background: rgb(255, 255, 255); }
+#hokenModals .modal-welfare-invoice-comment .modal-header:not([data-extra] *) { height: 42px; min-height: 42px; padding: 0px 14px; border-radius: 0px; background: rgb(11, 87, 23); }
+#hokenModals .modal-welfare-invoice-comment .modal-header h3:not([data-extra] *) { color: rgb(255, 255, 255); font-size: 17px; font-weight: 600; letter-spacing: 0px; }
+#hokenModals .modal-welfare-invoice-comment .modal-close:not([data-extra] *) { font-size: 27px; font-weight: 700; opacity: 1; }
+#hokenModals .welfare-invoice-comment-form:not([data-extra] *) { display: flex; min-height: 0px; flex: 1 1 auto; flex-direction: column; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font-size: 14px; }
+#hokenModals .welfare-invoice-comment-row-label:not([data-extra] *) { box-sizing: border-box; padding-left: 10px; white-space: nowrap; }
+#hokenModals .welfare-invoice-comment-content-row:not([data-extra] *),
+#hokenModals .welfare-invoice-comment-period-row:not([data-extra] *) { display: grid; grid-template-columns: 264px 57px minmax(0px, 1fr); border-bottom: 1px solid rgb(215, 223, 220); }
+#hokenModals .welfare-invoice-comment-content-row:not([data-extra] *) { min-height: 111px; align-items: start; }
+#hokenModals .welfare-invoice-comment-content-row > .welfare-invoice-comment-row-label:not([data-extra] *) { padding-top: 11px; }
+#hokenModals .welfare-invoice-comment-content-row > .required-badge:not([data-extra] *),
+#hokenModals .welfare-invoice-comment-period-row > .required-badge:not([data-extra] *) { align-self: start; width: 37px; height: 26px; margin-top: 9px; padding: 0px; line-height: 26px; text-align: center; }
+#hokenModals .welfare-invoice-comment-content-row textarea:not([data-extra] *) { height: 85px; margin: 9px 8px 16px 0px; padding: 8px; resize: none; border: 1px solid rgb(203, 213, 209); border-radius: 0px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; font-size: inherit; font-family: inherit; font-optical-sizing: inherit; font-size-adjust: inherit; font-kerning: inherit; font-feature-settings: inherit; font-variation-settings: inherit; font-language-override: inherit; line-height: 1.5; }
+#hokenModals .welfare-invoice-comment-period-row:not([data-extra] *) { min-height: 67px; align-items: center; }
+#hokenModals .welfare-invoice-comment-period-row > .required-badge:not([data-extra] *) { align-self: center; margin-top: 0px; }
+#hokenModals .welfare-invoice-comment-row-label small:not([data-extra] *) { display: block; margin-top: 4px; font-size: 10px; font-weight: 400; }
+#hokenModals .welfare-invoice-comment-period-controls:not([data-extra] *) { display: flex; align-items: center; gap: 10px; }
+#hokenModals .welfare-invoice-comment-period-controls input:not([data-extra] *) { width: 215px; height: 29px; padding: 2px 9px; box-sizing: border-box; border: 1px solid rgb(203, 213, 209); border-radius: 2px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font: inherit; }
+#hokenModals .welfare-invoice-comment-period-controls input:not([data-extra] *)::placeholder { color: rgb(148, 163, 168); }
+#hokenModals .welfare-invoice-comment-note:not([data-extra] *) { min-height: 33px; margin: 0px; padding: 7px 5px 5px; box-sizing: border-box; color: rgb(17, 24, 39); font-size: 12px; line-height: 20px; }
+#hokenModals .welfare-invoice-comment-footer:not([data-extra] *) { display: flex; min-height: 44px; align-items: center; justify-content: flex-end; padding: 5px 9px; box-sizing: border-box; border-top: 1px solid rgb(215, 223, 220); background: rgb(247, 248, 248); }
+#hokenModals .welfare-invoice-comment-footer .btn-register:not([data-extra] *) { width: 55px; height: 32px; padding: 0px 10px; border-radius: 2px; background: rgb(11, 87, 23); font-size: 14px; }
+#hokenTab .receipt-copayment-table-list th:nth-child(1):not([data-extra] *),
+#hokenTab .receipt-copayment-table-list th:nth-child(2):not([data-extra] *) { width: 22%; }
+#hokenTab .receipt-copayment-table-list th:nth-child(3):not([data-extra] *) { width: 18%; }
+#hokenTab .receipt-copayment-table-list th:nth-child(4):not([data-extra] *) { width: 31%; }
+#hokenTab .receipt-copayment-table-list th:nth-child(5):not([data-extra] *) { width: 42px; }
+#hokenTab .receipt-copayment-table-list .insurance-row-actions:not([data-extra] *) { width: 42px; text-align: center; }
+#hokenModals #receipt-copayment-modal:not([data-extra] *) { align-items: center; box-sizing: border-box; }
+#hokenModals .modal-receipt-copayment:not([data-extra] *) { display: flex; width: min(1024px, -32px + 100vw); height: min(599px, -30px + 100vh); max-height: calc(-30px + 100vh); flex-direction: column; overflow: hidden; border-radius: 0px; background: rgb(255, 255, 255); }
+#hokenModals .modal-receipt-copayment .modal-header:not([data-extra] *) { height: 42px; min-height: 42px; padding: 0px 14px; border-radius: 0px; background: rgb(11, 87, 23); }
+#hokenModals .modal-receipt-copayment .modal-header h3:not([data-extra] *) { color: rgb(255, 255, 255); font-size: 17px; font-weight: 600; letter-spacing: 0px; }
+#hokenModals .modal-receipt-copayment .modal-close:not([data-extra] *) { font-size: 27px; font-weight: 700; opacity: 1; }
+#hokenModals .receipt-copayment-form:not([data-extra] *) { min-height: 0px; flex: 1 1 auto; padding: 0px 10px 10px; box-sizing: border-box; overflow: auto; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font-size: 14px; }
+#hokenModals .receipt-copayment-period-row:not([data-extra] *) { display: grid; min-height: 51px; grid-template-columns: 254px 57px minmax(0px, 1fr); align-items: center; }
+#hokenModals .receipt-copayment-period-row > label:not([data-extra] *) { padding-left: 0px; white-space: nowrap; }
+#hokenModals .receipt-copayment-period-row > .required-badge:not([data-extra] *) { width: 37px; height: 26px; padding: 0px; line-height: 26px; text-align: center; }
+#hokenModals .receipt-copayment-period-controls:not([data-extra] *) { display: flex; align-items: center; gap: 10px; }
+#hokenModals .receipt-copayment-period-controls input:not([data-extra] *) { width: 145px; height: 32px; padding: 2px 9px; box-sizing: border-box; border: 1px solid rgb(203, 213, 209); border-radius: 2px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font: inherit; }
+#hokenModals .receipt-copayment-period-controls input:last-child:not([data-extra] *) { width: 145px; }
+#hokenModals .receipt-copayment-table:not([data-extra] *) { min-width: 650px; height: 441px; border-top: 1px solid rgb(203, 213, 209); border-left: 1px solid rgb(203, 213, 209); box-sizing: border-box; }
+#hokenModals .receipt-copayment-table-header:not([data-extra] *) { display: grid; height: 34px; grid-template-columns: 138px minmax(0px, 1fr); background: rgb(245, 246, 246); font-size: 13px; text-align: center; }
+#hokenModals .receipt-copayment-table-header > span:not([data-extra] *) { display: flex; align-items: center; justify-content: center; border-right: 1px solid rgb(203, 213, 209); border-bottom: 1px solid rgb(203, 213, 209); }
+#hokenModals .receipt-copayment-insurance-block:not([data-extra] *) { display: grid; height: 250px; grid-template-columns: 138px minmax(0px, 1fr); }
+#hokenModals .receipt-copayment-payer-label:not([data-extra] *) { display: flex; align-items: flex-end; padding: 0px 5px 9px; box-sizing: border-box; border-right: 1px solid rgb(203, 213, 209); border-bottom: 1px solid rgb(203, 213, 209); }
+#hokenModals .receipt-copayment-insurance-values:not([data-extra] *) { display: grid; grid-template-rows: repeat(4, 48px) 58px; border-right: 1px solid rgb(203, 213, 209); border-bottom: 1px solid rgb(203, 213, 209); }
+#hokenModals .receipt-copayment-insurance-values > label:not([data-extra] *) { display: flex; align-items: center; padding-left: 15px; gap: 7px; box-sizing: border-box; font-size: 14px; }
+#hokenModals .receipt-copayment-amount:not([data-extra] *) { width: 120px; height: 28px; padding: 2px 7px; box-sizing: border-box; border: 1px solid rgb(203, 213, 209); border-radius: 0px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); font: inherit; text-align: right; }
+#hokenModals .receipt-copayment-amount[type="number"]:not([data-extra] *) { appearance: auto; }
+#hokenModals .receipt-copayment-amount[type="number"]:not([data-extra] *)::-webkit-outer-spin-button,
+#hokenModals .receipt-copayment-amount[type="number"]:not([data-extra] *)::-webkit-inner-spin-button { margin: 0px; appearance: auto; opacity: 1; }
+#hokenModals .receipt-copayment-insurance-entry:not([data-extra] *) { display: flex; align-items: center; justify-content: space-between; padding: 0px 119px 0px 15px; box-sizing: border-box; }
+#hokenModals #receipt-copayment-difference:not([data-extra] *) { min-width: 110px; text-align: right; white-space: nowrap; }
+#hokenModals .receipt-copayment-public-row:not([data-extra] *) { display: grid; height: 39px; grid-template-columns: 138px minmax(0px, 1fr); margin: 0px; border-right: 1px solid rgb(203, 213, 209); border-bottom: 1px solid rgb(203, 213, 209); font-weight: 400; }
+#hokenModals .receipt-copayment-public-row:last-child:not([data-extra] *) { height: 41px; }
+#hokenModals .receipt-copayment-public-row > span:not([data-extra] *) { border-right: 1px solid rgb(203, 213, 209); }
+#hokenModals .receipt-copayment-public-row > span:not([data-extra] *) { display: flex; align-items: center; padding: 0px 5px; box-sizing: border-box; }
+#hokenModals .receipt-copayment-public-row > input:not([data-extra] *) { align-self: center; margin-left: 5px; }
+#hokenModals .receipt-copayment-footer:not([data-extra] *) { display: flex; min-height: 44px; align-items: center; justify-content: flex-end; padding: 5px 13px; box-sizing: border-box; border-top: 1px solid rgb(215, 223, 220); background: rgb(247, 248, 248); }
+#hokenModals .receipt-copayment-footer .btn-register:not([data-extra] *) { width: 55px; height: 32px; padding: 0px 10px; border-radius: 2px; background: rgb(11, 87, 23); font-size: 14px; }
+@media (max-width: 760px) { #hokenModals .receipt-symptom-detail-kind-row:not([data-extra] *),
+#hokenModals .receipt-symptom-detail-content-row:not([data-extra] *),
+#hokenModals .receipt-symptom-detail-period-row:not([data-extra] *),
+#hokenModals .receipt-symptom-detail-insurance-row:not([data-extra] *) { grid-template-columns: 190px minmax(0px, 1fr); } }
+@media (max-width: 760px) { #hokenModals .receipt-summary-comment-position-row:not([data-extra] *),
+#hokenModals .receipt-summary-comment-content-row:not([data-extra] *),
+#hokenModals .receipt-summary-comment-period-row:not([data-extra] *),
+#hokenModals .receipt-summary-comment-insurance-row:not([data-extra] *) { grid-template-columns: 150px minmax(0px, 1fr); } }
+@media (max-width: 760px) { #hokenModals .welfare-invoice-comment-content-row:not([data-extra] *),
+#hokenModals .welfare-invoice-comment-period-row:not([data-extra] *) { grid-template-columns: 190px 57px minmax(0px, 1fr); } }
+@media (max-width: 760px) { #hokenModals .receipt-copayment-period-row:not([data-extra] *) { grid-template-columns: 190px 57px minmax(0px, 1fr); } }
+@media (max-width: 720px) { #hokenModals .workers-insurance-form-row:not([data-extra] *) { grid-template-columns: 165px minmax(0px, 1fr); } }
+@media (max-width: 720px) { #hokenModals .workers-address-field select:not([data-extra] *),
+#hokenModals .workers-office-field select:first-of-type:not([data-extra] *) { flex-basis: 90px; width: 90px; } }

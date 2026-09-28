@@ -1,0 +1,32 @@
+/* 予約管理: 統合版で足した部分（予約の詳細・一覧の印）の見た目。基準版の styles.css の変数・部品（.modal / .btn / .status / .sync-pill）に合わせる */
+.rsvx-modal { z-index: 1150; }
+.rsvx-content { max-width: 760px; }
+.rsvx-body { padding: 16px 20px 20px; }
+.rsvx-sec { border-bottom: 1px solid var(--gray-200); padding: 12px 0; }
+.rsvx-sec:last-of-type { border-bottom: none; }
+.rsvx-sec h4 { font-size: 14px; font-weight: 600; color: var(--gray-700); margin-bottom: 8px; }
+.rsvx-dl { display: grid; grid-template-columns: 128px 1fr; gap: 6px 12px; font-size: 14px; }
+.rsvx-dl dt { color: var(--gray-500); }
+.rsvx-dl dd { color: var(--gray-800); word-break: break-all; }
+.rsvx-muted { color: var(--gray-500); font-size: 13px; }
+.rsvx-note { color: var(--gray-500); font-size: 12px; margin-top: 8px; }
+.rsvx-warn { color: #92400e; background: #fffbeb; border-left: 3px solid var(--warning); padding: 8px 10px; font-size: 13px; }
+.rsvx-error { color: var(--danger); }
+.rsvx-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.rsvx-tag { display: inline-block; font-size: 12px; padding: 2px 8px; border: 1px solid var(--gray-300); border-radius: 2px; color: var(--gray-600); background: #fff; }
+.rsvx-tag.ok { border-color: var(--success); color: #047857; }
+.rsvx-tag.ng { border-color: var(--danger); color: #b91c1c; }
+.rsvx-docs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.rsvx-doc { margin: 0; border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 8px; background: var(--gray-50); }
+.rsvx-doc img { display: block; width: 100%; height: 150px; object-fit: contain; background: #fff; }
+.rsvx-doc figcaption { display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-top: 6px; color: var(--gray-700); }
+.rsvx-doc-none { height: 150px; display: flex; align-items: center; justify-content: center; color: var(--gray-400); font-size: 13px; }
+.rsvx-pay { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font-size: 14px; }
+.rsvx-pay .input { width: auto; min-width: 96px; }
+.rsvx-pay input.input { width: 120px; }
+.rsvx-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding-top: 14px; border-top: 1px solid var(--gray-200); margin-top: 4px; }
+.sync-pill.rsvx-todo { border-color: var(--warning); color: #92400e; }
+.sync-pill.rsvx-ng { border-color: var(--danger); color: #b91c1c; }
+#page-reservations [data-reservation-id] { cursor: pointer; }
+@media (max-width: 640px) { .rsvx-docs { grid-template-columns: 1fr; } .rsvx-dl { grid-template-columns: 96px 1fr; } }
+.rsvx-flash { color: #047857; background: #ecfdf5; border-left: 3px solid var(--success); padding: 6px 10px; font-size: 13px; margin-bottom: 4px; }

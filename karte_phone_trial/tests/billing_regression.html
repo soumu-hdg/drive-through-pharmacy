@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>レセプト計算 回帰テスト — karte v0.12</title>
+<!-- テスト対象ロジック（純粋関数）を読み込む -->
+<script src="../insurance_calc.js"></script>
+<script src="../billing_revision_2026.js"></script>
+<style>
+  body{font-family:"Consolas","Courier New",monospace;background:#101418;color:#d8dee4;margin:0;padding:24px;line-height:1.5}
+  h1{font-size:18px;color:#e6edf3;border-bottom:1px solid #2a3138;padding-bottom:10px;margin:0 0 4px}
+  .meta{font-size:12px;color:#7d8590;margin-bottom:18px}
+  .summary{font-size:15px;font-weight:bold;padding:10px 14px;border-radius:4px;margin-bottom:18px}
+  .summary.ok{background:#12261a;color:#4ac26b;border:1px solid #2ea043}
+  .summary.ng{background:#2d1416;color:#f85149;border:1px solid #da3633}
+  .group{margin-bottom:16px}
+  .group-title{font-size:13px;color:#58a6ff;margin:14px 0 6px;font-weight:bold}
+  .case{display:flex;gap:10px;padding:3px 0;font-size:12.5px;border-bottom:1px solid #191f26}
+  .tag{flex:0 0 46px;font-weight:bold}
+  .pass .tag{color:#3fb950}
+  .fail{background:#241416}
+  .fail .tag{color:#f85149}
+  .desc{flex:1;color:#c9d1d9}
+  .exp{color:#7d8590;font-size:11.5px}
+  .fail .exp{color:#ffa198}
+  .note{font-size:11.5px;color:#7d8590;margin-top:20px;border-top:1px solid #2a3138;padding-top:10px}
+</style>
+</head>
+<body>
+<h1>レセプト計算 回帰テスト</h1>
+<div class="meta">
+  対象: <b>insurance_calc.js</b> / <b>billing_revision_2026.js</b>（保険者番号解析・負担割合判定・診療報酬点数）<br>
+  性質: <b>特性化テスト（characterization test）</b> — 現在のコードの出力を基準値として固定し、将来の変更が既存計算を壊していないかを検知する。<br>
+  基準値は 2026-07-03 時点の実出力から取得。
+</div>
+<div id="summary" class="summary">実行中...</div>
+<div id="results"></div>
+<div class="note">
+  ※ このページは診療報酬の「正解」を保証するものではなく、<b>コードの挙動が変わっていないこと</b>を保証します。<br>
+  ※ 診療報酬改定などで点数マスタを意図的に変更した場合は、変更後の値で基準値（expected）を更新してください。<br>
+  ※ ローカルまたはサーバー経由でこのHTMLを開くだけで実行されます（外部通信なし）。
+</div>
+
+<script>
+// ===== 極小テストランナー =====
+const R = { results: [], pass: 0, fail: 0 };
+let currentGroup = '';
+function group(name){ currentGroup = name; }
+function eq(desc, actual, expected){
+  const a = JSON.stringify(actual), e = JSON.stringify(expected);
+  const ok = a === e;
+  R.results.push({ group: currentGroup, desc, ok, actual: a, expected: e });
+  ok ? R.pass++ : R.fail++;
+}
+
+// 決定論のための固定基準日（calcAge/isPreSchool は refDate を受け取れる）
+const REF = new Date('2026-07-03T00:00:00');
+
+// --- verifyCheckDigit ---
+group('チェックデジット検証 verifyCheckDigit');
+eq("6桁 有効 '130005' → true", verifyCheckDigit('130005'), true);
+eq("6桁 無効 '130006' → false", verifyCheckDigit('130006'), false);
+eq("8桁 有効 '01130004' → true", verifyCheckDigit('01130004'), true);
+
+// --- parseInsurerNumber ---
+group('保険者番号パーサー parseInsurerNumber');
+(function(){
+  const p = parseInsurerNumber('130005');
+  eq("6桁国保: valid", p.valid, true);
+  eq("6桁国保: category", p.insuranceCategory, '国保');
+  eq("6桁国保: 種別名", p.houbetsuName, '国民健康保険');
+  eq("6桁国保: 都道府県", p.prefName, '東京');
+})();
+(function(){
+  const p = parseInsurerNumber('01130004');
+  eq("8桁協会けんぽ: valid", p.valid, true);
+  eq("8桁協会けんぽ: 種別名", p.houbetsuName, '協会けんぽ');
+  eq("8桁協会けんぽ: category", p.insuranceCategory, '社保');
+})();
+(function(){
+  const p = parseInsurerNumber('39130000');
+  eq("8桁後期高齢: 種別名", p.houbetsuName, '後期高齢者医療');
+  eq("8桁後期高齢: category", p.insuranceCategory, '後期高齢者');
+})();
+(function(){
+  const p = parseInsurerNumber('12345');
+  eq("桁数不正5桁: valid=false", p.valid, false);
+  eq("桁数不正5桁: エラー内容", p.errors, ['桁数不正（6桁または8桁が必要、入力: 5桁）']);
+})();
+(function(){
+  const p = parseInsurerNumber('130006');
+  eq("CD不一致6桁: valid=false", p.valid, false);
+  eq("CD不一致6桁: エラー内容", p.errors, ['検証番号不一致']);
+})();
+
+// --- calcAge / isPreSchool ---
+group('年齢・就学前判定（固定基準日 2026-07-03）');
+eq("calcAge 1985-06-15 → 41", calcAge('1985-06-15', REF), 41);
+eq("calcAge 2020-06-15 → 6", calcAge('2020-06-15', REF), 6);
+eq("isPreSchool 2021-04-01 → true", isPreSchool('2021-04-01', REF), true);
+eq("isPreSchool 1985-06-15 → false", isPreSchool('1985-06-15', REF), false);
+
+// --- 診療報酬改定切替 ---
+group('令和8年改定 切替 isPostRevision2026 / getVisitFee / getBillingPoints');
+eq("改定前 2026-05-31 → false", isPostRevision2026('2026-05-31'), false);
+eq("改定日 2026-06-01 → true", isPostRevision2026('2026-06-01'), true);
+eq("初診料 → 291点", getVisitFee(true, '2026-06-01').points, 291);
+eq("再診料 改定前 → 75点", getVisitFee(false, '2026-05-31').points, 75);
+eq("再診料 改定後 → 76点", getVisitFee(false, '2026-06-01').points, 76);
+eq("再診料pts 改定前 → 75", getBillingPoints('再診料', '2026-05-31'), 75);
+eq("再診料pts 改定後 → 76", getBillingPoints('再診料', '2026-06-01'), 76);
+eq("生活習慣病管理料(I)糖尿病 改定後 → 760", getBillingPoints('生活習慣病管理料(I) 糖尿病', '2026-06-01'), 760);
+eq("生活習慣病管理料(I)糖尿病 改定前 → null(未存在)", getBillingPoints('生活習慣病管理料(I) 糖尿病', '2026-05-31'), null);
+
+// --- 負担割合判定 calcCopayRate ---
+// 注: calcCopayRate は内部で現在日を用いるが、以下は年齢が境界から十分離れた（数十年安定な）ケースのみ採用
+group('負担割合判定 calcCopayRate');
+(function(){
+  const r = calcCopayRate('01130004', '1985-06-15');
+  eq("現役世代(社保): finalRate 0.3", r.finalRate, 0.3);
+  eq("現役世代(社保): ラベル 3割", r.rateLabel, '3割');
+})();
+(function(){
+  const r = calcCopayRate('39130000', '1945-01-01');
+  eq("後期高齢者 一般: finalRate 0.1", r.finalRate, 0.1);
+  eq("後期高齢者 一般: ラベル 1割", r.rateLabel, '1割');
+})();
+eq("後期高齢者 現役並みgenzai3: 0.3", calcCopayRate('39130000','1945-01-01',{incomeLevel:'genzai3'}).finalRate, 0.3);
+(function(){
+  const r = calcCopayRate('01130004', '1985-06-15', { kouhiNumber:'12134567' });
+  eq("公費 生活保護: finalRate 0", r.finalRate, 0);
+  eq("公費 生活保護: ラベル", r.rateLabel, '0割（公費）');
+  eq("公費 生活保護: 公費名", r.kouhiName, '生活保護 医療扶助');
+})();
+eq("公費 指定難病(54): min(0.3,0.2)=0.2", calcCopayRate('01130004','1985-06-15',{kouhiNumber:'54134567'}).finalRate, 0.2);
+eq("公費 結核適正医療(10): 0.05", calcCopayRate('01130004','1985-06-15',{kouhiNumber:'10134567'}).finalRate, 0.05);
+eq("公費 結核適正医療(10): ラベル 5%", calcCopayRate('01130004','1985-06-15',{kouhiNumber:'10134567'}).rateLabel, '5%');
+
+// ===== 描画 =====
+(function render(){
+  const groups = {};
+  R.results.forEach(r => { (groups[r.group] = groups[r.group] || []).push(r); });
+  let html = '';
+  Object.keys(groups).forEach(g => {
+    html += '<div class="group"><div class="group-title">' + g + '</div>';
+    groups[g].forEach(r => {
+      html += '<div class="case ' + (r.ok?'pass':'fail') + '">' +
+        '<span class="tag">' + (r.ok?'PASS':'FAIL') + '</span>' +
+        '<span class="desc">' + r.desc +
+        (r.ok ? '' : '<div class="exp">expected: ' + r.expected + ' / actual: ' + r.actual + '</div>') +
+        '</span></div>';
+    });
+    html += '</div>';
+  });
+  document.getElementById('results').innerHTML = html;
+  const s = document.getElementById('summary');
+  s.className = 'summary ' + (R.fail===0 ? 'ok' : 'ng');
+  s.textContent = (R.fail===0 ? '✓ 全' + R.pass + '件 PASS' : '✗ ' + R.fail + '件 FAIL / ' + R.pass + '件 PASS') + '（合計 ' + (R.pass+R.fail) + '件）';
+  window.__TEST_RESULT__ = { pass: R.pass, fail: R.fail, total: R.pass+R.fail };
+})();
+</script>
+</body>
+</html>

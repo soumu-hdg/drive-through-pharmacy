@@ -1,0 +1,157 @@
+/* ============================================================
+   情報通信機器を用いた診療に係る報告書（別紙様式14）
+   2026-09-11 追加。
+   レセプト作成モーダル（rzm-）と同じ見た目の言語に合わせている：
+     ヘッダ #0a4d12 / 42px、本文 #f4f6f5 / 14px #242927、枠 #d2dbd8、
+     ボタン radius 2px、補足文字 #5e6b67
+   命名は tm- 接頭で既存と分離。
+   ============================================================ */
+
+.tm-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0, 0, 0, 0.5);
+  display: none; align-items: flex-start; justify-content: center;
+  padding: 15px;
+}
+.tm-overlay.show { display: flex; }
+
+.tm {
+  width: 1100px; max-width: 100%;
+  height: calc(100vh - 30px);
+  display: flex; flex-direction: column;
+  background: #f4f6f5;
+  font-family: "ヒラギノ角ゴ ProN", "Hiragino Kaku Gothic ProN", メイリオ, Meiryo,
+               verdana, Osaka, "ＭＳ Ｐゴシック", "MS PGothic", sans-serif;
+  font-size: 14px; color: #242927;
+}
+.tm, .tm * { box-sizing: border-box; }
+
+/* ---- ヘッダ ---- */
+.tm-head {
+  flex: none; height: 42px; background: #0a4d12; color: #fff;
+  display: flex; align-items: center; gap: 8px; padding: 0 6px 0 15px;
+}
+.tm-head h2 { font-size: 17px; font-weight: 400; margin: 0; line-height: 1; }
+.tm-head .tm-head-sub { font-size: 11px; opacity: .8; }
+.tm-head .tm-spacer-head { flex: 1; }
+.tm-x {
+  width: 42px; height: 42px; background: none; border: none; border-radius: 2px;
+  color: #fff; font-size: 22px; line-height: 1; cursor: pointer;
+}
+.tm-x:hover { background: rgba(255, 255, 255, 0.14); }
+
+/* ---- 本文 ---- */
+.tm-body { flex: 1; overflow-y: auto; padding: 12px 15px 24px; }
+.tm-loading { padding: 40px; text-align: center; color: #5e6b67; }
+
+/* ---- ツールバー ---- */
+.tm-toolbar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 10px; background: #fff; border: 1px solid #d2dbd8;
+}
+.tm-toolbar label { font-size: 12px; color: #5e6b67; }
+.tm-toolbar select { height: 28px; font-size: 13px; font-family: inherit; border: 1px solid #c3ccc9; border-radius: 2px; padding: 0 4px; }
+.tm-toolbar .tm-period { font-size: 12px; color: #242927; margin-left: 4px; }
+.tm-toolbar .tm-spacer { flex: 1; }
+
+.tm-btn {
+  height: 30px; padding: 0 12px; font-size: 13px; font-family: inherit;
+  border: 1px solid #a9b5b1; background: #fff; color: #242927;
+  border-radius: 2px; cursor: pointer;
+}
+.tm-btn:hover { background: #eef2f0; }
+.tm-btn-main { background: #0a4d12; border-color: #0a4d12; color: #fff; }
+.tm-btn-main:hover { background: #0d6117; }
+.tm-btn-print { background: #c9821f; border-color: #c9821f; color: #fff; }
+.tm-btn-print:hover { background: #d9922f; }
+.tm-btn-sm { height: 26px; font-size: 12px; padding: 0 10px; margin-top: 6px; }
+
+.tm-status { min-height: 18px; font-size: 12px; padding: 4px 2px; color: #3a6b35; }
+
+.tm-warn {
+  border-left: 4px solid #c9821f; background: #fdf6ea;
+  padding: 8px 12px; font-size: 12px; line-height: 1.7; margin-bottom: 10px;
+}
+
+/* ---- セクション ---- */
+.tm-sec { background: #fff; border: 1px solid #d2dbd8; padding: 10px 12px; margin-top: 10px; }
+.tm-sec.tm-required { border-left: 4px solid #b91c1c; }
+.tm-sec-title {
+  font-size: 13px; font-weight: 700; margin-bottom: 8px;
+  padding-bottom: 5px; border-bottom: 1px solid #e3e8e6;
+}
+.tm-hint { font-weight: 400; font-size: 11px; color: #5e6b67; margin-left: 8px; }
+
+.tm-grid3 { display: grid; grid-template-columns: 1fr 180px 1.4fr; gap: 10px; }
+.tm-grid3 label { display: block; font-size: 11px; color: #5e6b67; }
+.tm-grid3 input {
+  display: block; width: 100%; height: 28px; margin-top: 3px;
+  font-size: 13px; font-family: inherit; border: 1px solid #c3ccc9; border-radius: 2px; padding: 0 6px;
+}
+
+/* ---- 件数テーブル ---- */
+.tm-table { width: 100%; border-collapse: collapse; }
+.tm-table th, .tm-table td { border: 1px solid #d2dbd8; padding: 4px 8px; font-size: 12px; }
+.tm-table thead th { background: #eef2f0; font-size: 11px; color: #5e6b67; text-align: center; font-weight: 600; }
+.tm-table tbody th { text-align: left; font-weight: 400; }
+.tm-table tr.tm-sub th { padding-left: 18px; color: #5e6b67; }
+.tm-table tr.tm-group td { background: #f4f6f5; font-size: 11px; font-weight: 700; color: #3a4a45; }
+.tm-table td.tm-auto { text-align: right; color: #5e6b67; width: 15%; }
+.tm-table td.tm-eff { text-align: right; font-weight: 700; width: 15%; }
+.tm-table td input[type="number"] {
+  width: 100%; height: 24px; text-align: right;
+  font-size: 12px; font-family: inherit; border: 1px solid #c3ccc9; border-radius: 2px; padding: 0 5px;
+}
+
+.tm-calc { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; margin-top: 7px; }
+.tm-calc b { font-size: 13px; }
+.tm-calc .tm-ok { color: #3a6b35; }
+.tm-calc .tm-flag { color: #b91c1c; font-weight: 700; }
+
+/* ---- 行エディタ（1-2 / 1-3） ---- */
+.tm-row { display: grid; gap: 6px; align-items: start; margin-bottom: 5px; }
+.tm-row input, .tm-row select {
+  height: 28px; font-size: 12px; font-family: inherit;
+  border: 1px solid #c3ccc9; border-radius: 2px; padding: 0 6px; width: 100%;
+}
+.tm-row-pref { grid-template-columns: 160px 1fr 28px; }
+.tm-row-doc  { grid-template-columns: 1.1fr 0.9fr 1.9fr 1fr 1.7fr 28px; }
+.tm-row-head { font-size: 11px; color: #5e6b67; margin-bottom: 3px; }
+.tm-row-head span { padding-left: 2px; }
+.tm-stack { display: flex; flex-direction: column; gap: 4px; }
+.tm-del {
+  width: 28px; height: 28px; border: 1px solid #d6b3b3; background: #fff;
+  color: #b91c1c; border-radius: 2px; cursor: pointer; font-size: 15px; line-height: 1;
+}
+.tm-del:hover { background: #fdeaea; }
+.tm-empty { font-size: 12px; color: #5e6b67; padding: 6px 2px; }
+
+/* ---- チェック ---- */
+.tm-chk { display: block; font-size: 13px; padding: 4px 2px; cursor: pointer; }
+.tm-chk input { margin-right: 6px; }
+.tm-inline {
+  height: 26px; font-size: 12px; font-family: inherit; margin-left: 8px; width: 320px;
+  border: 1px solid #c3ccc9; border-radius: 2px; padding: 0 6px;
+}
+.tm-sec textarea {
+  width: 100%; font-size: 12px; font-family: inherit; padding: 6px;
+  border: 1px solid #c3ccc9; border-radius: 2px; resize: vertical;
+}
+
+/* ============================================================
+   カルテ画面：受診ごとのオンライン診療バー
+   ============================================================ */
+.tmv-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  padding: 6px 10px; margin-bottom: 8px;
+  background: #f0f5f3; border-left: 3px solid #0a4d12;
+  font-size: 12px;
+}
+.tmv-bar label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.tmv-bar .tmv-main { font-weight: 700; }
+.tmv-bar select {
+  height: 26px; font-size: 12px; font-family: inherit;
+  border: 1px solid #c3ccc9; border-radius: 2px; padding: 0 4px;
+}
+.tmv-bar .tmv-detail { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.tmv-bar .tmv-note { color: #5e6b67; font-size: 11px; }

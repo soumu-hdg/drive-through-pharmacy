@@ -1,0 +1,27 @@
+/* 保険等タブ（2026-09-24）: 統合版だけの部分の見た目（基準版には無いもの）。
+   基準版の部品の書式（data-own）の部品は hoken_tab_base.css がそのまま効くので、ここでは足した枠と並びだけを決める。 */
+
+/* 小窓を開いている間はお知らせ（入力の誤り等）を小窓より手前に出す */
+body.hk-modal-open .toast { z-index: 5000; }
+
+/* 各小窓の「削除」ボタン（基準版では医療保険・公費だけにある）: 左端に寄せる */
+#hokenModals .hk-footer-delete:not([data-extra] *) { margin-right: auto; }
+#hokenModals .receipt-special-note-footer, #hokenModals .receipt-symptom-detail-footer, #hokenModals .receipt-summary-comment-footer,
+#hokenModals .welfare-invoice-comment-footer, #hokenModals .receipt-copayment-footer { display: flex; align-items: center; gap: 8px; }
+#hokenModals .modal-workers-insurance .modal-footer-insurance, #hokenModals .modal-auto-insurance .modal-footer-insurance { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+#hokenModals #btn-workers-insurance-delete, #hokenModals #btn-auto-insurance-delete { margin-right: auto; }
+
+/* 保険証・医療証の読み取り枠（医療保険・公費の追加小窓の上。予約サイト／スマホから届いた画像と、写真からの読み取り） */
+#hokenModals .hk-reader-slot { margin: 0; padding: 10px 16px 4px; background: #f3f6f5; border-bottom: 1px solid #cbd9d5; max-height: 42vh; overflow-y: auto; flex-shrink: 0; font-size: 13px; line-height: 1.5; color: #111827; }
+#hokenModals .hk-reader-slot.hidden { display: none !important; }
+#hokenModals .hk-reader-head { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; }
+#hokenModals .hk-reader-title { font-size: 14px; font-weight: 600; color: #0b5a2a; white-space: nowrap; }
+#hokenModals .hk-reader-note { flex: 1; font-size: 12px; color: #4b5563; }
+#hokenModals .hk-reader-close { width: 26px; height: 26px; padding: 0; border: 1px solid #d7dfdc; border-radius: 3px; background: #fff; color: #0b5a2a; font-size: 16px; line-height: 1; cursor: pointer; }
+#hokenModals .hk-reader-close:hover { background: #e8f2ec; border-color: #b7c9c1; }
+#hokenModals .hk-reader-body > * { margin: 0 0 8px; }
+#hokenModals .hk-reader-body .ocr-section { background: #fff; border: 1px solid #cbd9d5; border-radius: 3px; padding: 8px 10px; }
+#hokenModals .hk-reader-body .rsvdocs, #hokenModals .hk-reader-body .mi-panel { background: #fff; border: 1px solid #cbd9d5; border-radius: 3px; padding: 8px 10px; }
+#hokenModals .hk-reader-body .ocr-header { margin-bottom: 0; }
+#hokenModals .hk-reader-body .ocr-header .btn { flex: 0 0 auto; min-width: 96px; }
+#hokenModals .hk-reader-body .ocr-header > span:nth-child(2) { color: #0b5a2a; }

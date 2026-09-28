@@ -1,0 +1,126 @@
+/**
+ * =====================================================================
+ *  カルテ完全削除 API  （電子カルテ v18 / 要望#9）
+ * =====================================================================
+ *  ★2026-08-05 本番GASへ反映済み（このファイルは控え）
+ *    スクリプト: 1YQ7vfPtWAi6Vy6iQIS9fVj6J6ZR6CaGJpW8bgh9i0g-gnaGtsP-CVoYp
+ *    デプロイ  : AKfycbwFzGLG20GaSLxfdRDAg1ATqQu_s5MWYF045Rlc3OH01duvrL2rqlP9VSQxCEodiePX
+ *                （バージョン4 / URLは変更なし）
+ *    testDeleteKarte は実行後に自分が書いた削除ログ行（カルテIDに
+ *    'NOT-EXIST' を含む行）を消す自己清掃つきに変更済み。
+ *
+ *  【参考: 手動で入れ直す場合の手順】
+ *   1. カルテ用のGASプロジェクト（新カルテ用DB／スプレッドシートID
+ *      1FYpePnWd33udmESL1zNnoinSMsrioRrvXtrJDguRWbw）を開く
+ *   2. 左の「ファイル」＋ →「スクリプト」で新規ファイルを作り、
+ *      名前を  DeleteKarte  にする
+ *   3. この内容をまるごと貼り付けて保存
+ *   4. 既存の Code.gs の doPost 内 switch に、次の3行を足す
+ *      （'updateKarteStatus' の case の下あたり）
+ *
+ *          case 'deleteKarte':
+ *            result = deleteKarte(data);
+ *            break;
+ *
+ *   5. 「デプロイ」→「デプロイを管理」→ 鉛筆アイコン →
+ *      バージョン「新バージョン」→ デプロイ
+ *      （※URLを変えないため、必ず既存デプロイの「編集」から行う）
+ *
+ *  【何をするか】
+ *   指定カルテIDに紐づく行を カルテ/処方/傷病名/検査/算定 の各シートから削除し、
+ *   「削除ログ」シートに 日時・実施者・理由 を残す。
+ *   患者マスタ・保険証は削除しない（患者そのものは消さない）。
+ * =====================================================================
+ */
+
+// 削除対象シートと、カルテIDが入っている列番号（1始まり）
+var DELETE_TARGETS = [
+  { sheet: 'カルテ',  karteIdCol: 1 },   // A列 = karte_id
+  { sheet: '処方',    karteIdCol: 2 },   // B列 = karte_id
+  { sheet: '傷病名',  karteIdCol: 2 },
+  { sheet: '検査',    karteIdCol: 2 },
+  { sheet: '算定',    karteIdCol: 2 }
+];
+
+var DELETE_LOG_SHEET = '削除ログ';
+
+function deleteKarte(data) {
+  // クライアントは日本語キーで送ってくる。英語キーでも動くよう両対応にする。
+  var karteId   = data['カルテID'] || data.karte_id;
+  var patientId = data['患者ID']   || data.patient_id || '';
+  var visitDate = data['受診日']   || data.visit_date || '';
+  var reason    = data['削除理由'] || data.reason     || '';
+  var note      = data['詳細']     || data.note       || '';
+  var operator  = data['実施者']   || data.operator   || '';
+
+  if (!karteId) return { error: 'カルテIDがありません' };
+
+  var ss = getSS();
+  var deleted = {};
+  var total = 0;
+
+  for (var t = 0; t < DELETE_TARGETS.length; t++) {
+    var target = DELETE_TARGETS[t];
+    var sheet = ss.getSheetByName(target.sheet);
+    if (!sheet) { deleted[target.sheet] = 0; continue; }
+
+    var values = sheet.getDataRange().getValues();
+    var col = target.karteIdCol - 1;
+    var count = 0;
+
+    // 下から消す（上から消すと行番号がずれるため）
+    for (var i = values.length - 1; i >= 1; i--) {
+      if (String(values[i][col]) === String(karteId)) {
+        sheet.deleteRow(i + 1);
+        count++;
+      }
+    }
+    deleted[target.sheet] = count;
+    total += count;
+  }
+
+  writeDeleteLog_(karteId, patientId, visitDate, reason, note, operator, total);
+
+  return { success: true, karte_id: karteId, deleted: deleted, total: total };
+}
+
+/** 削除ログを残す（シートが無ければ作る） */
+function writeDeleteLog_(karteId, patientId, visitDate, reason, note, operator, total) {
+  var ss = getSS();
+  var sheet = ss.getSheetByName(DELETE_LOG_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(DELETE_LOG_SHEET);
+    sheet.appendRow(['削除日時', 'カルテID', '患者ID', '受診日', '削除理由', '詳細', '実施者', '削除行数']);
+    sheet.setFrozenRows(1);
+  }
+  sheet.appendRow([
+    Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd HH:mm:ss'),
+    karteId, patientId, visitDate, reason, note, operator, total
+  ]);
+}
+
+/**
+ * 動作確認用（GASエディタから手動実行する）
+ * 存在しないIDを渡すので、実データは消えない。
+ * 実行ログに { success: true, total: 0 } が出れば配線OK。
+ */
+function testDeleteKarte() {
+  var r = deleteKarte({
+    'カルテID': 'K-TEST-DO-NOT-EXIST',
+    '患者ID': 'P000',
+    '受診日': '2026-01-01',
+    '削除理由': 'テスト入力',
+    '詳細': '疎通確認',
+    '実施者': 'test'
+  });
+  Logger.log(JSON.stringify(r));
+  // テスト実行で書かれた削除ログ行は残さない（自己清掃）
+  var log = getSS().getSheetByName(DELETE_LOG_SHEET);
+  if (log) {
+    var rows = log.getDataRange().getValues();
+    for (var i = rows.length - 1; i >= 1; i--) {
+      if (String(rows[i][1]).indexOf('NOT-EXIST') >= 0) log.deleteRow(i + 1);
+    }
+  }
+  return r;
+}

@@ -1,0 +1,5 @@
+/* 保険等タブ（2026-09-24）: 統合版の共通スタイル（style.css・m3.css 等）が保険等タブと小窓の中に効かないよう打ち消す。
+   打ち消したあとに hoken_tab_base.css（基準版の見た目・自動生成）が効く。
+   除外（アイコン・統合版の書式の枠 data-extra）は :where() で包み、打ち消しの強さを上げない。 */
+#hokenTab :where(*:not(i[class*="fa-"]):not([data-extra], [data-extra] *)),
+#hokenModals :where(*:not(i[class*="fa-"]):not([data-extra], [data-extra] *)) { all: revert; }

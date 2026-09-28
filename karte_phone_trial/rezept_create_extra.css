@@ -1,0 +1,31 @@
+/* レセプト作成の小窓：統合版だけの部分（修正11・2026-09-24）
+   基準版の見た目は rezept_create_base.css（自動生成）。ここは表示の切り替えと、統合版だけの機能の置き場所だけ */
+#rezeptCreateModal.hidden { display: none; }
+#rezeptCreateModal .is-hidden { display: none !important; }
+#rezeptCreateModal [hidden] { display: none !important; }
+/* 日付は基準版と同じ白い入力欄で見せ、実際の選択はブラウザの月・日付の選択を使う */
+#rezeptCreateModal .rzm-hidden-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+#rezeptCreateModal .receipt-claim-field { position: relative; }
+#rezeptCreateModal .receipt-claim-field input[readonly] { cursor: pointer; }
+/* 下の帯の左側：即UKE生成・マニュアル・指摘があっても提出用を作る */
+#rezeptCreateModal .footer-left { display: flex; align-items: center; gap: 12px; }
+#rezeptCreateModal .rz-help { font-size: 12px; color: var(--gray-600); text-decoration: underline; }
+#rezeptCreateModal .rz-allow { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--gray-700); cursor: pointer; }
+#rezeptCreateModal .rz-status { font-size: 12px; color: var(--gray-600); }
+/* 作成結果に添える形式点検の結果（統合版の機能） */
+#rezeptCreateModal .rz-ukecheck { margin-top: 6px; font-size: 12px; line-height: 1.5; }
+
+/* 労災タブ（統合版だけの機能）: 既存 rezept_create.css 224〜233行の .rs- 系を小窓の中でも効くように写したもの */
+#rezeptCreateModal .rs-bar { display: flex; align-items: center; gap: 10px; padding: 8px 0 10px; flex-wrap: wrap; }
+#rezeptCreateModal .rs-bar label { font-size: 12px; color: #555; }
+#rezeptCreateModal .rs-bar input[type="month"] { font-size: 13px; padding: 3px 6px; border: 1px solid #cbd5e1; border-radius: 4px; }
+#rezeptCreateModal .rs-sum { font-size: 13px; padding: 8px 10px; background: #fff7ed; border-left: 4px solid #b45309; margin-bottom: 10px; }
+#rezeptCreateModal .rs-sum .rs-note { font-size: 11px; color: #92400e; margin-left: 8px; }
+#rezeptCreateModal table.rs-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+#rezeptCreateModal table.rs-tbl th,
+#rezeptCreateModal table.rs-tbl td { border-bottom: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+#rezeptCreateModal table.rs-tbl th { background: #f8fafc; font-weight: 600; }
+#rezeptCreateModal table.rs-tbl td.num { text-align: right; font-variant-numeric: tabular-nums; }
+#rezeptCreateModal .rs-help { font-size: 11px; color: #64748b; margin-top: 12px; line-height: 1.7; }
+#rezeptCreateModal .rs-bar input { height: 31px; border: 1px solid rgb(195, 208, 202); border-radius: 4px; padding: 4px 8px; font: inherit; background: #fff; }
+#rezeptCreateModal .rzm-empty { font-size: 14px; padding: 14px 0; color: var(--gray-600); }

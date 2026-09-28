@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>電子カルテ</title>
+<!-- 入口（2026-09-24 画面の切り替え）: 基準版の画面（base/index.html）へ移る。院の指定（?clinic=）と #以降はそのまま引き継ぐ。
+     従来の画面は classic.html（基準版の画面の「従来の画面」からも開ける） -->
+<script>location.replace('base/index.html' + location.search + location.hash);</script>
+<style>
+  body { margin: 0; font-family: "Noto Sans JP", sans-serif; background: #f5f6f5; color: #2d2d2d; }
+  main { max-width: 420px; margin: 18vh auto 0; padding: 0 16px; font-size: 14px; line-height: 1.8; }
+  a { color: #1b5e20; }
+</style>
+</head>
+<body>
+<main>
+  <p>電子カルテを開いています…</p>
+  <p>自動で移らないときは <a id="to-base" href="base/index.html">こちら</a> から開いてください。<br>
+     従来の画面は <a id="to-classic" href="classic.html">こちら</a>。</p>
+</main>
+<script>
+  document.getElementById('to-base').href = 'base/index.html' + location.search + location.hash;
+  document.getElementById('to-classic').href = 'classic.html' + location.search + location.hash;
+</script>
+</body>
+</html>

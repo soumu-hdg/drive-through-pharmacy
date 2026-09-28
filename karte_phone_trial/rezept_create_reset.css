@@ -1,0 +1,5 @@
+/* レセプト作成の小窓（修正11・2026-09-24）: 統合版の共通スタイルを小窓の中では打ち消す
+   ブラウザ標準の状態に戻してから、rezept_create_base.css（基準版の見た目）だけが効くようにする。
+   アイコン（Font Awesome の i 要素）は打ち消さない。
+   このファイルは rezept_create_base.css より前に読み込むこと（同じ強さの規則は後が勝つため） */
+#rezeptCreateModal, #rezeptCreateModal :where(*:not(i[class*="fa-"])) { all: revert; }
