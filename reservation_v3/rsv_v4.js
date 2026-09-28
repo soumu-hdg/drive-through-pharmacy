@@ -214,7 +214,7 @@
         const tags = (m.concerns || "").split(/[・、,]/).filter(Boolean).slice(0, 4);
         const badges = [m.popular ? "人気" : "", m.firstVisitPrice != null ? "初回価格" : ""].filter(Boolean);
         const price = m.firstVisitPrice != null ? `¥${Number(m.firstVisitPrice).toLocaleString()}` : m.price != null ? `¥${Number(m.price).toLocaleString()}〜` : "要問合せ";
-        const sub = m.firstVisitPrice != null ? `初回価格／通常 ¥${Number(m.price || 0).toLocaleString()}〜` : "";
+        const sub = m.firstVisitPrice != null ? (m.price != null ? `初回価格／通常 ¥${Number(m.price).toLocaleString()}〜` : "初回価格") : "";
         const detail = [m.downtime ? `ダウンタイム: ${m.downtime}` : "", m.staffType ? `施術担当: ${m.staffType}` : ""].filter(Boolean).join("　");
         return `<div class="treatment-menu-card ${Number(st.menuId) === Number(m.id) ? "active" : ""}" data-menu-id="${m.id}">
           <span class="treatment-menu-visual treatment-menu-visual--${THEMES[i % THEMES.length]} ${img ? "has-image" : ""}" ${img ? `style="background-image:linear-gradient(90deg, rgba(0,0,0,0.28), rgba(0,0,0,0.08)), url('${img}')"` : ""}>
@@ -257,6 +257,9 @@
   }
   /* 空き枠 = 診療時間 − 予約 − ブロック − カルテの来院予定（store.js の getDays / slotAvail）。休診日は枠が 0 */
   function renderCalendar() {
+    // メニューのある区分（美容）でメニュー未選択のときは日時の表を出さない。
+    // 受付側の変更（Realtime）で呼ばれても「最短で予約できる日時」を出さない＝メニューなしの美容予約を作らせない
+    if (Store.menusOfCs(st.csId).length && !st.menuId) return;
     const dates = weekDates(st.week);
     const days = Store.getDays(st.csId, 7 * (MAX_WEEK + 1) + 1);
     const byDate = Object.fromEntries(days.map((d) => [d.date, d]));
@@ -331,11 +334,31 @@
     const part = (i, ph, ac) => `<input class="phone-input" type="tel" id="${base}Part${i}" inputmode="numeric" maxlength="4" autocomplete="${ac}" placeholder="${ph}" aria-label="電話番号${i}" value="${esc(p[i - 1] || "")}">`;
     return `<div class="phone-input-group" data-phone-target="${base}" data-phone-required="true">${part(1, "090", "tel-area-code")}<span class="phone-separator">-</span>${part(2, "1234", "tel-local-prefix")}<span class="phone-separator">-</span>${part(3, "5678", "tel-local-suffix")}</div>`;
   }
+  /* 数字だけの電話番号を3つに分ける（区切りの位置は目安。照会・キャンセルは数字だけで照合する） */
+  function splitPhone(d) {
+    d = d.slice(0, 12);
+    if (d.length === 12) return [d.slice(0, 4), d.slice(4, 8), d.slice(8)];
+    if (d.length === 11) return [d.slice(0, 3), d.slice(3, 7), d.slice(7)];                         // 携帯・050
+    if (/^0(120|800|570)/.test(d)) return [d.slice(0, 4), d.slice(4, 7), d.slice(7)];               // 0120-xxx-xxx 等
+    if (/^0[36]/.test(d)) return [d.slice(0, 2), d.slice(2, 6), d.slice(6)];                        // 東京・大阪
+    return [d.slice(0, 3), d.slice(3, 6), d.slice(6)];
+  }
   function bindPhone(root) {
     root.querySelectorAll(".phone-input-group").forEach((g) => {
       const ins = [...g.querySelectorAll(".phone-input")];
       ins.forEach((inp, i) => {
-        inp.addEventListener("input", () => { inp.value = inp.value.replace(/\D/g, "").slice(0, 4); if (inp.value.length >= 4 && ins[i + 1]) ins[i + 1].focus(); });
+        // 携帯（090/080/070/050）は3桁で次の欄へ。それ以外は4桁で次の欄へ
+        const full = () => (i === 0 && /^0[5789]0$/.test(inp.value) ? 3 : 4);
+        inp.addEventListener("input", () => { inp.value = inp.value.replace(/\D/g, "").slice(0, 4); if (inp.value.length >= full() && ins[i + 1]) ins[i + 1].focus(); });
+        // 番号をまとめて貼り付けたとき（旧画面は1つの欄に自由入力できた）: 数字だけにして3つの欄へ分ける
+        inp.addEventListener("paste", (ev) => {
+          const d = ((ev.clipboardData && ev.clipboardData.getData("text")) || "").replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/\D/g, "");
+          if (d.length <= 4) return;
+          ev.preventDefault();
+          const parts = splitPhone(d);
+          ins.forEach((x, j) => { x.value = parts[j] || ""; });
+          ins[2].focus();
+        });
         inp.addEventListener("keydown", (ev) => { if (ev.key === "Backspace" && !inp.value && ins[i - 1]) ins[i - 1].focus(); });
       });
     });
@@ -355,6 +378,7 @@
   function renderStep3() {
     const f = form;
     const staff = staffList();
+    const h = document.querySelector("#step3 > .section-title"); if (h) h.textContent = "受診者情報の入力";   // 基準版の見出し「患者様を選択」は選ぶ画面の言葉なので、文言だけ入力に合わせる
     $("reservationPatientList").innerHTML = `
       ${selectionInfoHtml()}
       <div class="patient-select-heading">
@@ -653,10 +677,17 @@
   /* =============================================================
      マイページ: 予約の確認・キャンセル（予約番号＋電話番号）
      ============================================================= */
-  function doLookup(ev) {
+  async function doLookup(ev) {
     if (ev) ev.preventDefault();
     const code = $("l_code").value, phone = $("l_phone").value;
+    // 読み込みの途中で押されても「見つかりません」にしない（予約の読み込みを待つ）
+    try { await Store.ready; } catch (e) { /* 接続できないときは下で案内 */ }
     const r = Store.findReservation(code, phone);
+    if (!r && Store.isOffline()) {
+      // 旧画面は接続できないとき全画面に警告を出していた。ここでも「見つかりません」と誤解させない
+      $("lookErr").textContent = "ただ今、予約システムに接続できておりません。恐れ入りますが、しばらく経ってからもう一度お試しいただくか、お電話でご連絡ください。";
+      $("lookResult").innerHTML = ""; return;
+    }
     if (!r) { $("lookErr").textContent = "予約が見つかりません。予約番号と電話番号をご確認ください。"; $("lookResult").innerHTML = ""; return; }
     $("lookErr").textContent = "";
     const c = Store.clinicOfCs(r.csId), s = Store.serviceOfCs(r.csId), m = r.menuId ? Store.menuById(r.menuId) : null;
