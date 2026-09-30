@@ -237,3 +237,14 @@ body.c-test .hdr-clinic b::after{content:"  練習用";font-size:11px;font-weigh
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (max-width:900px){.work{grid-template-columns:1fr}.home{grid-template-columns:1fr}.clinic-list{grid-template-columns:1fr}}
+
+/* ── DB接続（テスト用の院） ── */
+body.c-test .hdr-clinic b::after{content:"  DB接続中・値が動く"}
+.live-line{flex-basis:100%;font-size:13px;color:var(--ink);border-left:4px solid #b8860b;background:#fbf4e2;padding:8px 10px;line-height:1.6}
+.live-line.off{border-left-color:var(--stamp);background:#fff3ee}
+.ro-box{margin-top:12px;border:2px solid var(--ink);background:var(--label);padding:12px 14px;font-size:14px;line-height:1.6}
+.ro-box.flash{border-color:var(--stamp);box-shadow:0 0 0 3px rgba(198,59,31,.25)}
+.ro-box .btn{margin-top:10px}
+.errmsg{color:var(--stamp);font-size:13px;line-height:1.5;margin-top:6px}
+.errmsg:empty{display:none}
+.lnk.arm{color:var(--stamp);font-weight:700}

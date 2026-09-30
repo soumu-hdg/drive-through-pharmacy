@@ -28,8 +28,8 @@
     <p class="lead">届いた箱を手に取った順に読み、最後に一度だけ在庫へ反映します。<br>まず、この端末を置いている院を選んでください。</p>
     <div class="clinic-list" id="clinic-list"></div>
     <div class="clinic-foot">
-      <span>デモ版：本番のデータベースには接続しません。操作はこの端末の中に院ごとに保存されます。</span>
-      <button type="button" class="lnk" id="btn-reset">デモの初期化</button>
+      <span id="live-line" class="live-line">接続中…</span>
+      <button type="button" class="lnk" id="btn-reset">デモの初期化（テスト用の院を最初の状態に戻す）</button>
       <span id="reset-msg" class="okmsg"></span>
     </div>
   </div>
@@ -40,6 +40,7 @@
   <div class="home">
     <div class="home-l">
       <button type="button" class="bigbtn" id="btn-start"><span class="bb-ic" aria-hidden="true"></span><span>納品を始める<small>卸から届いた箱を受け付けます</small></span></button>
+      <div id="home-ro" class="ro-box" hidden></div>
       <div class="lbl-box">
         <div class="lbl-tag">発注点を下回っている品目</div>
         <div id="low-list" class="low-list"></div>
@@ -104,6 +105,7 @@
         <label class="sum-row in"><span>納品書の合計（税抜）</span><input id="slip-total" class="inp mono r" inputmode="numeric" placeholder="金額を入力"></label>
         <div class="diff" id="diff">納品書の金額を入れると、差を出します</div>
         <button type="button" class="btn go full" id="btn-commit" disabled>在庫に反映</button>
+        <div id="commit-msg" class="errmsg"></div>
         <button type="button" class="lnk" id="btn-abort">この納品をやめる</button>
       </div>
     </aside>
@@ -130,6 +132,7 @@
 
 <script src="../../shared/demo_data.js"></script>
 <script src="../../shared/kana.js"></script>
+<script src="../../shared/sb.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

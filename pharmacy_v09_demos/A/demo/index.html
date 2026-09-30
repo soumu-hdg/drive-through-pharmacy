@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
+<div id="bootMsg" class="boot-msg">接続中…（テスト用の院のデータを本番DBから読み込んでいます）</div>
 
 <!-- 院の選択（起動時） -->
 <section id="scrClinic" class="clinic-screen" hidden>
@@ -17,9 +18,11 @@
     <h1>接続する院を選んでください</h1>
     <p>選んだ院はこの端末に記憶します。あとから画面上部の院名で切り替えられます。</p>
   </div>
+  <p id="csLive" class="cs-live"></p>
   <div id="clinicList" class="cs-list"></div>
-  <button id="resetBtn" class="btn-plain cs-reset" type="button">デモの初期化（在庫と履歴を最初の状態に戻す）</button>
-  <p class="cs-foot">デモ版：本番のデータには接続していません。患者はすべて架空です。</p>
+  <button id="resetBtn" class="btn-plain cs-reset" type="button">テスト用の院を初期化</button>
+  <p id="resetMsg" class="reset-msg" hidden></p>
+  <p class="cs-foot">西春・中川は本番DBに接続せず、見本データを表示します（書き込みはしません）。患者はすべて架空です。</p>
 </section>
 
 <!-- 本体 -->
@@ -37,6 +40,7 @@
   <div id="practiceBand" class="practice-band" hidden>練習用の院です。本番の在庫には影響しません</div>
 
   <main id="views">
+    <div id="roNote" class="ro-note" hidden></div>
     <!-- 出荷（処方） -->
     <section id="v-out" class="view">
       <button id="minusChip" class="minus-chip" type="button" hidden></button>
@@ -85,21 +89,23 @@
 
     <!-- 履歴 -->
     <section id="v-hist" class="view" hidden>
-      <div class="step">出荷・入荷の履歴 <small>この端末・この院</small></div>
+      <div class="step">出荷・入荷の履歴 <small id="histSub"></small></div>
+      <div id="histErr" class="reset-msg err" hidden></div>
       <div id="histList" class="hist"></div>
-      <button id="resetBtn2" class="btn-plain" type="button">デモの初期化</button>
+      <button id="resetBtn2" class="btn-plain" type="button">テスト用の院を初期化</button>
+      <p id="resetMsg2" class="reset-msg" hidden></p>
     </section>
 
     <!-- 消費量 -->
     <section id="v-use" class="view" hidden>
-      <div class="step">出荷回数 上位15 <small>西春の直近35日＋この端末の出荷</small></div>
+      <div class="step">出荷回数 上位15 <small id="useSub"></small></div>
       <div id="useList" class="use-list"></div>
     </section>
   </main>
 
   <!-- 送信バー（出荷画面のみ） -->
   <div id="sendBar" class="send-bar">
-    <div id="sendNote" class="send-note"></div>
+    <div class="send-note"><div id="sendNote"></div><div id="sendErr" class="err" hidden></div></div>
     <button id="sendBtn" class="send-btn" type="button" disabled>送信</button>
   </div>
 
@@ -140,6 +146,7 @@
 
 <script src="../../shared/demo_data.js"></script>
 <script src="../../shared/kana.js"></script>
+<script src="../../shared/sb.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

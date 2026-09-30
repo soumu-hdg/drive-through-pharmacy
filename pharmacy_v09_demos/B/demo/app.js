@@ -1,10 +1,15 @@
 /* 案B：はじめての人の出荷（処方）ガイド
    だれに → なにを → いくつ → たしかめて送る。送った後しばらくは「取り消す」。
-   デモは本番DBにつながない：DEMO_DATA をメモリに読み、操作は localStorage に院ごとに保存 */
+   テスト用の院だけ本番DB（sb.js）につながり、送る・取り消すで実際に在庫が動く。
+   西春・中川は demo_data.js の見本を表示するだけで書き込まない。localStorage は画面の設定（院・担当）だけ */
 (function () {
   'use strict';
-  var D = window.DEMO_DATA, KS = window.KanaSearch;
+  var D = window.DEMO_DATA, KS = window.KanaSearch, SB = window.SB;
   var LS = 'p9B_';
+  var SRC = 'demo:B';
+  var busy = false, resetArm = null, resetTimer = null, resetMsg = null;
+  // 以前の版が localStorage に残した在庫・記録は使わない（消す）
+  try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf(LS + 'db_') === 0) localStorage.removeItem(k); }); } catch (e) {}
   var UNDO_SEC = 90;
   var $ = function (s) { return document.querySelector(s); };
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -13,27 +18,23 @@
   function lsSet(k, v) { try { localStorage.setItem(LS + k, JSON.stringify(v)); } catch (e) {} }
   function fmt(n) { n = Math.round(n * 100) / 100; return (n < 0 ? '−' : '') + Math.abs(n).toLocaleString('ja-JP'); }
 
-  // よく出る薬（西春の実績：出庫件数の多い順 12品目）
-  var freq = {};
-  (D.daily_out_nishiharu || []).forEach(function (r) { freq[r.c] = (freq[r.c] || 0) + r.n; });
-  var TOP = Object.keys(freq).sort(function (a, b) { return freq[b] - freq[a]; }).slice(0, 12);
+  // よく出る薬（出庫件数の多い順 12品目）。テスト用＝DBの直近の出庫、西春・中川＝西春の実績の見本
+  function topCodes() {
+    var freq = {}, src = S.clinic === 'test' && SB.live ? D.daily_out_test : D.daily_out_nishiharu;
+    (src || []).forEach(function (r) { freq[r.c] = (freq[r.c] || 0) + (+r.n); });
+    return Object.keys(freq).sort(function (a, b) { return freq[b] - freq[a]; }).slice(0, 12);
+  }
 
   // ---------- 院ごとのデータ ----------
-  var DB = {};
+  // 在庫：テスト用＝DBの値（DEMO_DATA.medicines.test は sb.js が送信・読み直しのたびに更新）、西春・中川＝見本のまま
+  // 送った記録（取り消し用）はこの画面の中だけに持つ。今日の記録（テスト用）はDBの在庫の動きから作る
+  var LOG = {};
   function clinicInfo(id) { return D.clinics.filter(function (c) { return c.id === id; })[0]; }
   function meds() { return D.medicines[S.clinic] || []; }
   function med(code) { return meds().filter(function (m) { return m.code === code; })[0]; }
-  function loadClinic(id) {
-    var s = lsGet('db_' + id, null);
-    if (!s) {
-      s = { stock: {}, log: [] };
-      (D.medicines[id] || []).forEach(function (m) { s.stock[m.code] = m.current_stock; });
-    }
-    DB[id] = s; return s;
-  }
-  function db() { return DB[S.clinic] || loadClinic(S.clinic); }
-  function save() { lsSet('db_' + S.clinic, db()); }
-  function stock(code) { var v = db().stock[code]; return v == null ? 0 : v; }
+  function db() { return { log: LOG[S.clinic] || (LOG[S.clinic] = []) }; }
+  function stock(code) { var m = med(code); return m ? Number(m.current_stock) || 0 : 0; }
+  function canWrite() { return !!(S.clinic && SB.canWrite(S.clinic)); }
 
   // ---------- 状態 ----------
   var S = {
@@ -84,7 +85,7 @@
     child: ['小児', '子ども用の薬です。粉薬は体重や年齢で1包の量が変わるので、量ちがいに気をつけます。'],
     prn: ['頓服（とんぷく）', '熱や痛みなど、症状があるときだけ飲む薬です。「◯回分」で数えます。'],
     grp: ['量ちがい', '同じ薬で1包の量（0.3g など）が違うものです。医師の指示の量と同じか、必ず見比べてください。'],
-    test: ['練習モード', 'テスト用の院です。ここで何をしても、西春・中川の本当の在庫は変わりません。'],
+    test: ['練習モード', 'テスト用の院です。本番DBの「テスト用の院」につながっていて、送ると実際に在庫の値が動きます。西春・中川の在庫は変わりません。'],
     undo: ['取り消す', '送った直後なら、記録を消して在庫を元の数に戻せます。時間が過ぎたら先輩か在庫の担当に声をかけてください。'],
     over: ['在庫が足りない', '記録上の在庫より多く出そうとしています。送ることはできますが、棚の数を見て先輩か在庫の担当に知らせてください。'],
     search: ['薬の探し方', 'ローマ字（karonaru）・ひらがな・カタカナ、どれで打っても探せます。数字（0.3）を足すと量で絞れます。']
@@ -142,7 +143,7 @@
     var c = clinicInfo(S.clinic), test = S.clinic === 'test';
     t.innerHTML =
       '<span class="mode">' + (test ? '練習モード' : '本番') + '</span>' + (test ? hq('test') : '') +
-      '<span class="cname">' + esc(c.name) + '<small>' + (test ? '本番の在庫は変わりません' : (S.clinic === 'nakagawa' ? '本番 ・ 11月開院予定' : '本番 ・ 送ると在庫が本当に減ります')) + '</small></span>' +
+      '<span class="cname">' + esc(c.name) + '<small>' + (test ? (SB.live ? '本番DBに接続中 ・ 操作すると実際に値が動きます（西春・中川には影響しません）' : 'DBに接続できないため見本データで表示中（送れません）') : (S.clinic === 'nakagawa' ? '11月開院予定 ・ 見本データを表示中（このデモでは送れません）' : '見本データを表示中（このデモでは送れません）')) + '</small></span>' +
       '<span class="top-sp"></span>' +
       (S.operator ? '<button class="tbtn" id="nav-op">担当 <b>' + esc(S.operator) + '</b></button>' : '') +
       '<button class="tbtn' + (S.screen === 'flow' || S.screen === 'done' ? ' on' : '') + '" id="nav-flow">出荷</button>' +
@@ -165,9 +166,9 @@
   // ----- 院を選ぶ -----
   function vClinic() {
     var desc = {
-      nishiharu: ['本番', '日中の外来・在宅と、夜間休日のドライブスルー外来。', '送ると本当の在庫が減ります'],
-      nakagawa: ['本番', '11月開院予定。在庫は0から始まります。', '開院までは在庫が0のままです'],
-      test: ['練習用', 'はじめての方はここで練習してください。西春と同じ薬が入っています。', '何をしても本番の在庫は変わりません']
+      nishiharu: ['本番', '日中の外来・在宅と、夜間休日のドライブスルー外来。', '見本データを表示（このデモでは送れません）'],
+      nakagawa: ['本番', '11月開院予定。在庫は0から始まります。', '見本データを表示（このデモでは送れません）'],
+      test: ['練習用', 'はじめての方はここで練習してください。西春と同じ薬が入っています。', SB.live ? '本番DBに接続中。送ると実際に在庫が動きます' : 'DBに接続できないため見本データ（送れません）']
     };
     return '<div class="cl-wrap"><p class="q">どこの院で働きますか？</p><p class="lead">選んだ院はこのタブレットが覚えます。あとから上の「院を切り替える」で変えられます。</p>' +
       '<div class="cl-grid">' + ['test', 'nishiharu', 'nakagawa'].map(function (id) {
@@ -176,7 +177,8 @@
           '<div class="band" style="' + (id === 'test' ? '' : 'background:' + c.color) + '"><span>' + d[0] + '</span>' + (id === 'test' ? 'はじめての方はこちら' : '') + '</div>' +
           '<div class="body"><h3>' + esc(c.short) + '</h3><p>' + esc(c.name) + '</p><p>' + esc(d[1]) + '</p><p class="go">' + esc(d[2]) + ' →</p></div></button>';
       }).join('') + '</div>' +
-      '<div class="cl-foot"><span>デモでは本番のデータベースにはつながりません（この端末の中だけに保存）。</span><button class="linkbtn" id="reset">デモの初期化</button></div></div>';
+      '<div class="cl-foot"><span>' + (SB.live ? '<b>テスト用の院は本番DBに接続中。</b>操作すると実際に値が動きます（西春・中川には影響しません）。西春・中川は見本データを表示し、書き込みはしません。'
+        : '<b>DBに接続できないため、テスト用の院も見本データで表示しています（送れません）。</b>' + (SB.error ? '理由: ' + esc(SB.error) : '')) + '</span>' + resetBtnHtml() + '</div>' + resetMsgHtml() + '</div>';
   }
 
   function vOperator() {
@@ -301,7 +303,7 @@
         rb.innerHTML = '「' + esc(q) + '」を <b>' + esc(kk) + '</b> と読み替えて探しています<span id="hits"></span>';
       } else rb.innerHTML = q ? '「' + esc(q) + '」で探しています' : 'よく出る薬から選ぶか、名前を打って探します';
     }
-    if (!q && S.filter === 'top') list = TOP.map(med).filter(Boolean);
+    if (!q && S.filter === 'top') list = topCodes().map(med).filter(Boolean);
     else {
       list = q ? KS.filter(meds(), q, function (m) { return [m.name, m.furigana, m.code, m.category, m.group_name]; }) : meds().slice();
       if (S.filter !== 'top' && S.filter !== 'all') list = list.filter(function (m) { return (m.category || '').indexOf(S.filter) === 0; });
@@ -334,6 +336,7 @@
         '<div class="note good"><span class="ico">✓</span><div>在庫は送る前と同じ数です。やり直すときは「次の患者さんへ」から、もう一度同じ手順で入れてください。</div></div></div>';
     }
     return '<div class="done"><h2><span class="mk">✓</span>送りました</h2><p class="lead">' + esc(p.name.replace('（架空）', '')) + 'さんの出荷（処方）を記録しました。在庫がこのように減りました。</p><div class="dl">' + items + '</div>' +
+      (S.err ? '<div class="note bad" id="sb-err"><span class="ico">!</span><div>' + esc(S.err) + '</div></div>' : '') +
       '<div class="undo" id="undo-box"><div class="t"><b>まちがえたときは「取り消す」</b> ' + hq('undo') + '<br><span id="undo-left">あと ' + UNDO_SEC + '秒</span> のあいだ押せます。在庫は元に戻ります。<div class="bar-time"><i id="undo-bar"></i></div></div><button id="undo">取り消す</button></div></div>';
   }
   var undoTimer = null;
@@ -355,7 +358,8 @@
   // ----- 在庫・記録 -----
   function vStock() {
     return '<div class="col" style="height:100%"><p class="q">在庫を見る ' + hq('stock') + '</p>' +
-      '<div class="search"><span class="ic">検索</span><input id="stock-search" placeholder="薬の名前（ローマ字・かな どれでも）" value="' + esc(S.stockQ) + '" autocomplete="off"><button class="linkbtn" id="reset" style="min-height:40px">デモの初期化</button></div>' +
+      '<div class="search"><span class="ic">検索</span><input id="stock-search" placeholder="薬の名前（ローマ字・かな どれでも）" value="' + esc(S.stockQ) + '" autocomplete="off">' + (S.clinic === 'test' ? resetBtnHtml('min-height:40px') : '') + '</div>' + resetMsgHtml() +
+      '<p class="lead" style="margin:4px 0 8px">' + (S.clinic === 'test' && SB.live ? '本番DBのテスト用の院の在庫です（開くたびに読み直します）。' : '見本データの在庫です（このデモでは変わりません）。') + '</p>' +
       '<div class="scroll panel" style="padding:0"><table class="tbl"><thead><tr><th>対象</th><th>薬</th><th style="text-align:right">在庫</th><th style="text-align:right">少ない目安</th></tr></thead><tbody id="stock-rows"></tbody></table></div></div>';
   }
   function renderStockRows() {
@@ -370,9 +374,32 @@
         '<td class="r num" style="color:var(--faint)">' + (m.stock_untracked ? '―' : fmt(m.threshold || 0)) + '</td></tr>';
     }).join('');
   }
+  // テスト用の院の今日の出荷＝DBの在庫の動き（SB.moves）から。1回の送信でまとめて入った行を1件にまとめる
+  function dbLog() {
+    var g = [], idx = {}, td = today();
+    SB.moves('test').forEach(function (m) {
+      if ((m.kind !== 'out' && m.kind !== 'karte_out') || m.occurred_on !== td) return;
+      var k = [m.created_at, m.kind, m.source, m.operator, m.ref, m.note].join('|');
+      var x = idx[k];
+      if (!x) { x = idx[k] = { ts: Date.parse(m.created_at), who: m.note || (m.kind === 'karte_out' ? 'カルテから' : ''), op: m.operator || m.source || '', undone: false, items: [] }; g.push(x); }
+      if (m.voided_at) x.undone = true;
+      x.items.push({ code: m.medicine_code, qty: Math.abs(Number(m.qty) || 0), before: m.stock_before, after: m.stock_after });
+    });
+    return g;
+  }
   function vLog() {
+    if (S.clinic === 'test' && SB.live) {
+      var G = dbLog();
+      return '<div class="col" style="height:100%"><p class="q">今日の記録</p><p class="lead">テスト用の院で今日送った出荷（処方）です（本番DBの記録・新しい順。ほかの端末の分も含みます）。取り消した記録も残ります。</p>' +
+        '<div class="scroll panel" style="padding:0"><table class="tbl"><thead><tr><th>時刻</th><th>患者さん</th><th>薬</th><th>担当</th><th>状態</th></tr></thead><tbody>' +
+        (G.length ? G.map(function (x) {
+          return '<tr><td class="num">' + new Date(x.ts).toTimeString().slice(0, 5) + '</td><td>' + esc(x.who) + '</td><td>' + x.items.map(function (it) { var m = med(it.code);
+            return esc(m ? nf(m.name) : it.code) + ' ×' + fmt(it.qty) + (m ? m.unit : '') + (it.before != null ? ' <span style="color:var(--faint)">（在庫 ' + fmt(it.before) + '→' + fmt(it.after) + '）</span>' : ''); }).join('<br>') + '</td><td>' + esc(x.op) + '</td>' +
+            '<td>' + (x.undone ? '<span class="stt" style="color:var(--sub)">取り消し済</span>' : '<span class="stt" style="color:var(--good)">記録済</span>') + '</td></tr>';
+        }).join('') : '<tr><td colspan="5" style="color:var(--faint);padding:20px">今日はまだ記録はありません</td></tr>') + '</tbody></table></div></div>';
+    }
     var L = db().log.slice().reverse();
-    return '<div class="col" style="height:100%"><p class="q">今日の記録</p><p class="lead">この院で送った出荷（処方）です。取り消した記録も残ります。</p>' +
+    return '<div class="col" style="height:100%"><p class="q">今日の記録</p><p class="lead">見本データを表示中のため、この院の記録はありません（このデモでは送れません）。</p>' +
       '<div class="scroll panel" style="padding:0"><table class="tbl"><thead><tr><th>時刻</th><th>患者さん</th><th>薬</th><th>担当</th><th>状態</th></tr></thead><tbody>' +
       (L.length ? L.map(function (x) {
         var p = D.patients.filter(function (q) { return q.no === x.patient; })[0];
@@ -389,7 +416,7 @@
     if (S.step === 2 && S.sub === 'more') return { now: '<b>「ある」か「ない」</b>を押してください', label: null, back: true };
     if (S.step === 2) return S.items.length ? { now: '薬を探すか、全部入れたら右へ', label: '全部入れた：たしかめへ', ok: true, back: true } : { now: '<b>薬をタップ</b>してください（1つずつ入れます）', label: '薬を選ぶと次へ進めます', ok: false, back: true };
     if (S.step === 3) return { now: S.edit.qty > 0 ? '<b>数を確かめたら</b>右のボタン' : '<b>数を入れて</b>ください（ボタンで目安が入ります）', label: S.edit.idx != null ? 'この数に直す' : 'この数で入れる', ok: S.edit.qty > 0, back: true };
-    if (S.step === 4) return { now: '<b>処方せんと見比べたら</b>送ります', label: '送る（出荷を記録）', ok: S.items.length > 0, back: true, send: true };
+    if (S.step === 4) return { now: busy ? '<b>送っています…</b>' : '<b>処方せんと見比べたら</b>送ります', label: busy ? '送信中…' : (canWrite() ? '送る（出荷をDBに記録）' : '送る（出荷を記録）'), ok: S.items.length > 0 && !busy, back: !busy, send: true };
   }
   function renderBar() {
     var b = barState(), el = $('#bar');
@@ -403,7 +430,7 @@
   }
 
   // ---------- 操作 ----------
-  function resetFlow() { S.step = 1; S.sub = 'search'; S.patient = null; S.items = []; S.edit = null; S.query = ''; S.filter = 'top'; S.pq = ''; }
+  function resetFlow() { S.err = null; S.roMsg = false; S.step = 1; S.sub = 'search'; S.patient = null; S.items = []; S.edit = null; S.query = ''; S.filter = 'top'; S.pq = ''; }
   function openQty(code, idx) {
     var it = idx != null ? S.items[idx] : null;
     S.edit = { code: code, qty: it ? it.qty : 0, days: null, idx: idx };
@@ -411,24 +438,47 @@
     if (!it && dosing(m).kind === 'one') S.edit.qty = 1;
     S.step = 3;
   }
-  function send() {
-    var d = db(), L = { id: 'S' + Date.now(), ts: Date.now(), patient: S.patient, date: S.date, op: S.operator, visit: S.clinic + '|' + S.patient + '|' + S.date, undone: false, items: [] };
+  // 送る＝テスト用の院のDBへ出荷（kind:'out'）を記録。外用（在庫を数えない薬）はDBへ送らない
+  async function send() {
+    if (busy) return;
+    if (!canWrite()) { S.roMsg = true; S.err = null; go(); return; }
+    var p = patient(), pname = /（架空）/.test(p.name) ? p.name : '（架空）' + p.name;
+    var L = { id: 'S' + Date.now(), ts: Date.now(), patient: S.patient, date: S.date, op: S.operator, visit: S.clinic + '|' + S.patient + '|' + S.date, undone: false, items: [], tx: [] };
+    var reqs = [];
     S.items.forEach(function (it) {
       var m = med(it.code), b = stock(it.code);
-      var a = m.stock_untracked ? b : b - it.qty;
-      d.stock[it.code] = a;
-      L.items.push({ code: it.code, qty: it.qty, before: b, after: a, untracked: !!m.stock_untracked });
+      L.items.push({ code: it.code, qty: it.qty, before: b, after: b, untracked: !!m.stock_untracked });
+      if (!m.stock_untracked) reqs.push({ code: it.code, kind: 'out', delta: -it.qty, note: pname, ref: L.visit });
     });
-    d.log.push(L); save(); S.lastSend = L.id; resetFlow(); S.screen = 'done';
+    busy = true; S.err = null; renderBar();
+    try {
+      var res = reqs.length ? await SB.apply('test', reqs, S.operator, SRC) : [];
+      res.forEach(function (r) {
+        L.tx.push(r.tx_id);
+        L.items.forEach(function (x) { if (x.code === r.code && !x.untracked) { x.before = Number(r.before); x.after = Number(r.after); } });
+      });
+    } catch (e) {
+      busy = false; S.err = '送れませんでした（在庫は変わっていません）: ' + e.message; lastKey = 'x'; go(); return;
+    }
+    busy = false;
+    L.ts = Date.now(); db().log.push(L); S.lastSend = L.id; resetFlow(); S.screen = 'done'; go();
   }
-  function undo() {
-    var d = db(), L = d.log.filter(function (x) { return x.id === S.lastSend; })[0];
-    if (!L || L.undone) return;
-    L.items.forEach(function (it) { if (!it.untracked) d.stock[it.code] = (d.stock[it.code] || 0) + it.qty; });
-    L.undone = true; save();
+  // 取り消す＝SB.voidTx で DB の記録を取り消し、在庫を戻す
+  async function undo() {
+    var L = db().log.filter(function (x) { return x.id === S.lastSend; })[0];
+    if (!L || L.undone || busy) return;
+    if (!canWrite()) return;
+    busy = true; S.err = null; var ub = $('#undo'); if (ub) { ub.disabled = true; ub.textContent = '取り消し中…'; }
+    try {
+      var res = L.tx.length ? await SB.voidTx('test', L.tx, S.operator) : [];
+      res.forEach(function (r) { L.items.forEach(function (x) { if (x.code === r.code && !x.untracked) { x.after = Number(r.before); x.before = Number(r.after); } }); });
+    } catch (e) {
+      busy = false; S.err = '取り消せませんでした（在庫は変わっていません）: ' + e.message; lastKey = 'x'; go(); return;
+    }
+    busy = false; L.undone = true; lastKey = 'x'; go();
   }
   function setClinic(id) {
-    var from = S.clinic; S.clinic = id; lsSet('clinic', id); loadClinic(id); resetFlow();
+    var from = S.clinic; S.clinic = id; lsSet('clinic', id); resetFlow(); S.roMsg = false; S.err = null;
     S.notice = from && from !== id && id !== 'test' ? id : null;
     S.screen = S.operator ? 'flow' : 'operator';
   }
@@ -439,14 +489,11 @@
     var id = t.id;
     if (id.indexOf('clinic-') === 0) return go(function () { setClinic(id.slice(7)); });
     if (t.dataset.op) return go(function () { S.operator = t.dataset.op; lsSet('operator', S.operator); S.screen = 'flow'; });
-    if (id === 'reset') {
-      try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf(LS) === 0) localStorage.removeItem(k); }); } catch (x) {}
-      DB = {}; S.clinic = null; S.operator = null; resetFlow(); S.screen = 'clinic'; lastKey = ''; return go();
-    }
+    if (id === 'reset') { resetTest(); return; }
     if (id === 'nav-clinic') return go(function () { S.screen = 'clinic'; });
     if (id === 'nav-op') return go(function () { S.screen = 'operator'; });
-    if (id === 'nav-stock') return go(function () { S.screen = 'stock'; });
-    if (id === 'nav-log') return go(function () { S.screen = 'log'; });
+    if (id === 'nav-stock') { go(function () { S.screen = 'stock'; }); return reload('stock'); }
+    if (id === 'nav-log') { go(function () { S.screen = 'log'; }); return reload('log'); }
     if (id === 'nav-flow') return go(function () { if (S.screen === 'done') resetFlow(); S.screen = 'flow'; });
     if (t.dataset.pt) { S.patient = t.dataset.pt; renderPatients(); $('.side').outerHTML = sideHtml(); updateBar(); return; }
     if (t.dataset.filter) { S.filter = t.dataset.filter; document.querySelectorAll('.chip').forEach(function (c) { c.classList.toggle('on', c === t); }); renderMedList(); return; }
@@ -464,7 +511,8 @@
     if (id === 'med-clear') { S.query = ''; $('#med-search').value = ''; $('#med-search-box').classList.add('nx'); renderMedList(); $('#med-search').focus(); return; }
     if (id === 'more-yes') return go(function () { S.sub = 'search'; S.query = ''; S.filter = 'top'; });
     if (id === 'more-no') return go(function () { S.step = 4; });
-    if (id === 'undo') return go(function () { undo(); lastKey = 'x'; });
+    if (id === 'undo') { undo(); return; }
+    if (id === 'go-test') return go(function () { setClinic('test'); });
     if (id === 'back') return go(function () {
       if (S.step === 2 && S.sub === 'search' && S.items.length) S.sub = 'more';
       else if (S.step === 2) S.step = 1;
@@ -497,19 +545,56 @@
   });
   window.addEventListener('resize', function () { $('#tip').hidden = true; });
 
-  // 本番の院に切り替えた直後の案内（画面内に出す）
+  // 本番の院に切り替えた直後の案内・書き込めない院で送ろうとしたとき・送信の失敗（画面内に出す）
   var _vFlow = vFlow;
   vFlow = function () {
     var h = _vFlow();
     if (S.notice && S.step === 1) {
       var c = clinicInfo(S.notice);
-      h = h.replace('<section class="col">', '<section class="col"><div class="note prod" id="prod-note"><span class="ico">本</span><div style="flex:1"><b>ここからは本番（' + esc(c.short) + '）です。</b>送ると' + esc(c.short) + 'の本当の在庫が減ります。上の帯が斜線ではなく、' + esc(c.short) + 'の色になっています。</div><button class="linkbtn" id="notice-close">わかりました</button></div>');
+      h = h.replace('<section class="col">', '<section class="col"><div class="note prod" id="prod-note"><span class="ico">本</span><div style="flex:1"><b>' + esc(c.short) + 'は見本データです。</b>' + esc(SB.readOnlyMessage(S.notice)) + '上の帯が斜線ではなく、' + esc(c.short) + 'の色になっています。</div><button class="linkbtn" id="notice-close">わかりました</button></div>');
+    }
+    if (S.step === 4 && S.roMsg) {
+      h = h.replace('<section class="col">', '<section class="col"><div class="note warn" id="ro-note"><span class="ico">!</span><div style="flex:1"><b>送れません（何も記録していません）。</b>' + esc(SB.readOnlyMessage(S.clinic) || '書き込みはできません。') +
+        (S.clinic !== 'test' && SB.live ? '<div style="margin-top:8px"><button class="linkbtn" id="go-test">テスト用の院へ切り替える</button></div>' : '') + '</div></div>');
+    }
+    if (S.step === 4 && S.err) {
+      h = h.replace('<section class="col">', '<section class="col"><div class="note bad" id="sb-err"><span class="ico">!</span><div>' + esc(S.err) + '</div></div>');
     }
     return h;
   };
 
-  if (S.clinic) loadClinic(S.clinic);
-  lastKey = S.screen + '/' + S.step + '/' + S.sub;
-  render();
+  // テスト用の院：在庫・今日の記録を開くたびにDBを読み直す（ほかの端末の操作も反映）
+  function reload(scr) {
+    if (S.clinic !== 'test' || !SB.live || busy) return;
+    SB.refresh('test').then(function () { if (S.screen === scr && !busy) render(); }).catch(function () {});
+  }
+  // 初期化ボタン（2段階。テスト用の院を DB ごと最初の状態へ）
+  function resetBtnHtml(st) {
+    var armed = resetArm != null;
+    return '<button class="linkbtn' + (armed ? ' armed' : '') + '" id="reset"' + (st ? ' style="' + st + '"' : '') + (!SB.live || busy ? ' disabled' : '') + '>' +
+      (!SB.live ? '初期化はDBに接続中のときだけ' : busy && armed ? '初期化中…' : armed ? 'もう一度押すと初期化します' : 'テスト用の院を初期化') + '</button>';
+  }
+  function resetMsgHtml() { return resetMsg ? '<p class="reset-msg' + (resetMsg.err ? ' err' : '') + '" id="reset-msg">' + esc(resetMsg.t) + '</p>' : ''; }
+  async function resetTest() {
+    if (!SB.live || busy) return;
+    if (resetArm == null) {
+      resetArm = 1; resetMsg = null; render();
+      clearTimeout(resetTimer); resetTimer = setTimeout(function () { resetArm = null; render(); }, 6000);
+      return;
+    }
+    clearTimeout(resetTimer); busy = true; render();
+    try {
+      await SB.resetTest();
+      LOG.test = []; resetMsg = { t: 'テスト用の院の在庫と記録を最初の状態に戻しました' };
+    } catch (e) { resetMsg = { t: '初期化できませんでした: ' + e.message, err: true }; }
+    busy = false; resetArm = null; render();
+  }
+
+  // DBの読み込みを待ってから最初の描画（待つ間は「接続中…」）
+  $('#stage').innerHTML = '<div class="cl-wrap"><p class="lead">接続中…（テスト用の院のデータを本番DBから読み込んでいます）</p></div>';
+  SB.ready.then(function () {
+    lastKey = S.screen + '/' + S.step + '/' + S.sub;
+    render();
+  });
   window.__demoB = { S: S, db: db };
 })();

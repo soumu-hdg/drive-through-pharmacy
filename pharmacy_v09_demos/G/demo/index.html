@@ -27,8 +27,9 @@
     </div>
     <div class="boot-foot">
       <button id="btnResetBoot" class="btn ghost">デモの初期化</button>
-      <span class="muted">デモのデータはこの端末の中だけに保存されます（本番のデータベースにはつながりません）。</span>
+      <span class="muted">初期化はテスト用の院を初期状態（西春の値の写し）に戻します。西春・中川は見本のままです。</span>
     </div>
+    <div class="boot-live" id="bootLive">接続中…（テスト用の院の在庫を本番DBから読み込んでいます）</div>
   </div>
 </section>
 
@@ -65,6 +66,7 @@
 
 <script src="../../shared/demo_data.js"></script>
 <script src="../../shared/kana.js"></script>
+<script src="../../shared/sb.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

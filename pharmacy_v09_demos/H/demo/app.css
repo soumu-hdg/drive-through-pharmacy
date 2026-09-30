@@ -233,3 +233,14 @@ button { cursor: pointer; }
 #toast.show { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } .bigbtn:active { transform: none; } }
 .st.neg small { color: #ddd; }
+
+/* 本番DB接続（テスト用の院）の表示 */
+.livebar { background: #111; color: #fff; font-size: 12px; font-weight: 700; padding: 6px 14px; line-height: 1.5; border-left: 8px solid #b8860b; }
+.start .livebar { margin: 14px 0 0; }
+.livebar.off { border-left-color: #e2391b; }
+.ro { border: 3px solid #111; border-left-width: 12px; background: #fff; padding: 10px 12px; margin: 10px 0; }
+.ro p { margin: 0 0 8px; font-size: 14px; font-weight: 700; line-height: 1.6; }
+.ro .go { width: 100%; }
+.err { border-left: 10px solid #e2391b; background: #fff1ee; color: #8f1d06; font-weight: 700; font-size: 14px; padding: 8px 12px; margin: 8px 0; }
+.sending { background: #111; color: #fff; font-weight: 700; text-align: center; padding: 6px; margin-bottom: 6px; }
+.hist .h.voided { opacity: .5; text-decoration: line-through; }

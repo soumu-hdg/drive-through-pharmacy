@@ -1,8 +1,11 @@
-/* 案A 夜間ドライブスルー窓口の出荷（処方）。本番DBには接続しない。状態は localStorage に院ごと */
+/* 案A 夜間ドライブスルー窓口の出荷（処方）。
+   テスト用の院だけ本番DB（sb.js）につながり、出荷・取り消し・入荷で実際に在庫が動く。
+   西春・中川は demo_data.js の見本を表示するだけで書き込まない。localStorage は画面の設定（院・担当・表示）だけ */
 (function () {
   'use strict';
-  var D = window.DEMO_DATA, KS = window.KanaSearch;
+  var D = window.DEMO_DATA, KS = window.KanaSearch, SB = window.SB;
   var LS = 'p9A.';
+  var SRC = 'demo:A';
   var $ = function (s) { return document.querySelector(s); };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   var nf = function (s) { return String(s || '').normalize('NFKC').replace(/\s+/g, ' ').trim(); };
@@ -31,24 +34,35 @@
   /* ---- 状態 ---- */
   var S = { clinic: lsGet('clinic', null), theme: lsGet('theme', 'night'), op: lsGet('op', '看護師E'),
     view: 'out', patient: null, weight: null, cart: [], stockFilter: '全て', inPick: null, inQty: 10 };
-  var C = null; // 院のデータ { meds:[], stock:{}, log:[] }
+  var C = null; // 院のデータ { id, meds:[], byCode:{}, stock:{}, log:[] }
+  var busy = false; // DBへ送信中
+  var resetArm = null; // 初期化ボタンの2段階（1回目に押したボタンのid）
 
+  // 以前の版が localStorage に残した在庫・記録は使わない（消す）
+  try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf(LS + 'st.') === 0) localStorage.removeItem(k); }); } catch (e) { }
+
+  function isTest() { return C && C.id === 'test'; }
+  function canWrite() { return !!(C && SB && SB.canWrite(C.id)); }
+
+  // テスト用はDBの値（DEMO_DATA.medicines.test は sb.js が読み直すたびに差し替える）から、在庫を毎回作り直す
+  function syncMeds() {
+    var meds = (D.medicines[C.id] || []).slice();
+    C.meds = meds; C.byCode = {}; C.stock = {};
+    meds.forEach(function (m) { C.byCode[m.code] = m; C.stock[m.code] = Number(m.current_stock) || 0; });
+  }
   function loadClinic(id) {
-    var meds = D.medicines[id].map(function (m) { return m; });
-    var st = lsGet('st.' + id, null);
-    if (!st) { st = { stock: {}, log: [] }; meds.forEach(function (m) { st.stock[m.code] = m.current_stock; }); }
-    C = { id: id, meds: meds, byCode: {}, stock: st.stock, log: st.log };
-    meds.forEach(function (m) { C.byCode[m.code] = m; });
+    C = { id: id, meds: [], byCode: {}, stock: {}, log: [] }; // 西春・中川は見本のまま。記録はこの画面の中だけ（保存しない）
+    syncMeds();
     buildFreq();
   }
-  function saveClinic() { lsSet('st.' + C.id, { stock: C.stock, log: C.log }); }
 
-  /* 過去の出荷回数（西春の実績を全院の初期値に使う）＋この端末で出した回数 */
+  /* 過去の出荷回数。テスト用＝DBの直近の出庫（カルテから＋手入力）、西春・中川＝西春の実績の見本 */
   var BASE_N = {}, BASE_Q = {};
   D.daily_out_nishiharu.forEach(function (r) { BASE_N[r.c] = (BASE_N[r.c] || 0) + (+r.n); BASE_Q[r.c] = (BASE_Q[r.c] || 0) + (+r.q); });
   function counts() {
-    var n = {}; Object.keys(BASE_N).forEach(function (k) { n[k] = BASE_N[k]; });
-    C.log.forEach(function (h) { if (h.kind === 'out' && !h.cx) h.lines.forEach(function (l) { n[l.code] = (n[l.code] || 0) + 1; }); });
+    var n = {};
+    if (isTest() && SB.live) { (D.daily_out_test || []).forEach(function (r) { n[r.c] = (n[r.c] || 0) + (+r.n); }); return n; }
+    Object.keys(BASE_N).forEach(function (k) { n[k] = BASE_N[k]; });
     return n;
   }
   function defQty(code) { var n = BASE_N[code]; return n ? Math.max(1, Math.round(BASE_Q[code] / n)) : 1; }
@@ -73,7 +87,12 @@
     $('#app').hidden = true; $('#scrClinic').hidden = false;
     closeSheets();
     document.documentElement.removeAttribute('data-clinic');
-    var notes = { nishiharu: '日中外来・在宅・夜間休日ドライブスルー', nakagawa: '11月開院予定。品目は西春から写し、在庫は0から', test: '練習・撮影用。本番の在庫に影響しません' };
+    var notes = { nishiharu: '日中外来・在宅・夜間休日ドライブスルー（見本データ・書き込みなし）', nakagawa: '11月開院予定。品目は西春から写し、在庫は0から（見本データ・書き込みなし）',
+      test: SB.live ? '本番DBに接続中。操作すると実際に値が動きます' : 'DBに接続できないため見本データで表示中（書き込みなし）' };
+    $('#csLive').innerHTML = SB.live ? '<b>テスト用の院は本番DBに接続中。</b>操作すると実際に値が動きます（西春・中川には影響しません）。患者はすべて架空です。'
+      : '<b>DBに接続できないため、テスト用の院も見本データで表示しています（書き込みはしません）。</b>' + (SB.error ? '理由: ' + esc(SB.error) : '');
+    $('#csLive').classList.toggle('off', !SB.live);
+    renderResetBtns();
     var inks = { nishiharu: '#fff', nakagawa: '#fff', test: '#1a1400' };
     $('#clinicList').innerHTML = D.clinics.map(function (c) {
       return '<button type="button" class="cs-item' + (S.clinic === c.id ? ' cur' : '') + '" id="pick-' + c.id + '" data-id="' + c.id + '">' +
@@ -89,9 +108,33 @@
     var c = clinicInfo(id);
     $('#clinicShort').textContent = c.short;
     $('#practiceBand').hidden = id !== 'test';
+    $('#practiceBand').textContent = SB.live ? 'テスト用の院は本番DBに接続中。操作すると実際に値が動きます（西春・中川には影響しません）'
+      : 'DBに接続できないため見本データで表示中。書き込みはできません';
+    $('#roNote').hidden = true; $('#sendErr').hidden = true;
     $('#scrClinic').hidden = true; $('#app').hidden = false;
     $('#lastBar').hidden = true;
     setView('out');
+  }
+
+  /* 書き込めない院（西春・中川、または接続できないとき）で書き込みボタンを押した */
+  function showReadOnly() {
+    var n = $('#roNote');
+    n.innerHTML = '<div>' + esc(SB.readOnlyMessage(C.id) || '書き込みはできません。') + '</div>' +
+      (C.id !== 'test' && SB.live ? '<button type="button" id="goTest" class="ro-go">テスト用の院へ切り替える</button>' : '');
+    n.hidden = false;
+    window.scrollTo(0, 0);
+  }
+  function showErr(msg) { var e = $('#sendErr'); e.textContent = msg; e.hidden = !msg; }
+
+  /* 初期化ボタン（2段階。テスト用の院を DB ごと最初の状態へ） */
+  function renderResetBtns() {
+    ['resetBtn', 'resetBtn2'].forEach(function (id) {
+      var b = $('#' + id); if (!b) return;
+      b.disabled = !SB.live || busy;
+      b.classList.toggle('armed', resetArm === id);
+      b.textContent = resetArm === id ? 'もう一度押すと初期化します（テスト用の院の在庫と記録を最初に戻す）'
+        : (SB.live ? 'テスト用の院を初期化（DBの在庫と記録を最初の状態に戻す）' : '初期化はDBに接続中のときだけできます');
+    });
   }
 
   function setView(v) {
@@ -105,10 +148,15 @@
     render();
     if (v === 'out' && S.lastRec && !S.patient) showLast(S.lastRec);
     window.scrollTo(0, 0);
+    // テスト用の院は、履歴・消費量・在庫・発注を開くたびにDBを読み直す（他の端末の操作も反映）
+    if (isTest() && SB.live && v !== 'out' && v !== 'in' && !busy) {
+      SB.refresh('test').then(function () { if (S.view === v && isTest() && !busy) render(); }).catch(function () { });
+    }
   }
 
   function render() {
     if (!C) return;
+    if (isTest()) syncMeds();
     if (S.view === 'out') renderOut();
     if (S.view === 'stock') renderStock();
     if (S.view === 'in') renderIn();
@@ -189,10 +237,11 @@
     if (!S.patient) note = '患者を選ぶと送信できます';
     else if (!S.cart.length) note = '<b>' + esc(S.patient.name) + '</b>';
     else note = '<b>' + esc(S.patient.name) + '</b><br>' + S.cart.length + '品目' + (over ? '・<span class="w">在庫超過 ' + over + '</span>' : '') + (ext ? '・<span class="e">外用 ' + ext + '</span>' : '');
+    if (S.cart.length && !canWrite()) note += '<br><span class="w">見本データのため送信しても記録されません</span>';
     $('#sendNote').innerHTML = note;
     var btn = $('#sendBtn');
-    btn.disabled = !(S.patient && S.cart.length);
-    btn.textContent = S.cart.length ? '送信（' + S.cart.length + '品目）' : '送信';
+    btn.disabled = busy || !(S.patient && S.cart.length);
+    btn.textContent = busy ? '送信中…' : (S.cart.length ? '送信（' + S.cart.length + '品目）' : '送信');
   }
 
   function addToCart(code) {
@@ -238,36 +287,65 @@
   }
   function closeSheets() { $('#patientSheet').hidden = true; $('#doseSheet').hidden = true; }
 
-  function send() {
-    if (!S.patient || !S.cart.length) return;
+  /* 送信＝テスト用の院のDBへ出荷（kind:'out'）を記録。外用（在庫を数えない薬）はDBへ送らない */
+  async function send() {
+    if (!S.patient || !S.cart.length || busy) return;
+    if (!canWrite()) { showReadOnly(); return; }
     var date = $('#visitDate').value;
-    var rec = { id: Date.now(), kind: 'out', t: new Date().toISOString(), date: date, op: S.op, pno: S.patient.no, pname: S.patient.name,
-      visit: C.id + '|' + S.patient.no + '|' + date, lines: [] };
+    var pname = /（架空）/.test(S.patient.name) ? S.patient.name : '（架空）' + S.patient.name;
+    var rec = { id: 'L' + Date.now(), kind: 'out', t: new Date().toISOString(), date: date, op: S.op, pno: S.patient.no, pname: pname,
+      visit: C.id + '|' + S.patient.no + '|' + date, lines: [], tx: [] };
+    var items = [];
     S.cart.forEach(function (l) {
-      var m = C.byCode[l.code], before = C.stock[m.code];
-      if (!m.stock_untracked) C.stock[m.code] = before - l.qty;
-      rec.lines.push({ code: m.code, name: short(m), qty: l.qty, unit: m.unit, ext: !!m.stock_untracked, before: before });
+      var m = C.byCode[l.code];
+      rec.lines.push({ code: m.code, name: short(m), qty: l.qty, unit: m.unit, ext: !!m.stock_untracked, before: C.stock[m.code] });
+      if (!m.stock_untracked) items.push({ code: m.code, kind: 'out', delta: -l.qty, note: pname, ref: rec.visit });
     });
-    C.log.unshift(rec); saveClinic(); // ボタンの並びは院に入った時だけ決める（送信のたびに並び替えると押す位置がずれる）
+    busy = true; showErr(''); renderCart();
+    try {
+      var res = items.length ? await SB.apply('test', items, S.op, SRC) : [];
+      res.forEach(function (r) {
+        rec.tx.push(r.tx_id);
+        rec.lines.forEach(function (l) { if (l.code === r.code && !l.ext) { l.before = Number(r.before); l.after = Number(r.after); l.tx = r.tx_id; } });
+      });
+    } catch (e) {
+      busy = false; showErr('送信できませんでした（在庫は変わっていません）: ' + e.message); renderCart(); return;
+    }
+    busy = false;
+    C.log.unshift(rec); // ボタンの並びは院に入った時だけ決める（送信のたびに並び替えると押す位置がずれる）
     S.cart = []; S.patient = null; S.weight = null; $('#medSearch').value = '';
-    renderOut(); showLast(rec);
+    render(); showLast(rec);
     window.scrollTo(0, 0);
   }
-  function showLast(rec) {
+  function showLast(rec, err) {
     S.lastRec = rec;
     var bar = $('#lastBar');
     bar.classList.toggle('undone', !!rec.cx);
-    $('#lastText').innerHTML = rec.cx ? '<b>取り消しました</b><br>' + esc(rec.pname) + ' ' + rec.lines.length + '品目を在庫に戻しました'
-      : '<b>送信しました</b>　' + esc(rec.pname) + '<br>' + rec.lines.length + '品目。押し間違いならすぐ取り消せます';
+    var chg = rec.lines.filter(function (l) { return !l.ext && l.after != null; }).slice(0, 2).map(function (l) {
+      return esc(l.name) + ' ' + fmt(rec.cx ? l.after : l.before) + '→' + fmt(rec.cx ? l.before : l.after);
+    }).join('、');
+    $('#lastText').innerHTML = (rec.cx ? '<b>取り消しました</b><br>' + esc(rec.pname) + ' ' + rec.lines.length + '品目を在庫に戻しました'
+      : '<b>送信しました（DBに記録）</b>　' + esc(rec.pname) + '<br>' + rec.lines.length + '品目。押し間違いならすぐ取り消せます') +
+      (chg ? '<br><small>在庫 ' + chg + '</small>' : '') + (err ? '<br><span class="err">' + esc(err) + '</span>' : '');
     $('#undoBtn').hidden = !!rec.cx;
+    $('#undoBtn').disabled = busy;
+    $('#undoBtn').textContent = busy ? '取り消し中…' : '取り消す';
     bar.dataset.id = rec.id; bar.hidden = false;
   }
-  function undo(id) {
+  /* 取り消し＝SB.voidTx で DB の記録を取り消し、在庫を戻す */
+  async function undo(id) {
     var rec = C.log.filter(function (h) { return String(h.id) === String(id); })[0];
-    if (!rec || rec.cx) return;
-    if (rec.kind === 'out') rec.lines.forEach(function (l) { if (!l.ext) C.stock[l.code] += l.qty; });
-    if (rec.kind === 'in') rec.lines.forEach(function (l) { C.stock[l.code] -= l.qty; });
-    rec.cx = new Date().toISOString(); saveClinic();
+    if (!rec || rec.cx || busy) return null;
+    if (!canWrite()) { showReadOnly(); return null; }
+    busy = true; if (S.lastRec === rec) showLast(rec);
+    try {
+      var res = rec.tx.length ? await SB.voidTx('test', rec.tx, S.op) : [];
+      res.forEach(function (r) { rec.lines.forEach(function (l) { if (l.code === r.code && !l.ext) { l.after = Number(r.before); l.before = Number(r.after); } }); });
+    } catch (e) {
+      busy = false; if (S.lastRec === rec) showLast(rec, '取り消せませんでした（在庫は変わっていません）: ' + e.message); return null;
+    }
+    busy = false;
+    rec.cx = new Date().toISOString();
     return rec;
   }
 
@@ -309,7 +387,7 @@
     f.hidden = false;
     f.innerHTML = '<div class="in-nm">' + esc(short(m)) + '</div><div style="color:var(--dim);font-size:13px">いまの在庫 <b class="num">' + fmt(C.stock[m.code]) + '</b> ' + esc(m.unit) + '</div>' +
       '<div class="in-row"><div class="stepper"><button type="button" id="inMinus">−</button><span class="q num">' + S.inQty + '<small>' + esc(m.unit) + '</small></span><button type="button" id="inPlus">＋</button></div>' +
-      '<button type="button" class="in-go" id="inGo">入荷を登録</button></div>';
+      '<button type="button" class="in-go" id="inGo"' + (busy ? ' disabled' : '') + '>' + (busy ? '登録中…' : (canWrite() ? '入荷を登録（DBに記録）' : '入荷を登録')) + '</button></div>';
   }
 
   /* ---- 発注・履歴・消費量 ---- */
@@ -321,7 +399,39 @@
       return '<div class="srow"><span class="sn">' + esc(short(m)) + '<small>発注点 ' + fmt(m.threshold) + '・' + esc(m.supplier_name || '') + '</small></span><span class="sq num' + (s < 0 ? ' neg' : '') + '">' + fmt(s) + '<small>' + esc(m.unit) + '</small></span></div>';
     }).join('');
   }
+  /* テスト用の院の履歴＝DBの在庫の動き（SB.moves）。1回の送信でまとめて入った行を1件にまとめる */
+  var KIND_LB = { out: ['out', '出荷'], karte_out: ['out', 'カルテから'], in: ['in', '入荷'], adjust: ['in', '調整'], count: ['in', '数え直し'] };
+  function dbGroups() {
+    var g = [], idx = {};
+    SB.moves('test').forEach(function (m) {
+      if (!KIND_LB[m.kind]) return; // 取り消しの行（void）は元の行の「取消済」で表す
+      var k = [m.created_at, m.kind, m.source, m.operator, m.ref, m.note, m.occurred_on].join('|');
+      var x = idx[k];
+      if (!x) { x = idx[k] = { key: 'g' + m.id, kind: m.kind, t: m.created_at, date: m.occurred_on, op: m.operator, src: m.source, note: m.note, ids: [], lines: [], cx: false }; g.push(x); }
+      var med = C.byCode[m.medicine_code];
+      x.ids.push(m.id); if (m.voided_at) x.cx = true;
+      x.lines.push({ name: med ? short(med) : m.medicine_code, qty: Math.abs(Number(m.qty) || 0), unit: med ? med.unit : '', before: m.stock_before, after: m.stock_after });
+    });
+    return g;
+  }
+  function renderHistDb() {
+    var gs = dbGroups();
+    if (!gs.length) { $('#histList').innerHTML = '<div class="cart-empty">まだ記録はありません</div>'; return; }
+    var mine = gs.filter(function (h) { return !h.cx && h.src === SRC; })[0];
+    $('#histList').innerHTML = gs.slice(0, 30).map(function (h) {
+      var t = new Date(h.t), hm = ('0' + t.getHours()).slice(-2) + ':' + ('0' + t.getMinutes()).slice(-2), kl = KIND_LB[h.kind];
+      var kind = h.cx ? '<span class="h-kind cx">取消済</span>' : '<span class="h-kind ' + kl[0] + '">' + kl[1] + '</span>';
+      return '<div class="h-item' + (h.cx ? ' cx' : '') + '"><div class="h-top"><span>' + kind + '　' + (h.date || '') + ' ' + hm + '</span><span>' + (h.op ? '担当 ' + esc(h.op) : esc(h.src || '')) + '</span></div>' +
+        (h.note ? '<div class="h-who">' + esc(h.note) + '</div>' : '') +
+        '<ul>' + h.lines.map(function (l) { return '<li>' + esc(l.name) + '　<b class="num">' + fmt(l.qty) + '</b>' + esc(l.unit) +
+          (l.before != null && l.after != null ? '　<small>在庫 ' + fmt(l.before) + '→' + fmt(l.after) + '</small>' : '') + '</li>'; }).join('') + '</ul>' +
+        (mine && h.key === mine.key ? '<button type="button" class="btn-plain h-undo" data-undo-db="' + h.ids.join(',') + '"' + (busy ? ' disabled' : '') + '>この記録を取り消す</button>' : '') + '</div>';
+    }).join('');
+  }
   function renderHist() {
+    $('#histSub').textContent = isTest() && SB.live ? 'テスト用の院（DBの記録・新しい順）' : '見本データのため記録はありません';
+    $('#resetBtn2').hidden = !isTest(); $('#resetMsg2').hidden = true; renderResetBtns();
+    if (isTest() && SB.live) { renderHistDb(); return; }
     if (!C.log.length) { $('#histList').innerHTML = '<div class="cart-empty">まだ記録はありません</div>'; return; }
     var firstLive = C.log.filter(function (h) { return !h.cx; })[0];
     $('#histList').innerHTML = C.log.slice(0, 30).map(function (h) {
@@ -334,6 +444,7 @@
     }).join('');
   }
   function renderUse() {
+    $('#useSub').textContent = isTest() && SB.live ? 'テスト用の院の直近35日（DBの出庫記録）' : '西春の直近35日（見本データ）';
     var n = counts();
     var list = C.meds.map(function (m) { return { m: m, n: n[m.code] || 0 }; }).filter(function (x) { return x.n; }).sort(function (a, b) { return b.n - a.n; }).slice(0, 15);
     var mx = list.length ? list[0].n : 1;
@@ -342,10 +453,29 @@
     }).join('');
   }
 
-  function resetDemo() {
-    try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf(LS) === 0) localStorage.removeItem(k); }); } catch (e) { }
-    S.clinic = null; S.cart = []; S.patient = null; C = null;
-    showClinicScreen();
+  /* 初期化：1回目は「もう一度押すと初期化します」、2回目で SB.resetTest() */
+  var resetTimer = null;
+  async function resetDemo(btnId) {
+    if (!SB.live || busy) return;
+    if (resetArm !== btnId) {
+      resetArm = btnId; renderResetBtns();
+      clearTimeout(resetTimer); resetTimer = setTimeout(function () { resetArm = null; renderResetBtns(); }, 6000);
+      return;
+    }
+    clearTimeout(resetTimer); resetArm = null; busy = true; renderResetBtns();
+    var msg = $('#resetMsg'), msg2 = $('#resetMsg2');
+    try {
+      await SB.resetTest();
+      busy = false;
+      S.cart = []; S.patient = null; S.lastRec = null;
+      if (C && C.id === 'test') { C.log = []; syncMeds(); buildFreq(); }
+      [msg, msg2].forEach(function (m) { m.className = 'reset-msg'; m.textContent = 'テスト用の院を最初の状態に戻しました'; m.hidden = false; });
+    } catch (e) {
+      busy = false;
+      [msg, msg2].forEach(function (m) { m.className = 'reset-msg err'; m.textContent = '初期化できませんでした: ' + e.message; m.hidden = false; });
+    }
+    renderResetBtns();
+    if (!$('#app').hidden) render();
   }
 
   /* ---- イベント（click で動く） ---- */
@@ -353,7 +483,8 @@
     var t = e.target.closest('button'); if (!t) return;
     if (t.dataset.close) { $('#' + t.dataset.close).hidden = true; return; }
     if (t.classList.contains('cs-item')) { enterClinic(t.dataset.id); return; }
-    if (t.id === 'resetBtn' || t.id === 'resetBtn2') { resetDemo(); return; }
+    if (t.id === 'resetBtn' || t.id === 'resetBtn2') { resetDemo(t.id); return; }
+    if (t.id === 'goTest') { enterClinic('test'); return; }
     if (t.id === 'clinicBtn') { showClinicScreen(); return; }
     if (t.id === 'themeBtn') { S.theme = S.theme === 'night' ? 'day' : 'night'; lsSet('theme', S.theme); applyTheme(); return; }
     if (t.parentNode && t.parentNode.classList && t.parentNode.classList.contains('tabs')) { setView(t.dataset.v); return; }
@@ -379,20 +510,52 @@
     }
     if (t.classList.contains('line-x')) { S.cart.splice(+t.dataset.i, 1); renderOut(); return; }
     if (t.id === 'sendBtn') { send(); return; }
-    if (t.id === 'undoBtn') { var r = undo($('#lastBar').dataset.id); if (r) { showLast(r); renderOut(); } return; }
-    if (t.dataset.undo) { undo(t.dataset.undo); renderHist(); return; }
+    if (t.id === 'undoBtn') { undo($('#lastBar').dataset.id).then(function (r) { if (r) { render(); showLast(r); } }); return; }
+    if (t.dataset.undoDb) { undoDb(t.dataset.undoDb.split(',').map(Number)); return; }
     if (t.classList.contains('chip')) { S.stockFilter = t.dataset.f; renderStock(); return; }
     if (t.classList.contains('res') && t.closest('#inResults')) { S.inPick = t.dataset.code; S.inQty = C.byCode[S.inPick].pack_size || 10; $('#inDone').hidden = true; renderIn(); return; }
     if (t.id === 'inMinus' || t.id === 'inPlus') { S.inQty = Math.max(1, S.inQty + (t.id === 'inPlus' ? 1 : -1)); renderIn(); return; }
-    if (t.id === 'inGo') {
-      var mm = C.byCode[S.inPick];
-      C.stock[mm.code] += S.inQty;
-      C.log.unshift({ id: Date.now(), kind: 'in', t: new Date().toISOString(), date: $('#visitDate').value, op: S.op, lines: [{ code: mm.code, name: short(mm), qty: S.inQty, unit: mm.unit }] });
-      saveClinic();
-      $('#inDone').textContent = short(mm) + ' を ' + S.inQty + mm.unit + ' 入荷しました（在庫 ' + fmt(C.stock[mm.code]) + '）';
-      $('#inDone').hidden = false; S.inPick = null; $('#inSearch').value = ''; renderIn(); return;
-    }
+    if (t.id === 'inGo') { receive(); return; }
   });
+
+  /* 簡易入荷＝テスト用の院のDBへ kind:'in' を記録 */
+  async function receive() {
+    if (busy || !S.inPick) return;
+    if (!canWrite()) { showReadOnly(); return; }
+    var mm = C.byCode[S.inPick], qty = S.inQty, done = $('#inDone');
+    busy = true; renderIn(); done.hidden = true;
+    try {
+      var res = await SB.apply('test', [{ code: mm.code, kind: 'in', delta: qty, ref: '簡易入荷', note: '案Aの簡易入荷' }], S.op, SRC);
+      var r = res[0] || {};
+      C.log.unshift({ id: 'L' + Date.now(), kind: 'in', t: new Date().toISOString(), date: $('#visitDate').value, op: S.op, tx: [r.tx_id],
+        lines: [{ code: mm.code, name: short(mm), qty: qty, unit: mm.unit, before: Number(r.before), after: Number(r.after) }] });
+      busy = false;
+      done.className = 'toast-inline';
+      done.textContent = short(mm) + ' を ' + qty + mm.unit + ' 入荷しました（DBに記録。在庫 ' + fmt(r.before) + ' → ' + fmt(r.after) + '）';
+      S.inPick = null; $('#inSearch').value = '';
+    } catch (e) {
+      busy = false;
+      done.className = 'toast-inline err';
+      done.textContent = '入荷を登録できませんでした（在庫は変わっていません）: ' + e.message;
+    }
+    done.hidden = false;
+    render();
+  }
+
+  /* 履歴からの取り消し（DBの記録） */
+  async function undoDb(ids) {
+    if (busy) return;
+    if (!canWrite()) { showReadOnly(); return; }
+    busy = true; renderHist(); var er = $('#histErr'); er.hidden = true;
+    try {
+      await SB.voidTx('test', ids, S.op);
+      C.log.forEach(function (h) { if (h.tx && h.tx.some(function (x) { return ids.indexOf(x) >= 0; })) h.cx = new Date().toISOString(); });
+      await SB.refresh('test');
+    } catch (e) {
+      er.textContent = '取り消せませんでした（在庫は変わっていません）: ' + e.message; er.hidden = false;
+    }
+    busy = false; render();
+  }
   $('#medSearch').addEventListener('input', function () {
     renderSearch();
     var w = document.querySelector('.search-wrap'), top = w.getBoundingClientRect().top;
@@ -409,6 +572,10 @@
   applyTheme();
   $('#opSel').innerHTML = D.operators.map(function (o) { return '<option' + (o === S.op ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('');
   var d = new Date(); $('#visitDate').value = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
-  if (S.clinic && D.medicines[S.clinic]) enterClinic(S.clinic); else showClinicScreen();
+  // DBの読み込みを待ってから最初の描画（待つ間は「接続中…」）
+  SB.ready.then(function () {
+    $('#bootMsg').hidden = true;
+    if (S.clinic && D.medicines[S.clinic]) enterClinic(S.clinic); else showClinicScreen();
+  });
   window.__demoA = { S: S, get C() { return C; } };
 })();

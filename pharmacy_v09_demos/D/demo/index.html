@@ -15,6 +15,7 @@
   <div class="pk-in">
     <p class="pk-k">薬品在庫 v0.9 ／ 院長・管理者用</p>
     <h1 class="pk-h">どの院の在庫を見ますか</h1>
+    <p class="pk-db" id="pk-db"></p>
     <div class="pk-list" id="pk-list"></div>
     <p class="pk-note">選んだ院はこの端末に記憶されます。あとから画面上部でいつでも切り替えられます。</p>
   </div>
@@ -29,11 +30,12 @@
       <span class="hd-tag" id="hd-tag"></span>
     </div>
     <div class="hd-r">
-      <span class="hd-win">集計 8/27〜9/26（31日）</span>
+      <span class="hd-win" id="hd-win">集計 8/27〜9/26（31日）</span>
       <div class="seg seg-cl" id="sw"></div>
       <button class="btn-ghost" id="reset" type="button">デモの初期化</button>
     </div>
   </header>
+  <div class="dbline" id="dbline"></div>
   <nav class="tabs" id="tabs">
     <button type="button" data-v="ov" id="tab-ov" class="on">俯瞰</button>
     <button type="button" data-v="it" id="tab-it">品目の動き</button>
@@ -80,7 +82,7 @@
     <section class="view" id="v-cp">
       <div class="pane"><table class="t cmp" id="cp-t"></table></div>
       <div class="pane mt">
-        <div class="pane-h">よく出る15品目の在庫を3院で並べる <span class="n">棒＝西春の出庫ペースで何日分あるか（14日で満タン）</span></div>
+        <div class="pane-h">よく出る15品目の在庫を3院で並べる <span class="n">棒＝西春の出庫ペースで何日分あるか（14日で満タン）。西春・中川は見本データ、テスト用はDBの値</span></div>
         <table class="t cmp2" id="cp-m"></table>
       </div>
     </section>
@@ -125,6 +127,7 @@
 
 <script src="../../shared/demo_data.js"></script>
 <script src="../../shared/kana.js"></script>
+<script src="../../shared/sb.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

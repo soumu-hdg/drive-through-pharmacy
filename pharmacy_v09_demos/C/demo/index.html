@@ -13,10 +13,10 @@
 <section id="pick" class="pick" hidden>
   <div class="pick-head">
     <div class="pick-t">薬品在庫 v0.9 ／ 補充台帳</div>
-    <div class="pick-s">接続する院を選んでください。選んだ院はこの端末に記憶します。</div>
+    <div class="pick-s">接続する院を選んでください。テスト用の院だけ本番DBにつながり、操作すると実際に在庫の値が動きます。西春・中川は見本データです。</div>
   </div>
   <div class="pick-grid" id="pickGrid"></div>
-  <div class="pick-foot">デモ版：本番のデータベースには接続しません。操作はこの端末の中だけに保存されます。</div>
+  <div class="pick-foot" id="pickFoot">接続中…</div>
 </section>
 
 <!-- 本体 -->
@@ -28,7 +28,7 @@
     <div class="today">2026-09-30（水）</div>
     <button class="reset" id="resetBtn">デモの初期化</button>
   </header>
-  <div class="practice" id="practice" hidden>練習用の院です。本番の在庫には影響しません。</div>
+  <div class="practice" id="practice" hidden></div>
 
   <nav class="steps" id="steps">
     <button data-step="due"><i>1</i><span>要対応</span><em id="cDue">0</em></button>
@@ -56,6 +56,7 @@
 
 <script src="../../shared/demo_data.js"></script>
 <script src="../../shared/kana.js"></script>
+<script src="../../shared/sb.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

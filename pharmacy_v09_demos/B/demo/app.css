@@ -254,3 +254,9 @@ html.back ::view-transition-new(stage){animation-name:vInB}
 .flow.over .msg{color:#5b140f}
 .flow.over .msg b{font-size:18px;color:var(--bad)}
 .flow .b .v{font-size:28px}
+
+/* 本番DB接続（テスト用の院だけ） */
+.linkbtn.armed{color:var(--bad);font-weight:700}
+.linkbtn:disabled{opacity:.5;cursor:default}
+.reset-msg{margin:8px 0 0;font-size:15px;color:var(--good)}
+.reset-msg.err{color:var(--bad)}
