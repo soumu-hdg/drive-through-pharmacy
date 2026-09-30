@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>薬品在庫 v0.9 デザイン案デモ</title>
+<style>
+:root{--bg:#f3f4f2;--ink:#1d2226;--sub:#5d6368;--line:#d5d9d6;--card:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16191b;--ink:#e8eae8;--sub:#a3aaae;--line:#30363a;--card:#1f2326}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"BIZ UDPGothic","Hiragino Sans","Yu Gothic UI",sans-serif;line-height:1.65}
+header{background:#1d2226;color:#fff;padding:22px 16px}
+header .in,main{max-width:1180px;margin:0 auto}
+header h1{margin:0;font-size:24px}
+header p{margin:6px 0 0;color:#c9cfd2;font-size:14px}
+main{padding:8px 16px 60px}
+.note{border:1px solid var(--line);background:var(--card);padding:12px 14px;margin:18px 0;font-size:13.5px}
+.note b{color:var(--ink)}
+h2{font-size:19px;margin:30px 0 4px}
+h2+p{margin:0 0 14px;color:var(--sub);font-size:13.5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--acc);display:flex;flex-direction:column}
+.thumb{display:block;aspect-ratio:16/10;overflow:hidden;background:#000;border-bottom:1px solid var(--line)}
+.thumb img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
+.body{padding:12px 14px 14px;display:flex;flex-direction:column;flex:1}
+.meta{display:flex;flex-wrap:wrap;gap:6px;font-size:11.5px}
+.meta span{border:1px solid var(--line);padding:1px 7px;border-radius:3px}
+.meta .id{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:700}
+.meta .role{border-color:var(--acc);color:var(--acc);font-weight:700}
+h3{margin:8px 0 2px;font-size:17px}
+.who{margin:0;color:var(--sub);font-size:12.5px}
+.title{margin:8px 0 12px;font-size:13.5px;flex:1}
+.acts{display:flex;gap:8px}
+.acts a{flex:1;text-align:center;text-decoration:none;padding:11px 6px;font-size:14px;font-weight:700;border-radius:4px;min-height:22px}
+.go{background:var(--acc);color:#fff}
+.mv{border:1px solid var(--line);color:var(--ink)}
+footer{max-width:1180px;margin:0 auto;padding:0 16px 30px;font-size:11px;color:var(--sub)}
+</style></head><body>
+<header><div class="in"><h1>薬品在庫管理 v0.9 デザイン案デモ（8案）</h1>
+<p>使う人の立場ごとに作った試作です。どの案も実際に操作できます。</p></div></header>
+<main>
+<div class="note"><b>デモについて：</b>本番の在庫・データベースには接続していません。操作した結果はこの端末のブラウザにだけ保存され、各デモの「デモの初期化」で元に戻せます。薬品名と在庫数は西春の品目を写したもので、患者・担当者はすべて架空です。<br>スマホ向け・タブレット向けの案は、その端末で開くと実際の大きさで見られます。最初に「テスト用」の院を選ぶと、練習用の表示で操作できます。</div>
+
+<h2>第2弾：ズレの発見・調整と仕入れ（推奨の組み立て）</h2>
+<p>処方による在庫引きはカルテからの反映が基本になる前提で、在庫アプリの仕事を「ズレを見つけて直す」と「仕入れ」に絞った4案です。ホームは案H、入荷は案F、数合わせは案E、事務のパソコンは案Gという組み立てを推奨しています。</p>
+<div class="grid"><article class="card" style="--acc:#c0392b">
+  <a class="thumb" href="H/demo/index.html" target="_blank"><img src="H/thumb.jpg" alt="案Hの画面" loading="lazy"></a>
+  <div class="body">
+    <div class="meta"><span class="id">案H</span><span class="dev">スマホ向け</span><span class="role">ホーム（全員の入口）</span></div>
+    <h3>3つのボタンだけ</h3>
+    <p class="who">中川の開院スタッフ（受付・事務・在庫を1人で兼ねる）</p>
+    <p class="title">ホームは3択だけにし、確認の画面の代わりに「取り消し」で守る</p>
+    <div class="acts"><a class="go" href="H/demo/index.html" target="_blank">デモを開く</a><a class="mv" href="H/demo_H.mp4" target="_blank">操作動画 112秒</a></div>
+  </div>
+</article><article class="card" style="--acc:#9c6b2f">
+  <a class="thumb" href="F/demo/index.html" target="_blank"><img src="F/thumb.jpg" alt="案Fの画面" loading="lazy"></a>
+  <div class="body">
+    <div class="meta"><span class="id">案F</span><span class="dev">タブレット向け</span><span class="role">「届いた」の中身＝入荷</span></div>
+    <h3>入荷カウンター</h3>
+    <p class="who">卸の箱を受け取る受付・事務スタッフ</p>
+    <p class="title">箱を読んで数を打つだけ。納品書との差で読み忘れを止め、一度の操作で在庫に反映する</p>
+    <div class="acts"><a class="go" href="F/demo/index.html" target="_blank">デモを開く</a><a class="mv" href="F/demo_F.mp4" target="_blank">操作動画 112秒</a></div>
+  </div>
+</article><article class="card" style="--acc:#2b6cb0">
+  <a class="thumb" href="E/demo/index.html" target="_blank"><img src="E/thumb.jpg" alt="案Eの画面" loading="lazy"></a>
+  <div class="body">
+    <div class="meta"><span class="id">案E</span><span class="dev">スマホ向け</span><span class="role">「数が合わない」の中身＝数合わせ</span></div>
+    <h3>棚の前で数える（循環棚卸）</h3>
+    <p class="who">薬棚の前で在庫を数える看護師・スタッフ</p>
+    <p class="title">毎日8品目を帳簿を隠して数え、マイナス在庫をその日に消し、全品目を11日で一巡する</p>
+    <div class="acts"><a class="go" href="E/demo/index.html" target="_blank">デモを開く</a><a class="mv" href="E/demo_E.mp4" target="_blank">操作動画 116秒</a></div>
+  </div>
+</article><article class="card" style="--acc:#2f7a4a">
+  <a class="thumb" href="G/demo/index.html" target="_blank"><img src="G/thumb.jpg" alt="案Gの画面" loading="lazy"></a>
+  <div class="body">
+    <div class="meta"><span class="id">案G</span><span class="dev">パソコン向け</span><span class="role">事務のパソコン＝締め</span></div>
+    <h3>突き合わせ台帳</h3>
+    <p class="who">在庫の数字に責任を持つ総務・経理担当</p>
+    <p class="title">ズレは候補リストが拾い、台帳で原因の日を特定し、理由付きで直して月末に院ごと締める</p>
+    <div class="acts"><a class="go" href="G/demo/index.html" target="_blank">デモを開く</a><a class="mv" href="G/demo_G.mp4" target="_blank">操作動画 100秒</a></div>
+  </div>
+</article></div>
+
+<h2>第1弾：出庫（処方の受け渡し）中心（参考）</h2>
+<p>出庫の入力を中心に作った4案です。出庫がカルテ連動に移るため主役からは外れますが、ローマ字でも引ける検索・「外用」表示・練習モード・開院準備などの部品を第2弾に引き継いでいます。</p>
+<div class="grid"><article class="card" style="--acc:#1f6f78">
+  <a class="thumb" href="A/demo/index.html" target="_blank"><img src="A/thumb.jpg" alt="案Aの画面" loading="lazy"></a>
+  <div class="body">
+    <div class="meta"><span class="id">案A</span><span class="dev">スマホ向け</span></div>
+    <h3>窓口出荷パネル</h3>
+    <p class="who">夜間休日ドライブスルー外来の看護師</p>
+    <p class="title">患者→薬→送信を1画面に並べ、3品目の出荷を14タップから6〜8タップに減らす</p>
+    <div class="acts"><a class="go" href="A/demo/index.html" target="_blank">デモを開く</a><a class="mv" href="A/demo_A.mp4" target="_blank">操作動画 97秒</a></div>
+  </div>
+</article><article class="card" style="--acc:#b0603a">
+  <a class="thumb" href="B/demo/index.html" target="_blank"><img src="B/thumb.jpg" alt="案Bの画面" loading="lazy"></a>
+  <div class="body">
+    <div class="meta"><span class="id">案B</span><span class="dev">タブレット向け</span></div>
+    <h3>出荷（処方）ガイド ─ 1画面に1つの問い</h3>
+    <p class="who">入ったばかりの受付アルバイト・新人スタッフ</p>
+    <p class="title">次に押す所はいつも1つ。送った直後なら「取り消す」で戻せるので、はじめての人でも手順書なしで1件終えられる</p>
+    <div class="acts"><a class="go" href="B/demo/index.html" target="_blank">デモを開く</a><a class="mv" href="B/demo_B.mp4" target="_blank">操作動画 94秒</a></div>
+  </div>
+</article><article class="card" style="--acc:#3b3b3b">
+  <a class="thumb" href="C/demo/index.html" target="_blank"><img src="C/thumb.jpg" alt="案Cの画面" loading="lazy"></a>
+  <div class="body">
+    <div class="meta"><span class="id">案C</span><span class="dev">パソコン向け</span></div>
+    <h3>補充台帳</h3>
+    <p class="who">在庫と発注を回す事務担当（総務）</p>
+    <p class="title">朝の補充は1画面・5工程で終わる。要対応→発注→入荷→棚卸→品目追加を上から順に回す</p>
+    <div class="acts"><a class="go" href="C/demo/index.html" target="_blank">デモを開く</a><a class="mv" href="C/demo_C.mp4" target="_blank">操作動画 110秒</a></div>
+  </div>
+</article><article class="card" style="--acc:#5a5a9a">
+  <a class="thumb" href="D/demo/index.html" target="_blank"><img src="D/thumb.jpg" alt="案Dの画面" loading="lazy"></a>
+  <div class="body">
+    <div class="meta"><span class="id">案D</span><span class="dev">タブレット向け</span></div>
+    <h3>院長の見取り図</h3>
+    <p class="who">院長・経営者（複数院を見る管理者）</p>
+    <p class="title">院を切り替えて並べるだけで、在庫のお金・欠品・開院準備が2画面で分かる</p>
+    <div class="acts"><a class="go" href="D/demo/index.html" target="_blank">デモを開く</a><a class="mv" href="D/demo_D.mp4" target="_blank">操作動画 90秒</a></div>
+  </div>
+</article></div>
+</main>
+<footer>薬品在庫管理 v0.9 デザイン案デモ ／ 2026-09-30</footer>
+</body></html>

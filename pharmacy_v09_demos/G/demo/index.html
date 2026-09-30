@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>突き合わせ台帳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<!-- 起動：院を選ぶ -->
+<section id="boot" class="boot">
+  <div class="boot-book">
+    <div class="boot-head">
+      <div class="boot-kicker">薬品在庫管理 v0.9 ─ 在庫の突き合わせ</div>
+      <h1>突き合わせ台帳</h1>
+      <p class="boot-lead">帳簿の数と棚の数が合わない理由を、候補 → 台帳 → 結び付け → 締め の順で片付けます。</p>
+    </div>
+    <div class="boot-row">
+      <div class="boot-label">院を選ぶ</div>
+      <div class="boot-clinics" id="bootClinics"></div>
+    </div>
+    <div class="boot-row">
+      <div class="boot-label">担当者</div>
+      <select id="bootOp" class="sel"></select>
+    </div>
+    <div class="boot-foot">
+      <button id="btnResetBoot" class="btn ghost">デモの初期化</button>
+      <span class="muted">デモのデータはこの端末の中だけに保存されます（本番のデータベースにはつながりません）。</span>
+    </div>
+  </div>
+</section>
+
+<!-- 本体 -->
+<section id="app" class="app" hidden>
+  <header class="hd" id="hd">
+    <div class="hd-clinic">
+      <span class="hd-swatch" id="hdSwatch"></span>
+      <div>
+        <div class="hd-small">在庫の突き合わせ台帳</div>
+        <div class="hd-name" id="hdName">—</div>
+      </div>
+      <span class="hd-practice" id="hdPractice" hidden>練習用・本番の在庫に影響しません</span>
+    </div>
+    <div class="hd-right">
+      <span class="hd-op">担当 <b id="hdOp">—</b></span>
+      <span class="hd-date">本日 2026-09-30（火）</span>
+      <button class="btn hd-btn" id="btnSwitch">院を切り替える</button>
+      <button class="btn hd-btn" id="btnReset">デモの初期化</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="cand" class="tab"><span class="tab-no">一</span>ズレの候補<span class="tab-count" id="tcCand"></span></button>
+    <button data-tab="ledger" class="tab"><span class="tab-no">二</span>品目の台帳</button>
+    <button data-tab="link" class="tab"><span class="tab-no">三</span>カルテとの結び付け<span class="tab-count" id="tcLink"></span></button>
+    <button data-tab="close" class="tab"><span class="tab-no">四</span>月末の締め</button>
+  </nav>
+
+  <main class="pane" id="pane"></main>
+</section>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="../../_shared/demo_data.js"></script>
+<script src="../../_shared/kana.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

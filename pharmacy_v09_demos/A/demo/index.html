@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="night">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>薬品在庫 v0.9 案A 窓口出荷</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- 院の選択（起動時） -->
+<section id="scrClinic" class="clinic-screen" hidden>
+  <div class="cs-head">
+    <div class="cs-app">薬品在庫管理 <span>v0.9</span></div>
+    <h1>接続する院を選んでください</h1>
+    <p>選んだ院はこの端末に記憶します。あとから画面上部の院名で切り替えられます。</p>
+  </div>
+  <div id="clinicList" class="cs-list"></div>
+  <button id="resetBtn" class="btn-plain cs-reset" type="button">デモの初期化（在庫と履歴を最初の状態に戻す）</button>
+  <p class="cs-foot">デモ版：本番のデータには接続していません。患者はすべて架空です。</p>
+</section>
+
+<!-- 本体 -->
+<div id="app" hidden>
+  <header class="top">
+    <button id="clinicBtn" class="clinic-tag" type="button"><span id="clinicShort">西春</span><small id="clinicSub">切替</small></button>
+    <div class="top-mid">
+      <div class="top-title">薬品在庫 <span>v0.9</span></div>
+      <label class="op">担当 <select id="opSel"></select></label>
+    </div>
+    <button id="themeBtn" class="theme-sw" type="button" aria-label="表示の明るさを切り替え">
+      <span data-v="night">夜</span><span data-v="day">昼</span>
+    </button>
+  </header>
+  <div id="practiceBand" class="practice-band" hidden>練習用の院です。本番の在庫には影響しません</div>
+
+  <main id="views">
+    <!-- 出荷（処方） -->
+    <section id="v-out" class="view">
+      <button id="minusChip" class="minus-chip" type="button" hidden></button>
+
+      <div class="step"><span class="no">1</span>患者</div>
+      <button id="patientBtn" class="patient-btn" type="button">
+        <span class="pb-empty">患者を選ぶ</span>
+      </button>
+      <div class="meta-line">診察日 <input id="visitDate" type="date"> </div>
+
+      <div class="step"><span class="no">2</span>薬 <small>よく出る12品目（出荷回数の多い順・自動）</small></div>
+      <div id="freqGrid" class="freq-grid"></div>
+
+      <div class="search-wrap">
+        <input id="medSearch" class="search" type="search" placeholder="ほかの薬を探す（ローマ字・かな・カナ可）" autocomplete="off">
+        <div id="readAs" class="read-as"></div>
+        <div id="medResults" class="results"></div>
+      </div>
+
+      <div class="step"><span class="no">3</span>渡す薬 <small id="cartCount"></small></div>
+      <div id="cart" class="cart"></div>
+      <div class="spacer-send"></div>
+    </section>
+
+    <!-- 在庫 -->
+    <section id="v-stock" class="view" hidden>
+      <input id="stockSearch" class="search" type="search" placeholder="在庫を探す（ローマ字・かな可）" autocomplete="off">
+      <div id="stockChips" class="chips"></div>
+      <div id="stockList" class="stock-list"></div>
+    </section>
+
+    <!-- 入荷 -->
+    <section id="v-in" class="view" hidden>
+      <div class="step">簡易入荷 <small>届いた薬と数を登録すると在庫が増えます</small></div>
+      <input id="inSearch" class="search" type="search" placeholder="薬を探す（ローマ字・かな可）" autocomplete="off">
+      <div id="inResults" class="results"></div>
+      <div id="inForm" class="in-form" hidden></div>
+      <div id="inDone" class="toast-inline" hidden></div>
+    </section>
+
+    <!-- 発注 -->
+    <section id="v-order" class="view" hidden>
+      <div class="step">発注点以下の薬 <small>在庫が発注点を下回った順</small></div>
+      <div id="orderList" class="stock-list"></div>
+    </section>
+
+    <!-- 履歴 -->
+    <section id="v-hist" class="view" hidden>
+      <div class="step">出荷・入荷の履歴 <small>この端末・この院</small></div>
+      <div id="histList" class="hist"></div>
+      <button id="resetBtn2" class="btn-plain" type="button">デモの初期化</button>
+    </section>
+
+    <!-- 消費量 -->
+    <section id="v-use" class="view" hidden>
+      <div class="step">出荷回数 上位15 <small>西春の直近35日＋この端末の出荷</small></div>
+      <div id="useList" class="use-list"></div>
+    </section>
+  </main>
+
+  <!-- 送信バー（出荷画面のみ） -->
+  <div id="sendBar" class="send-bar">
+    <div id="sendNote" class="send-note"></div>
+    <button id="sendBtn" class="send-btn" type="button" disabled>送信</button>
+  </div>
+
+  <!-- 直前の出荷（取り消し） -->
+  <div id="lastBar" class="last-bar" hidden>
+    <div id="lastText" class="last-text"></div>
+    <button id="undoBtn" class="undo-btn" type="button">取り消す</button>
+  </div>
+
+  <nav class="tabs">
+    <button id="tab-out" data-v="out" class="on" type="button">出荷<br><small>（処方）</small></button>
+    <button id="tab-stock" data-v="stock" type="button">在庫</button>
+    <button id="tab-in" data-v="in" type="button">入荷</button>
+    <button id="tab-order" data-v="order" type="button">発注</button>
+    <button id="tab-hist" data-v="hist" type="button">履歴</button>
+    <button id="tab-use" data-v="use" type="button">消費量</button>
+  </nav>
+</div>
+
+<!-- 患者を選ぶ -->
+<div id="patientSheet" class="sheet" hidden>
+  <div class="sheet-body">
+    <div class="sheet-head"><b>患者を選ぶ</b><button class="sheet-x" data-close="patientSheet" type="button">閉じる</button></div>
+    <input id="patientSearch" class="search" type="search" placeholder="患者番号・氏名" autocomplete="off">
+    <div id="patientList" class="pt-list"></div>
+  </div>
+</div>
+
+<!-- 量を選ぶ -->
+<div id="doseSheet" class="sheet" hidden>
+  <div class="sheet-body">
+    <div class="sheet-head"><b id="doseTitle">量を選ぶ</b><button class="sheet-x" data-close="doseSheet" type="button">閉じる</button></div>
+    <div id="doseWeight" class="dose-weight"></div>
+    <div id="doseList" class="dose-list"></div>
+    <p class="dose-note">提案は体重からの目安です。処方の量を確認して選んでください。</p>
+  </div>
+</div>
+
+<script src="../../_shared/demo_data.js"></script>
+<script src="../../_shared/kana.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

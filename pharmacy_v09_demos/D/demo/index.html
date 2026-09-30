@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>在庫の見取り図 — 院長用</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- 起動：院の選択 -->
+<section id="picker" class="picker" hidden>
+  <div class="pk-in">
+    <p class="pk-k">薬品在庫 v0.9 ／ 院長・管理者用</p>
+    <h1 class="pk-h">どの院の在庫を見ますか</h1>
+    <div class="pk-list" id="pk-list"></div>
+    <p class="pk-note">選んだ院はこの端末に記憶されます。あとから画面上部でいつでも切り替えられます。</p>
+  </div>
+</section>
+
+<!-- 本体 -->
+<div id="app" hidden>
+  <header class="hd" id="hd">
+    <div class="hd-id">
+      <span class="hd-sw" id="hd-sw"></span>
+      <b id="hd-name"></b>
+      <span class="hd-tag" id="hd-tag"></span>
+    </div>
+    <div class="hd-r">
+      <span class="hd-win">集計 8/27〜9/26（31日）</span>
+      <div class="seg seg-cl" id="sw"></div>
+      <button class="btn-ghost" id="reset" type="button">デモの初期化</button>
+    </div>
+  </header>
+  <nav class="tabs" id="tabs">
+    <button type="button" data-v="ov" id="tab-ov" class="on">俯瞰</button>
+    <button type="button" data-v="it" id="tab-it">品目の動き</button>
+    <button type="button" data-v="cp" id="tab-cp">院の並べ比べ</button>
+    <button type="button" data-v="pr" id="tab-pr">開院準備</button>
+  </nav>
+
+  <main>
+    <!-- 俯瞰 -->
+    <section class="view on" id="v-ov">
+      <div class="tick" id="tick"></div>
+      <div class="cols">
+        <div class="pane">
+          <div class="pane-h">出庫の推移 <span class="n" id="ov-out-n"></span></div>
+          <div class="pane-b" id="ov-daily"></div>
+          <div class="pane-h sub">時間帯別の出庫件数</div>
+          <div class="pane-b" id="ov-hourly"></div>
+        </div>
+        <div class="pane">
+          <div class="pane-h">切れそうな薬・切れた薬 <span class="n" id="ov-risk-n"></span></div>
+          <div class="pane-b tight" id="ov-risk"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 品目の動き -->
+    <section class="view" id="v-it">
+      <div class="bar">
+        <div class="seg" id="it-f">
+          <button type="button" data-f="top" id="f-top" class="on">よく出る</button>
+          <button type="button" data-f="dead" id="f-dead">動いていない</button>
+          <button type="button" data-f="neg" id="f-neg">逆ザヤ</button>
+          <button type="button" data-f="short" id="f-short">欠品・発注点割れ</button>
+          <button type="button" data-f="nocost" id="f-nocost">原価未設定</button>
+          <button type="button" data-f="all" id="f-all">全品目</button>
+        </div>
+        <input id="it-q" class="q" type="search" placeholder="薬品名・コード（karonaru / かろ / ｶﾛ でも可）" autocomplete="off">
+      </div>
+      <div class="insight" id="it-ins"></div>
+      <div class="pane"><div class="tbl-wrap"><table class="t" id="it-t"></table></div></div>
+    </section>
+
+    <!-- 院の並べ比べ -->
+    <section class="view" id="v-cp">
+      <div class="pane"><table class="t cmp" id="cp-t"></table></div>
+      <div class="pane mt">
+        <div class="pane-h">よく出る15品目の在庫を3院で並べる <span class="n">棒＝西春の出庫ペースで何日分あるか（14日で満タン）</span></div>
+        <table class="t cmp2" id="cp-m"></table>
+      </div>
+    </section>
+
+    <!-- 開院準備 -->
+    <section class="view" id="v-pr">
+      <div class="pr-top">
+        <div class="pr-ctl">
+          <div class="lbl">準備する院</div>
+          <div class="seg" id="pr-target">
+            <button type="button" data-t="nakagawa" id="pt-nakagawa">中川</button>
+            <button type="button" data-t="test" id="pt-test">テスト用</button>
+          </div>
+          <div class="lbl">初期在庫＝西春の出庫ペースの</div>
+          <div class="seg" id="pr-days">
+            <button type="button" data-d="14" id="pd-14">14日分</button>
+            <button type="button" data-d="21" id="pd-21">21日分</button>
+            <button type="button" data-d="30" id="pd-30">30日分</button>
+          </div>
+          <div class="lbl">開院当初の見込み（西春比）</div>
+          <div class="seg" id="pr-ratio">
+            <button type="button" data-r="50" id="pr-50">50%</button>
+            <button type="button" data-r="75" id="pr-75">75%</button>
+            <button type="button" data-r="100" id="pr-100">100%</button>
+          </div>
+        </div>
+        <div class="pr-prog" id="pr-prog"></div>
+      </div>
+      <div class="bar">
+        <div class="seg">
+          <button type="button" id="pb-used">西春で出ている薬だけ扱う</button>
+          <button type="button" id="pb-all">すべて扱う</button>
+        </div>
+        <input id="pr-q" class="q" type="search" placeholder="品目を探す" autocomplete="off">
+      </div>
+      <div class="pr-sum" id="pr-sum"></div>
+      <div class="pr-confirm" id="pr-confirm" hidden></div>
+      <div class="pane"><div class="tbl-wrap"><table class="t" id="pr-t"></table></div></div>
+    </section>
+  </main>
+</div>
+
+<script src="../../_shared/demo_data.js"></script>
+<script src="../../_shared/kana.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

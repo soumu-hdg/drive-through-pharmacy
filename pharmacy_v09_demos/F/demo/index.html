@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>入荷カウンター｜薬品在庫 v0.9 案F</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header id="hdr" class="hdr" hidden>
+  <div class="hdr-clinic" id="hdr-clinic"><span class="hc-tag">院</span><b id="hdr-clinic-name"></b></div>
+  <div class="hdr-mid" id="hdr-mid"></div>
+  <div class="hdr-count" id="hdr-count" hidden>
+    <div class="hc-num"><span id="cnt-box" class="mono">0</span><small>箱</small></div>
+    <div class="hc-num"><span id="cnt-item" class="mono">0</span><small>品目</small></div>
+    <div class="hc-boxes" id="cnt-boxes" aria-hidden="true"></div>
+  </div>
+  <button class="hbtn" id="btn-clinic" type="button">院を切り替え</button>
+</header>
+
+<!-- 院の選択 -->
+<section id="scr-clinic" class="scr">
+  <div class="clinic-wrap">
+    <div class="stencil">RECEIVING COUNTER</div>
+    <h1 class="ttl">入荷カウンター</h1>
+    <p class="lead">届いた箱を手に取った順に読み、最後に一度だけ在庫へ反映します。<br>まず、この端末を置いている院を選んでください。</p>
+    <div class="clinic-list" id="clinic-list"></div>
+    <div class="clinic-foot">
+      <span>デモ版：本番のデータベースには接続しません。操作はこの端末の中に院ごとに保存されます。</span>
+      <button type="button" class="lnk" id="btn-reset">デモの初期化</button>
+      <span id="reset-msg" class="okmsg"></span>
+    </div>
+  </div>
+</section>
+
+<!-- ホーム -->
+<section id="scr-home" class="scr" hidden>
+  <div class="home">
+    <div class="home-l">
+      <button type="button" class="bigbtn" id="btn-start"><span class="bb-ic" aria-hidden="true"></span><span>納品を始める<small>卸から届いた箱を受け付けます</small></span></button>
+      <div class="lbl-box">
+        <div class="lbl-tag">発注点を下回っている品目</div>
+        <div id="low-list" class="low-list"></div>
+      </div>
+    </div>
+    <div class="home-r">
+      <div class="tabs"><button type="button" class="tab on" data-t="hist" id="tab-hist">受付した納品</button><button type="button" class="tab" data-t="stock" id="tab-stock">在庫を見る</button></div>
+      <div id="pane-hist" class="pane"></div>
+      <div id="pane-stock" class="pane" hidden>
+        <input id="stock-q" class="inp" placeholder="ローマ字・かな・カナで検索（例 karonaru）" autocomplete="off">
+        <div id="stock-list" class="stock-list"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 納品の開始 -->
+<section id="scr-start" class="scr" hidden>
+  <div class="start">
+    <div class="step-h"><span class="stepno mono">1</span>どこの卸から届きましたか</div>
+    <div class="sup-list" id="sup-list"></div>
+    <div class="step-h"><span class="stepno mono">2</span>納品書の番号（任意）</div>
+    <input id="slipno" class="inp mono wide" placeholder="例 AL-0930-118" autocomplete="off">
+    <div class="step-h"><span class="stepno mono">3</span>受け付ける人</div>
+    <div class="op-list" id="op-list"></div>
+    <div class="start-foot">
+      <button type="button" class="btn ghost" id="btn-start-cancel">戻る</button>
+      <button type="button" class="btn go" id="btn-begin" disabled>箱を読み始める</button>
+    </div>
+  </div>
+</section>
+
+<!-- 受付中 -->
+<section id="scr-work" class="scr" hidden>
+  <div class="work">
+    <div class="work-l">
+      <div class="scanbar">
+        <div class="scan-view">
+          <div class="scan-note">カメラ枠（デモでは下の見本の箱で読み取りを再現）</div>
+          <div class="tray" id="tray"></div>
+        </div>
+        <div class="scan-manual">
+          <input id="scan-input" class="inp mono" inputmode="numeric" placeholder="箱のバーコード番号を入力" autocomplete="off">
+          <button type="button" class="btn sm" id="scan-go">読む</button>
+        </div>
+      </div>
+      <div class="panel" id="panel"></div>
+    </div>
+    <aside class="slip">
+      <div class="slip-h">
+        <div><b>今回の納品</b><span class="slip-sup" id="slip-sup"></span></div>
+        <div class="slip-no mono" id="slip-no"></div>
+      </div>
+      <div class="slip-rows">
+        <table class="slip-t">
+          <thead><tr><th>品目</th><th class="r">箱</th><th class="r">数量</th><th class="r">金額</th><th></th></tr></thead>
+          <tbody id="slip-body"></tbody>
+        </table>
+      </div>
+      <div class="slip-sum">
+        <div class="sum-row"><span>読み取った合計（税抜）</span><b class="mono" id="sum-calc">¥0</b></div>
+        <label class="sum-row in"><span>納品書の合計（税抜）</span><input id="slip-total" class="inp mono r" inputmode="numeric" placeholder="金額を入力"></label>
+        <div class="diff" id="diff">納品書の金額を入れると、差を出します</div>
+        <button type="button" class="btn go full" id="btn-commit" disabled>在庫に反映</button>
+        <button type="button" class="lnk" id="btn-abort">この納品をやめる</button>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- 反映後 -->
+<section id="scr-done" class="scr" hidden>
+  <div class="done">
+    <div class="done-h">
+      <div class="stamp" id="done-stamp">反映済</div>
+      <div><div class="done-t" id="done-title"></div><div class="done-s" id="done-sub"></div></div>
+    </div>
+    <table class="res-t"><thead><tr><th>品目</th><th class="r">入荷</th><th class="r">在庫 前</th><th></th><th class="r">在庫 後</th></tr></thead><tbody id="res-body"></tbody></table>
+    <div class="done-foot">
+      <button type="button" class="btn warn" id="btn-undo">この納品を取り消す</button>
+      <span id="undo-msg" class="okmsg"></span>
+      <button type="button" class="btn go" id="btn-home">受付を終える</button>
+    </div>
+  </div>
+</section>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="../../_shared/demo_data.js"></script>
+<script src="../../_shared/kana.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

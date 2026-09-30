@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>薬品在庫 v0.9 補充台帳（案C）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<!-- 院の選択 -->
+<section id="pick" class="pick" hidden>
+  <div class="pick-head">
+    <div class="pick-t">薬品在庫 v0.9 ／ 補充台帳</div>
+    <div class="pick-s">接続する院を選んでください。選んだ院はこの端末に記憶します。</div>
+  </div>
+  <div class="pick-grid" id="pickGrid"></div>
+  <div class="pick-foot">デモ版：本番のデータベースには接続しません。操作はこの端末の中だけに保存されます。</div>
+</section>
+
+<!-- 本体 -->
+<div id="app" hidden>
+  <header class="top">
+    <div class="brand">薬品在庫 <b>v0.9</b><span>補充台帳</span></div>
+    <button class="clinic" id="clinicBtn" title="院を切り替える"><span class="cl-name" id="clName"></span><span class="cl-sw">院を切替</span></button>
+    <label class="op">担当者<select id="opSel"></select></label>
+    <div class="today">2026-09-30（水）</div>
+    <button class="reset" id="resetBtn">デモの初期化</button>
+  </header>
+  <div class="practice" id="practice" hidden>練習用の院です。本番の在庫には影響しません。</div>
+
+  <nav class="steps" id="steps">
+    <button data-step="due"><i>1</i><span>要対応</span><em id="cDue">0</em></button>
+    <button data-step="order"><i>2</i><span>発注リスト</span><em id="cCart">0</em></button>
+    <button data-step="recv"><i>3</i><span>入荷</span><em id="cRecv">0</em></button>
+    <button data-step="count"><i>4</i><span>棚卸</span><em id="cNeg">0</em></button>
+    <button data-step="add"><i>5</i><span>品目の追加</span><em id="cItems">0</em></button>
+    <button data-step="copy"><i>6</i><span>院間コピー</span><em>—</em></button>
+  </nav>
+
+  <div class="body">
+    <main id="main"></main>
+    <aside class="side">
+      <div class="side-h">今日の補充</div>
+      <ol class="flow" id="flow"></ol>
+      <div class="side-h">この院の記録</div>
+      <ul class="log" id="log"></ul>
+      <div class="keys">数字キー 1〜6：画面切替 ／ 数量欄で Enter：次の行へ ／ Tab：次の欄へ</div>
+    </aside>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="sheet" class="sheet" hidden></div>
+
+<script src="../../_shared/demo_data.js"></script>
+<script src="../../_shared/kana.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

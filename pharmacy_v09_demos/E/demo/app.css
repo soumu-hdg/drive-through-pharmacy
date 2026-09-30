@@ -1,0 +1,157 @@
+/* 案E 棚の前で数える ─ 計量器・電卓の文法（白黒＋差分の朱1色） */
+:root{
+  --ink:#111111; --paper:#ffffff; --sub:#5d5d5d; --hair:#cfcfcf; --wash:#f1f1ef;
+  --diff:#d9360b;            /* 差分だけに使う唯一の色 */
+  --clinic:#0e7c66;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --sans:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",sans-serif;
+}
+html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);-webkit-text-size-adjust:100%}
+body{min-height:100vh}
+button{font-family:inherit;color:inherit;cursor:pointer}
+*,*::before,*::after{box-sizing:border-box}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+/* ── 院バー ── */
+.cbar{display:flex;align-items:stretch;border-bottom:3px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:5}
+.cbar .cname{background:var(--clinic);color:#fff;padding:8px 12px;font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px;border:0;min-height:48px}
+.cbar .cname small{font-weight:500;font-size:11px;opacity:.9}
+.cbar.test .cname{background:repeating-linear-gradient(135deg,#b8860b 0 10px,#9a7009 10px 20px)}
+.cbar .title{flex:1;display:flex;align-items:center;padding:0 10px;font-size:13px;font-weight:700}
+.cbar .op{border:0;border-left:1px solid var(--hair);background:none;font-size:12px;padding:0 10px;min-width:48px}
+.practice{background:#b8860b;color:#fff;font-size:12px;padding:3px 12px;font-weight:700}
+
+/* ── 院の選択 ── */
+.start{padding:22px 16px 30px}
+.start h1{font-size:24px;margin:0 0 4px;font-weight:700;letter-spacing:.02em}
+.start .lead{font-size:13px;color:var(--sub);margin:0 0 20px;line-height:1.6}
+.clinic-btn{display:block;width:100%;text-align:left;background:var(--paper);border:3px solid var(--ink);margin:0 0 12px;padding:0;min-height:76px;position:relative}
+.clinic-btn .sw{position:absolute;left:0;top:0;bottom:0;width:18px}
+.clinic-btn .in{display:block;padding:12px 12px 12px 32px}
+.clinic-btn b{font-size:19px;display:block;color:var(--ink)}
+.clinic-btn span{font-size:12px;color:var(--sub)}
+.lbl{font-size:12px;font-weight:700;margin:22px 0 8px;border-bottom:1px solid var(--ink);padding-bottom:4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:2px solid var(--ink);background:var(--paper);padding:0 12px;min-height:44px;font-size:14px;border-radius:0}
+.chip.on{background:var(--ink);color:#fff}
+.reset{margin-top:26px;border:1px dashed var(--sub);background:none;width:100%;min-height:48px;font-size:13px;color:var(--sub)}
+
+/* ── 今日のリスト ── */
+.today-head{padding:12px 16px 8px}
+.today-head .eyebrow{font-size:12px;color:var(--sub)}
+.today-head h2{font-size:21px;margin:2px 0 0;line-height:1.3}
+.meter{display:grid;grid-template-columns:repeat(3,1fr);border-top:3px solid var(--ink);border-bottom:1px solid var(--ink)}
+.meter>div{padding:6px 10px 8px;border-right:1px solid var(--ink)}
+.meter>div:last-child{border-right:0}
+.meter .k{font-size:11px;color:var(--sub)}
+.meter .v{font-size:28px;font-weight:700;line-height:1.1}
+.meter .v small{font-size:13px;color:var(--sub);font-weight:500}
+.meter .v.hot{color:var(--diff)}
+.cycle{padding:10px 16px 4px}
+.cycle .k{font-size:11px;color:var(--sub);display:flex;justify-content:space-between}
+.cells{display:grid;grid-template-columns:repeat(22,1fr);gap:2px;margin-top:5px}
+.cells i{display:block;height:9px;border:1px solid var(--ink)}
+.cells i.done{background:var(--ink)}
+.cells i.now{background:var(--diff);border-color:var(--diff)}
+.rows{list-style:none;margin:8px 0 0;padding:0;border-top:3px solid var(--ink)}
+.row{display:grid;grid-template-columns:34px 1fr auto;align-items:center;border-bottom:1px solid var(--ink);min-height:62px;width:100%;background:var(--paper);border-left:0;border-right:0;border-top:0;text-align:left;padding:6px 12px 6px 0}
+.row .ord{font-family:var(--mono);font-size:13px;color:var(--sub);text-align:center}
+.row .nm{font-size:15px;font-weight:700;line-height:1.3}
+.row .nm .cd{font-family:var(--mono);font-weight:500;font-size:11px;color:var(--sub);margin-right:4px}
+.row .why{margin-top:3px;display:flex;gap:4px;flex-wrap:wrap}
+.tag{font-size:10.5px;border:1px solid var(--ink);padding:0 4px;line-height:16px;border-radius:2px}
+.tag.hot{border-color:var(--diff);color:var(--diff);font-weight:700}
+.row .st{font-family:var(--mono);font-size:18px;font-weight:700;text-align:right;min-width:64px}
+.row .st.todo{font-family:var(--sans);font-size:12px;font-weight:500;color:var(--sub)}
+.row.done{background:var(--wash)}
+.row .st.hit{color:var(--diff)}
+.shelf{font-size:11px;background:var(--ink);color:#fff;padding:3px 12px;letter-spacing:.05em}
+.search{padding:12px 16px}
+.search input{width:100%;min-height:48px;border:2px solid var(--ink);font-size:16px;padding:0 10px;border-radius:0;font-family:var(--sans)}
+.hits{list-style:none;margin:0;padding:0 16px}
+.hits button{width:100%;text-align:left;border:0;border-bottom:1px solid var(--hair);background:none;min-height:48px;font-size:14px}
+.bottom{position:sticky;bottom:0;background:var(--paper);border-top:3px solid var(--ink);padding:8px 12px;display:flex;gap:8px}
+.big{flex:1;min-height:56px;border:3px solid var(--ink);background:var(--ink);color:#fff;font-size:17px;font-weight:700;border-radius:0}
+.big.ghost{background:var(--paper);color:var(--ink)}
+.big:disabled{opacity:.35}
+.big.hitbtn{background:var(--diff);border-color:var(--diff)}
+
+/* ── 数える（計量器） ── */
+.item-head{padding:10px 16px 6px;border-bottom:1px solid var(--ink)}
+.item-head .cd{font-family:var(--mono);font-size:12px;color:var(--sub)}
+.item-head h2{font-size:20px;margin:1px 0 2px;line-height:1.25}
+.item-head .pk{font-size:12px;color:var(--sub)}
+.hidden-book{display:flex;align-items:center;justify-content:space-between;padding:6px 16px;font-size:12px;background:var(--wash);border-bottom:1px solid var(--ink)}
+.hidden-book b{font-family:var(--mono);letter-spacing:.2em}
+.display{margin:10px 12px 8px;border:3px solid var(--ink)}
+.display .terms{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--ink)}
+.term{border:0;background:var(--paper);text-align:left;padding:6px 10px 8px;min-height:74px;border-right:1px solid var(--ink)}
+.term:last-child{border-right:0}
+.term .k{font-size:11px;color:var(--sub);display:block}
+.term .v{font-family:var(--mono);font-size:34px;font-weight:700;line-height:1.1}
+.term .x{font-family:var(--mono);font-size:12px;color:var(--sub)}
+.term.on{background:var(--ink);color:#fff}
+.term.on .k,.term.on .x{color:#ddd}
+.term .caret{display:inline-block;width:3px;height:30px;background:currentColor;vertical-align:-4px;margin-left:2px}
+.total{display:flex;align-items:baseline;justify-content:space-between;padding:4px 10px 6px}
+.total .k{font-size:12px}
+.total .v{font-family:var(--mono);font-size:52px;font-weight:700;line-height:1}
+.total .v small{font-size:18px;font-family:var(--sans);margin-left:4px}
+.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:0 12px;border-top:2px solid var(--ink);border-left:2px solid var(--ink)}
+.key{min-height:58px;border:0;border-right:2px solid var(--ink);border-bottom:2px solid var(--ink);background:var(--paper);font-family:var(--mono);font-size:26px;font-weight:700;border-radius:0}
+.key:active{background:var(--ink);color:#fff}
+.key.fn{font-family:var(--sans);font-size:14px;background:var(--wash)}
+.key.plus{font-size:15px;font-family:var(--sans)}
+
+/* ── 結果 ── */
+.reveal{margin:12px;border:3px solid var(--ink)}
+.reveal .line{display:flex;justify-content:space-between;align-items:baseline;padding:6px 12px;border-bottom:1px solid var(--ink)}
+.reveal .line .k{font-size:13px}
+.reveal .line .v{font-family:var(--mono);font-size:30px;font-weight:700}
+.reveal .line .v small{font-size:13px;font-family:var(--sans);margin-left:3px;font-weight:500}
+.reveal .diff{padding:8px 12px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.reveal .diff .v{font-family:var(--mono);font-size:46px;font-weight:700;line-height:1}
+.reveal .diff .k{font-size:12px;line-height:1.5}
+.reveal.lv0 .diff{background:var(--paper)}
+.reveal.lv1 .diff{border-top:4px solid var(--diff);color:var(--diff)}
+.reveal.lv2 .diff{background:var(--diff);color:#fff}
+.reveal.lv2 .diff .k{color:#fff}
+.sec{padding:4px 16px 8px}
+.sec h3{font-size:13px;margin:10px 0 6px;border-bottom:1px solid var(--ink);padding-bottom:3px;display:flex;flex-wrap:wrap;gap:0 8px;justify-content:space-between;align-items:baseline}
+.sec h3 small{font-weight:400;color:var(--sub);font-size:10.5px}
+.reasons{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.reasons .chip{min-height:48px;font-size:13px;text-align:left;line-height:1.25;padding:4px 8px}
+.karte{list-style:none;margin:0;padding:0;font-size:12px}
+.karte li{display:flex;justify-content:space-between;border-bottom:1px dotted var(--hair);padding:3px 0}
+.karte li .num{font-weight:700}
+.ro{font-size:10px;border:1px solid var(--sub);color:var(--sub);padding:0 3px;margin-left:4px;border-radius:2px}
+.sib{border:2px solid var(--ink);margin-top:6px}
+.sib .msg{font-size:12px;padding:6px 8px;border-bottom:1px solid var(--ink);line-height:1.5}
+.sib .msg b{color:var(--diff)}
+.sib .r{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:6px;padding:4px 8px;border-bottom:1px solid var(--hair);font-size:13px}
+.sib .r:last-child{border-bottom:0}
+.sib .r.me{background:var(--wash);font-weight:700}
+.sib .r .num{font-size:15px;min-width:46px;text-align:right}
+.sib .r button{border:2px solid var(--ink);background:var(--paper);min-height:40px;font-size:12px;padding:0 8px;border-radius:0}
+.sib .r button.added{background:var(--ink);color:#fff}
+.sib .r .susp{color:var(--diff);font-size:11px;font-weight:700}
+.fixed{margin:12px;border:3px solid var(--ink);padding:10px 12px}
+.fixed .k{font-size:12px}
+.fixed .v{font-family:var(--mono);font-size:30px;font-weight:700}
+
+/* ── 今日の成果 ── */
+.result-grid{display:grid;grid-template-columns:1fr 1fr;border-top:3px solid var(--ink)}
+.result-grid>div{padding:8px 12px 10px;border-bottom:1px solid var(--ink);border-right:1px solid var(--ink)}
+.result-grid>div:nth-child(2n){border-right:0}
+.result-grid .k{font-size:11px;color:var(--sub)}
+.result-grid .v{font-family:var(--mono);font-size:34px;font-weight:700;line-height:1.1}
+.result-grid .v small{font-size:13px;font-family:var(--sans);color:var(--sub);font-weight:500}
+.result-grid .v.hot{color:var(--diff)}
+.log{list-style:none;margin:0;padding:0 16px}
+.log li{border-bottom:1px solid var(--hair);padding:7px 0;font-size:12.5px;line-height:1.45}
+.log li .num{font-weight:700}
+.log li .rsn{border:1px solid var(--ink);font-size:10.5px;padding:0 4px;margin-left:4px;border-radius:2px}
+.note{font-size:11px;color:var(--sub);padding:6px 16px 14px;line-height:1.6}
+.empty{padding:22px 16px;font-size:14px;line-height:1.7}
+
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
