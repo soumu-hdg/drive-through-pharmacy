@@ -629,10 +629,10 @@
     const path = `rsv/${code}/${kind}_${Date.now()}.jpg`;
     const up = await client.storage.from("rsv-documents").upload(path, blob, { contentType: "image/jpeg", upsert: false });
     if (up.error) throw up.error;
-    const row = { docs_uploaded_at: new Date().toISOString() };
-    row[kind === "insurance" ? "insurance_card_path" : "iryo_card_path"] = path;
-    const { error } = await client.from("rsv2_reservations").update(row).eq("code", code);
+    // ★2026-10-07 W11: 予約の表は公開キーから直接書けない。写真の場所は専用の窓口で記録する
+    const { data: okDoc, error } = await client.rpc("rsv2_public_attach_doc", { p_code: code, p_kind: kind, p_path: path });
     if (error) throw error;
+    if (!okDoc) throw new Error("予約が見つからないため写真を記録できませんでした");
     return path;
   }
   function setDocState(mode, kind, status, msg, cls) {
@@ -682,7 +682,7 @@
     const code = $("l_code").value, phone = $("l_phone").value;
     // 読み込みの途中で押されても「見つかりません」にしない（予約の読み込みを待つ）
     try { await Store.ready; } catch (e) { /* 接続できないときは下で案内 */ }
-    const r = Store.findReservation(code, phone);
+    const r = Store.lookupReservation ? await Store.lookupReservation(code, phone) : Store.findReservation(code, phone);
     if (!r && Store.isOffline()) {
       // 旧画面は接続できないとき全画面に警告を出していた。ここでも「見つかりません」と誤解させない
       $("lookErr").textContent = "ただ今、予約システムに接続できておりません。恐れ入りますが、しばらく経ってからもう一度お試しいただくか、お電話でご連絡ください。";

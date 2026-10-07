@@ -372,6 +372,11 @@ const Store = (() => {
 
   /* ---------- 予約キャッシュ（getDays等が同期参照） ---------- */
   let _cache = [];       // 予約の正本（メモリ）。ローカル=localStorageと同期／Supabase=DBと同期
+  // ★2026-10-07 W11: 患者画面（職員ログインなし）は他人の予約を読まない。
+  //   _cache には空き枠計算用の列だけ（氏名・電話なし・code は仮の値）。自分が取った予約だけ _mine に持つ。
+  //   詳細: C:\ClaudeWork\docs\SECURITY_CHANGES.md（2026-10-07 予約の表を公開キーから閉じる）
+  const PUBLIC_MODE = !STAFF_MODE;
+  let _mine = [];
   let _resources = [];   // 院ごとのリソース（部屋/スタッフ/機材）。管理画面で編集
   let _menus = [];       // メニュー（rsv2_menus）。0件の診療区分は FALLBACK_MENUS
   let _menuRes = [];     // メニューが使う機材・担当の候補（rsv2_menu_resources）
@@ -619,6 +624,12 @@ const Store = (() => {
     return _cache.filter(r => r.date === date && r.status === "CONFIRMED").sort((a,b) => a.time.localeCompare(b.time));
   }
   function findReservation(code, phone) {
+    if (PUBLIC_MODE && backendName === "supabase") {
+      // 患者画面：手元にあるのは自分が取った予約だけ（他人の予約はサーバーの照会窓口でしか引けない）
+      const m = _mine.find(x => x.code === (code||"").toUpperCase().trim());
+      if (!m || String(m.phone||"").replace(/[^0-9]/g,"") !== String(phone||"").replace(/[^0-9]/g,"")) return null;
+      return m;
+    }
     const r = _cache.find(x => x.code === (code||"").toUpperCase().trim());
     if (!r || isBlock(r)) return null;                    // ブロックは患者からは引けない（電話番号を持たない）
     if (String(r.phone||"").replace(/-/g,"") !== (phone||"").replace(/-/g,"").trim()) return null;
@@ -629,6 +640,17 @@ const Store = (() => {
   const listeners = [];
   function dispatch(msg) { listeners.forEach(f => { try { f(msg); } catch {} }); }
   function onSync(cb) { listeners.push(cb); }
+
+  // 予約番号＋電話番号で照会する（患者画面はサーバーの窓口 rsv2_public_find を使う）
+  async function lookupReservation(code, phone) {
+    if (PUBLIC_MODE && backendName === "supabase" && backend.findPublic) {
+      const mine = findReservation(code, phone);
+      if (mine) return mine;
+      try { return await backend.findPublic(code, phone); }
+      catch (e) { console.warn("[予約システム] 予約の照会に失敗しました:", e && e.message); return null; }
+    }
+    return findReservation(code, phone);
+  }
 
   /* =========================================================
      バックエンド実装（local / supabase）
@@ -673,6 +695,56 @@ const Store = (() => {
       kind: res.kind || "PATIENT", block_group: res.blockGroup || null,
       consent_at: res.consentAt || null, consent_version: res.consentVersion || null,
     });
+    // 患者画面用：空き枠計算に要る列だけを受け取る（氏名・電話などは返ってこない）
+    const fromOcc = o => ({
+      code: "P" + o.k, csId: o.cs_id, slotId: o.slot_id, date: o.rdate, time: o.rtime,
+      name: "", kana: "", phone: "", birthDate: "", email: "",
+      roomId: o.room_id ?? null, staffId: o.staff_id ?? null, deviceId: o.device_id ?? null,
+      visitType: o.visit_type || "", menuId: o.menu_id, note: "", status: o.status,
+      channel: "WEB", kind: o.kind || "PATIENT", blockGroup: o.block_group || null,
+    });
+    async function loadPublic() {
+      const { data, error } = await client.rpc("rsv2_public_occupancy", { p_from: addDays(todayStr(), -1) });
+      if (error) throw error;
+      _cache = (data || []).map(fromOcc);
+    }
+    if (PUBLIC_MODE) {
+      return {
+        async init() {
+          await loadPublic();
+          // Realtime は使わない（公開キーでは予約の表を読めないため）。30秒ごとに空き状況を読み直す
+          setInterval(async () => {
+            try { await loadPublic(); dispatch({ type: "reservation", at: Date.now() }); }
+            catch (e) { console.warn("[予約システム] 空き状況の再読込に失敗しました:", e && e.message); }
+          }, 30000);
+          dispatch({ type: "status", status: "SUBSCRIBED" });
+        },
+        async refresh() { await loadPublic(); },
+        async insert(res) {
+          res.sentAt = Date.now();
+          const { error } = await client.rpc("rsv2_public_book", { p: res });
+          if (error) throw error;   // 二重予約は 23505/23P01 のまま返る（classifyError が DUPLICATE と判定）
+          _mine.push(res);
+          _cache.push(Object.assign({}, res, { name: "", kana: "", phone: "", birthDate: "", email: "", note: "" }));
+        },
+        async findPublic(code, phone) {
+          const { data, error } = await client.rpc("rsv2_public_find", { p_code: code, p_phone: phone });
+          if (error) throw error;
+          return data || null;
+        },
+        async cancelPublic(code, phone) {
+          const { data, error } = await client.rpc("rsv2_public_cancel", { p_code: code, p_phone: phone });
+          if (error) throw error;
+          return data;   // OK / NOT_FOUND / ALREADY
+        },
+        async setStatus() { throw new Error("患者画面からは状態を変更できません"); },
+        async loadResources() {
+          const { data, error } = await client.from("rsv2_resources").select("*").eq("active", true);
+          if (error) return [];
+          return (data || []).map(r => ({ id: r.id, clinicId: r.clinic_id, kind: r.kind, name: r.name, sortOrder: r.sort_order }));
+        },
+      };
+    }
     return {
       async init() {
         const { data, error } = await client.from(TABLE).select("*").eq("status", "CONFIRMED");
@@ -1362,6 +1434,16 @@ const Store = (() => {
     return { ok: true, swapped: !!other };
   }
   async function cancelReservation(code, phone) {
+    if (PUBLIC_MODE && backendName === "supabase" && backend.cancelPublic) {
+      let st;
+      try { st = await backend.cancelPublic(code, phone); }
+      catch (e) { return await failResult("予約のキャンセル", e, ERR_MSG.cancelFail); }
+      if (st === "NOT_FOUND") return { ok: false, error: "予約が見つかりません。予約番号と電話番号をご確認ください。" };
+      if (st === "ALREADY") return { ok: false, error: "この予約はすでにキャンセル済みです。" };
+      const m = _mine.find(x => x.code === (code||"").toUpperCase().trim()); if (m) m.status = "CANCELLED";
+      await refreshReservations();
+      return { ok: true };
+    }
     const r = _cache.find(x => x.code === (code||"").toUpperCase().trim());
     if (!r || r.phone.replace(/-/g,"") !== (phone||"").replace(/-/g,"").trim())
       return { ok: false, error: "予約が見つかりません。予約番号と電話番号をご確認ください。" };
@@ -1399,7 +1481,7 @@ const Store = (() => {
     todayStr, addDays, fmtJa, weekday,
     clinicOfCs, serviceOfCs, menusOfCs, menuById,
     roomsOf, roomsOfCs, capacityOfCs, roomOf, roomName, roomIndex, freeRoom, durMin, resourceConflict,
-    getDays, createReservation, setRoom, assignResource, moveReservation, findReservation, cancelReservation, updateStatus,
+    getDays, createReservation, setRoom, assignResource, moveReservation, findReservation, lookupReservation, cancelReservation, updateStatus,
     dayReservations, loadReservations,
     resourcesOf, resourcesOfCs, resourceServicesOf, setResourceServices,
     limitOfCs, setServiceLimit, DEFAULT_CONCURRENT,
