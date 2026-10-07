@@ -131,14 +131,10 @@
         var h = toDelete[i];
         var m = P8.store.findByCode(h.code);
         if (!m) continue;
-        var newStock = null;
-        if (h.type === 'in') newStock = (m.stock || 0) - h.quantity;
-        else if (h.type === 'out' && !m.stockUntracked) newStock = (m.stock || 0) + h.quantity;
-        if (newStock !== null) {
-          var res = await P8.db.write('pharmacy_medicines?code=eq.' + encodeURIComponent(m.code), 'PATCH',
-            { current_stock: newStock, last_updated: new Date().toISOString() });
-          if (res && res.length) m.stock = newStock;
-        }
+        var delta = null;
+        if (h.type === 'in') delta = -h.quantity;
+        else if (h.type === 'out' && !m.stockUntracked) delta = h.quantity;
+        if (delta !== null) m.stock = await P8.db.adjustStock(m.code, delta); // 差分で戻す
       }
       P8.ui.toast(ids.length + '件の履歴を削除し、在庫を調整しました', 'success');
     } catch (e) {

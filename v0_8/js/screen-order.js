@@ -398,11 +398,10 @@
         lot_id: lotId, operator: operator, source: 'app'
       });
       if (!tx || !tx.length) throw new Error('入庫記録の結果を確認できません');
-      var patch = { current_stock: rcTarget.stock + qty, last_updated: new Date().toISOString() };
-      if (!simple && costPack && rcTarget.costPerPack == null) patch.cost_per_pack = costPack;
-      if (!simple && supplierId && !rcTarget.supplierId) patch.supplier_id = Number(supplierId);
-      var pm = await P8.db.write('pharmacy_medicines?code=eq.' + encodeURIComponent(rcTarget.code), 'PATCH', patch);
-      if (!pm || !pm.length) throw new Error('在庫更新の結果を確認できません');
+      var extra = {};
+      if (!simple && costPack && rcTarget.costPerPack == null) extra.cost_per_pack = costPack;
+      if (!simple && supplierId && !rcTarget.supplierId) extra.supplier_id = Number(supplierId);
+      await P8.db.adjustStock(rcTarget.code, qty, extra); // 差分で加算（同時操作でも消えない）
       P8.ui.busy(btn, 'done');
       P8.ui.toast(rcTarget.name + ' を ' + qty + rcTarget.unit + ' ' + (simple ? '入庫' : '入荷') + 'しました', 'success');
       rcClear();

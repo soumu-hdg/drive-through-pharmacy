@@ -1930,6 +1930,32 @@
             return text ? JSON.parse(text) : null;
         }
 
+
+        // 在庫数の増減（2026-10-07）。端末で計算した値で上書きすると、2台が同時に操作したとき片方の減算が消える。
+        // 「読んだ値のままなら更新する」条件付きの更新にし、他の操作が先に入っていたら読み直して当て直す。
+        async function sbAdjustStock(code, delta, extra) {
+            const c = encodeURIComponent(code);
+            for (let attempt = 0; attempt < 6; attempt++) {
+                const rows = await sbWrite('pharmacy_medicines?code=eq.' + c + '&select=code,current_stock', { method: 'GET' });
+                if (!rows || !rows.length) throw new Error('品目が見つかりません（' + code + '）');
+                const cur = rows[0].current_stock;
+                const cond = (cur === null || cur === undefined) ? 'is.null' : 'eq.' + encodeURIComponent(cur);
+                const body = { ...(extra || {}), current_stock: (Number(cur) || 0) + delta, last_updated: new Date().toISOString() };
+                const patched = await sbWrite('pharmacy_medicines?code=eq.' + c + '&current_stock=' + cond, {
+                    method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(body)
+                });
+                if (patched && patched.length === 1) return Number(patched[0].current_stock);
+                await new Promise(r => setTimeout(r, 120 + Math.random() * 280));   // 他の操作が先に入った → 読み直す
+            }
+            throw new Error('在庫数の更新が混み合っています（' + code + '）。もう一度お試しください');
+        }
+        // 棚卸修正（実数を数えて入れる操作）は上書きが正しい
+        async function sbSetStock(code, value) {
+            await sbWrite('pharmacy_medicines?code=eq.' + encodeURIComponent(code), {
+                method: 'PATCH', body: JSON.stringify({ current_stock: value, last_updated: new Date().toISOString() })
+            });
+        }
+
         const MASTER_CACHE_KEY = 'dtp_v07_master_cache';
 
         // Supabaseの1行を画面用の薬品オブジェクトへ変換
@@ -2011,11 +2037,14 @@
                 const code = item.medicine.code;
                 const idx = stockData.findIndex(m => normalizeCode(m.code) === normalizeCode(code));
                 if (idx < 0) continue;
-                const newStock = stockData[idx].stock;
-                await sbWrite('pharmacy_medicines?code=eq.' + encodeURIComponent(code), {
-                    method: 'PATCH',
-                    body: JSON.stringify({ current_stock: newStock, last_updated: new Date().toISOString() })
-                });
+                const isExt = (stockData[idx].category || '').replace('[旧]','').startsWith('外用');
+                if (item.mode === 'adjust') {
+                    await sbSetStock(code, item.quantity);                      // 棚卸修正＝実数で上書き
+                } else if (item.mode === 'in') {
+                    stockData[idx].stock = await sbAdjustStock(code, item.quantity);   // 差分で加算・画面も最新値に
+                } else if (!isExt) {
+                    stockData[idx].stock = await sbAdjustStock(code, -item.quantity);  // 差分で減算（外用は減らさない）
+                }
             }
         }
 
@@ -2065,51 +2094,46 @@
         // 通常はSupabaseが正で、これはSupabaseにもキャッシュにも届かないときの最後の保険。
         // GASの在庫サマリーには区切り行と旧コードの同名重複が混ざっているため、それらを落として使う。
         async function loadStockFromGAS() {
+            // 2026-10-07: GAS の在庫サマリーは出庫が書かれない経路があり Supabase と数がずれている（約半数の品目）。
+            // 以前は送信のたびに GAS の数で画面の在庫を上書きしており、その数が次の送信で DB に書かれていた。
+            // いまは Supabase にもキャッシュにも届かず一覧が空のときだけ、「予備表示（古い可能性）」として出す。
+            if (stockData.length > 0) return;
             const result = await gasGet('getStock');
-            if (result && result.success && stockData.length === 0) {
-                const picked = {};
-                result.stock.forEach(s => {
-                    const nm = String(s.name || '').trim();
-                    if (!nm || nm.indexOf('---') >= 0) return;   // 「--- 以下：薬品マスタ外品目 ---」等の区切り行
-                    const cur = picked[nm];
-                    // 同名が複数ある場合は在庫数が多い行（＝実際に使われている行）を採用
-                    if (!cur || (s.currentStock || 0) > (cur.currentStock || 0)) picked[nm] = s;
-                });
-                stockData = Object.keys(picked).map(nm => ({
-                    code: String(picked[nm].code), name: nm, stock: picked[nm].currentStock || 0,
-                    unit: picked[nm].unit || '', threshold: picked[nm].threshold || 0,
-                    category: '', usage: '', price: '', maker: '', target: '', csvGroup: 'master'
-                }));
-                renderStockList();
-                showToast('DBに接続できないため、在庫サマリーから簡易表示しています', 'error');
+            if (!(result && result.success)) {
+                if (result && result.error) showToast('データ取得エラー: ' + result.error, 'error');
                 return;
             }
-            if (result && result.success) {
-                const byCode = {};
-                const byName = {};
-                result.stock.forEach(s => {
-                    byCode[String(s.code)] = s;
-                    const nm = String(s.name).trim();
-                    // 同名重複がある場合は在庫数が大きい方を優先（CSV版を優先し、DT旧コード0を無視）
-                    if (!byName[nm] || (s.currentStock || 0) > (byName[nm].currentStock || 0)) {
-                        byName[nm] = s;
-                    }
-                });
-                let matched = 0;
-                stockData.forEach(m => {
-                    const gs = byCode[m.code] || byName[String(m.name).trim()];
-                    if (gs) {
-                        m.stock = gs.currentStock;
-                        if (gs.unit) m.unit = gs.unit;
-                        if (gs.threshold) m.threshold = gs.threshold;
-                        matched++;
-                    }
-                });
-                renderStockList();
-                showToast('在庫数を同期しました (' + matched + '/' + result.stock.length + '件)', 'success');
-            } else if (result && result.error) {
-                showToast('データ取得エラー: ' + result.error, 'error');
+            const picked = {};
+            result.stock.forEach(s => {
+                const nm = String(s.name || '').trim();
+                if (!nm || nm.indexOf('---') >= 0) return;   // 「--- 以下：薬品マスタ外品目 ---」等の区切り行
+                const cur = picked[nm];
+                // 同名が複数ある場合は在庫数が多い行（＝実際に使われている行）を採用
+                if (!cur || (s.currentStock || 0) > (cur.currentStock || 0)) picked[nm] = s;
+            });
+            stockData = Object.keys(picked).map(nm => ({
+                code: String(picked[nm].code), name: nm, stock: picked[nm].currentStock || 0,
+                unit: picked[nm].unit || '', threshold: picked[nm].threshold || 0,
+                category: '', usage: '', price: '', maker: '', target: '', csvGroup: 'master'
+            }));
+            window.__stockFromGasFallback = true;
+            renderStockList();
+            showGasFallbackBanner();
+        }
+
+        // 予備表示中であることを画面上部に出し続ける（トーストだけだと見落とす）
+        function showGasFallbackBanner() {
+            let el = document.getElementById('gas-fallback-banner');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'gas-fallback-banner';
+                el.style.cssText = 'background:#fef3c7;border-left:4px solid #c9821f;color:#78350f;padding:8px 12px;font-size:13px;margin:6px 0;';
+                const host = document.querySelector('.container') || document.body;
+                host.insertBefore(el, host.firstChild);
             }
+            el.textContent = '⚠ データベースに接続できないため、在庫サマリー（予備・' + new Date().toLocaleString('ja-JP') +
+                ' 取得）から表示しています。在庫数は古い可能性があります。この状態で出庫・入荷を登録しないでください。';
+            showToast('DBに接続できないため、予備の在庫サマリーで表示しています（数は古い可能性）', 'error');
         }
 
         // GASから履歴を取得
@@ -2911,15 +2935,11 @@
             selectedMedicine = null;
             document.querySelectorAll('.patient-chip').forEach(c => c.classList.remove('selected'));
 
-            // 送信後にGASから最新在庫を再取得して正確な値に更新
-            if (USE_GAS) {
-                setTimeout(async () => {
-                    await loadStockFromGAS();
-                    renderStockList();
-                }, 3000);
-            } else {
+            // 送信後はデータベース（正）から最新在庫を読み直す（以前は GAS の古い数で上書きしていた）
+            setTimeout(async () => {
+                await loadMasterFromSupabase();
                 renderStockList();
-            }
+            }, 1500);
         }
 
         function resetForm() {
@@ -3452,12 +3472,11 @@
                             if (!isExt) stockData[stockIdx].stock += h.quantity;
                         }
                         // Supabaseの在庫数も更新（adjustは元値不明のため在庫調整しない＝GAS版と同じ挙動）
-                        if (h.type === 'in' || h.type === 'out') {
+                        const isExtH = (stockData[stockIdx].category || '').replace('[旧]','').startsWith('外用');
+                        const backDelta = h.type === 'in' ? -h.quantity : (h.type === 'out' && !isExtH ? h.quantity : null);
+                        if (backDelta !== null) {
                             try {
-                                await sbWrite('pharmacy_medicines?code=eq.' + encodeURIComponent(stockData[stockIdx].code), {
-                                    method: 'PATCH',
-                                    body: JSON.stringify({ current_stock: stockData[stockIdx].stock, last_updated: new Date().toISOString() })
-                                });
+                                stockData[stockIdx].stock = await sbAdjustStock(stockData[stockIdx].code, backDelta);   // 差分で戻す
                             } catch (e) {
                                 showToast('履歴は削除しましたが、在庫数の戻しに失敗しました（' + e.message + '）。棚卸で実数を入れてください', 'error');
                             }
@@ -3906,7 +3925,8 @@
         //   ③ 在庫評価額・原価の表示
         //   ④ 厚労省 医薬品マスタからの薬品追加
         // ==========================================================
-        const YEN = n => (n === null || n === undefined || isNaN(n)) ? '—' : '¥' + Math.round(n).toLocaleString();
+        // function 宣言にして巻き上げる（起動時の在庫一覧の描画がこの行より前に YEN を呼ぶため、const だと初期化前エラーになっていた）
+        function YEN(n) { return (n === null || n === undefined || isNaN(n)) ? '—' : '¥' + Math.round(n).toLocaleString(); }
         const todayJst = () => {
             const d = new Date(Date.now() + 9 * 3600 * 1000);
             return d.toISOString().slice(0, 10);
@@ -4035,11 +4055,11 @@
                     })
                 });
 
-                const patch = { current_stock: rcTarget.stock + qty, last_updated: new Date().toISOString() };
+                const extra = {};
                 // 仕入単価・仕入先が未設定なら、今回の入荷を採用薬マスタにも反映する
-                if (costPack && rcTarget.costPerPack == null) patch.cost_per_pack = costPack;
-                if (supplierId && !rcTarget.supplierId) patch.supplier_id = Number(supplierId);
-                await sbWrite('pharmacy_medicines?code=eq.' + encodeURIComponent(rcTarget.code), { method: 'PATCH', body: JSON.stringify(patch) });
+                if (costPack && rcTarget.costPerPack == null) extra.cost_per_pack = costPack;
+                if (supplierId && !rcTarget.supplierId) extra.supplier_id = Number(supplierId);
+                await sbAdjustStock(rcTarget.code, qty, extra);   // 差分で加算（同時操作でも消えない）
 
                 showToast(`${rcTarget.name} を ${qty}${rcTarget.unit} 入荷しました`, 'success');
                 await loadMasterFromSupabase();
@@ -4293,8 +4313,10 @@
             if (loadMasterFromCache()) renderStockList();
             populateCategoryOptions();
             const sbOk = await loadMasterFromSupabase();
-            if (!sbOk && USE_GAS) {
-                console.log('Supabase失敗 → GASの在庫サマリーで簡易表示');
+            if (!sbOk && stockData.length > 0) {
+                showToast('データベースに接続できません。前回読み込んだ一覧を表示しています（在庫数は古い可能性）', 'error');
+            } else if (!sbOk && USE_GAS) {
+                console.log('Supabase失敗 → GASの在庫サマリーで予備表示');
                 await loadStockFromGAS();
             }
             populateCategoryOptions();

@@ -110,6 +110,29 @@
     return j;
   }
 
+
+  // ---- 在庫数の増減（2026-10-07）----
+  // 端末で計算した値で上書きすると、2台が同時に操作したとき片方の減算が消える。
+  // 「読んだ値のままなら更新する」条件付きの更新にして、他の操作が先に入っていたら読み直して当て直す（楽観的な同時更新の防止）。
+  // 棚卸は実数で上書きするのが正しい操作なので rpc/pharmacy_apply_stocktake のまま（これは使わない）。
+  async function adjustStock(code, delta, extra) {
+    var c = encodeURIComponent(code);
+    for (var attempt = 0; attempt < 6; attempt++) {
+      var rows = await get('pharmacy_medicines?code=eq.' + c + '&select=code,current_stock');
+      if (!rows) throw new Error('在庫の読み込みに失敗（' + code + '）');
+      if (!rows.length) throw new Error('品目が見つかりません（' + code + '）');
+      var cur = rows[0].current_stock;
+      var next = (Number(cur) || 0) + delta;
+      var cond = (cur === null || cur === undefined) ? 'is.null' : 'eq.' + encodeURIComponent(cur);
+      var body = Object.assign({}, extra || {}, { current_stock: next, last_updated: new Date().toISOString() });
+      var patched = await write('pharmacy_medicines?code=eq.' + c + '&current_stock=' + cond, 'PATCH', body);
+      if (patched && patched.length === 1) return Number(patched[0].current_stock);
+      // 0件 = 読んでから書くまでの間に他の操作が入った → 少し待って読み直す
+      await new Promise(function (r) { setTimeout(r, 120 + Math.random() * 280); });
+    }
+    throw new Error('在庫数の更新が混み合っています。もう一度お試しください（' + code + '）');
+  }
+
   // ---- オフラインキュー（出庫送信のみ対象） ----
   var QKEY = 'p8_txqueue';
   function qAll() {
@@ -125,21 +148,14 @@
     if (P8.ui) P8.ui.queueBar();
   }
 
-  // 再送: transactions INSERT → 在庫は「再送時点の実値」から減算（滞留中の他操作とずらさない）
+  // 再送: transactions INSERT → 在庫は adjustStock で差分を当てる
   async function replayDispense(it) {
     await write('pharmacy_transactions', 'POST', it.txRows);
-    var codes = (it.decs || []).map(function (d) { return d.code; });
-    if (codes.length) {
-      var rows = await get('pharmacy_medicines?code=in.(' + codes.map(encodeURIComponent).join(',') + ')&select=code,current_stock');
-      if (!rows) throw new Error('在庫の再取得に失敗');
-      for (var i = 0; i < it.decs.length; i++) {
-        var d = it.decs[i];
-        var row = rows.find(function (r) { return r.code === d.code; });
-        if (!row) continue;
-        var patched = await write('pharmacy_medicines?code=eq.' + encodeURIComponent(d.code), 'PATCH',
-          { current_stock: (row.current_stock || 0) - d.qty, last_updated: new Date().toISOString() });
-        if (!patched || !patched.length) throw new Error('在庫更新の結果を確認できません');
-      }
+    // 在庫は再送時点の実値から差分で減算（滞留中の他操作とずらさない）
+    for (var i = 0; i < (it.decs || []).length; i++) {
+      var d = it.decs[i];
+      try { await adjustStock(d.code, -d.qty); }
+      catch (e) { if (/品目が見つかりません/.test(e.message)) continue; throw e; }
     }
     if (it.presc) gasGet('recordPrescription', it.presc); // fire-and-forget
   }
@@ -176,7 +192,7 @@
 
   P8.db = {
     get: get, write: write, del: del, rpc: rpc, count: count,
-    gasGet: gasGet, nightDrugsFetch: nightDrugsFetch,
+    gasGet: gasGet, nightDrugsFetch: nightDrugsFetch, adjustStock: adjustStock,
     enqueueDispense: enqueueDispense, flushQueue: flushQueue, queueCount: queueCount
   };
 })();

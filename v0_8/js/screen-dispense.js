@@ -202,10 +202,7 @@
         var d = decs[i];
         var m = med(d.code);
         try {
-          var p = await P8.db.write('pharmacy_medicines?code=eq.' + encodeURIComponent(d.code), 'PATCH',
-            { current_stock: (m.stock || 0) - d.qty, last_updated: new Date().toISOString() });
-          if (!p || !p.length) throw new Error('no rows');
-          m.stock = (m.stock || 0) - d.qty; // ローカルも更新
+          m.stock = await P8.db.adjustStock(d.code, -d.qty); // 差分で減算（同時操作でも消えない）・ローカルも最新値に
         } catch (e2) { patchFailed.push(m.name); }
       }
       if (patchFailed.length) {

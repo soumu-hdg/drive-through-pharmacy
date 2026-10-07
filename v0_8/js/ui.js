@@ -228,12 +228,21 @@
       if (typeof Html5Qrcode === 'undefined') throw new Error('html5-qrcode 未読込');
       scanInst = new Html5Qrcode(mountId);
       scanMount = mountId;
-      await scanInst.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 230, height: 230 } },
-        cb,
-        function () { /* per-frame failure は無視 */ }
-      );
+      var cfg = { fps: 10, qrbox: { width: 230, height: 230 } };
+      var ignore = function () { /* per-frame failure は無視 */ };
+      try {
+        await scanInst.start({ facingMode: 'environment' }, cfg, cb, ignore);
+      } catch (e1) {
+        // 背面カメラが無い端末（ノートPC・一部タブレット）や、カメラ名で選べない環境では、
+        // 見つかったカメラ（背面らしい名前を優先・無ければ最後のもの）で起動し直す
+        var cams = [];
+        try { cams = await Html5Qrcode.getCameras(); } catch (e2) { throw e1; }
+        if (!cams || !cams.length) throw e1;
+        var back = cams.find(function (c) { return /back|rear|environment|背面/i.test(c.label || ''); }) || cams[cams.length - 1];
+        try { scanInst.clear(); } catch (e3) {}
+        scanInst = new Html5Qrcode(mountId);
+        await scanInst.start(back.id, cfg, cb, ignore);
+      }
       scanRunning = true;
     } catch (e) {
       console.warn('カメラ起動失敗:', e && e.message);
