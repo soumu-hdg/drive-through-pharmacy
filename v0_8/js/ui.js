@@ -219,10 +219,13 @@
   }
 
   // ---- QRスキャナ（画面間で1インスタンスを共有） ----
-  var scanInst = null, scanMount = null, scanRunning = false, scanStarting = false;
+  var scanInst = null, scanMount = null, scanRunning = false, scanStarting = false, scanCb = null;
   async function scanStart(mountId, cb, onFail) {
     try {
       if (scanStarting) return;
+      // 同じ場所で既に動いているカメラは開き直さない（データ読込後の再描画で止めてすぐ開き直すと、
+      // 端末によってはカメラが解放される前に開こうとして「使用中」で失敗する）
+      if (scanRunning && scanInst && scanMount === mountId) { scanCb = cb; return; }
       scanStarting = true;
       await scanStop();
       if (typeof Html5Qrcode === 'undefined') throw new Error('html5-qrcode 未読込');
@@ -230,8 +233,19 @@
       scanMount = mountId;
       var cfg = { fps: 10, qrbox: { width: 230, height: 230 } };
       var ignore = function () { /* per-frame failure は無視 */ };
+      scanCb = cb;
+      var onText = function (t, r) { if (scanCb) scanCb(t, r); };
       try {
-        await scanInst.start({ facingMode: 'environment' }, cfg, cb, ignore);
+        try {
+          await scanInst.start({ facingMode: 'environment' }, cfg, onText, ignore);
+        } catch (e0) {
+          // 直前に止めたカメラがまだ解放されていない（NotReadableError）ときは少し待って1回だけやり直す
+          if (!/NotReadable|Could not start/i.test(String((e0 && (e0.name || e0.message)) || e0))) throw e0;
+          await new Promise(function (r) { setTimeout(r, 600); });
+          try { scanInst.clear(); } catch (e4) {}
+          scanInst = new Html5Qrcode(mountId);
+          await scanInst.start({ facingMode: 'environment' }, cfg, onText, ignore);
+        }
       } catch (e1) {
         // 背面カメラが無い端末（ノートPC・一部タブレット）や、カメラ名で選べない環境では、
         // 見つかったカメラ（背面らしい名前を優先・無ければ最後のもの）で起動し直す
@@ -241,7 +255,7 @@
         var back = cams.find(function (c) { return /back|rear|environment|背面/i.test(c.label || ''); }) || cams[cams.length - 1];
         try { scanInst.clear(); } catch (e3) {}
         scanInst = new Html5Qrcode(mountId);
-        await scanInst.start(back.id, cfg, cb, ignore);
+        await scanInst.start(back.id, cfg, onText, ignore);
       }
       scanRunning = true;
     } catch (e) {

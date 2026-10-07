@@ -489,6 +489,8 @@ html:not(.is-mobile) .modal-box { border-radius: 10px; box-shadow: inset 0 1px 0
 #qr-reader video { max-height: 34vh; object-fit: cover; }
 .qr-zone.flash { box-shadow: inset 0 4px 12px rgba(0, 0, 0, .7), 0 0 0 2px var(--act-soft), 0 0 18px var(--act-glow); }
 .qr-hint { color: #6b7680; font-size: 12px; position: absolute; text-align: center; pointer-events: none; }
+/* .qr-fallback は display:flex なので、そのままだと [hidden] が効かずカメラの映像の上に「カメラを使用できません」が重なる */
+.qr-fallback[hidden] { display: none; }
 .qr-fallback { position: absolute; inset: 0; background: var(--surface2); display: flex; flex-direction: column; gap: 10px; align-items: center; justify-content: center; color: var(--ink-sub); font-size: 13px; }
 .qr-actions { display: flex; justify-content: flex-end; margin-bottom: 10px; }
 
