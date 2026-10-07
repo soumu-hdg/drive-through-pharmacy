@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="day">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#e3e7e0">
+<title>【ログイン版】薬品在庫管理 v0.8</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+/* レイアウト（auto/mobile/pc）を最初の描画前に確定してチラつきを防ぐ。本体は js/theme.js */
+(function () {
+  var v = null;
+  try { v = localStorage.getItem('p8_layout'); } catch (e) {}
+  if (v !== 'mobile' && v !== 'pc') v = 'auto';
+  var m = v === 'mobile' || (v === 'auto' && window.matchMedia('(max-width: 767px)').matches);
+  document.documentElement.classList.toggle('is-mobile', m);
+  document.documentElement.setAttribute('data-layout', v);
+})();
+</script>
+<link rel="stylesheet" href="app.css?v=0.9.8">
+</head>
+<body>
+
+<div id="queue-bar"></div>
+
+<header class="app-header">
+  <div class="brand">💊 薬品在庫<small>v0.8</small></div>
+  <div class="head-right">
+    <span class="led-cluster hide-mobile"><span><i class="led" id="led-db"></i>DB</span><span><i class="led" id="led-sync"></i>送信</span></span>
+    <span class="mode-chip" id="mode-chip"></span>
+    <button class="theme-btn" id="theme-btn" title="テーマ切替">🌙</button>
+    <button class="theme-btn" id="layout-btn" title="レイアウト切替">🖥</button>
+  </div>
+</header>
+
+<nav class="sidebar" id="sidebar">
+  <div class="logo">薬品在庫 v0.8</div>
+  <a data-nav="home">🏠 今日の状態 <span class="side-badge" id="badge-home" hidden></span></a>
+  <a data-nav="dispense">💊 出庫・入庫</a>
+  <a data-nav="stock">📦 在庫</a>
+  <a data-nav="receive">📥 入荷</a>
+  <a data-nav="order">🛒 発注 <span class="side-badge amber" id="badge-order" hidden></span></a>
+  <a data-nav="stocktake">📝 棚卸</a>
+  <a data-nav="master">🧰 マスタ整備 <span class="side-badge amber" id="badge-master" hidden></span></a>
+  <a data-nav="analytics">📊 分析</a>
+  <div class="foot">夜間休日診療 薬品在庫管理<br>v0.7と並行運用中</div>
+</nav>
+
+<main>
+
+  <!-- ===== 今日の状態 ===== -->
+  <section id="scr-home" class="screen">
+    <div class="scr-head"><h2>今日の状態</h2><span class="sub" id="home-date"></span></div>
+    <div class="kpi-band" id="home-kpi"></div>
+    <div class="panel warn" id="home-todo-panel">
+      <div class="panel-title">⚠ 要対応<span class="mini" id="home-todo-count">クリックで該当画面へ</span></div>
+      <div class="tbl-wrap" id="home-todo-wrap"><table class="tbl" id="home-todo"></table></div>
+      <div id="home-todo-extra"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">📥 受入待ちの発注書</div>
+      <div id="home-po" class="muted">読み込み中...</div>
+    </div>
+    <div class="panel plain">
+      <div class="panel-title">直近の操作</div>
+      <div id="home-recent" class="muted">読み込み中...</div>
+    </div>
+
+    <!-- 薬品マスタ一覧（絞り込み7項目＋列ソート） -->
+    <div class="panel plain" id="home-master-panel">
+      <div class="panel-title">
+        🧪 薬品マスタ
+        <span class="mini" id="hm-count"></span>
+        <span class="grow"></span>
+        <button class="btn ghost sm" id="hm-toggle" type="button" aria-expanded="true">絞り込み ▾</button>
+      </div>
+      <div class="filter-grid" id="hm-filters">
+        <label>カテゴリ１（対象）<input id="hm-f-cat1" list="dl-cat1" autocomplete="off" placeholder="小児 / 成人 …"></label>
+        <label>カテゴリ２（用法区分）<input id="hm-f-cat2" list="dl-cat2" autocomplete="off" placeholder="頓服 / 内服 …"></label>
+        <label>カテゴリ３（用法回数）<input id="hm-f-cat3" list="dl-cat3" autocomplete="off" placeholder="分１ / 分２ …"></label>
+        <label>カテゴリ４（服用指示）<input id="hm-f-cat4" list="dl-cat4" autocomplete="off" placeholder="毎食後１日３回 …"></label>
+        <label>カテゴリ５（薬効分類）<input id="hm-f-cat5" list="dl-cat5" autocomplete="off" placeholder="解熱鎮痛剤 …"></label>
+        <label>YJコード<input id="hm-f-yj" list="dl-yj" autocomplete="off" placeholder="個別医薬品コード"></label>
+        <label>レセプト電算コード1<input id="hm-f-rz" list="dl-rz" autocomplete="off" placeholder="9桁"></label>
+        <div class="filter-act"><button class="btn ghost sm" id="hm-clear" type="button">絞り込みを解除</button></div>
+      </div>
+      <datalist id="dl-cat1"></datalist><datalist id="dl-cat2"></datalist><datalist id="dl-cat3"></datalist>
+      <datalist id="dl-cat4"></datalist><datalist id="dl-cat5"></datalist>
+      <datalist id="dl-yj"></datalist><datalist id="dl-rz"></datalist>
+      <div class="tbl-wrap"><table class="tbl" id="hm-table"></table></div>
+    </div>
+  </section>
+
+  <!-- ===== 出庫 ===== -->
+  <section id="scr-dispense" class="screen">
+    <div class="scr-head"><h2>出庫</h2><span class="sub">QRをかざすとリストに追加されます</span></div>
+    <div class="qr-zone" id="qr-zone">
+      <div id="qr-reader"></div>
+      <div class="qr-hint" id="qr-hint">カメラを起動しています...</div>
+      <div class="qr-fallback" id="qr-fallback" hidden>
+        <span>カメラを使用できません</span>
+        <button class="btn ghost" id="btn-pick-fallback">薬品リストから選ぶ</button>
+      </div>
+    </div>
+    <div class="qr-actions">
+      <button class="btn ghost sm" id="btn-simple-in">📥 簡易入庫</button>
+      <span class="grow"></span>
+      <button class="btn ghost sm" id="btn-pick-list">薬品リストから選ぶ</button>
+    </div>
+    <div id="batch-list"></div>
+    <div id="low-warns"></div>
+    <div class="meta-row">
+      <label>患者
+        <input id="dsp-patient" list="dl-patients" autocomplete="off" placeholder="患者名（フリー入力）">
+        <datalist id="dl-patients"></datalist>
+      </label>
+      <label>担当者
+        <select id="dsp-operator"><option value="">選択してください</option></select>
+      </label>
+    </div>
+    <button class="hold-btn" id="dsp-commit" disabled>
+      <span class="hold-fill" id="dsp-fill"></span>
+      <span class="hold-label"><span id="dsp-commit-label">長押しで出庫を確定</span><small>0.6秒 押し続けると送信されます</small></span>
+    </button>
+  </section>
+
+  <!-- ===== 在庫 ===== -->
+  <section id="scr-stock" class="screen">
+    <div class="scr-head"><h2 id="stock-title">在庫一覧</h2><span class="sub" id="stock-total"></span></div>
+    <div class="kpi-band hide-mobile" id="stock-kpi"></div>
+    <div class="flex mb8">
+      <input id="stock-search" class="grow" placeholder="🔍 薬品名・コード・分類" autocomplete="off">
+    </div>
+    <div class="chip-row" id="stock-cat-chips">
+      <span class="chip-label">分類:</span>
+      <button class="chip on" data-cat="">すべて</button>
+      <button class="chip" data-cat="成人">成人</button>
+      <button class="chip" data-cat="小児">小児</button>
+      <button class="chip" data-cat="外用">外用</button>
+      <button class="chip" data-cat="検査">検査</button>
+    </div>
+    <div class="chip-row" id="stock-weight-chips">
+      <span class="chip-label">体重別:</span>
+      <button class="chip" data-w="">解除</button>
+      <button class="chip" data-w="6m">6ヶ月</button>
+      <button class="chip" data-w="1y">1歳</button>
+      <button class="chip" data-w="3y">3歳</button>
+      <button class="chip" data-w="5y">5歳</button>
+      <button class="chip" data-w="7y">7歳</button>
+    </div>
+    <div id="stock-weight-note"></div>
+    <div class="tbl-wrap hide-mobile"><table class="tbl" id="stock-table"></table></div>
+    <div class="stock-cards hide-desktop" id="stock-cards"></div>
+    <div class="multi-bar" id="multi-bar">
+      <span id="multi-count">0件選択中</span>
+      <span class="grow"></span>
+      <button class="btn act sm" id="btn-multi-dispense">出庫リストへ</button>
+      <button class="btn ghost sm" id="btn-multi-clear">解除</button>
+    </div>
+  </section>
+
+  <!-- ===== 入荷 ===== -->
+  <section id="scr-receive" class="screen">
+    <div class="scr-head"><h2>入荷</h2><span class="sub">発注書からの受入・個別入荷・使用期限の登録</span></div>
+
+    <div class="panel" id="rcv-order-panel" hidden>
+      <div class="panel-title" id="rcv-order-title"></div>
+      <div class="tbl-wrap"><table class="tbl" id="rcv-order-table"></table></div>
+      <div class="flex mt8">
+        <label class="muted">受入日 <input type="date" id="rcv-date" style="font-size:14px"></label>
+        <label class="muted">担当者 <select id="rcv-operator" style="font-size:14px"><option value="">選択</option></select></label>
+        <span class="grow"></span>
+        <button class="btn ghost sm" id="rcv-cancel">閉じる</button>
+        <button class="btn act" id="rcv-confirm">受入を確定（在庫へ反映）</button>
+      </div>
+      <div class="muted mt8">期限は「2807」= 2028年7月 の4桁入力。月末日として登録されます。</div>
+    </div>
+
+    <div class="panel" id="rcv-wait-panel">
+      <div class="panel-title">📥 受入待ちの発注書</div>
+      <div id="rcv-wait-list" class="muted">読み込み中...</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">個別入荷（発注書なし）
+        <label class="mini" style="cursor:pointer"><input type="checkbox" id="rc-simple-mode" style="font-size:13px"> 簡易入庫モード（ロット情報なしで数だけ足す）</label>
+      </div>
+      <input id="rc-search" placeholder="🔍 薬品名・コードで検索" autocomplete="off" style="width:100%">
+      <div id="rc-candidates"></div>
+      <div id="rc-selected" class="mt8" hidden></div>
+      <div id="rc-form" hidden>
+        <div class="wz-grid mt8">
+          <label>ロット数（箱）<input type="number" id="rc-packs" min="0" step="0.5" value="1"></label>
+          <label>数量（<span id="rc-unit">単位</span>）<input type="number" id="rc-qty" min="0"></label>
+          <label class="rc-full">仕入単価/ロット（円）<input type="number" id="rc-cost" min="0" step="0.01"></label>
+          <label>仕入先<select id="rc-supplier"><option value="">選択してください</option></select></label>
+          <label>入荷日<input type="date" id="rc-date"></label>
+          <label>担当者<select id="rc-op"><option value="">選択</option></select></label>
+          <label class="rc-lotinfo">使用期限（年月4桁）<input id="rc-expiry4" class="rcv-exp" inputmode="numeric" maxlength="4" placeholder="2807">
+            <a id="rc-expiry-detail-link" style="font-size:11px;cursor:pointer">詳しく入力</a>
+            <input type="date" id="rc-expiry-date" hidden></label>
+          <label class="rc-lotinfo">ロット番号<input id="rc-lot" placeholder="任意"></label>
+        </div>
+        <div id="rc-preview" class="muted mt8"></div>
+        <button class="btn act mt8" id="rc-submit" style="width:100%">📥 入荷を登録して在庫に反映</button>
+      </div>
+    </div>
+
+    <div class="panel warn">
+      <div class="panel-title">⏰ 使用期限アラート</div>
+      <div id="rc-expiry-list" class="muted">読み込み中...</div>
+    </div>
+
+    <div class="panel plain">
+      <div class="panel-title">使用期限が未登録のロット<span class="mini">4桁（例: 2807）を入れて保存。全部埋める義務はありません</span></div>
+      <div id="rc-nolots" class="muted">読み込み中...</div>
+    </div>
+  </section>
+
+  <!-- ===== 発注 ===== -->
+  <section id="scr-order" class="screen">
+    <div class="scr-head"><h2>発注</h2><span class="sub">発注リストの作成と発注書の管理</span></div>
+    <div class="kpi-band" id="od-summary"></div>
+    <div class="chip-row" id="od-chips">
+      <button class="chip on" data-f="alert">要発注</button>
+      <button class="chip" data-f="notstocked">未仕入（登録のみ）</button>
+      <button class="chip" data-f="all">全品目</button>
+    </div>
+    <div id="od-list" class="muted">読み込み中...</div>
+    <div class="panel warn">
+      <div class="panel-title">🛒 発注書（下書き）</div>
+      <div id="od-cart" class="muted">発注リストからチェックすると、ここに集計されます。</div>
+      <div class="flex mt8" style="justify-content:flex-end">
+        <button class="btn ghost sm" id="od-csv">CSV書き出し</button>
+        <button class="btn act" id="od-make">発注書を作成（下書き保存）</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">📄 発注書一覧</div>
+      <div id="od-po-list" class="muted">読み込み中...</div>
+    </div>
+  </section>
+
+  <!-- ===== 棚卸 ===== -->
+  <section id="scr-stocktake" class="screen">
+    <div class="scr-head"><h2>棚卸</h2><span class="sub" id="st-progress-label"></span></div>
+    <div class="flex mb8">
+      <label class="muted">棚卸日 <input type="date" id="st-date" style="font-size:14px"></label>
+      <label class="muted">担当者 <select id="st-operator" style="font-size:14px"><option value="">選択</option></select></label>
+      <span class="grow"></span>
+      <button class="btn ghost sm hide-desktop" id="st-scan-btn">📷 スキャンして数える</button>
+    </div>
+    <div class="st-progress"><div id="st-progress-bar" style="width:0"></div></div>
+    <div class="panel st-scan-panel" id="st-scan-panel" hidden>
+      <div class="qr-zone" id="st-qr-zone" style="min-height:150px"><div id="st-qr-reader"></div><div class="qr-hint">QRをかざすとその薬の入力に移ります</div></div>
+      <div id="st-scan-target" hidden>
+        <h3 id="st-scan-name"></h3>
+        <div class="muted" id="st-scan-sys"></div>
+        <input class="big-input" id="st-scan-input" inputmode="numeric" placeholder="実地数">
+        <div class="flex mt8" style="justify-content:center">
+          <button class="btn act" id="st-scan-next">次の薬へ</button>
+          <button class="btn ghost" id="st-scan-stop">スキャンを終了</button>
+        </div>
+      </div>
+    </div>
+    <div class="tbl-wrap"><table class="tbl" id="st-table"></table></div>
+    <div class="st-foot">
+      <span class="muted" id="st-summary"></span>
+      <span class="flex">
+        <button class="btn ghost sm" id="st-draft">下書き保存</button>
+        <button class="btn warn" id="st-apply">差分を確認して反映</button>
+      </span>
+    </div>
+  </section>
+
+  <!-- ===== マスタ整備 ===== -->
+  <section id="scr-master" class="screen">
+    <div class="scr-head"><h2>マスタ整備</h2><span class="flex">
+      <button class="btn ghost sm" id="btn-detail-add">＋ 詳細入力で追加</button>
+      <button class="btn act sm" id="btn-wizard">＋ 薬品を追加</button>
+    </span></div>
+    <div class="kpi-band" id="ms-kpi"></div>
+    <div id="ms-reverse"></div>
+    <div class="chip-row" id="ms-chips">
+      <button class="chip on" data-f="cost">原価未設定</button>
+      <button class="chip" data-f="rezept">レセ電未設定</button>
+      <button class="chip" data-f="pack">入数未設定</button>
+      <button class="chip" data-f="price">薬価未設定</button>
+      <button class="chip" data-f="anygap">すべての穴</button>
+      <button class="chip" data-f="all">全品目</button>
+    </div>
+    <div class="tbl-wrap"><table class="tbl" id="ms-table"></table></div>
+    <div class="save-bar" id="ms-save-bar">
+      <span class="muted" id="ms-edit-count"></span>
+      <button class="btn ghost sm" id="ms-discard">破棄</button>
+      <button class="btn act" id="ms-save">変更を保存</button>
+    </div>
+  </section>
+
+  <!-- ===== 分析 ===== -->
+  <section id="scr-analytics" class="screen">
+    <div class="scr-head"><h2>分析</h2></div>
+    <div class="subtabs">
+      <button class="on" data-sub="history">履歴</button>
+      <button data-sub="consumption">月別消費量</button>
+    </div>
+    <div id="an-history">
+      <div class="flex mb8">
+        <input id="hist-search" class="grow" placeholder="🔍 薬品名・患者・担当者" autocomplete="off">
+        <button class="btn ghost sm" id="hist-edit-btn">編集</button>
+      </div>
+      <div class="chip-row">
+        <input type="date" id="hist-from" style="font-size:13px;padding:5px 8px">
+        <span class="muted">〜</span>
+        <input type="date" id="hist-to" style="font-size:13px;padding:5px 8px">
+        <button class="chip" data-preset="today">今日</button>
+        <button class="chip" data-preset="week">1週間</button>
+        <button class="chip" data-preset="month">1ヶ月</button>
+        <button class="chip" data-preset="all">全て</button>
+        <span class="grow"></span>
+        <button class="chip" data-view="timeline">時系列</button>
+        <button class="chip" data-view="patient">患者別</button>
+      </div>
+      <div id="hist-delete-bar"></div>
+      <div id="hist-list" class="muted">読み込み中...</div>
+    </div>
+    <div id="an-consumption" hidden>
+      <div class="flex mb8">
+        <input id="cs-search" class="grow" placeholder="🔍 薬品名で絞り込み" autocomplete="off">
+        <select id="cs-sort" style="font-size:13px">
+          <option value="total-desc">消費量が多い順</option>
+          <option value="total-asc">消費量が少ない順</option>
+          <option value="name">薬品名順</option>
+          <option value="stock-asc">在庫が少ない順</option>
+        </select>
+      </div>
+      <div class="kpi-band" id="cs-summary"></div>
+      <div class="tbl-wrap"><table class="tbl" id="cs-table"></table></div>
+    </div>
+  </section>
+
+</main>
+
+<nav class="tabbar" id="tabbar">
+  <button data-nav="dispense" class="on"><i>💊</i>出庫</button>
+  <button data-nav="stock"><i>📦</i>在庫</button>
+  <button data-nav="analytics"><i>📋</i>履歴</button>
+  <button id="tab-menu"><i>≡</i>管理</button>
+</nav>
+
+<div class="menu-sheet" id="menu-sheet">
+  <div class="sheet">
+    <a data-nav="home">🏠 今日の状態 <span class="side-badge" id="badge-home-m" hidden></span></a>
+    <a data-nav="receive">📥 入荷</a>
+    <a data-nav="order">🛒 発注 <span class="side-badge amber" id="badge-order-m" hidden></span></a>
+    <a data-nav="stocktake">📝 棚卸</a>
+    <a data-nav="master">🧰 マスタ整備 <span class="side-badge amber" id="badge-master-m" hidden></span></a>
+    <a data-nav="analytics">📊 分析</a>
+    <a id="menu-theme">🌙 テーマ切替 <span class="muted" id="menu-theme-state"></span></a>
+    <a id="menu-close" style="justify-content:center;color:var(--ink-sub)">閉じる</a>
+  </div>
+</div>
+
+<!-- 汎用確認モーダル -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box" id="modal-box">
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-buttons">
+      <button class="btn ghost" id="modal-cancel">キャンセル</button>
+      <button class="btn act" id="modal-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- 薬品ピッカー（出庫のリスト選択） -->
+<div class="modal-overlay" id="picker">
+  <div class="modal-box wide">
+    <div class="modal-title">薬品リストから選ぶ</div>
+    <input id="picker-search" placeholder="🔍 薬品名・コード・分類" autocomplete="off" style="width:100%">
+    <div class="chip-row mt8" id="picker-chips">
+      <button class="chip on" data-cat="">すべて</button>
+      <button class="chip" data-cat="成人">成人</button>
+      <button class="chip" data-cat="小児">小児</button>
+      <button class="chip" data-cat="外用">外用</button>
+      <button class="chip" data-cat="検査">検査</button>
+    </div>
+    <div id="picker-list" style="max-height:52vh;overflow-y:auto"></div>
+    <div class="modal-buttons"><button class="btn ghost" id="picker-close">閉じる</button></div>
+  </div>
+</div>
+
+<!-- レセ電紐付けモーダル -->
+<div class="modal-overlay" id="dm-modal">
+  <div class="modal-box">
+    <div class="modal-title">厚労省マスタから紐付け</div>
+    <div class="muted mb8" id="dm-target"></div>
+    <input id="dm-search" placeholder="🔍 薬品名で検索（2文字以上）" autocomplete="off" style="width:100%">
+    <div id="dm-results" style="max-height:46vh;overflow-y:auto" class="mt8"></div>
+    <div class="modal-buttons"><button class="btn ghost" id="dm-close">閉じる</button></div>
+  </div>
+</div>
+
+<!-- 薬品追加ウィザード -->
+<div class="modal-overlay" id="wizard">
+  <div class="modal-box wide">
+    <div class="modal-title">薬品を追加</div>
+    <div class="wz-steps">
+      <div id="wz-tab1" class="on">① 厚労省マスタから選ぶ</div>
+      <div id="wz-tab2">② 在庫の扱いを決める</div>
+      <div id="wz-tab3">③ 確認して登録</div>
+    </div>
+    <div class="wz-page on" id="wz-p1">
+      <input id="wz-search" placeholder="🔍 薬品名で検索（18,515件から・2文字以上）" autocomplete="off" style="width:100%">
+      <div id="wz-results" style="max-height:44vh;overflow-y:auto" class="mt8"></div>
+      <div class="muted mt8">検査キットなどマスタに無い院内独自品は <a id="wz-manual" style="cursor:pointer">手入力で登録</a></div>
+    </div>
+    <div class="wz-page" id="wz-p2">
+      <div class="wz-grid">
+        <label class="span2">薬品名<input id="wz-name"></label>
+        <label>ふりがな<input id="wz-furigana"></label>
+        <label>単位<input id="wz-unit" placeholder="錠 / 包 / g など"></label>
+        <label>分類 <span id="wz-cat-note" class="bdg teal" hidden>剤形から自動推定</span><select id="wz-category"></select></label>
+        <label>分類（自由入力・優先）<input id="wz-category-custom" placeholder="例: 成人/解熱鎮痛剤"></label>
+      </div>
+      <div class="toggle-box" id="wz-toggle-box">
+        <div class="tg-head">出庫で在庫を減らす <button class="switch on" id="wz-tracking" type="button" aria-label="出庫で在庫を減らす"></button></div>
+        <div class="tg-note">軟膏・点眼など「院内で使い回す薬」はOFF。OFFの薬は出庫記録は残りますが在庫数は動きません。</div>
+        <div class="tg-note" id="wz-cat-forced" style="color:var(--warn)" hidden></div>
+      </div>
+      <div class="wz-grid">
+        <label>入数/1ロット<input type="number" id="wz-packsize" min="0"></label>
+        <label>仕入単価/1ロット（円）<input type="number" id="wz-costpack" min="0" step="0.01"></label>
+        <label>仕入先<select id="wz-supplier"><option value="">未設定</option></select></label>
+        <label>発注点<input type="number" id="wz-threshold" value="10" min="0"></label>
+        <label>初期在庫<input type="number" id="wz-initial" value="0" min="0"></label>
+        <label>薬価（円/単位）<input type="number" id="wz-price" min="0" step="0.01"></label>
+      </div>
+      <label class="muted mt8" style="display:block"><input type="checkbox" id="wz-exempt"> マスタ整備の穴チェック対象外にする（院内独自品向け）</label>
+    </div>
+    <div class="wz-page" id="wz-p3">
+      <div class="tbl-wrap"><table class="tbl" id="wz-confirm"></table></div>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn ghost" id="wz-cancel">キャンセル</button>
+      <button class="btn ghost" id="wz-back" hidden>戻る</button>
+      <button class="btn act" id="wz-next" disabled>次へ</button>
+      <button class="btn act" id="wz-register" hidden>登録</button>
+    </div>
+  </div>
+</div>
+
+<!-- 薬品マスタ 追加／編集フォーム -->
+<div class="modal-overlay" id="mf-modal">
+  <div class="modal-box wide">
+    <div class="modal-title" id="mf-title">薬品を編集</div>
+    <div class="modal-body">
+      <div class="mf-sub" id="mf-sub"></div>
+
+      <div class="mf-sec" data-sec="basic">
+        <button class="mf-sec-head" type="button">① 基本</button>
+        <div class="wz-grid mf-sec-body">
+          <label>院内管理ID<input id="mf-code" autocomplete="off"></label>
+          <label class="req"><span>薬品名</span><input id="mf-name" autocomplete="off"></label>
+          <label>ふりがな<input id="mf-furigana" autocomplete="off"></label>
+          <label>分類（画面用）<input id="mf-category" list="dl-mf-category" autocomplete="off" placeholder="成人/解熱鎮痛剤"></label>
+        </div>
+      </div>
+
+      <div class="mf-sec" data-sec="cat">
+        <button class="mf-sec-head" type="button">② 分類</button>
+        <div class="wz-grid mf-sec-body">
+          <label>カテゴリ１（対象）<input id="mf-cat1" list="dl-mf-cat1" autocomplete="off"></label>
+          <label>カテゴリ２（用法区分）<input id="mf-cat2" list="dl-mf-cat2" autocomplete="off"></label>
+          <label>カテゴリ３（用法回数）<input id="mf-cat3" list="dl-mf-cat3" autocomplete="off"></label>
+          <label>カテゴリ５（薬効分類）<input id="mf-cat5" list="dl-mf-cat5" autocomplete="off"></label>
+          <label class="span2">カテゴリ４（服用指示）<input id="mf-cat4" list="dl-mf-cat4" autocomplete="off"></label>
+          <label>在庫区分<input id="mf-stockclass" list="dl-mf-stockclass" autocomplete="off"></label>
+        </div>
+      </div>
+
+      <div class="mf-sec" data-sec="item">
+        <button class="mf-sec-head" type="button">③ 品目情報</button>
+        <div class="wz-grid mf-sec-body">
+          <label>メーカー<input id="mf-maker" list="dl-mf-maker" autocomplete="off"></label>
+          <label>名称（屋号）<input id="mf-brand" autocomplete="off" placeholder="「タカタ」など"></label>
+          <label>薬品グループ名<input id="mf-group" list="dl-mf-group" autocomplete="off"></label>
+          <label>剤型<input id="mf-form" list="dl-mf-form" autocomplete="off"></label>
+          <label>規格・分包量<input id="mf-spec" autocomplete="off" placeholder="0.2ｇ / 60ｍｇ"></label>
+          <label class="req"><span>薬剤単位</span><input id="mf-unit" list="dl-mf-unit" autocomplete="off" placeholder="包 / 錠 / 本"></label>
+          <label>発注単位<input id="mf-orderunit" list="dl-mf-orderunit" autocomplete="off" placeholder="ロット / 箱"></label>
+        </div>
+      </div>
+
+      <div class="mf-sec" data-sec="stock">
+        <button class="mf-sec-head" type="button">④ 仕入・在庫</button>
+        <div class="wz-grid mf-sec-body">
+          <label>入数（1発注単位あたり）<input type="number" id="mf-packsize" min="0"></label>
+          <label>仕入単価（1発注単位・円）<input type="number" id="mf-costpack" min="0" step="0.01"></label>
+          <label>仕入先<select id="mf-supplier"><option value="">未設定</option></select></label>
+          <label>発注点<input type="number" id="mf-threshold" min="0"></label>
+          <label id="mf-initial-wrap">初期在庫<input type="number" id="mf-initial" min="0" value="0"></label>
+          <label class="span2 mf-ro">1単位あたり原価（自動計算）<input id="mf-costunit" readonly tabindex="-1"></label>
+        </div>
+        <div class="toggle-box" id="mf-toggle-box">
+          <div class="tg-head">出庫で在庫を減らす <button class="switch on" id="mf-tracking" type="button" aria-label="出庫で在庫を減らす"></button></div>
+          <div class="tg-note">軟膏・点眼など「院内で使い回す薬」はOFF。OFFの薬は出庫記録は残りますが在庫数は動きません。</div>
+          <div class="tg-note" id="mf-cat-forced" style="color:var(--warn)" hidden></div>
+        </div>
+      </div>
+
+      <div class="mf-sec" data-sec="price">
+        <button class="mf-sec-head" type="button">⑤ 薬価</button>
+        <div class="wz-grid mf-sec-body">
+          <label>薬価（在庫1単位あたり・円）<input type="number" id="mf-price" min="0" step="0.01"></label>
+          <label>2026/4 薬価（薬価基準の単位あたり・円）<input type="number" id="mf-priceofficial" min="0" step="0.01"></label>
+          <label>総量（ｇ）<input type="number" id="mf-totalg" min="0" step="0.01"></label>
+          <label class="mf-ro">総量×薬価（自動計算）<input id="mf-lotvalue" readonly tabindex="-1"></label>
+        </div>
+        <div class="tg-note mf-note">「薬価」は在庫1単位（包・錠）あたり、「2026/4 薬価」は薬価基準の単位（散剤ならg）あたりです。別の値なので片方に寄せないでください。</div>
+      </div>
+
+      <div class="mf-sec" data-sec="code">
+        <button class="mf-sec-head" type="button">⑥ コード</button>
+        <div class="wz-grid mf-sec-body">
+          <label>薬価基準収載医薬品コード<input id="mf-yjbase" autocomplete="off"></label>
+          <label>YJコード（個別医薬品コード）<input id="mf-yj" autocomplete="off"></label>
+          <label>レセプト電算コード1<input id="mf-rezept" autocomplete="off"></label>
+          <label>レセプト電算コード2<input id="mf-rezept2" autocomplete="off"></label>
+          <label>HOT7<input id="mf-hot7" autocomplete="off"></label>
+          <label>HOT9<input id="mf-hot9" autocomplete="off"></label>
+          <label>HOT13<input id="mf-hot13" autocomplete="off"></label>
+        </div>
+      </div>
+
+      <div class="mf-sec" data-sec="misc">
+        <button class="mf-sec-head" type="button">⑦ その他</button>
+        <div class="wz-grid mf-sec-body">
+          <label class="span2">用法メモ<input id="mf-usage" autocomplete="off"></label>
+          <label class="span2"><span><input type="checkbox" id="mf-exempt"> マスタ整備の穴チェック対象外にする（院内独自品向け）</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn danger" id="mf-delete" hidden>この薬品を削除</button>
+      <span class="grow"></span>
+      <button class="btn ghost" id="mf-cancel">キャンセル</button>
+      <button class="btn act" id="mf-save">保存</button>
+    </div>
+  </div>
+</div>
+<datalist id="dl-mf-cat1"></datalist><datalist id="dl-mf-cat2"></datalist><datalist id="dl-mf-cat3"></datalist>
+<datalist id="dl-mf-cat4"></datalist><datalist id="dl-mf-cat5"></datalist><datalist id="dl-mf-maker"></datalist>
+<datalist id="dl-mf-group"></datalist><datalist id="dl-mf-stockclass"></datalist><datalist id="dl-mf-form"></datalist>
+<datalist id="dl-mf-unit"></datalist><datalist id="dl-mf-orderunit"></datalist><datalist id="dl-mf-category"></datalist>
+
+<!-- 在庫詳細ドロワー -->
+<div class="drawer" id="drawer">
+  <button class="dr-close" id="drawer-close">✕</button>
+  <div id="drawer-body"></div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.js"></script>
+<script src="js/login.js?v=0.9.8"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script defer src="js/db.js?v=0.9.8"></script>
+<script defer src="js/store.js?v=0.9.8"></script>
+<script defer src="js/theme.js?v=0.9.8"></script>
+<script defer src="js/ui.js?v=0.9.8"></script>
+<script defer src="js/screen-dispense.js?v=0.9.8"></script>
+<script defer src="js/screen-home.js?v=0.9.8"></script>
+<script defer src="js/screen-stock.js?v=0.9.8"></script>
+<script defer src="js/screen-stocktake.js?v=0.9.8"></script>
+<script defer src="js/screen-master.js?v=0.9.8"></script>
+<script defer src="js/screen-order.js?v=0.9.8"></script>
+<script defer src="js/screen-analytics.js?v=0.9.8"></script>
+</body>
+</html>
