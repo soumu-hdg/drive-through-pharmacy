@@ -747,6 +747,10 @@ const Store = (() => {
     }
     return {
       async init() {
+        // 職員画面：ログイン前は予約の表を読まない（公開キーでは読めず「未接続」と誤表示になるため）。
+        // ログインするとページを読み直すので、そのときに読み込む。
+        const { data: { session } } = await client.auth.getSession();
+        if (!session) { _cache = []; return; }
         const { data, error } = await client.from(TABLE).select("*").eq("status", "CONFIRMED");
         if (error) throw error;   // テーブル未作成等 → 呼び出し側でローカルにフォールバック
         _cache = (data || []).map(fromRow);
@@ -774,6 +778,8 @@ const Store = (() => {
       },
       // 最新の予約状況を取り直す（重複エラー時などに古い表示のまま再試行させないため）
       async refresh() {
+        const { data: { session } } = await client.auth.getSession();
+        if (!session) { _cache = []; return; }
         const { data, error } = await client.from(TABLE).select("*").eq("status", "CONFIRMED");
         if (error) throw error;
         _cache = (data || []).map(fromRow);

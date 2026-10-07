@@ -2080,9 +2080,11 @@
         // 電子カルテの薬品マスタ（夜間外来DB）と、この在庫マスタは別々に管理されている。
         // カルテ側に薬を足しても在庫側には入らず、気づかないまま在庫を記録できない薬が生まれる。
         // それを取りこぼさないよう、1日1回だけ突合して画面上部に出す。
-        const KARTE_API_URL = 'https://script.google.com/macros/s/AKfycbwWCL1aVy4RcCZsr2Wzrpy5JE8LU8pGWa2u_CY7qo7OGMgXrB0OZGir6rGJZiiV6hRd/exec';
+        // 夜間外来DBの薬の一覧（患者情報は含まない）。電子カルテのサーバーが中継し、合言葉はサーバー側だけが持つ
+        const NIGHT_DRUGS_URL = 'https://karte.hdg-holdings.com/api/night-db-drugs';
         const DRIFT_CHECK_KEY = 'dtp_v06_drift_checked_on';
         let missingDrugs = [];
+        let driftError = null; // 突合に失敗した時刻（成功したら null）
 
         function normalizeName(s) {
             return String(s || '').normalize('NFKC').replace(/[\s　]/g, '').replace(/^後）/, '').toLowerCase();
@@ -2125,10 +2127,11 @@
             if (!force && cached && cached.date === today) return;
 
             try {
-                const url = KARTE_API_URL + '?action=all&token=' + encodeURIComponent(GAS_TOKEN) +
-                    '&date_from=' + today + '&date_to=' + today;
-                const data = await (await fetch(url)).json();
-                if (!data || !Array.isArray(data.drugs)) return;
+                const res = await fetch(NIGHT_DRUGS_URL, { cache: 'no-store' });
+                let data = null;
+                try { data = await res.json(); } catch (e) { data = null; }
+                if (!res.ok || !data || data.success === false || !Array.isArray(data.drugs)) throw new Error((data && data.error) || ('HTTP ' + res.status));
+                driftError = null;
                 localStorage.setItem(DRIFT_CHECK_KEY, JSON.stringify({
                     date: today,
                     drugs: data.drugs.map(d => ({ name: d.name, category: d.category }))
@@ -2137,6 +2140,9 @@
                 console.log('マスタ突合: カルテ' + data.drugs.length + '件中、在庫マスタに無い薬 ' + missingDrugs.length + '件');
             } catch (e) {
                 console.warn('マスタ突合に失敗:', e.message);
+                const d = new Date();
+                driftError = (d.getMonth() + 1) + '/' + d.getDate() + ' ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+                renderMasterAlert();
             }
         }
 
@@ -2144,11 +2150,18 @@
             const el = document.getElementById('master-alert');
             if (!el) return;
             const blocks = [];
+            const escH = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            if (driftError) {
+                blocks.push('<div class="master-alert-item danger">' +
+                    '<b>⚠ 夜間外来DBとの突合ができませんでした（' + escH(driftError) + '）</b>' +
+                    '電子カルテにあって在庫マスタに無い薬の確認ができていません。時間をおいて開き直してください。' +
+                    '</div>');
+            }
             if (missingDrugs.length) {
                 blocks.push('<div class="master-alert-item">' +
                     '<b>⚠ 電子カルテにあって、在庫マスタに無い薬が ' + missingDrugs.length + ' 件あります</b>' +
                     'このままではその薬の在庫を記録できません。' +
-                    '<div class="names">' + missingDrugs.map(d => d.name).join('、') + '</div>' +
+                    '<div class="names">' + missingDrugs.map(d => escH(d.name)).join('、') + '</div>' +
                     '<button class="master-alert-btn" onclick="startRegisterMissing()">1件ずつ登録する</button>' +
                     '</div>');
             }

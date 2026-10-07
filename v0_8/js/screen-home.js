@@ -181,6 +181,9 @@
       if (soon2.length) line('amber', '期限切迫', names(soon2, 4), 'receive', {}, '入荷へ');
     }
     if (st.noExpiryCount > 0) line('amber', '期限未登録', '残数のあるロット' + st.noExpiryCount + '件に使用期限が入っていません', 'receive', {}, '入荷へ');
+    if (st.driftError) {
+      line('red', '突合失敗', '夜間外来DBとの突合ができませんでした（' + U.esc(st.driftError.at) + '）。時間をおいて開き直してください', 'master', {}, 'マスタ整備へ');
+    }
     if (st.missingDrugs.length) {
       line('amber', 'カルテ突合', 'カルテにあって在庫マスタに無い薬が' + st.missingDrugs.length + '件（' +
         names(st.missingDrugs, 3) + '）', 'master', { wizard: true, missing: true }, '追加ウィザードへ');

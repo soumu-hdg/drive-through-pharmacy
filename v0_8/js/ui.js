@@ -184,7 +184,7 @@
     var st = P8.store;
     var order = st.reorderCount(['out_of_stock', 'below_threshold', 'runs_out_soon']);
     var master = st.gapStats ? (st.gapStats.total - st.gapStats.ok_cost) : 0;
-    var home = order + st.reverseMargins().length + (st.missingDrugs || []).length
+    var home = order + st.reverseMargins().length + (st.missingDrugs || []).length + (st.driftError ? 1 : 0)
       + st.stock.filter(function (m) { return (m.stock || 0) < 0; }).length;
     setBadge('badge-order', order, badgePopped);
     setBadge('badge-order-m', order, badgePopped);

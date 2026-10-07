@@ -143,6 +143,7 @@
     gapStats: null,     // pharmacy_v_master_gap_stats
     noExpiryCount: null,
     missingDrugs: [],   // カルテ突合の未登録薬
+    driftError: null,   // カルテ突合に失敗した時刻（成功したら null）
     ready: false,
     listeners: []
   };
@@ -234,15 +235,20 @@
     if (cached && Array.isArray(cached.drugs)) recomputeMissing(cached.drugs);
     if (!force && cached && cached.date === today) return;
     try {
-      var data = await P8.db.karteFetch('action=all&date_from=' + today + '&date_to=' + today);
-      if (!data || !Array.isArray(data.drugs)) return;
+      var data = await P8.db.nightDrugsFetch();
+      store.driftError = null;
       localStorage.setItem(DRIFT_KEY, JSON.stringify({
         date: today,
         drugs: data.drugs.map(function (d) { return { name: d.name, category: d.category }; })
       }));
       recomputeMissing(data.drugs);
       notify();
-    } catch (e) { console.warn('カルテ突合に失敗:', e.message); }
+    } catch (e) {
+      console.warn('カルテ突合に失敗:', e.message);
+      var d = new Date();
+      store.driftError = { at: (d.getMonth() + 1) + '/' + d.getDate() + ' ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0'), message: e.message };
+      notify();
+    }
   }
 
   // ---- 派生計算 ----

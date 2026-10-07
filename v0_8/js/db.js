@@ -12,7 +12,8 @@
 
   var GAS_URL = 'https://script.google.com/macros/s/AKfycby1zgHFyfsxTyqXTf-UXhu25ef5Hhp2ZvSkQ9ETYzCJIJumoYiKkuQl2IclDHpfrfuJ9w/exec';
   var GAS_TOKEN = 'dtp_f929bbd860e2e96224ded613cd06177e';
-  var KARTE_API_URL = 'https://script.google.com/macros/s/AKfycbwWCL1aVy4RcCZsr2Wzrpy5JE8LU8pGWa2u_CY7qo7OGMgXrB0OZGir6rGJZiiV6hRd/exec';
+  // 夜間外来DBの薬の一覧（患者情報は含まない）。電子カルテのサーバーが中継し、合言葉はサーバー側だけが持つ
+  var NIGHT_DRUGS_URL = 'https://karte.hdg-holdings.com/api/night-db-drugs';
 
   function raw(path, opts) {
     opts = opts || {};
@@ -99,10 +100,14 @@
     } catch (e) { console.warn('GAS GET error:', e.message); return null; }
   }
 
-  async function karteFetch(params) {
-    var url = KARTE_API_URL + '?token=' + encodeURIComponent(GAS_TOKEN) + '&' + params;
-    var res = await fetch(url);
-    return await res.json();
+  async function nightDrugsFetch() {
+    var res = await fetch(NIGHT_DRUGS_URL, { cache: 'no-store' });
+    var j = null;
+    try { j = await res.json(); } catch (e) { j = null; }
+    if (!res.ok || !j || j.success === false || !Array.isArray(j.drugs)) {
+      throw new Error((j && j.error) || ('HTTP ' + res.status));
+    }
+    return j;
   }
 
   // ---- オフラインキュー（出庫送信のみ対象） ----
@@ -171,7 +176,7 @@
 
   P8.db = {
     get: get, write: write, del: del, rpc: rpc, count: count,
-    gasGet: gasGet, karteFetch: karteFetch,
+    gasGet: gasGet, nightDrugsFetch: nightDrugsFetch,
     enqueueDispense: enqueueDispense, flushQueue: flushQueue, queueCount: queueCount
   };
 })();

@@ -1918,6 +1918,18 @@
             } catch (e) { console.warn('Supabase error:', e.message); return null; }
         }
 
+        // 書き込み用。失敗したら例外を投げる（読み込み用の sbFetch は失敗を null で返すため、書き込みの失敗に気づけなかった）
+        async function sbWrite(path, opts = {}) {
+            const res = await fetch(SB_URL + '/rest/v1/' + path, { ...opts, headers: { ...SB_HEADERS, ...(opts.headers || {}) } });
+            if (!res.ok) {
+                let msg = 'HTTP ' + res.status;
+                try { const j = await res.json(); msg = j.message || j.error || msg; } catch (e) { /* 本文なし */ }
+                throw new Error(msg);
+            }
+            const text = await res.text();
+            return text ? JSON.parse(text) : null;
+        }
+
         const MASTER_CACHE_KEY = 'dtp_v07_master_cache';
 
         // Supabaseの1行を画面用の薬品オブジェクトへ変換
@@ -1994,13 +2006,13 @@
                 patient_name: item.patient?.name || null,
                 note: item.operator ? '担当:' + item.operator : null
             }));
-            await sbFetch('pharmacy_transactions', { method: 'POST', body: JSON.stringify(txRows) });
+            await sbWrite('pharmacy_transactions', { method: 'POST', body: JSON.stringify(txRows) });
             for (const item of items) {
                 const code = item.medicine.code;
                 const idx = stockData.findIndex(m => normalizeCode(m.code) === normalizeCode(code));
                 if (idx < 0) continue;
                 const newStock = stockData[idx].stock;
-                await sbFetch('pharmacy_medicines?code=eq.' + code, {
+                await sbWrite('pharmacy_medicines?code=eq.' + encodeURIComponent(code), {
                     method: 'PATCH',
                     body: JSON.stringify({ current_stock: newStock, last_updated: new Date().toISOString() })
                 });
@@ -2039,7 +2051,9 @@
                 });
                 // res.type === 'opaqueredirect', status === 0 が正常
                 // GASは302を返す前にdoPost()を実行済み
-                return { success: true, message: '送信完了' };
+                // ※リダイレクト先の結果（GAS内のエラー）は読めない。届いたかどうかだけを判定する
+                if (res.type === 'opaqueredirect' || res.ok) return { success: true, message: '送信完了' };
+                return { success: false, error: 'HTTP ' + res.status };
             } catch (e) {
                 // ネットワーク完全断のみここに来る
                 console.error('GAS POST error:', e);
@@ -2253,9 +2267,11 @@
         // 電子カルテの薬品マスタ（夜間外来DB）と、この在庫マスタは別々に管理されている。
         // カルテ側に薬を足しても在庫側には入らず、気づかないまま在庫を記録できない薬が生まれる。
         // それを取りこぼさないよう、1日1回だけ突合して画面上部に出す。
-        const KARTE_API_URL = 'https://script.google.com/macros/s/AKfycbwWCL1aVy4RcCZsr2Wzrpy5JE8LU8pGWa2u_CY7qo7OGMgXrB0OZGir6rGJZiiV6hRd/exec';
+        // 夜間外来DBの薬の一覧（患者情報は含まない）。電子カルテのサーバーが中継し、合言葉はサーバー側だけが持つ
+        const NIGHT_DRUGS_URL = 'https://karte.hdg-holdings.com/api/night-db-drugs';
         const DRIFT_CHECK_KEY = 'dtp_v06_drift_checked_on';
         let missingDrugs = [];
+        let driftError = null; // 突合に失敗した時刻（成功したら null）
 
         function normalizeName(s) {
             return String(s || '').normalize('NFKC').replace(/[\s　]/g, '').replace(/^後）/, '').toLowerCase();
@@ -2311,10 +2327,11 @@
             if (!force && cached && cached.date === today) return;
 
             try {
-                const url = KARTE_API_URL + '?action=all&token=' + encodeURIComponent(GAS_TOKEN) +
-                    '&date_from=' + today + '&date_to=' + today;
-                const data = await (await fetch(url)).json();
-                if (!data || !Array.isArray(data.drugs)) return;
+                const res = await fetch(NIGHT_DRUGS_URL, { cache: 'no-store' });
+                let data = null;
+                try { data = await res.json(); } catch (e) { data = null; }
+                if (!res.ok || !data || data.success === false || !Array.isArray(data.drugs)) throw new Error((data && data.error) || ('HTTP ' + res.status));
+                driftError = null;
                 localStorage.setItem(DRIFT_CHECK_KEY, JSON.stringify({
                     date: today,
                     drugs: data.drugs.map(d => ({ name: d.name, category: d.category }))
@@ -2323,6 +2340,9 @@
                 console.log('マスタ突合: カルテ' + data.drugs.length + '件中、在庫マスタに無い薬 ' + missingDrugs.length + '件');
             } catch (e) {
                 console.warn('マスタ突合に失敗:', e.message);
+                const d = new Date();
+                driftError = (d.getMonth() + 1) + '/' + d.getDate() + ' ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+                renderMasterAlert();
             }
         }
 
@@ -2330,11 +2350,18 @@
             const el = document.getElementById('master-alert');
             if (!el) return;
             const blocks = [];
+            const escH = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            if (driftError) {
+                blocks.push('<div class="master-alert-item danger">' +
+                    '<b>⚠ 夜間外来DBとの突合ができませんでした（' + escH(driftError) + '）</b>' +
+                    '電子カルテにあって在庫マスタに無い薬の確認ができていません。時間をおいて開き直してください。' +
+                    '</div>');
+            }
             if (missingDrugs.length) {
                 blocks.push('<div class="master-alert-item">' +
                     '<b>⚠ 電子カルテにあって、在庫マスタに無い薬が ' + missingDrugs.length + ' 件あります</b>' +
                     'このままではその薬の在庫を記録できません。' +
-                    '<div class="names">' + missingDrugs.map(d => d.name).join('、') + '</div>' +
+                    '<div class="names">' + missingDrugs.map(d => escH(d.name)).join('、') + '</div>' +
                     '<button class="master-alert-btn" onclick="startRegisterMissing()">1件ずつ登録する</button>' +
                     '</div>');
             }
@@ -2855,12 +2882,21 @@
                 });
             }
 
-            // Supabaseにもトランザクション記録+在庫更新
-            syncToSupabase(batchItems).catch(e => console.warn('Supabase sync error:', e));
+            // Supabaseにもトランザクション記録+在庫更新（失敗したら画面に出す）
+            let sbError = null;
+            try { await syncToSupabase(batchItems); }
+            catch (e) { sbError = e.message; console.warn('Supabase sync error:', e); }
             renderMasterAlert();   // 出庫の結果マイナスになった薬をその場で表に出す
 
             const modeLabel = currentMode === 'in' ? '入庫' : currentMode === 'adjust' ? '棚卸修正' : '出庫';
-            showToast(`${successCount}件の${modeLabel}を送信しました`, 'success');
+            if (sbError || errorCount > 0) {
+                const parts = [];
+                if (errorCount > 0) parts.push(`在庫サマリーへの送信 ${errorCount}件失敗`);
+                if (sbError) parts.push(`データベースへの保存に失敗（${sbError}）`);
+                showToast(`${modeLabel}の保存に失敗しました：${parts.join('／')}。履歴で記録を確認し、必要なら入れ直してください`, 'error');
+            } else {
+                showToast(`${successCount}件の${modeLabel}を送信しました`, 'success');
+            }
 
             batchItems = [];
             renderBatchList();
@@ -2940,7 +2976,7 @@
             const toast = document.getElementById('toast');
             toast.textContent = message;
             toast.className = 'toast ' + type + ' show';
-            setTimeout(() => toast.classList.remove('show'), 3000);
+            setTimeout(() => toast.classList.remove('show'), type === 'error' ? 8000 : 3000);
         }
 
         // ===== タブ切替 =====
@@ -3417,10 +3453,14 @@
                         }
                         // Supabaseの在庫数も更新（adjustは元値不明のため在庫調整しない＝GAS版と同じ挙動）
                         if (h.type === 'in' || h.type === 'out') {
-                            await sbFetch('pharmacy_medicines?code=eq.' + encodeURIComponent(stockData[stockIdx].code), {
-                                method: 'PATCH',
-                                body: JSON.stringify({ current_stock: stockData[stockIdx].stock, last_updated: new Date().toISOString() })
-                            });
+                            try {
+                                await sbWrite('pharmacy_medicines?code=eq.' + encodeURIComponent(stockData[stockIdx].code), {
+                                    method: 'PATCH',
+                                    body: JSON.stringify({ current_stock: stockData[stockIdx].stock, last_updated: new Date().toISOString() })
+                                });
+                            } catch (e) {
+                                showToast('履歴は削除しましたが、在庫数の戻しに失敗しました（' + e.message + '）。棚卸で実数を入れてください', 'error');
+                            }
                         }
                     }
                 }
@@ -3985,7 +4025,7 @@
                 if (!lot) { showToast('入荷ロットの登録に失敗しました', 'error'); return; }
                 const lotId = Array.isArray(lot) ? lot[0].id : lot.id;
 
-                await sbFetch('pharmacy_transactions', {
+                await sbWrite('pharmacy_transactions', {
                     method: 'POST',
                     body: JSON.stringify({
                         medicine_code: rcTarget.code, transaction_type: 'in', quantity: qty,
@@ -3999,7 +4039,7 @@
                 // 仕入単価・仕入先が未設定なら、今回の入荷を採用薬マスタにも反映する
                 if (costPack && rcTarget.costPerPack == null) patch.cost_per_pack = costPack;
                 if (supplierId && !rcTarget.supplierId) patch.supplier_id = Number(supplierId);
-                await sbFetch('pharmacy_medicines?code=eq.' + rcTarget.code, { method: 'PATCH', body: JSON.stringify(patch) });
+                await sbWrite('pharmacy_medicines?code=eq.' + encodeURIComponent(rcTarget.code), { method: 'PATCH', body: JSON.stringify(patch) });
 
                 showToast(`${rcTarget.name} を ${qty}${rcTarget.unit} 入荷しました`, 'success');
                 await loadMasterFromSupabase();
@@ -4152,7 +4192,7 @@
             const bySup = {};
             items.forEach(i => { (bySup[i.supplier_id || 'none'] = bySup[i.supplier_id || 'none'] || []).push(i); });
             const d = todayJst().replace(/-/g, '');
-            let made = 0;
+            let made = 0, saved = 0, failed = 0;
             for (const [sid, list] of Object.entries(bySup)) {
                 const order = await sbFetch('pharmacy_orders', {
                     method: 'POST', headers: { 'Prefer': 'return=representation' },
@@ -4162,17 +4202,21 @@
                         ordered_on: todayJst(), status: 'draft'
                     })
                 });
-                if (!order) continue;
+                if (!order) { failed++; continue; }
                 const oid = Array.isArray(order) ? order[0].id : order.id;
-                await sbFetch('pharmacy_order_items', {
-                    method: 'POST',
-                    body: JSON.stringify(list.map(i => ({
-                        order_id: oid, medicine_code: i.code, pack_count: i.packs,
-                        qty: i.qty, unit_cost: i.cost_per_pack, amount: i.amount
-                    })))
-                });
+                try {
+                    await sbWrite('pharmacy_order_items', {
+                        method: 'POST',
+                        body: JSON.stringify(list.map(i => ({
+                            order_id: oid, medicine_code: i.code, pack_count: i.packs,
+                            qty: i.qty, unit_cost: i.cost_per_pack, amount: i.amount
+                        })))
+                    });
+                    saved++;
+                } catch (e) { failed++; console.warn('発注明細の保存に失敗:', e.message); }
             }
-            showToast(`発注書を ${made} 件保存しました`, 'success');
+            if (failed) { showToast(`発注書の保存に失敗したものがあります（成功 ${saved} 件・失敗 ${failed} 件）。発注画面で確認してください`, 'error'); return; }
+            showToast(`発注書を ${saved} 件保存しました`, 'success');
             odCart = {}; odRender();
         }
 
