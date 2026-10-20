@@ -32,7 +32,7 @@
   const WD = ["日", "月", "火", "水", "木", "金", "土"];
 
   /* ---------- 画面の状態（メモリだけ）---------- */
-  const st = { page: "gate", step: 0, clinicId: null, csId: null, menuIds: [], concern: "すべて", week: 0,
+  const st = { page: "gate", step: 0, clinicId: null, csId: null, menuIds: [], menuReady: false, openGroups: new Set(), week: 0,
                date: null, time: null, slotId: null, done: null, formErr: "" };
   let form = null, consentAt = null, lineUser = null;
   let pendingDocs = { insurance: null, iryo: null };
@@ -66,14 +66,26 @@
     if (m.price != null) return `¥${Number(m.price).toLocaleString()}〜`;
     return "要問合せ";
   }
-  function menuImage(m) {
-    const n = (m && m.name) || "";
-    if (/ボトックス/.test(n)) return "assets/treatments/botox.svg";
-    if (/IPL|光治療/.test(n)) return "assets/treatments/ipl.svg";
-    if (/カウンセリング/.test(n)) return "assets/treatments/beauty-counseling.svg";
-    return "";
+  /* 予約メニューは画像なしで、分類ごとに開け閉めする一覧に出す。
+     分類はメニュー台帳に列が無いため、メニュー名から決める（台帳に category があればそちらを優先）。
+     並びは台帳の並び順で、分類はその分類の最初のメニューの位置に出す */
+  const MENU_GROUPS = [
+    { label: "カウンセリング", re: /カウンセリング/ },
+    { label: "アートメイク", re: /アートメイク|リタッチ|スクラッチテスト/ },
+    { label: "ボトックス", re: /ボトックス/ },
+    { label: "ポテンツァ", re: /ポテンツァ/ },
+    { label: "デンシティ", re: /デンシティ/ },
+    { label: "フォトフェイシャル・光治療", re: /フォトフェイシャル|IPL|光治療/ },
+    { label: "ララドクター", re: /ララドクター/ },
+    { label: "注入治療（ジュベルック・プロファイロ・プルリアル）", re: /ジュベルック|juvelook|プロファイロ|プルリアル/i },
+    { label: "エレクトロポレーション", re: /エレクトロポレーション/ },
+  ];
+  const menuGroupOf = (m) => (m && m.category) || (MENU_GROUPS.find((g) => g.re.test((m && m.name) || "")) || {}).label || "その他の施術";
+  function groupedMenus(menus) {
+    const map = new Map();
+    menus.forEach((m) => { const g = menuGroupOf(m); if (!map.has(g)) map.set(g, []); map.get(g).push(m); });
+    return [...map.entries()];
   }
-  const THEMES = ["gold", "rose", "aqua", "violet", "green", "blue", "pink", "mint", "indigo", "slate"];
 
   /* ---------- 複数メニュー（W13）: 選んだ順に持ち、所要時間は合計で数える。上限はサーバーと同じ 10件・8時間 ---------- */
   const MAX_MENUS = 10, MAX_TOTAL_MIN = 480;
@@ -169,7 +181,7 @@
   }
   function selectClinic(id) {
     const c = Store.CLINICS.find((x) => x.id === id); if (!c) return;
-    Object.assign(st, { clinicId: id, csId: null, menuIds: [], date: null, time: null, slotId: null, week: 0, concern: "すべて" });
+    Object.assign(st, { clinicId: id, csId: null, menuIds: [], menuReady: false, openGroups: new Set(), date: null, time: null, slotId: null, week: 0 });
     $("clinicName").textContent = clinicName(c);
     $("upcomingReservations").classList.add("hidden");
     const dl = $("departmentList");
@@ -185,7 +197,7 @@
      Step 2: 施術・日時（基準版の treatment-menu-card と週の表）
      ============================================================= */
   function selectService(csId) {
-    Object.assign(st, { csId, menuIds: [], date: null, time: null, slotId: null, week: 0, concern: "すべて" });
+    Object.assign(st, { csId, menuIds: [], menuReady: false, openGroups: new Set(), date: null, time: null, slotId: null, week: 0 });
     $("departmentList").querySelectorAll(".department-card").forEach((b) => b.classList.toggle("active", Number(b.dataset.id) === csId));
     showStep(2);
     renderStep2();
@@ -199,96 +211,100 @@
   }
   function ensureStep2Parts() {
     const nav = document.querySelector(".calendar-nav");
-    if (!$("rsvPicked")) nav.insertAdjacentHTML("beforebegin", '<div class="rsv4-picked hidden" id="rsvPicked" aria-live="polite"></div>');
     if (!$("rsvEarliest")) nav.insertAdjacentHTML("beforebegin", '<div class="rsv4-earliest hidden" id="rsvEarliest"></div>');
     if (!$("rsvLegend")) document.querySelector(".calendar-table-wrap").insertAdjacentHTML("afterend",
       '<p class="rsv4-legend" id="rsvLegend"><span><b class="m-ok">○</b>空きあり</span><span><b class="m-few">△</b>残りわずか</span><span><b class="m-full">×</b>満席</span><span><b>−</b>受付できません</span><span><b class="m-closed">休</b>休診</span></p>');
     if (!$("connBar2")) $("reservationSteps").insertAdjacentHTML("beforebegin", '<p class="rsv4-conn hidden" id="connBar2" role="alert"></p>');
   }
-  const MENU_FILTERS = [
-    { label: "すべて", kw: null }, { label: "毛穴・ニキビ跡", kw: ["毛穴", "ニキビ"] }, { label: "シミ・そばかす", kw: ["シミ", "そばかす", "赤み"] },
-    { label: "たるみ", kw: ["たるみ", "フェイスライン"] }, { label: "小じわ・ハリ", kw: ["小じわ", "ハリ"] },
-  ];
   function renderStep2() {
     ensureStep2Parts();
     const svc = Store.serviceOfCs(st.csId);
     const menus = Store.menusOfCs(st.csId);
-    const picked = pickedMenus();
-    const menu = picked[0] || null;
+    const picked = st.menuReady ? pickedMenus() : [];
     $("selectedDepartment").textContent = `診療科: ${svcLabel(svc)}${picked.length ? " / メニュー: " + menuNames(picked) : ""}`;
     const panel = document.querySelector(".treatment-menu-panel");
     $("treatmentDetailPanel").classList.add("hidden");       // 細かい施術の2段目は基準版だけ（統合版のメニュー台帳は1段）
+    $("treatmentConcernTabs").innerHTML = "";                 // 肌悩みの絞り込みは分類の開け閉めに置き換え
+    $("treatmentConcernTabs").classList.add("hidden");
     panel.classList.toggle("hidden", !menus.length);
-    if (menus.length) {
-      const filters = MENU_FILTERS.filter((f) => !f.kw || menus.some((m) => f.kw.some((k) => (m.concerns || "").includes(k))));
-      $("treatmentConcernTabs").innerHTML = filters.map((f) => `<button type="button" class="treatment-concern-tab ${st.concern === f.label ? "active" : ""}" data-concern="${esc(f.label)}" aria-pressed="${st.concern === f.label}">${esc(f.label)}</button>`).join("");
-      $("treatmentConcernTabs").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { st.concern = b.dataset.concern; renderStep2(); }));
-      const kw = (filters.find((f) => f.label === st.concern) || {}).kw;
-      const shown = [...(kw ? menus.filter((m) => kw.some((k) => (m.concerns || "").includes(k))) : menus)].sort((a, b) => Number(!!b.popular) - Number(!!a.popular));
-      const earliest = earliestSlot();
-      $("treatmentMenuList").innerHTML = shown.length ? shown.map((m, i) => {
-        const img = menuImage(m);
-        const tags = (m.concerns || "").split(/[・、,]/).filter(Boolean).slice(0, 4);
-        const badges = [m.popular ? "人気" : "", m.firstVisitPrice != null ? "初回価格" : ""].filter(Boolean);
-        const price = m.firstVisitPrice != null ? `¥${Number(m.firstVisitPrice).toLocaleString()}` : m.price != null ? `¥${Number(m.price).toLocaleString()}〜` : "要問合せ";
-        const sub = m.firstVisitPrice != null ? (m.price != null ? `初回価格／通常 ¥${Number(m.price).toLocaleString()}〜` : "初回価格") : "";
-        const detail = [m.downtime ? `ダウンタイム: ${m.downtime}` : "", m.staffType ? `施術担当: ${m.staffType}` : ""].filter(Boolean).join("　");
-        const on = st.menuIds.includes(Number(m.id));
-        return `<div class="treatment-menu-card ${on ? "active" : ""}" data-menu-id="${m.id}">
-          <span class="treatment-menu-visual treatment-menu-visual--${THEMES[i % THEMES.length]} ${img ? "has-image" : ""}" ${img ? `style="background-image:linear-gradient(90deg, rgba(0,0,0,0.28), rgba(0,0,0,0.08)), url('${img}')"` : ""}>
-            <span class="treatment-menu-badges">${badges.map((b) => `<span>${esc(b)}</span>`).join("")}</span>
-          </span>
-          <span class="treatment-menu-main">
-            <span class="treatment-menu-name">${esc(m.name)}</span>
-            <span class="treatment-menu-lead">${esc(m.catch || "")}</span>
-            <span class="treatment-menu-tags">${tags.map((t) => `<span>${esc(t)}</span>`).join("")}</span>
-            ${detail ? `<span class="treatment-menu-detail">${esc(detail)}</span>` : ""}
-          </span>
-          <span class="treatment-menu-side">
-            <span class="treatment-menu-price">${esc(price)}${/¥/.test(price) ? "<small>（税込）</small>" : ""}</span>
-            ${sub ? `<span class="treatment-menu-price-note">${esc(sub)}</span>` : ""}
-            <span class="treatment-menu-duration">施術所要時間 約${esc(m.durationMin || 30)}分</span>
-            ${earliest ? `<span class="treatment-menu-earliest">最短 ${esc(dispDate(earliest.date))}〜</span>` : ""}
-            <button type="button" class="treatment-menu-action ${on ? "rsv4-picked-btn" : ""}" data-menu-id="${m.id}" aria-pressed="${on}">${on ? "✓ 選択中（外す）" : "このメニューを選ぶ"}</button>
-          </span>
-        </div>`;
-      }).join("") : '<div class="treatment-menu-empty">このお悩みで選べる施術はまだありません</div>';
-      $("treatmentMenuList").querySelectorAll(".treatment-menu-action").forEach((b) => b.addEventListener("click", () => toggleMenu(Number(b.dataset.menuId))));
-    }
-    renderPicked();
+    if (menus.length) renderMenuPicker(menus);
     $("currentWeek").textContent = (() => { const d = parseYmd(weekDates(st.week)[0]); return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} 週`; })();
-    if (menus.length && !menu) {
+    if (menus.length && !st.menuReady) {
       setTimeSelectionVisible(false);
-      $("calendar").innerHTML = '<p class="select-date-msg">施術メニューを選択してください</p>';
+      $("calendar").innerHTML = "";
       return;
     }
     setTimeSelectionVisible(true);
     renderCalendar();
   }
-  /* メニューを選ぶ・外す。選び直したら日時は選び直し（合計時間が変わるため） */
-  let pickMsg = "";
-  function toggleMenu(id) {
-    const first = !st.menuIds.length;
-    pickMsg = "";
-    if (st.menuIds.includes(id)) st.menuIds = st.menuIds.filter((x) => x !== id);
-    else {
-      const m = Store.menuById(id);
-      if (st.menuIds.length >= MAX_MENUS) pickMsg = `メニューは${MAX_MENUS}件まで選べます。`;
-      else if (totalMin(pickedMenus()) + Number((m && m.durationMin) || 30) > MAX_TOTAL_MIN) pickMsg = "選んだメニューの合計時間は8時間以内にしてください。";
-      else st.menuIds = st.menuIds.concat(id);
+  /* メニューを選ぶ画面（分類の開け閉め・チェックで複数）。下に固定の「日時選択に進む」で確定し、日時の表を出す。
+     選び直したら日時は選び直し（合計時間が変わるため） */
+  function renderMenuPicker(menus) {
+    const list = $("treatmentMenuList");
+    if (st.menuReady) {
+      const ms = pickedMenus();
+      list.innerHTML = `<div class="booking-menu-summary"><strong>選択中のメニュー</strong><br>${menusDetailHtml(ms)}
+        <br><button type="button" class="booking-menu-change" id="menuChange">メニューを変更</button></div>`;
+      $("menuChange").addEventListener("click", () => {
+        Object.assign(st, { menuReady: false, date: null, time: null, slotId: null });
+        renderStep2();
+        document.querySelector(".treatment-menu-panel").scrollIntoView({ behavior: "instant", block: "start" });
+      });
+      return;
     }
-    Object.assign(st, { date: null, time: null, slotId: null });
-    renderStep2();
-    if (first && st.menuIds.length) $("rsvPicked").scrollIntoView({ behavior: "instant", block: "start" });
-  }
-  function renderPicked() {
-    const box = $("rsvPicked"); if (!box) return;
-    const ms = pickedMenus();
-    box.classList.toggle("hidden", !ms.length && !pickMsg);
-    box.innerHTML = (ms.length ? `<span class="rsv4-earliest-label">選んだメニュー（${ms.length}件）</span>
-        <strong>${esc(menuNames(ms))}</strong><span class="rsv4-picked-total">合計 約${esc(totalMin(ms))}分</span>
-        <small class="rsv4-picked-help">続けて別のメニューも選べます（${MAX_MENUS}件まで）。まとめて1件のご予約になります。</small>` : "")
-      + (pickMsg ? `<p class="rsv4-picked-msg" role="alert">${esc(pickMsg)}</p>` : "");
+    const ids = new Set(st.menuIds.map(Number));
+    list.innerHTML = groupedMenus(menus).map(([g, ms]) => {
+      const n = ms.filter((m) => ids.has(Number(m.id))).length;
+      const open = st.openGroups.has(g) || n > 0;
+      return `<details class="booking-menu-category" data-group="${esc(g)}" ${open ? "open" : ""}>
+        <summary><span>${esc(g)}</span><span class="rsv4-group-count">${n ? `${n}件選択中` : ""}</span></summary>
+        <div class="booking-menu-options">${ms.map((m) => {
+          const on = ids.has(Number(m.id));
+          const desc = [m.catch || "", m.downtime ? `ダウンタイム: ${m.downtime}` : "", m.staffType ? `施術担当: ${m.staffType}` : "",
+                        m.firstVisitPrice != null && m.price != null ? `通常 ¥${Number(m.price).toLocaleString()}〜` : ""].filter(Boolean).join("\n");
+          const price = priceText(m);
+          return `<label class="booking-menu-choice treatment-menu-card ${on ? "active" : ""}">
+            <span class="booking-menu-choice-heading"><input type="checkbox" class="booking-menu-checkbox" data-menu-id="${esc(m.id)}" ${on ? "checked" : ""}><span>${esc(m.name)}</span></span>
+            ${desc ? `<span class="booking-menu-description">${esc(desc)}</span>` : ""}
+            <span class="booking-menu-choice-footer"><span class="booking-menu-duration">約${esc(m.durationMin || 30)}分</span>
+              <span class="booking-menu-price">${esc(price)}${/¥/.test(price) ? "（税込）" : ""}</span></span>
+          </label>`;
+        }).join("")}</div>
+      </details>`;
+    }).join("") + `<div class="booking-menu-proceed"><p class="rsv4-proceed-sum" id="menuSum"></p>
+        <button type="button" class="treatment-menu-action" id="bookingMenuProceed">日時選択に進む</button>
+        <span class="booking-menu-error" id="menuErr" role="alert"></span></div>`;
+    const sync = (msg) => {
+      const ms = pickedMenus();
+      $("bookingMenuProceed").disabled = !ms.length;
+      $("menuSum").textContent = ms.length ? `${ms.length}件選択中・合計 約${totalMin(ms)}分` : "メニューを選択してください（複数選択できます）";
+      $("menuErr").textContent = msg || "";
+    };
+    list.querySelectorAll("details.booking-menu-category").forEach((d) => d.addEventListener("toggle", () => {
+      if (d.open) st.openGroups.add(d.dataset.group); else st.openGroups.delete(d.dataset.group);
+    }));
+    list.querySelectorAll(".booking-menu-checkbox").forEach((cb) => cb.addEventListener("change", () => {
+      const id = Number(cb.dataset.menuId);
+      let msg = "";
+      if (cb.checked) {
+        const m = Store.menuById(id);
+        if (st.menuIds.length >= MAX_MENUS) msg = `メニューは${MAX_MENUS}件まで選べます。`;
+        else if (totalMin(pickedMenus()) + Number((m && m.durationMin) || 30) > MAX_TOTAL_MIN) msg = "選んだメニューの合計時間は8時間以内にしてください。";
+        if (msg) cb.checked = false; else st.menuIds = st.menuIds.filter((x) => x !== id).concat(id);
+      } else st.menuIds = st.menuIds.filter((x) => x !== id);
+      cb.closest(".booking-menu-choice").classList.toggle("active", cb.checked);
+      const det = cb.closest("details"), n = det.querySelectorAll(".booking-menu-checkbox:checked").length;
+      det.querySelector(".rsv4-group-count").textContent = n ? `${n}件選択中` : "";
+      Object.assign(st, { date: null, time: null, slotId: null });
+      sync(msg);
+    }));
+    $("bookingMenuProceed").addEventListener("click", () => {
+      if (!pickedMenus().length) return;
+      Object.assign(st, { menuReady: true, date: null, time: null, slotId: null });
+      renderStep2();
+      document.querySelector(".calendar-nav").scrollIntoView({ behavior: "instant", block: "start" });
+    });
+    sync();
   }
   function earliestSlot() {
     const days = Store.getDays(st.csId, 7 * (MAX_WEEK + 1));
@@ -299,7 +315,7 @@
   function renderCalendar() {
     // メニューのある区分（美容）でメニュー未選択のときは日時の表を出さない。
     // 受付側の変更（Realtime）で呼ばれても「最短で予約できる日時」を出さない＝メニューなしの美容予約を作らせない
-    if (Store.menusOfCs(st.csId).length && !st.menuIds.length) return;
+    if (Store.menusOfCs(st.csId).length && !st.menuReady) return;
     const dates = weekDates(st.week);
     const days = Store.getDays(st.csId, 7 * (MAX_WEEK + 1) + 1);
     const byDate = Object.fromEntries(days.map((d) => [d.date, d]));
@@ -816,7 +832,7 @@
     $("backToStep2").addEventListener("click", () => { readForm(); showStep(2); renderStep2(); });
     $("backToStep3").addEventListener("click", () => { renderStep3(); showStep(3); });
     $("submitReservation").addEventListener("click", submitReservation);
-    $("backToMypage").addEventListener("click", () => { Object.assign(st, { csId: null, menuIds: [], date: null, time: null, slotId: null, done: null }); showStep(0); renderClinics(); });
+    $("backToMypage").addEventListener("click", () => { Object.assign(st, { csId: null, menuIds: [], menuReady: false, openGroups: new Set(), date: null, time: null, slotId: null, done: null }); showStep(0); renderClinics(); });
     $("consentModalClose").addEventListener("click", closeConsent);
     $("consentModalOverlay").addEventListener("click", closeConsent);
     $("lookupForm").addEventListener("submit", doLookup);

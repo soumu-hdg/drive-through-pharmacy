@@ -208,23 +208,45 @@
 #lookResult .reservation-card-actions { margin-top: 12px; }
 .complete-details .reservation-summary-label { white-space: nowrap; }
 
-/* W13 複数メニュー: 選んだメニューの帯（最短日時の帯と同じ形）と、選択中のボタン */
-.rsv4-picked {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 4px 14px;
-    margin: 0 0 10px;
-    padding: 12px 16px;
-    border: 1px solid #c9d2ea;
-    border-left: 4px solid var(--clinic-navy, #24345f);
-    border-radius: 6px;
-    background: #f5f7fc;
-    color: var(--clinic-navy, #24345f);
-}
-.rsv4-picked.hidden { display: none; }
-.rsv4-picked strong { font-size: 1rem; }
-.rsv4-picked-total { font-weight: 700; }
-.rsv4-picked-help { flex-basis: 100%; color: #697189; font-size: 0.8rem; }
-.rsv4-picked-msg { flex-basis: 100%; margin: 0; color: #b42318; font-size: 0.86rem; font-weight: 700; }
-.treatment-menu-action.rsv4-picked-btn { background: #fff; color: var(--clinic-navy, #24345f); }
+/* =============================================================
+   W13 予約メニューの選び方：分類ごとの開け閉め・チェックで複数選択・画像なし（2026-10-20）
+   見た目は基準版 10/13 の「予約メニュー選択」と同じ指定。文字は予約画面の中で同じ書体にそろえる（アイコンの書体は残す）
+   ============================================================= */
+#page-mypage, #page-mypage *, #page-reservation, #page-reservation * { font-family: Arial, "Noto Sans JP", sans-serif; }
+#page-mypage .fa, #page-mypage .far, #page-mypage .fa-regular, #page-mypage .fas, #page-mypage .fa-solid,
+#page-reservation .fa, #page-reservation .far, #page-reservation .fa-regular, #page-reservation .fas, #page-reservation .fa-solid { font-family: "Font Awesome 6 Free"; }
+#page-mypage .fab, #page-mypage .fa-brands, #page-reservation .fab, #page-reservation .fa-brands { font-family: "Font Awesome 6 Brands"; }
+
+#step2 .treatment-menu-panel { width: min(100%, 568px); margin: 0 auto 16px; padding: 0; border: 0; border-radius: 0; background: #fff; box-shadow: none; color: #333; }
+#step2 .treatment-menu-panel .section-heading { margin: 0 0 16px; padding: 0 0 8px; border-bottom: 2px solid #40497c; }
+#step2 .treatment-menu-panel .section-title { font-size: 16px; font-weight: 700; margin: 0; padding: 0; }
+#step2 .treatment-menu-panel .section-title::before { display: none; }
+.booking-menu-note { margin: 16px 0 20px; font-size: 14px; }
+#step2 .treatment-menu-list { display: block; }
+.booking-menu-category { margin: 0 0 16px; border: 1px solid #bdbdbd; border-radius: 3px; overflow: hidden; background: #fff; }
+.booking-menu-category summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 64px; padding: 18px 17px; font-size: 16px; font-weight: 700; cursor: pointer; list-style: none; }
+.booking-menu-category summary::-webkit-details-marker { display: none; }
+.booking-menu-category summary::after { content: ''; width: 7px; height: 7px; margin: 0 8px 4px 8px; border-right: 2px solid #40497c; border-bottom: 2px solid #40497c; transform: rotate(45deg); flex-shrink: 0; }
+.booking-menu-category[open] summary::after { transform: rotate(225deg); margin-bottom: -4px; }
+.rsv4-group-count { margin-left: auto; font-size: 12px; font-weight: 700; color: #40497c; white-space: nowrap; }
+.booking-menu-options { padding: 16px; background: #f5f5f5; }
+#step2 .booking-menu-choice { display: block; padding: 16px; margin: 0 0 16px; min-height: 0; border: 1px solid #ddd; border-radius: 3px; background: #fff; box-shadow: none; cursor: pointer; color: #333; }
+#step2 .booking-menu-choice:last-child { margin-bottom: 8px; }
+#step2 .booking-menu-choice.active { border-color: #40497c; outline: 1px solid #40497c; outline-offset: -1px; background: #f8f8f8; box-shadow: none; }
+.booking-menu-choice-heading { display: flex; align-items: flex-start; gap: 12px; font-size: 16px; font-weight: 700; line-height: 1.5; }
+.booking-menu-checkbox { width: 16px; height: 16px; margin: 4px 0 0; flex-shrink: 0; accent-color: #40497c; }
+.booking-menu-description { display: block; margin: 10px 0 0; font-size: 14px; line-height: 1.6; white-space: pre-line; }
+.booking-menu-choice-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 16px; font-size: 14px; }
+.booking-menu-duration { border-radius: 2px; padding: 5px 9px; background: #f5f5f5; font-size: 12px; white-space: nowrap; }
+.booking-menu-price { color: #2450aa; text-align: right; }
+.booking-menu-proceed { position: fixed; bottom: 0; left: 0; right: 0; z-index: 95; background: #fff; border-top: 1px solid #ddd; padding: 10px max(20px, calc((100vw - 600px) / 2)) calc(14px + env(safe-area-inset-bottom)); text-align: center; }
+.rsv4-proceed-sum { margin: 0 0 8px; font-size: 13px; color: #555; }
+body:has(#page-reservation:not(.hidden) #step2:not(.hidden) .booking-menu-proceed) .bottom-nav { display: none; }
+#step2:has(.booking-menu-proceed) { padding-bottom: 120px; }
+#step2 .booking-menu-proceed .treatment-menu-action { display: block; width: min(100%, 320px); min-height: 52px; margin: 0 auto; border: 0; border-radius: 28px; background: #40497c; color: #fff; font-size: 16px; font-weight: 700; box-shadow: none; cursor: pointer; }
+#step2 .booking-menu-proceed .treatment-menu-action:disabled { opacity: .45; cursor: not-allowed; }
+.booking-menu-error { display: block; margin-top: 6px; font-size: 13px; color: #a33030; }
+.booking-menu-summary { font-size: 14px; line-height: 1.7; padding: 12px 14px; border: 1px solid #bdbdbd; border-radius: 3px; }
+.booking-menu-change { margin: 12px 0 0; padding: 8px 16px; background: #fff; border: 1px solid #40497c; color: #40497c; cursor: pointer; }
+#step2 .treatment-menu-panel:has(.booking-menu-summary) { margin-bottom: 20px; }
+.rsv4-menu-price { display: inline; }
