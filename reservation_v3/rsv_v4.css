@@ -207,3 +207,24 @@
 #lookResult .reservation-value { color: var(--clinic-navy, #24345f); font-weight: 700; }
 #lookResult .reservation-card-actions { margin-top: 12px; }
 .complete-details .reservation-summary-label { white-space: nowrap; }
+
+/* W13 複数メニュー: 選んだメニューの帯（最短日時の帯と同じ形）と、選択中のボタン */
+.rsv4-picked {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 14px;
+    margin: 0 0 10px;
+    padding: 12px 16px;
+    border: 1px solid #c9d2ea;
+    border-left: 4px solid var(--clinic-navy, #24345f);
+    border-radius: 6px;
+    background: #f5f7fc;
+    color: var(--clinic-navy, #24345f);
+}
+.rsv4-picked.hidden { display: none; }
+.rsv4-picked strong { font-size: 1rem; }
+.rsv4-picked-total { font-weight: 700; }
+.rsv4-picked-help { flex-basis: 100%; color: #697189; font-size: 0.8rem; }
+.rsv4-picked-msg { flex-basis: 100%; margin: 0; color: #b42318; font-size: 0.86rem; font-weight: 700; }
+.treatment-menu-action.rsv4-picked-btn { background: #fff; color: var(--clinic-navy, #24345f); }

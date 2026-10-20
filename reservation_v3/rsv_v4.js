@@ -32,7 +32,7 @@
   const WD = ["日", "月", "火", "水", "木", "金", "土"];
 
   /* ---------- 画面の状態（メモリだけ）---------- */
-  const st = { page: "gate", step: 0, clinicId: null, csId: null, menuId: null, concern: "すべて", week: 0,
+  const st = { page: "gate", step: 0, clinicId: null, csId: null, menuIds: [], concern: "すべて", week: 0,
                date: null, time: null, slotId: null, done: null, formErr: "" };
   let form = null, consentAt = null, lineUser = null;
   let pendingDocs = { insurance: null, iryo: null };
@@ -74,6 +74,21 @@
     return "";
   }
   const THEMES = ["gold", "rose", "aqua", "violet", "green", "blue", "pink", "mint", "indigo", "slate"];
+
+  /* ---------- 複数メニュー（W13）: 選んだ順に持ち、所要時間は合計で数える。上限はサーバーと同じ 10件・8時間 ---------- */
+  const MAX_MENUS = 10, MAX_TOTAL_MIN = 480;
+  const pickedMenus = () => st.menuIds.map(Store.menuById).filter(Boolean);
+  const totalMin = (ms) => ms.reduce((a, m) => a + Number(m.durationMin || 30), 0);
+  const menuNames = (ms) => ms.map((m) => m.name).join(" / ");
+  // 1件なら従来どおり「名前（価格・約N分）」、複数なら1件ずつ並べて合計時間を添える
+  function menusDetailHtml(ms, sep) {
+    if (!ms.length) return "";
+    if (ms.length === 1) return `${esc(ms[0].name)}（${esc(priceText(ms[0]))}・約${esc(ms[0].durationMin || 30)}分）`;
+    return ms.map((m) => `${esc(m.name)}（${esc(priceText(m))}・約${esc(m.durationMin || 30)}分）`).join(sep || "<br>")
+      + `${sep || "<br>"}<span class="confirm-subtext">合計 約${esc(totalMin(ms))}分</span>`;
+  }
+  // 予約（完了・照会）の側のメニュー。照会はサーバーの menuIds、従来の予約は menuId の1件
+  const menusOfRes = (r) => Store.menusOf ? Store.menusOf(r) : (r.menuId && Store.menuById(r.menuId) ? [Store.menuById(r.menuId)] : []);
 
   /* ---------- 失敗の伝え方（prototype3 と同じ区別。保存できなければ完了を出さない）---------- */
   const PATIENT_MSG = {
@@ -154,7 +169,7 @@
   }
   function selectClinic(id) {
     const c = Store.CLINICS.find((x) => x.id === id); if (!c) return;
-    Object.assign(st, { clinicId: id, csId: null, menuId: null, date: null, time: null, slotId: null, week: 0, concern: "すべて" });
+    Object.assign(st, { clinicId: id, csId: null, menuIds: [], date: null, time: null, slotId: null, week: 0, concern: "すべて" });
     $("clinicName").textContent = clinicName(c);
     $("upcomingReservations").classList.add("hidden");
     const dl = $("departmentList");
@@ -170,7 +185,7 @@
      Step 2: 施術・日時（基準版の treatment-menu-card と週の表）
      ============================================================= */
   function selectService(csId) {
-    Object.assign(st, { csId, menuId: null, date: null, time: null, slotId: null, week: 0, concern: "すべて" });
+    Object.assign(st, { csId, menuIds: [], date: null, time: null, slotId: null, week: 0, concern: "すべて" });
     $("departmentList").querySelectorAll(".department-card").forEach((b) => b.classList.toggle("active", Number(b.dataset.id) === csId));
     showStep(2);
     renderStep2();
@@ -184,6 +199,7 @@
   }
   function ensureStep2Parts() {
     const nav = document.querySelector(".calendar-nav");
+    if (!$("rsvPicked")) nav.insertAdjacentHTML("beforebegin", '<div class="rsv4-picked hidden" id="rsvPicked" aria-live="polite"></div>');
     if (!$("rsvEarliest")) nav.insertAdjacentHTML("beforebegin", '<div class="rsv4-earliest hidden" id="rsvEarliest"></div>');
     if (!$("rsvLegend")) document.querySelector(".calendar-table-wrap").insertAdjacentHTML("afterend",
       '<p class="rsv4-legend" id="rsvLegend"><span><b class="m-ok">○</b>空きあり</span><span><b class="m-few">△</b>残りわずか</span><span><b class="m-full">×</b>満席</span><span><b>−</b>受付できません</span><span><b class="m-closed">休</b>休診</span></p>');
@@ -197,8 +213,9 @@
     ensureStep2Parts();
     const svc = Store.serviceOfCs(st.csId);
     const menus = Store.menusOfCs(st.csId);
-    const menu = st.menuId ? Store.menuById(st.menuId) : null;
-    $("selectedDepartment").textContent = `診療科: ${svcLabel(svc)}${menu ? " / メニュー: " + menu.name : ""}`;
+    const picked = pickedMenus();
+    const menu = picked[0] || null;
+    $("selectedDepartment").textContent = `診療科: ${svcLabel(svc)}${picked.length ? " / メニュー: " + menuNames(picked) : ""}`;
     const panel = document.querySelector(".treatment-menu-panel");
     $("treatmentDetailPanel").classList.add("hidden");       // 細かい施術の2段目は基準版だけ（統合版のメニュー台帳は1段）
     panel.classList.toggle("hidden", !menus.length);
@@ -216,7 +233,8 @@
         const price = m.firstVisitPrice != null ? `¥${Number(m.firstVisitPrice).toLocaleString()}` : m.price != null ? `¥${Number(m.price).toLocaleString()}〜` : "要問合せ";
         const sub = m.firstVisitPrice != null ? (m.price != null ? `初回価格／通常 ¥${Number(m.price).toLocaleString()}〜` : "初回価格") : "";
         const detail = [m.downtime ? `ダウンタイム: ${m.downtime}` : "", m.staffType ? `施術担当: ${m.staffType}` : ""].filter(Boolean).join("　");
-        return `<div class="treatment-menu-card ${Number(st.menuId) === Number(m.id) ? "active" : ""}" data-menu-id="${m.id}">
+        const on = st.menuIds.includes(Number(m.id));
+        return `<div class="treatment-menu-card ${on ? "active" : ""}" data-menu-id="${m.id}">
           <span class="treatment-menu-visual treatment-menu-visual--${THEMES[i % THEMES.length]} ${img ? "has-image" : ""}" ${img ? `style="background-image:linear-gradient(90deg, rgba(0,0,0,0.28), rgba(0,0,0,0.08)), url('${img}')"` : ""}>
             <span class="treatment-menu-badges">${badges.map((b) => `<span>${esc(b)}</span>`).join("")}</span>
           </span>
@@ -231,16 +249,13 @@
             ${sub ? `<span class="treatment-menu-price-note">${esc(sub)}</span>` : ""}
             <span class="treatment-menu-duration">施術所要時間 約${esc(m.durationMin || 30)}分</span>
             ${earliest ? `<span class="treatment-menu-earliest">最短 ${esc(dispDate(earliest.date))}〜</span>` : ""}
-            <button type="button" class="treatment-menu-action" data-menu-id="${m.id}">空き状況を確認する</button>
+            <button type="button" class="treatment-menu-action ${on ? "rsv4-picked-btn" : ""}" data-menu-id="${m.id}" aria-pressed="${on}">${on ? "✓ 選択中（外す）" : "このメニューを選ぶ"}</button>
           </span>
         </div>`;
       }).join("") : '<div class="treatment-menu-empty">このお悩みで選べる施術はまだありません</div>';
-      $("treatmentMenuList").querySelectorAll(".treatment-menu-action").forEach((b) => b.addEventListener("click", () => {
-        Object.assign(st, { menuId: Number(b.dataset.menuId), date: null, time: null, slotId: null });
-        renderStep2();
-        document.querySelector(".calendar-nav").scrollIntoView({ behavior: "instant", block: "start" });
-      }));
+      $("treatmentMenuList").querySelectorAll(".treatment-menu-action").forEach((b) => b.addEventListener("click", () => toggleMenu(Number(b.dataset.menuId))));
     }
+    renderPicked();
     $("currentWeek").textContent = (() => { const d = parseYmd(weekDates(st.week)[0]); return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} 週`; })();
     if (menus.length && !menu) {
       setTimeSelectionVisible(false);
@@ -249,6 +264,31 @@
     }
     setTimeSelectionVisible(true);
     renderCalendar();
+  }
+  /* メニューを選ぶ・外す。選び直したら日時は選び直し（合計時間が変わるため） */
+  let pickMsg = "";
+  function toggleMenu(id) {
+    const first = !st.menuIds.length;
+    pickMsg = "";
+    if (st.menuIds.includes(id)) st.menuIds = st.menuIds.filter((x) => x !== id);
+    else {
+      const m = Store.menuById(id);
+      if (st.menuIds.length >= MAX_MENUS) pickMsg = `メニューは${MAX_MENUS}件まで選べます。`;
+      else if (totalMin(pickedMenus()) + Number((m && m.durationMin) || 30) > MAX_TOTAL_MIN) pickMsg = "選んだメニューの合計時間は8時間以内にしてください。";
+      else st.menuIds = st.menuIds.concat(id);
+    }
+    Object.assign(st, { date: null, time: null, slotId: null });
+    renderStep2();
+    if (first && st.menuIds.length) $("rsvPicked").scrollIntoView({ behavior: "instant", block: "start" });
+  }
+  function renderPicked() {
+    const box = $("rsvPicked"); if (!box) return;
+    const ms = pickedMenus();
+    box.classList.toggle("hidden", !ms.length && !pickMsg);
+    box.innerHTML = (ms.length ? `<span class="rsv4-earliest-label">選んだメニュー（${ms.length}件）</span>
+        <strong>${esc(menuNames(ms))}</strong><span class="rsv4-picked-total">合計 約${esc(totalMin(ms))}分</span>
+        <small class="rsv4-picked-help">続けて別のメニューも選べます（${MAX_MENUS}件まで）。まとめて1件のご予約になります。</small>` : "")
+      + (pickMsg ? `<p class="rsv4-picked-msg" role="alert">${esc(pickMsg)}</p>` : "");
   }
   function earliestSlot() {
     const days = Store.getDays(st.csId, 7 * (MAX_WEEK + 1));
@@ -259,7 +299,7 @@
   function renderCalendar() {
     // メニューのある区分（美容）でメニュー未選択のときは日時の表を出さない。
     // 受付側の変更（Realtime）で呼ばれても「最短で予約できる日時」を出さない＝メニューなしの美容予約を作らせない
-    if (Store.menusOfCs(st.csId).length && !st.menuId) return;
+    if (Store.menusOfCs(st.csId).length && !st.menuIds.length) return;
     const dates = weekDates(st.week);
     const days = Store.getDays(st.csId, 7 * (MAX_WEEK + 1) + 1);
     const byDate = Object.fromEntries(days.map((d) => [d.date, d]));
@@ -321,11 +361,11 @@
      Step 3: 受診者情報（ログインなしで毎回入力。基準版の「受診者情報を入力してください」の部品）
      ============================================================= */
   function selectionInfoHtml() {
-    const c = Store.clinicOfCs(st.csId), s = Store.serviceOfCs(st.csId), m = st.menuId ? Store.menuById(st.menuId) : null;
+    const c = Store.clinicOfCs(st.csId), s = Store.serviceOfCs(st.csId), ms = pickedMenus();
     return `<div class="reservation-selection-info rsv4-selection">
       <p><strong>クリニック:</strong> ${esc(clinicName(c))}</p>
       <p><strong>診療科:</strong> ${esc(svcLabel(s))}</p>
-      ${m ? `<p><strong>メニュー:</strong> ${esc(m.name)}（${esc(priceText(m))}・約${esc(m.durationMin || 30)}分）</p>` : ""}
+      ${ms.length ? `<p><strong>メニュー:</strong> ${menusDetailHtml(ms, "／")}</p>` : ""}
       <p><strong>日時:</strong> ${esc(dispDate(st.date))} ${esc(st.time)}〜 <button type="button" class="rsv4-link" id="changeSlot">変更</button></p>
     </div>`;
   }
@@ -486,14 +526,14 @@
      Step 4: 確認（基準版の confirm-card・注意事項の同意チェック）
      ============================================================= */
   function renderConfirm(errMsg, errExtra) {
-    const c = Store.clinicOfCs(st.csId), s = Store.serviceOfCs(st.csId), m = st.menuId ? Store.menuById(st.menuId) : null;
+    const c = Store.clinicOfCs(st.csId), s = Store.serviceOfCs(st.csId), ms = pickedMenus();
     const staff = staffList();
     const docs = ["insurance", "iryo"].filter((k) => pendingDocs[k]).map((k) => DOC_LABEL[k] + " 選択済み");
     $("reservationSummary").classList.add("hidden");
     $("confirmCard").innerHTML = `
       <div class="rsv4-error" id="confirmErr" role="alert">${errMsg ? esc(errMsg) + (errExtra || "") : ""}</div>
       <div class="confirm-section"><div class="confirm-section-title">予約内容</div>
-        <div class="confirm-section-content">${esc(clinicName(c))}<br>${esc(svcLabel(s))}${m ? `<br>${esc(m.name)}<br><span class="confirm-subtext">${esc(priceText(m))}・約${esc(m.durationMin || 30)}分</span>` : ""}<br>${esc(dispDate(st.date))} ${esc(st.time)}〜</div></div>
+        <div class="confirm-section-content">${esc(clinicName(c))}<br>${esc(svcLabel(s))}${ms.length === 1 ? `<br>${esc(ms[0].name)}<br><span class="confirm-subtext">${esc(priceText(ms[0]))}・約${esc(ms[0].durationMin || 30)}分</span>` : ms.length ? `<br>${menusDetailHtml(ms)}` : ""}<br>${esc(dispDate(st.date))} ${esc(st.time)}〜</div></div>
       <div class="confirm-section"><div class="confirm-section-title">受診者</div>
         <div class="confirm-section-content">${esc(form.name)}（${esc(form.kana)}）<br>${esc(form.phone)}
           ${form.birthDate ? `<br><span class="confirm-subtext">生年月日 ${esc(form.birthDate)}</span>` : ""}
@@ -529,7 +569,8 @@
       csId: st.csId, date: st.date, time: st.time,
       name: form.name.trim(), kana: form.kana.trim(), birthDate: form.birthDate,
       phone: form.phone.trim(), email: form.email.trim(), visitType: form.visitType,
-      menuId: st.menuId, note: form.note.trim(), channel: "WEB",
+      menuId: st.menuIds[0] || null, menuIds: st.menuIds.length ? st.menuIds.slice() : null,
+      note: form.note.trim(), channel: "WEB",
       staffId: form.staffId ? Number(form.staffId) : null,
       lineUserId: (lineUser && lineUser.id) || null,
       consentAt: consentAt, consentVersion: CONSENT_VERSION,
@@ -555,8 +596,7 @@
      完了（基準版の complete-card・post-task-card）
      ============================================================= */
   function gcalUrl(r, c, s) {
-    const m = r.menuId ? Store.menuById(r.menuId) : null;
-    const dur = (m && m.durationMin) || 30;
+    const dur = Store.durMin ? Store.durMin(r) : 30;
     const a = new Date(`${r.date}T${r.time}:00`), b = new Date(a.getTime() + dur * 60000);
     const z = (d) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
     return "https://calendar.google.com/calendar/render?action=TEMPLATE"
@@ -574,13 +614,13 @@
       </div>`).join("");
   }
   function renderComplete() {
-    const r = st.done, c = Store.clinicOfCs(r.csId), s = Store.serviceOfCs(r.csId), m = r.menuId ? Store.menuById(r.menuId) : null;
+    const r = st.done, c = Store.clinicOfCs(r.csId), s = Store.serviceOfCs(r.csId), ms = menusOfRes(r);
     const room = Store.roomName(r), staffName = r.staffId ? staffNameOf(r.staffId) : "";
     const row = (l, v, cls) => `<div class="reservation-summary-row ${cls || ""}"><span class="reservation-summary-label">${l}</span><span class="reservation-summary-value">${v}</span></div>`;
     $("completeDetails").innerHTML =
       row("予約番号", `<span class="rsv4-code" id="doneCode">${esc(r.code)}</span>`, "rsv4-code-row")
       + row("クリニック", esc(clinicName(c))) + row("診療科", esc(svcLabel(s)))
-      + (m ? row("メニュー", esc(m.name)) : "")
+      + (ms.length ? row("メニュー", ms.map((m) => esc(m.name)).join("<br>") + (ms.length > 1 ? `<br><span class="confirm-subtext">合計 約${esc(totalMin(ms))}分</span>` : "")) : "")
       + row("日時", `${esc(dispDate(r.date))} ${esc(r.time)}〜`)
       + (room ? row("診察室", esc(room)) : "") + (staffName ? row("ご指名", esc(staffName)) : "")
       + row("お名前", esc(r.name) + " 様") + row("初診・再診", r.visitType === "FIRST" ? "初めて（初診）" : "2回目以降（再診）");
@@ -690,7 +730,7 @@
     }
     if (!r) { $("lookErr").textContent = "予約が見つかりません。予約番号と電話番号をご確認ください。"; $("lookResult").innerHTML = ""; return; }
     $("lookErr").textContent = "";
-    const c = Store.clinicOfCs(r.csId), s = Store.serviceOfCs(r.csId), m = r.menuId ? Store.menuById(r.menuId) : null;
+    const c = Store.clinicOfCs(r.csId), s = Store.serviceOfCs(r.csId), ms = menusOfRes(r);
     const cancelled = r.status === "CANCELLED";
     const info = (l, v) => `<div class="reservation-info-row"><span class="reservation-label">${l}</span><span class="reservation-value">${v}</span></div>`;
     $("lookResult").innerHTML = `
@@ -698,7 +738,7 @@
         <div class="reservation-card-header"><span class="reservation-status ${cancelled ? "cancelled" : "confirmed"}" id="lookStatus">${cancelled ? "キャンセル済み" : "確定"}</span></div>
         <div class="reservation-card-body">
           ${info("予約番号", esc(r.code))}${info("クリニック", esc(clinicName(c)))}${info("診療科", esc(svcLabel(s)))}
-          ${m ? info("メニュー", esc(m.name)) : ""}${info("日時", `${esc(dispDate(r.date))} ${esc(r.time)}〜`)}${info("お名前", esc(r.name) + " 様")}
+          ${ms.length ? info("メニュー", ms.map((m) => esc(m.name)).join("<br>")) : ""}${info("日時", `${esc(dispDate(r.date))} ${esc(r.time)}〜`)}${info("お名前", esc(r.name) + " 様")}
         </div>
         ${cancelled ? "" : `<div class="reservation-card-actions mypage-actions-row"><button type="button" class="btn-back rsv4-danger" id="cancelBtn">この予約をキャンセルする</button></div>`}
       </div>
@@ -776,7 +816,7 @@
     $("backToStep2").addEventListener("click", () => { readForm(); showStep(2); renderStep2(); });
     $("backToStep3").addEventListener("click", () => { renderStep3(); showStep(3); });
     $("submitReservation").addEventListener("click", submitReservation);
-    $("backToMypage").addEventListener("click", () => { Object.assign(st, { csId: null, menuId: null, date: null, time: null, slotId: null, done: null }); showStep(0); renderClinics(); });
+    $("backToMypage").addEventListener("click", () => { Object.assign(st, { csId: null, menuIds: [], date: null, time: null, slotId: null, done: null }); showStep(0); renderClinics(); });
     $("consentModalClose").addEventListener("click", closeConsent);
     $("consentModalOverlay").addEventListener("click", closeConsent);
     $("lookupForm").addEventListener("submit", doLookup);

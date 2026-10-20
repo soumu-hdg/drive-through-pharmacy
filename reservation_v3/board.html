@@ -324,7 +324,7 @@
 
 <script>window.__RSV_SUPABASE__ = true; window.__RSV_STAFF__ = true;</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="store.js?v=20261007b"></script>
+<script src="store.js?v=20261020w13"></script>
 <script>
 /* 受付ライブボード（タブ切替式）：患者予約が入った瞬間に日別ボード・予約一覧へ即反映 */
 function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -531,7 +531,9 @@ function openBooking(code){
   if(_tlDragged) return;                                  // ドラッグ直後のクリックは無視
   const r=Store.loadReservations().find(x=>x.code===code); if(!r) return;
   if(Store.isBlock(r)) return openBlock(r.blockGroup||r.code);   // 非患者ブロックは専用の画面へ
-  const clinic=Store.clinicOfCs(r.csId), svc=Store.serviceOfCs(r.csId), menu=r.menuId?Store.menuById(r.menuId):null, cid=clinic.id;
+  const clinic=Store.clinicOfCs(r.csId), svc=Store.serviceOfCs(r.csId), cid=clinic.id;
+  // W13: 複数メニューは名前を「A / B」、金額の初期値は価格の合計（価格の無いメニューは足さない）
+  const rms=Store.menusOf(r), menu=rms.length?{name:Store.menuLabel(r), price:rms.reduce((a,m)=>a+(Number(m.price)||0),0)||null}:null;
   const dur=Store.durMin(r), end=tlHHMM(tlToMin(r.time)+dur), age=r.birthDate?ageFrom(r.birthDate):null;
   const stMap={CONFIRMED:['予約確定','confirmed'],VISITED:['来院済','visited'],CANCELLED:['キャンセル','cancelled'],NO_SHOW:['不履行','no-show']};
   const st=stMap[r.status]||[r.status,'confirmed'];
@@ -876,7 +878,7 @@ function renderBoard(flashCodes){
   if(total===0){ document.getElementById("board").innerHTML = closedNote + `<div class="card"><strong>${esc(clinic.name)}クリニック</strong>のこの日の予約はありません。${clinic.openingNote?`（${esc(clinic.openingNote)}）`:""}<br><span class="muted">患者向けサイトや「電話予約の代理入力」から予約すると、ここに即時反映されます。</span></div>` + blockNote; return; }
 
   const trs = rows.map(r=>{
-    const svc = Store.serviceOfCs(r.csId), menu = r.menuId ? Store.menuById(r.menuId) : null, isNew = flashCodes && flashCodes.has(r.code);
+    const svc = Store.serviceOfCs(r.csId), menu = Store.menusOf(r).length ? { name: Store.menuLabel(r) } : null, isNew = flashCodes && flashCodes.has(r.code);
     return `<tr class="${isNew?"flash-new":""}">
       <td class="t-num" style="font-weight:700">${r.time}</td>
       <td>${roomSelect(r)}</td>
@@ -917,10 +919,7 @@ function afterMutate(){ prevCodes = currentCodes(); renderTab(curTab); }
 /* ---------------- タイムライン（時間軸 × 診察室・全院対応） ---------------- */
 function tlToMin(hhmm){ const [h,m]=hhmm.split(":").map(Number); return h*60+m; }
 function tlHHMM(min){ return `${String(Math.floor(min/60)).padStart(2,"0")}:${String(min%60).padStart(2,"0")}`; }
-function resDurMin(r){
-  if(r.menuId){ const m=Store.menuById(r.menuId); if(m&&m.durationMin) return m.durationMin; }
-  const s=Store.serviceOfCs(r.csId); return (s&&s.name==="在宅")?60:30;
-}
+function resDurMin(r){ return Store.durMin(r); }   // W13: 複数メニューの合計時間も store.js と同じ数え方
 let tlAxis="room";
 let tlCompact=false;                                  // 縮小表示
 let tlState={ sMin:540, axis:"room", resList:[], ppm:1 };   // 空き枠クリック用に現在の描画状態を保持
@@ -1047,7 +1046,7 @@ function renderTimeline(){
       const st=it.st, dur=resDurMin(r), end=st+dur;
       const top=(st-sMin)*PPM, h=Math.max(16,dur*PPM);
       const w=`calc((100% - 6px) / ${it.n})`, left=`calc(3px + (100% - 6px) * ${it.i} / ${it.n})`;
-      const svc=Store.serviceOfCs(r.csId), menu=r.menuId?Store.menuById(r.menuId):null;
+      const svc=Store.serviceOfCs(r.csId), menu=Store.menusOf(r).length?{name:Store.menuLabel(r)}:null;
       // 色＝診療区分（左4px）／状態＝塗り・打消し／未割当＝破線（UI調査 B-3）
       const cls=[svcClassOf(r), statusClassOf(r), rc.unassigned?'un':''].filter(Boolean).join(' ');
       return `<div class="tl-blk ${cls}" style="top:${top}px;height:${h}px;left:${left};width:${w};right:auto"
@@ -1280,7 +1279,7 @@ function listRowsHtml(){
   listCount = all.length;
   const STATUS = LIST_STATUS;
   const rows = all.map(r=>{
-    const c=Store.clinicOfCs(r.csId), svc=Store.serviceOfCs(r.csId), menu=r.menuId?Store.menuById(r.menuId):null;
+    const c=Store.clinicOfCs(r.csId), svc=Store.serviceOfCs(r.csId), menu=Store.menusOf(r).length?{name:Store.menuLabel(r)}:null;
     const st = STATUS[r.status]||[r.status,'confirmed'];
     const rm = r.status==="CONFIRMED" ? Store.roomName(r) : "", rmAlt = rm && roomAlt(r);
     return `<tr style="${r.status==='CANCELLED'?'opacity:.55':''}">

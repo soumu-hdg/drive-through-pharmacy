@@ -193,6 +193,12 @@ const Store = (() => {
         || FALLBACK_MENUS.find(m => Number(m.id) === Number(id));
   }
   function hasMenus(csId) { return _menus.some(m => m.csId === csId); }
+  // 予約が選んだメニュー（W13: 複数選んだ予約は menuIds、従来の予約は menuId の1件）
+  function menusOf(r) {
+    const ids = r && Array.isArray(r.menuIds) && r.menuIds.length ? r.menuIds : (r && r.menuId ? [r.menuId] : []);
+    return ids.map(menuById).filter(Boolean);
+  }
+  function menuLabel(r) { return menusOf(r).map(m => m.name).join(" / "); }
   // このメニューが使う「候補」リソース（機材・担当）。管理画面で登録する
   function menuResources(menuId, kind) {
     const ids = _menuRes.filter(x => Number(x.menuId) === Number(menuId)).map(x => Number(x.resourceId));
@@ -334,9 +340,12 @@ const Store = (() => {
   function _toMin(hhmm){ const [h,m]=String(hhmm).split(":").map(Number); return h*60+m; }
   function _hhmm(min){ return `${String(Math.floor(min/60)).padStart(2,"0")}:${String(min%60).padStart(2,"0")}`; }
   // 予約の所要分（メニュー基準・無ければ外来30/在宅60）。ブロックは1行=30分
+  // W13: 複数メニューの予約はサーバーが足し上げた合計（durationMin）、無ければ選んだメニューの合計
   function durMin(r){
     if(isBlock(r)) return BLOCK_STEP;
-    if(r && r.menuId){ const m=menuById(r.menuId); if(m&&m.durationMin) return m.durationMin; }
+    if(r && Number(r.durationMin) > 0) return Number(r.durationMin);
+    const ms = menusOf(r).filter(m => m.durationMin);
+    if(ms.length) return ms.reduce((a, m) => a + Number(m.durationMin), 0);
     const s=serviceOfCs(r && r.csId); return (s&&s.name==="在宅")?60:30;
   }
   // スタッフ/機材が指定時間帯に別予約で埋まっているか（時間の重なりで判定）
@@ -357,7 +366,15 @@ const Store = (() => {
      ・同型機を2台登録しておけば、1台が埋まっていてももう1台で受けられる＝取れる予約が最大になる。
      ・空きが無ければ何も割り当てない（＝予約は通し「未割当」に出す）。従来より予約が減ることはない。 */
   function freeResourceFor(kind, csId, date, startMin, endMin, menuId) {
-    let cands = menuId ? menuResources(menuId, kind) : [];
+    // W13: 複数メニューは配列で渡る。担当は全メニューを担当できる人を優先、機材は先に候補のあるメニューのもの
+    let cands = [];
+    if (Array.isArray(menuId)) {
+      const per = menuId.map(id => menuResources(id, kind)).filter(l => l.length);
+      if (per.length) {
+        const all = per[0].filter(c => per.every(l => l.some(x => x.id === c.id)));
+        cands = kind === "staff" && all.length ? all : per[0];
+      }
+    } else if (menuId) cands = menuResources(menuId, kind);
     /* ★メニュー台帳が整備されている区分では「候補が未登録＝その種別は自動で押さえない」。
        ここを従来どおり院内の全リソースにすると、機材を使わない施術（ボトックス等）が
        空いている機械を勝手に押さえてしまい、機材の予約が取れなくなる。
@@ -504,6 +521,8 @@ const Store = (() => {
       roomId: o.roomId ?? null, staffId: o.staffId ?? null, deviceId: o.deviceId ?? null,
       lineUserId: o.lineUserId || null,
       email: o.email || "", visitType: o.visitType || "", menuId: o.menuId || null,
+      menuIds: Array.isArray(o.menuIds) && o.menuIds.length ? o.menuIds.slice() : null,   // W13（先頭＝menuId）
+      durationMin: o.durationMin || null,
       note: o.note || "", status: "CONFIRMED", channel: o.channel || "WEB",
       createdAt: o.createdAt || new Date().toISOString(), sentAt: o.sentAt || null,
     };
@@ -674,6 +693,7 @@ const Store = (() => {
       name: r.name, kana: r.kana || "", phone: r.phone, birthDate: r.birth || "", email: r.email || "",
       roomId: r.room_id ?? null, staffId: r.staff_id ?? null, deviceId: r.device_id ?? null,
       visitType: r.visit_type || "", menuId: r.menu_id, note: r.note || "", status: r.status,
+      menuIds: r.menu_ids || null, durationMin: r.duration_min || null,
       channel: r.channel || "WEB", createdAt: r.created_at, sentAt: r.sent_at,
       lineUserId: r.line_user_id || null,
       kind: r.kind || "PATIENT", blockGroup: r.block_group || null,
@@ -686,7 +706,7 @@ const Store = (() => {
       karteSyncedAt: r.karte_synced_at || null, karteNote: r.karte_note || null,
       consentAt: r.consent_at || null, consentVersion: r.consent_version || null,
     });
-    const toRow = res => ({
+    const toRow = res => Object.assign({
       code: res.code, cs_id: res.csId, slot_id: res.slotId, rdate: res.date, rtime: res.time,
       name: res.name, kana: res.kana, phone: res.phone, birth: res.birthDate, email: res.email,
       room_id: res.roomId ?? null, staff_id: res.staffId ?? null, device_id: res.deviceId ?? null,
@@ -694,13 +714,14 @@ const Store = (() => {
       channel: res.channel, sent_at: res.sentAt, line_user_id: res.lineUserId || null,
       kind: res.kind || "PATIENT", block_group: res.blockGroup || null,
       consent_at: res.consentAt || null, consent_version: res.consentVersion || null,
-    });
+    }, res.menuIds && res.menuIds.length ? { menu_ids: res.menuIds, duration_min: res.durationMin || null } : {});   // W13 の列は複数メニューのときだけ送る
     // 患者画面用：空き枠計算に要る列だけを受け取る（氏名・電話などは返ってこない）
     const fromOcc = o => ({
       code: "P" + o.k, csId: o.cs_id, slotId: o.slot_id, date: o.rdate, time: o.rtime,
       name: "", kana: "", phone: "", birthDate: "", email: "",
       roomId: o.room_id ?? null, staffId: o.staff_id ?? null, deviceId: o.device_id ?? null,
       visitType: o.visit_type || "", menuId: o.menu_id, note: "", status: o.status,
+      menuIds: o.menu_ids || null, durationMin: o.duration_min || null,
       channel: "WEB", kind: o.kind || "PATIENT", blockGroup: o.block_group || null,
     });
     async function loadPublic() {
@@ -708,8 +729,59 @@ const Store = (() => {
       if (error) throw error;
       _cache = (data || []).map(fromOcc);
     }
+    /* 設定の読み込み（メニュー・診療時間・休診日・上限・機材・カルテの来院予定の件数）。
+       ★患者画面と職員画面で共通。2026-10-07 W11 で患者画面用の処理を分けたときに資源以外が抜け、
+       患者画面が予備のメニュー・既定の診療時間で動き、臨時休診も効いていなかった（2026-10-20 W13 で修正）。
+       どの表も公開キーで読める（氏名・電話などは含まない） */
+    const readers = {
+      async loadResources() {
+        const { data, error } = await client.from("rsv2_resources").select("*").eq("active", true);
+        if (error) return [];   // テーブル未作成でも予約本体は動かす
+        return (data || []).map(r => ({ id: r.id, clinicId: r.clinic_id, kind: r.kind, name: r.name, sortOrder: r.sort_order }));
+      },
+      async loadResourceServices() {
+        const { data, error } = await client.from("rsv2_resource_services").select("*");
+        if (error) return [];
+        return (data || []).map(x => ({ resourceId:x.resource_id, csId:x.cs_id }));
+      },
+      async loadServiceLimits() {
+        const { data, error } = await client.from("rsv2_service_limits").select("*");
+        if (error) return [];
+        return (data || []).map(x => ({ csId:x.cs_id, maxConcurrent:x.max_concurrent, note:x.note||"" }));
+      },
+      async loadMenus() {
+        const { data, error } = await client.from("rsv2_menus").select("*").eq("active", true);
+        if (error) return [];   // テーブル未作成でも従来の固定メニューで動く
+        return (data || []).map(m => ({ id:m.id, csId:m.cs_id, name:m.name, price:m.price,
+          firstVisitPrice:m.first_visit_price, durationMin:m.duration_min, concerns:m.concerns,
+          catch:m.catch, downtime:m.downtime, staffType:m.staff_type, popular:m.popular, sortOrder:m.sort_order }));
+      },
+      async loadMenuResources() {
+        const { data, error } = await client.from("rsv2_menu_resources").select("*");
+        if (error) return [];
+        return (data || []).map(x => ({ menuId:x.menu_id, resourceId:x.resource_id }));
+      },
+      /* --- カルテの来院予定（件数のみ・氏名なし） --- */
+      async loadKarteBusy() {
+        const { data, error } = await client.from("rsv2_karte_busy").select("*");
+        if (error) return [];   // ビュー未作成・権限なしでも予約本体は動かす
+        return (data || []).map(k => ({ clinicId:k.clinic_id, date:k.rdate, time:k.rtime, busy:k.busy }));
+      },
+      async loadHours() {
+        const { data, error } = await client.from("rsv2_hours").select("*").eq("active", true);
+        if (error) return [];   // テーブル未作成でも予約本体は動かす（＝従来のハードコード運用）
+        return (data || []).map(h => ({ id:h.id, clinicId:h.clinic_id, csId:h.cs_id, weekday:h.weekday,
+          openTime:h.open_time, closeTime:h.close_time, slotMin:h.slot_min, active:h.active }));
+      },
+      async loadClosures() {
+        const { data, error } = await client.from("rsv2_closures").select("*");
+        if (error) return [];
+        return (data || []).map(c => ({ id:c.id, clinicId:c.clinic_id, csId:c.cs_id, date:c.cdate, reason:c.reason||"" }));
+      },
+    };
     if (PUBLIC_MODE) {
       return {
+        ...readers,
         async init() {
           await loadPublic();
           // Realtime は使わない（公開キーでは予約の表を読めないため）。30秒ごとに空き状況を読み直す
@@ -738,14 +810,10 @@ const Store = (() => {
           return data;   // OK / NOT_FOUND / ALREADY
         },
         async setStatus() { throw new Error("患者画面からは状態を変更できません"); },
-        async loadResources() {
-          const { data, error } = await client.from("rsv2_resources").select("*").eq("active", true);
-          if (error) return [];
-          return (data || []).map(r => ({ id: r.id, clinicId: r.clinic_id, kind: r.kind, name: r.name, sortOrder: r.sort_order }));
-        },
       };
     }
     return {
+      ...readers,
       async init() {
         // 職員画面：ログイン前は予約の表を読まない（公開キーでは読めず「未接続」と誤表示になるため）。
         // ログインするとページを読み直すので、そのときに読み込む。
@@ -850,19 +918,9 @@ const Store = (() => {
         if (r) { r.time = newTime; r.slotId = slot; }
       },
       /* --- リソース（部屋/スタッフ/機材） --- */
-      async loadResources() {
-        const { data, error } = await client.from("rsv2_resources").select("*").eq("active", true);
-        if (error) return [];   // テーブル未作成でも予約本体は動かす
-        return (data || []).map(r => ({ id: r.id, clinicId: r.clinic_id, kind: r.kind, name: r.name, sortOrder: r.sort_order }));
-      },
       async getNote(clinicId, date) { const { data } = await client.from("rsv2_daily_notes").select("note").eq("clinic_id", clinicId).eq("ndate", date).maybeSingle(); return data ? (data.note||"") : ""; },
       async saveNote(clinicId, date, note) { const { error } = await client.from("rsv2_daily_notes").upsert({ clinic_id:clinicId, ndate:date, note, updated_at:new Date().toISOString() }, { onConflict:"clinic_id,ndate" }); if (error) throw error; },
       /* --- リソース × 診療区分（Wave6）。テーブルが無い環境でも予約本体は動かす --- */
-      async loadResourceServices() {
-        const { data, error } = await client.from("rsv2_resource_services").select("*");
-        if (error) return [];
-        return (data || []).map(x => ({ resourceId:x.resource_id, csId:x.cs_id }));
-      },
       async setResourceServices(resourceId, csIds) {
         const del = await client.from("rsv2_resource_services").delete().eq("resource_id", resourceId);
         if (del.error) throw del.error;
@@ -872,11 +930,6 @@ const Store = (() => {
         if (error) throw error;
       },
       /* --- 区分ごとの同時予約の上限（Wave7） --- */
-      async loadServiceLimits() {
-        const { data, error } = await client.from("rsv2_service_limits").select("*");
-        if (error) return [];
-        return (data || []).map(x => ({ csId:x.cs_id, maxConcurrent:x.max_concurrent, note:x.note||"" }));
-      },
       async setServiceLimit(csId, max, note) {
         if (!max) {
           const { error } = await client.from("rsv2_service_limits").delete().eq("cs_id", csId);
@@ -890,24 +943,6 @@ const Store = (() => {
       async renameResource(id, name) { const { error } = await client.from("rsv2_resources").update({ name }).eq("id", id); if (error) throw error; },
       async removeResource(id) { const { error } = await client.from("rsv2_resources").delete().eq("id", id); if (error) throw error; },
       /* --- メニュー台帳と「使う機材／担当」の紐づけ（Wave4） --- */
-      async loadMenus() {
-        const { data, error } = await client.from("rsv2_menus").select("*").eq("active", true);
-        if (error) return [];   // テーブル未作成でも従来の固定メニューで動く
-        return (data || []).map(m => ({ id:m.id, csId:m.cs_id, name:m.name, price:m.price,
-          firstVisitPrice:m.first_visit_price, durationMin:m.duration_min, concerns:m.concerns,
-          catch:m.catch, downtime:m.downtime, staffType:m.staff_type, popular:m.popular, sortOrder:m.sort_order }));
-      },
-      async loadMenuResources() {
-        const { data, error } = await client.from("rsv2_menu_resources").select("*");
-        if (error) return [];
-        return (data || []).map(x => ({ menuId:x.menu_id, resourceId:x.resource_id }));
-      },
-      /* --- カルテの来院予定（件数のみ・氏名なし） --- */
-      async loadKarteBusy() {
-        const { data, error } = await client.from("rsv2_karte_busy").select("*");
-        if (error) return [];   // ビュー未作成・権限なしでも予約本体は動かす
-        return (data || []).map(k => ({ clinicId:k.clinic_id, date:k.rdate, time:k.rtime, busy:k.busy }));
-      },
       /* --- 会計の記録（①の準備。Stripe接続なしでも使える） --- */
       async setPayment(code, p) {
         const row = { payment_status:p.status ?? null, payment_method:p.method ?? null,
@@ -952,17 +987,6 @@ const Store = (() => {
         _cache = _cache.filter(r => r.blockGroup !== group);
       },
       /* --- 診療時間・休診日 --- */
-      async loadHours() {
-        const { data, error } = await client.from("rsv2_hours").select("*").eq("active", true);
-        if (error) return [];   // テーブル未作成でも予約本体は動かす（＝従来のハードコード運用）
-        return (data || []).map(h => ({ id:h.id, clinicId:h.clinic_id, csId:h.cs_id, weekday:h.weekday,
-          openTime:h.open_time, closeTime:h.close_time, slotMin:h.slot_min, active:h.active }));
-      },
-      async loadClosures() {
-        const { data, error } = await client.from("rsv2_closures").select("*");
-        if (error) return [];
-        return (data || []).map(c => ({ id:c.id, clinicId:c.clinic_id, csId:c.cs_id, date:c.cdate, reason:c.reason||"" }));
-      },
       async addHours(rows) {
         const { error } = await client.from("rsv2_hours").insert(rows.map(h => ({
           clinic_id:h.clinicId, cs_id:h.csId, weekday:h.weekday,
@@ -1368,14 +1392,20 @@ const Store = (() => {
     if (dup) return { ok: false, error: "同じ日時に既にご予約があります。" };
     if (input.roomId == null) input.roomId = freeRoom(input.csId, input.date, input.time);  // 空き診察室を自動割当
     // スタッフ・機材の被りチェック（受付が指定した場合）
-    const st = _toMin(input.time), en = st + durMin({ csId: input.csId, menuId: input.menuId });
+    // W13: 複数メニューは合計時間で担当・機材の重なりを見る（保存時はサーバーがメニュー台帳から足し直す）
+    if (Array.isArray(input.menuIds) && input.menuIds.length) {
+      input.menuId = input.menuIds[0];
+      input.durationMin = durMin({ csId: input.csId, menuIds: input.menuIds });
+    }
+    const st = _toMin(input.time), en = st + durMin({ csId: input.csId, menuId: input.menuId, menuIds: input.menuIds });
     if (input.staffId && resourceConflict("staff", Number(input.staffId), input.date, st, en))
       return { ok: false, error: "選択したスタッフはその時間帯に別の予約があります。" };
     if (input.deviceId && resourceConflict("device", Number(input.deviceId), input.date, st, en))
       return { ok: false, error: "選択した機材はその時間帯に別の予約で使用中です。" };
     // 指定が無ければ、空いている担当・機材を自動で確保する（Wave4）
-    if (input.staffId == null)  input.staffId  = freeResourceFor("staff",  input.csId, input.date, st, en, input.menuId);
-    if (input.deviceId == null) input.deviceId = freeResourceFor("device", input.csId, input.date, st, en, input.menuId);
+    const resMenus = input.menuIds && input.menuIds.length > 1 ? input.menuIds : input.menuId;
+    if (input.staffId == null)  input.staffId  = freeResourceFor("staff",  input.csId, input.date, st, en, resMenus);
+    if (input.deviceId == null) input.deviceId = freeResourceFor("device", input.csId, input.date, st, en, resMenus);
     const r = mkRes(input);
     // ★予約番号は「保存が成功してから」確定・表示する（失敗したのに番号は出さない）
     try { await backend.insert(r); }
@@ -1485,7 +1515,7 @@ const Store = (() => {
     getBackendError: () => backendError,                             // {reason,code,message,details}
     refreshReservations,                                             // 明示的な再読込（UIから呼べる）
     todayStr, addDays, fmtJa, weekday,
-    clinicOfCs, serviceOfCs, menusOfCs, menuById,
+    clinicOfCs, serviceOfCs, menusOfCs, menuById, menusOf, menuLabel,
     roomsOf, roomsOfCs, capacityOfCs, roomOf, roomName, roomIndex, freeRoom, durMin, resourceConflict,
     getDays, createReservation, setRoom, assignResource, moveReservation, findReservation, lookupReservation, cancelReservation, updateStatus,
     dayReservations, loadReservations,
