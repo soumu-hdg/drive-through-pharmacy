@@ -66,26 +66,8 @@
     if (m.price != null) return `¥${Number(m.price).toLocaleString()}〜`;
     return "要問合せ";
   }
-  /* 予約メニューは画像なしで、分類ごとに開け閉めする一覧に出す。
-     分類はメニュー台帳に列が無いため、メニュー名から決める（台帳に category があればそちらを優先）。
-     並びは台帳の並び順で、分類はその分類の最初のメニューの位置に出す */
-  const MENU_GROUPS = [
-    { label: "カウンセリング", re: /カウンセリング/ },
-    { label: "アートメイク", re: /アートメイク|リタッチ|スクラッチテスト/ },
-    { label: "ボトックス", re: /ボトックス/ },
-    { label: "ポテンツァ", re: /ポテンツァ/ },
-    { label: "デンシティ", re: /デンシティ/ },
-    { label: "フォトフェイシャル・光治療", re: /フォトフェイシャル|IPL|光治療/ },
-    { label: "ララドクター", re: /ララドクター/ },
-    { label: "注入治療（ジュベルック・プロファイロ・プルリアル）", re: /ジュベルック|juvelook|プロファイロ|プルリアル/i },
-    { label: "エレクトロポレーション", re: /エレクトロポレーション/ },
-  ];
-  const menuGroupOf = (m) => (m && m.category) || (MENU_GROUPS.find((g) => g.re.test((m && m.name) || "")) || {}).label || "その他の施術";
-  function groupedMenus(menus) {
-    const map = new Map();
-    menus.forEach((m) => { const g = menuGroupOf(m); if (!map.has(g)) map.set(g, []); map.get(g).push(m); });
-    return [...map.entries()];
-  }
+  // 予約メニューは画像なしで、分類ごとに開け閉めする一覧に出す（分類の決め方は store.js の groupMenus）
+  const groupedMenus = (menus) => Store.groupMenus(menus);
 
   /* ---------- 複数メニュー（W13）: 選んだ順に持ち、所要時間は合計で数える。上限はサーバーと同じ 10件・8時間 ---------- */
   const MAX_MENUS = 10, MAX_TOTAL_MIN = 480;

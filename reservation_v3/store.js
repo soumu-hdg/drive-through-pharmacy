@@ -199,6 +199,25 @@ const Store = (() => {
     return ids.map(menuById).filter(Boolean);
   }
   function menuLabel(r) { return menusOf(r).map(m => m.name).join(" / "); }
+  /* 予約メニューの分類（患者画面・受付ボードの「分類ごとの開け閉め」）。台帳に分類の列が無いため名前から決める
+     （category があればそちらを優先）。分類はその分類の最初のメニューの位置に出す */
+  const MENU_GROUPS = [
+    { label: "カウンセリング", re: /カウンセリング/ },
+    { label: "アートメイク", re: /アートメイク|リタッチ|スクラッチテスト/ },
+    { label: "ボトックス", re: /ボトックス/ },
+    { label: "ポテンツァ", re: /ポテンツァ/ },
+    { label: "デンシティ", re: /デンシティ/ },
+    { label: "フォトフェイシャル・光治療", re: /フォトフェイシャル|IPL|光治療/ },
+    { label: "ララドクター", re: /ララドクター/ },
+    { label: "注入治療（ジュベルック・プロファイロ・プルリアル）", re: /ジュベルック|juvelook|プロファイロ|プルリアル/i },
+    { label: "エレクトロポレーション", re: /エレクトロポレーション/ },
+  ];
+  const menuGroupOf = (m) => (m && m.category) || (MENU_GROUPS.find(g => g.re.test((m && m.name) || "")) || {}).label || "その他の施術";
+  function groupMenus(menus) {
+    const map = new Map();
+    menus.forEach(m => { const g = menuGroupOf(m); if (!map.has(g)) map.set(g, []); map.get(g).push(m); });
+    return [...map.entries()];
+  }
   // このメニューが使う「候補」リソース（機材・担当）。管理画面で登録する
   function menuResources(menuId, kind) {
     const ids = _menuRes.filter(x => Number(x.menuId) === Number(menuId)).map(x => Number(x.resourceId));
@@ -1515,7 +1534,7 @@ const Store = (() => {
     getBackendError: () => backendError,                             // {reason,code,message,details}
     refreshReservations,                                             // 明示的な再読込（UIから呼べる）
     todayStr, addDays, fmtJa, weekday,
-    clinicOfCs, serviceOfCs, menusOfCs, menuById, menusOf, menuLabel,
+    clinicOfCs, serviceOfCs, menusOfCs, menuById, menusOf, menuLabel, groupMenus,
     roomsOf, roomsOfCs, capacityOfCs, roomOf, roomName, roomIndex, freeRoom, durMin, resourceConflict,
     getDays, createReservation, setRoom, assignResource, moveReservation, findReservation, lookupReservation, cancelReservation, updateStatus,
     dayReservations, loadReservations,
